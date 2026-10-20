@@ -1,0 +1,24 @@
+# Unreal Engine generated / cached content
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+.vs/
+.idea/
+*.sln
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.suo
+*.xcodeproj
+*.xcworkspace
+
+# Plugins build output
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# OS cruft
+.DS_Store
+Thumbs.db
