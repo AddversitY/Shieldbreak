@@ -17,6 +17,7 @@
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakPlayerState.h"
+#include "Test/ShieldbreakSelfTest.h"
 #include "UI/ShieldbreakHUD.h"
 
 // Named (not anonymous) so unity builds cannot collide with other files' helpers.
@@ -113,6 +114,15 @@ void AShieldbreakGameMode::StartPlay()
 	EnsureArena();
 
 	Super::StartPlay();
+
+	if (AShieldbreakSelfTest::IsRequested())
+	{
+		// Scripted test run: no bots until the test asks for them, humans stay spectators.
+		NumBots = 0;
+		FActorSpawnParameters SelfTestParams;
+		SelfTestParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		GetWorld()->SpawnActor<AShieldbreakSelfTest>(AShieldbreakSelfTest::StaticClass(), FTransform::Identity, SelfTestParams);
+	}
 
 	GetWorldTimerManager().SetTimer(InitialBotsTimerHandle, this, &AShieldbreakGameMode::SpawnInitialBots,
 		ShieldbreakGameModePrivate::InitialBotDelay, false);
@@ -214,6 +224,12 @@ void AShieldbreakGameMode::RestartPlayer(AController* NewPlayer)
 
 	// Nobody spawns during the match-over banner; PerformMatchReset clears bMatchOver first.
 	if (bMatchOver)
+	{
+		return;
+	}
+
+	// During a self-test run the human only watches.
+	if (AShieldbreakSelfTest::IsRequested() && Cast<APlayerController>(NewPlayer))
 	{
 		return;
 	}
