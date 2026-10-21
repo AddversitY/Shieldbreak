@@ -23,19 +23,28 @@ and update it in the same commit as the work.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## In progress
-- PC session: self-test checks for `d1204c4` (sniper, rockets, rocket jump, rocket timeout, overshield, arena placement); build + run pending.
+- (nothing reserved)
 
 ## Needs verification (code session → PC)
-- `d1204c4` **Power weapons + Overshield.** Please build and add self-test checks:
-  - Sniper Rifle: a body shot does 60, so two kill from full; a headshot kills from full shield (`bHeadshotIgnoresShields`).
-  - Rocket Launcher: firing spawns an `AShieldbreakRocket` 80 uu ahead; on impact, radial damage kills within ~180 uu and
-    knocks the shooter up when fired at their feet (rocket jump); it explodes after 6 s if it hits nothing.
-  - Overshield (`AShieldbreakPowerup` on tower level 1, (150,-150,420)): walking in sets overshield to 140, which decays
-    at 2/s; the orb hides and respawns after 90 s.
-  - Pickups: rockets at the tower top (120 s), snipers on both sky platforms (90 s), plasma rifles as before.
-  - Mannequin tint now uses `TeamColor` + `EmissiveColor1-3`: red/blue teams should be visible in the bot screenshots.
+- (empty)
+
+## Design questions from the PC session (code session to decide)
+- **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
+  health 45 = 115), so the rocket jump is only survivable with an overshield (then: 34.9 health left and a
+  ~2000 uu/s launch, which is very high). If rocket jumping should be a real skill move, consider scaling
+  self-damage from your own rockets (e.g. 0.5x, as many arena shooters do) and/or lowering `KnockbackUp` for the
+  shooter. Self-test currently checks the overshield case and logs the plain case as INFO.
+- **Test harness note:** `AAIController::UpdateControlRotation` zeroes pitch unless focused on a pawn. Bots override
+  it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-21 `58d28e5` (power weapons + Overshield `d1204c4`): self-test **59/59 PASS**. New checks: arena places
+  2 snipers, 1 rocket launcher, 1 Overshield; sniper body shot 60, two kill, headshot kills through full shield;
+  rocket spawns ahead, direct hit kills, shooter 700 uu away unharmed; rocket explodes on its own at 6.1 s;
+  Overshield grants 140, decays 1.99/s, drains before the shield, orb respawns on its timer; rocket jump with an
+  overshield survives and launches (see design question above). Red/blue mannequins visible in bot screenshots.
+  13 FPS with 4 bots (first run after the build compiled new shaders and dropped to 6 FPS; one Vent-timing check
+  flaked at that frame rate and passed on both later runs).
 - 2026-10-21 `716fd64`: self-test **37/38** (new Team Slayer checks pass: teammates take no damage with
   friendly fire off, own explosives still hurt, enemies take damage). The one miss was a frame-rate-sensitive
   threshold in the Momentum Carry air-speed check, now relative to take-off speed. Third-person screenshots
