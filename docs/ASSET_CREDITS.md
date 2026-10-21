@@ -81,6 +81,24 @@ guns by attaching to the mannequin's **`weapon_r` bone** (there is no `weapon_r`
 only the bone). For a muzzle on the static meshes use `(0, Bounds.Max.Y, ~0)` in mesh space, or switch to
 the `SK_*` meshes and their `Muzzle` socket.
 
+### Mannequin materials and team colors
+(read with `Tools/ListSockets.bat`, 2026-10-21)
+
+| Mesh | Slot 0 | Slot 1 |
+|---|---|---|
+| `SKM_Manny` | `M_torso` → `MI_Manny_02_Blue` | `M_HeadLegs` → `MI_Manny_01_Blue` |
+| `SKM_Quinn` | `Quinn_01` → `MI_Quinn_01_Blue` | `Quinn_02` → `MI_Quinn_02_Blue` |
+
+All of them derive from `/Game/Characters/Heroes/Mannequin/Materials/M_Mannequin`. Its **vector parameters**
+are `TeamColor` (the armor base color; Blue instances use (0.055, 0.36, 0.97)), `EmissiveColor`,
+`EmissiveColor2`, `EmissiveColor3` (the glowing strips; blue/cyan on the `_02` and Quinn instances),
+`EdgeGlowColor`, `CarbonfiberTint` (0.27 grey) and `HitPosition0`.
+
+To tint a team, set **`TeamColor`** and the three **`EmissiveColor*`** parameters on dynamic instances of
+both slots. Ready-made red and blue instances also exist: `Materials/Instances/Manny/MI_Manny_0{1,2}_{Red,Blue}`
+and `Materials/Instances/Quinn/MI_Quinn_0{1,2}_{Red,Blue}` (plus neutral `MI_Manny_01`, `MI_Manny_02`), so
+`SetMaterial` with the `_Red` instances is the simplest option.
+
 ### Effects (Niagara)
 | Use | Path |
 |---|---|
