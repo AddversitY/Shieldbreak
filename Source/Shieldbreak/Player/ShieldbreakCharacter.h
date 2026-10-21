@@ -13,6 +13,7 @@ class AShieldbreakWeapon;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class UShieldHealthComponent;
+class UShieldbreakBodyAnimator;
 class UShieldbreakMovementComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
@@ -28,6 +29,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void NotifyControllerChanged() override;
 	virtual void OnRep_PlayerState() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -96,6 +98,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shieldbreak")
 	TObjectPtr<UShieldHealthComponent> ShieldHealth;
+
+	/** Imported mannequin body + locomotion (falls back to the greybox meshes when the art is missing). */
+	UPROPERTY(VisibleAnywhere, Category = "Character")
+	TObjectPtr<UShieldbreakBodyAnimator> BodyAnimator;
 
 	// ---- Loadout ----
 

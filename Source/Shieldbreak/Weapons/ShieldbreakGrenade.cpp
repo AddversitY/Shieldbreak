@@ -1,6 +1,7 @@
 #include "Weapons/ShieldbreakGrenade.h"
 
 #include "Audio/ShieldbreakSFX.h"
+#include "Visuals/ShieldbreakArt.h"
 #include "Shieldbreak.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -74,10 +75,17 @@ void AShieldbreakGrenade::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UMaterialInstanceDynamic* MID = GrenadeMesh->CreateDynamicMaterialInstance(0))
+	if (UStaticMesh* Art = ShieldbreakArt::Load<UStaticMesh>(ShieldbreakArt::GrenadeMesh))
+	{
+		GrenadeMesh->SetStaticMesh(Art);
+		GrenadeMesh->EmptyOverrideMaterials();
+		GrenadeMesh->SetRelativeScale3D(FVector::OneVector);
+	}
+	else if (UMaterialInstanceDynamic* MID = GrenadeMesh->CreateDynamicMaterialInstance(0))
 	{
 		MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.25f, 0.4f, 0.15f));
 	}
+	ShieldbreakArt::SpawnFXAttached(ShieldbreakArt::GrenadeTrailFX, GrenadeMesh, NAME_None, GetActorLocation(), GetActorRotation());
 
 	if (!HasAuthority())
 	{
@@ -182,5 +190,10 @@ void AShieldbreakGrenade::PlayExplosionFX()
 		GrenadeMesh->SetVisibility(false);
 	}
 	AShieldbreakTracer::SpawnBurst(GetWorld(), GetActorLocation(), 30.f, InnerRadius, 0.3f, FLinearColor(1.f, 0.45f, 0.05f));
-	FShieldbreakSFX::PlayAt(this, EShieldbreakSound::GrenadeExplosion, GetActorLocation());
+	const FVector Location = GetActorLocation();
+	ShieldbreakArt::SpawnFX(this, ShieldbreakArt::GrenadeExplosionFX, Location);
+	if (!ShieldbreakArt::PlaySound(this, ShieldbreakArt::GrenadeExplosionSound, &Location))
+	{
+		FShieldbreakSFX::PlayAt(this, EShieldbreakSound::GrenadeExplosion, Location);
+	}
 }

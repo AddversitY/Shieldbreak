@@ -2,6 +2,7 @@
 
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
+#include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -120,6 +121,13 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 
 	ShieldHealth = CreateDefaultSubobject<UShieldHealthComponent>(TEXT("ShieldHealth"));
 	CreateDefaultSubobject<UShieldbreakCharacterAudio>(TEXT("ShieldAudio"));
+	BodyAnimator = CreateDefaultSubobject<UShieldbreakBodyAnimator>(TEXT("BodyAnimator"));
+
+	// Mannequin placement (the mesh asset itself is assigned at runtime by BodyAnimator): feet on the
+	// capsule bottom, facing +X. Set here so ACharacter caches it as the crouch base offset.
+	GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -92.f), FRotator(0.f, -90.f, 0.f));
+	// Bullets must reach the head hitbox sphere, not stop on the visual mesh.
+	GetMesh()->SetCollisionResponseToChannel(ECC_Weapon, ECR_Ignore);
 
 	PrimaryWeaponClass = AWeapon_BattleRifle::StaticClass();
 	SecondaryWeaponClass = AWeapon_SMG::StaticClass();
@@ -138,6 +146,20 @@ void AShieldbreakCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 void AShieldbreakCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// With the mannequin in place the greybox pieces are hidden; HeadMesh stays as the (invisible) headshot hitbox.
+	if (BodyAnimator && BodyAnimator->HasBodyArt())
+	{
+		BodyMesh->SetVisibility(false);
+		VisorMesh->SetVisibility(false);
+		HeadMesh->SetVisibility(false);
+
+		// A replicated weapon can be equipped before the body art existed; move it to the hand now.
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->OnEquipped();
+		}
+	}
 
 	TintMesh(VisorMesh, ShieldbreakCharacterPrivate::VisorColor, VisorMID);
 	TintMesh(ShapeShieldMesh, ShieldbreakCharacterPrivate::ShapeColor, ShapeMID);
@@ -170,6 +192,17 @@ void AShieldbreakCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 	ApplyPlayerColor();
+}
+
+void AShieldbreakCharacter::NotifyControllerChanged()
+{
+	Super::NotifyControllerChanged();
+
+	// Viewmodel vs third-person attachment depends on who controls us, which can arrive after the weapon.
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->OnEquipped();
+	}
 }
 
 void AShieldbreakCharacter::OnRep_PlayerState()
@@ -894,10 +927,20 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	StopFire();
 	SetSprinting(false);
 
-	// Visuals on every machine: the greybox body collapses into physics debris.
+	// Visuals on every machine: the mannequin ragdolls, or the greybox body collapses into physics debris.
 	ShapeShieldMesh->SetVisibility(false);
+	const bool bRagdoll = BodyAnimator && BodyAnimator->HasBodyArt();
+	if (bRagdoll)
+	{
+		BodyAnimator->StartRagdoll(FVector(FMath::FRandRange(-150.f, 150.f), FMath::FRandRange(-150.f, 150.f), 150.f));
+		HeadMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 	for (UStaticMeshComponent* Piece : { BodyMesh.Get(), HeadMesh.Get(), VisorMesh.Get() })
 	{
+		if (bRagdoll)
+		{
+			break;
+		}
 		if (!Piece)
 		{
 			continue;

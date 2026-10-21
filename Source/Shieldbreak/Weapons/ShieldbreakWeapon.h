@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
 #include "Audio/ShieldbreakSFX.h"
+#include "UObject/SoftObjectPath.h"
 #include "ShieldbreakWeapon.generated.h"
 
 class AShieldbreakCharacter;
@@ -56,6 +57,13 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FLinearColor TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") TSubclassOf<UDamageType> DamageType;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FVector MeshScale = FVector(0.6f, 0.1f, 0.12f);
+
+	// ---- Imported art (optional; anything missing falls back to the greybox / synthesized sound) ----
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMesh;
+	/** First-person length (cm) the art mesh is scaled to along its barrel. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") float ArtViewLength = 55.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath FireSound;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath MuzzleFlash;
 };
 
 UCLASS(Abstract)
@@ -115,6 +123,10 @@ private:
 	bool CanFireShotLocal() const;
 	void FireShotLocal();
 	FVector GetMuzzleLocation() const;
+	FVector GetBarrelDirection() const;
+	void ApplyArt();
+	void PlayShotEffects(bool bLocalView);
+	void SpawnImpactFX(const FHitResult& Hit) const;
 	void ApplyRecoil();
 	EShieldbreakSound GetShotSound() const;
 
@@ -135,6 +147,15 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Reloading) bool bReloading = false;
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
+
+	// Imported art layout, derived from the mesh in ApplyArt().
+	bool bHasArt = false;
+	FName MuzzleSocket = NAME_None;
+	FVector ArtCenterLocal = FVector::ZeroVector;
+	FVector ArtBarrelLocal = FVector::ForwardVector;
+	float ArtHalfLength = 30.f;
+	float ArtViewScale = 1.f;
+	FRotator ArtAlign = FRotator::ZeroRotator;
 
 	// Local fire loop.
 	bool bWantsToFire = false;

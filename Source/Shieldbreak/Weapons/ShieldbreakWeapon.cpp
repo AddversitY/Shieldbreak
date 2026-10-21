@@ -19,6 +19,9 @@
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakTracer.h"
 #include "Audio/ShieldbreakSFX.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/StaticMeshSocket.h"
+#include "Visuals/ShieldbreakArt.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -106,6 +109,8 @@ void AShieldbreakWeapon::BeginPlay()
 		BarrelMID->SetVectorParameterValue(TEXT("Color"), Stats.TracerColor * 0.6f);
 	}
 
+	ApplyArt();
+
 	CurrentSpread = Stats.BaseSpreadDegrees;
 
 	if (HasAuthority())
@@ -142,9 +147,34 @@ void AShieldbreakWeapon::OnEquipped()
 		return;
 	}
 
-	AttachToComponent(OwnerCharacter->GetFirstPersonCamera(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-	SetActorRelativeLocation(ShieldbreakWeaponPrivate::EquippedOffset);
-	SetActorRelativeRotation(ShieldbreakWeaponPrivate::EquippedRotation);
+	// Everyone else sees the imported gun in the mannequin's hand; the local player gets a camera viewmodel.
+	const bool bViewModel = OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
+	USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
+	if (bHasArt && !bViewModel && Body && Body->GetSkeletalMeshAsset())
+	{
+		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
+		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
+		SetActorRelativeTransform(FTransform::Identity);
+		WeaponMesh->SetCastShadow(true);
+	}
+	else
+	{
+		AttachToComponent(OwnerCharacter->GetFirstPersonCamera(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+		if (bHasArt)
+		{
+			// Align the barrel with the view, scale to viewmodel size and center the mesh on the grip offset.
+			const FQuat ViewRotation = ShieldbreakWeaponPrivate::EquippedRotation.Quaternion() * ArtAlign.Quaternion();
+			SetActorRelativeRotation(ViewRotation);
+			SetActorRelativeScale3D(FVector(ArtViewScale));
+			SetActorRelativeLocation(ShieldbreakWeaponPrivate::EquippedOffset - ViewRotation.RotateVector(ArtCenterLocal * ArtViewScale));
+		}
+		else
+		{
+			SetActorRelativeLocation(ShieldbreakWeaponPrivate::EquippedOffset);
+			SetActorRelativeRotation(ShieldbreakWeaponPrivate::EquippedRotation);
+		}
+		WeaponMesh->SetCastShadow(false);
+	}
 	SetActorHiddenInGame(false);
 	CurrentSpread = Stats.BaseSpreadDegrees;
 }
@@ -296,6 +326,15 @@ void AShieldbreakWeapon::Tick(float DeltaSeconds)
 
 FVector AShieldbreakWeapon::GetMuzzleLocation() const
 {
+	if (bHasArt)
+	{
+		if (MuzzleSocket != NAME_None)
+		{
+			return WeaponMesh->GetSocketLocation(MuzzleSocket);
+		}
+		const FVector Center = WeaponMesh->GetComponentTransform().TransformPosition(ArtCenterLocal);
+		return Center + GetBarrelDirection() * ArtHalfLength * WeaponMesh->GetComponentScale().X;
+	}
 	return BarrelMesh ? BarrelMesh->GetComponentLocation() + GetActorForwardVector() * 15.f : GetActorLocation();
 }
 
@@ -349,7 +388,11 @@ void AShieldbreakWeapon::FireShotLocal()
 	if (OwnerCharacter->IsPlayerControlled())
 	{
 		AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), bHit ? Hit.ImpactPoint : End, Stats.TracerColor);
-		FShieldbreakSFX::Play2D(this, GetShotSound(), 0.55f, FMath::FRandRange(0.96f, 1.04f));
+		PlayShotEffects(true);
+		if (bHit)
+		{
+			SpawnImpactFX(Hit);
+		}
 		ApplyRecoil();
 	}
 
@@ -513,8 +556,109 @@ void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
 		return;
 	}
 
-	AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), End, Stats.TracerColor);
-	FShieldbreakSFX::PlayAt(this, GetShotSound(), GetMuzzleLocation(), 0.9f, FMath::FRandRange(0.96f, 1.04f));
+	const FVector Muzzle = GetMuzzleLocation();
+	AShieldbreakTracer::Spawn(World, Muzzle, End, Stats.TracerColor);
+	PlayShotEffects(false);
+
+	// Only the end point is replicated; a short trace there recovers the surface for the impact effect.
+	const FVector ShotDir = (FVector(End) - Muzzle).GetSafeNormal();
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakImpactFX), false, GetOwner());
+	Params.AddIgnoredActor(this);
+	if (World->LineTraceSingleByChannel(Hit, FVector(End) - ShotDir * 20.f, FVector(End) + ShotDir * 20.f, ECC_Weapon, Params))
+	{
+		SpawnImpactFX(Hit);
+	}
+}
+
+void AShieldbreakWeapon::ApplyArt()
+{
+	UStaticMesh* Art = Stats.ArtMesh.IsNull() ? nullptr : ShieldbreakArt::Load<UStaticMesh>(*Stats.ArtMesh.ToString());
+	if (!Art)
+	{
+		return;
+	}
+
+	WeaponMesh->SetStaticMesh(Art);
+	WeaponMesh->EmptyOverrideMaterials();
+	WeaponMesh->SetRelativeScale3D(FVector::OneVector);
+	BarrelMesh->SetVisibility(false);
+	BodyMID = nullptr;
+	bHasArt = true;
+
+	static const FName SocketCandidates[] = { TEXT("Muzzle"), TEXT("MuzzleFlash"), TEXT("muzzle"), TEXT("Muzzle_01") };
+	for (const FName& Candidate : SocketCandidates)
+	{
+		if (Art->FindSocket(Candidate))
+		{
+			MuzzleSocket = Candidate;
+			break;
+		}
+	}
+
+	// Barrel axis: toward the muzzle socket if there is one, else the longest horizontal extent.
+	const FBox Box = Art->GetBoundingBox();
+	const FVector Extent = Box.GetExtent();
+	ArtCenterLocal = Box.GetCenter();
+	FVector Barrel = Extent.X >= Extent.Y ? FVector::ForwardVector : FVector::RightVector;
+	if (const UStaticMeshSocket* Socket = MuzzleSocket != NAME_None ? Art->FindSocket(MuzzleSocket) : nullptr)
+	{
+		const FVector ToMuzzle = FVector(Socket->RelativeLocation.X - ArtCenterLocal.X, Socket->RelativeLocation.Y - ArtCenterLocal.Y, 0.f);
+		if (!ToMuzzle.IsNearlyZero())
+		{
+			Barrel = ToMuzzle.GetSafeNormal();
+		}
+	}
+	ArtBarrelLocal = Barrel;
+	ArtAlign = FRotator(0.f, -FMath::RadiansToDegrees(FMath::Atan2(Barrel.Y, Barrel.X)), 0.f);
+	ArtHalfLength = FMath::Max(FMath::Abs(Barrel.X) * Extent.X + FMath::Abs(Barrel.Y) * Extent.Y, 1.f);
+	ArtViewScale = Stats.ArtViewLength / (2.f * ArtHalfLength);
+
+	UE_LOG(LogShieldbreak, Log, TEXT("%s art: %s, muzzle socket %s, barrel %s, view scale %.3f"),
+		*GetClass()->GetName(), *Art->GetName(), *MuzzleSocket.ToString(), *Barrel.ToString(), ArtViewScale);
+
+	// On clients the weapon can be equipped before it began play; redo the attachment with the art layout.
+	const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	if (OwnerCharacter && OwnerCharacter->GetCurrentWeapon() == this)
+	{
+		OnEquipped();
+	}
+}
+
+FVector AShieldbreakWeapon::GetBarrelDirection() const
+{
+	return WeaponMesh->GetComponentQuat().RotateVector(ArtBarrelLocal).GetSafeNormal();
+}
+
+void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
+{
+	const FVector Muzzle = GetMuzzleLocation();
+	if (bHasArt && !Stats.MuzzleFlash.IsNull())
+	{
+		ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
+	}
+
+	const float Pitch = FMath::FRandRange(0.96f, 1.04f);
+	const bool bPlayedImported = !Stats.FireSound.IsNull()
+		&& ShieldbreakArt::PlaySound(this, *Stats.FireSound.ToString(), bLocalView ? nullptr : &Muzzle, bLocalView ? 0.7f : 1.f, Pitch);
+	if (!bPlayedImported)
+	{
+		if (bLocalView)
+		{
+			FShieldbreakSFX::Play2D(this, GetShotSound(), 0.55f, Pitch);
+		}
+		else
+		{
+			FShieldbreakSFX::PlayAt(this, GetShotSound(), Muzzle, 0.9f, Pitch);
+		}
+	}
+}
+
+void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
+{
+	const bool bHitCharacter = Cast<APawn>(Hit.GetActor()) != nullptr;
+	ShieldbreakArt::SpawnFX(this, bHitCharacter ? ShieldbreakArt::ImpactCharacter : ShieldbreakArt::ImpactConcrete,
+		Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 }
 
 EShieldbreakSound AShieldbreakWeapon::GetShotSound() const

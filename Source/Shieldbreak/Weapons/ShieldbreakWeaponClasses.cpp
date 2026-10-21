@@ -1,5 +1,6 @@
 #include "Weapons/ShieldbreakWeaponClasses.h"
 
+#include "Visuals/ShieldbreakArt.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 
 AWeapon_BattleRifle::AWeapon_BattleRifle()
@@ -26,6 +27,10 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.48f, 0.05f, 0.075f);
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
+	Stats.ArtViewLength = 60.f;
+	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::RifleFire));
+	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }
 
 AWeapon_SMG::AWeapon_SMG()
@@ -50,6 +55,11 @@ AWeapon_SMG::AWeapon_SMG()
 	Stats.TracerColor = FLinearColor(1.f, 0.7f, 0.3f);
 	Stats.DamageType = UDamageType_BallisticLight::StaticClass();
 	Stats.MeshScale = FVector(0.38f, 0.07f, 0.11f);
+	// Compact pistol-frame mesh until the SMG gets original art.
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
+	Stats.ArtViewLength = 34.f;
+	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::Rifle2Fire));
+	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }
 
 AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
@@ -76,4 +86,5 @@ AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
 	Stats.TracerColor = FLinearColor(0.2f, 0.9f, 1.f);
 	Stats.DamageType = UDamageType_Plasma::StaticClass();
 	Stats.MeshScale = FVector(0.42f, 0.11f, 0.1f);
+	// No imported plasma art: it keeps the purple greybox and the synthesized plasma sound so it reads as alien tech.
 }

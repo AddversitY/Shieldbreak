@@ -19,7 +19,8 @@ public class Shieldbreak : ModuleRules
 			"AIModule",
 			"GameplayTasks",
 			"PhysicsCore",
-			"NetCore"
+			"NetCore",
+			"Niagara"
 		});
 
 		// Canvas text/font helpers and AI headers reach into these; listing them keeps links explicit.
