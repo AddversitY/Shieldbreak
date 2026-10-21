@@ -640,6 +640,8 @@ void AShieldbreakSelfTest::BuildSteps()
 		[this]()
 		{
 			ClearDummies();
+			Value0 = static_cast<float>(GFrameCounter);
+			Value1 = static_cast<float>(FPlatformTime::Seconds());
 			if (AShieldbreakGameMode* GameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
 			{
 				GameMode->SetBotCount(4);
@@ -667,6 +669,9 @@ void AShieldbreakSelfTest::BuildSteps()
 					}
 				}
 			}
+			const float RealSeconds = static_cast<float>(FPlatformTime::Seconds()) - Value1;
+			const float Fps = (static_cast<float>(GFrameCounter) - Value0) / FMath::Max(1.f, RealSeconds);
+			Lines.Add(FString::Printf(TEXT("INFO  average %.1f FPS over %.0f real seconds with 4 bots"), Fps, RealSeconds));
 			Check(TEXT("4 bots joined"), Bots == 4, FString::Printf(TEXT("%d bots"), Bots));
 			Check(TEXT("Bots find and fight each other"), Kills > 0, FString::Printf(TEXT("%d kills+deaths in 75 s"), Kills));
 			return true;
