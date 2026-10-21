@@ -26,6 +26,18 @@ Pending when paused: build + self-test of `458b8d7` / `68173a5` (rocket self-dam
    `GIT_LFS_SKIP_SMUDGE=1`. GitHub Free allows 10 GiB of LFS storage and 10 GiB of downloads a month.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
+## Launch roadmap (decided by Vincent, 2026-10-21; details in docs/DESIGN.md)
+Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sandbox, strafing that matters.
+
+| # | Work | Owner |
+|---|---|---|
+| 1 | Mechanics: remove Shield Shaping; walk 660 + snappier acceleration; spawn BR + **Sidearm**; SMG/Plasma out of play; **Rail Lance** (charge weapon); **Aegis Shield** (frontal barrier item); **Active Camo** power-up | Code |
+| 2 | Mode framework + **CTF**, **King of the Hill**, **Oddball** (+ HUD, bots play objectives) | Code |
+| 3 | Map framework (code-built layouts, per-map weapon/power-up/objective placement) + 5 greybox maps: **Keel, Bastion, Sanctum, Creekbed, Spire** | Code |
+| 4 | Self-test coverage for 1–3; screenshots of every map/mode; FPS per map | PC |
+| 5 | Find free, properly licensed art for the art pass: a modular sci-fi/ruins environment kit (Fab), a sidearm/rail weapon/rocket model, shield/barrier, flag and hill VFX. Record licenses in ASSET_CREDITS.md. Import only after Vincent approves the pick. | PC |
+| 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
+
 ## In progress
 - PC session: rocket-jump checks for `458b8d7` added; build + run pending.
 

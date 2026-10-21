@@ -1,49 +1,79 @@
-# Shieldbreak: Design Pillars
+# Shieldbreak: Game Design
 
-**Easy to pick up:** a Halo 2/3 sandbox. Two weapons, grenades, melee, recharging shields. A new player can ignore every advanced mechanic and still play well.
+**Pitch:** Halo 2's competitive arena feel (recharging shields, the BR duel, power-weapon map control) with
+modern Halo Infinite-level polish, and movement where strafing and positioning decide fights.
+Easy to pick up, very hard to master. Launch target: **5 maps × 4 modes**.
 
-**Nearly impossible to master:** each advanced mechanic is built on the shield system the player already understands. Each one rewards timing, positioning, and reading the opponent, and each has a real cost when misused.
+All designs are original. The classic maps below are referenced for *principles* (flow, sightlines,
+weapon placement), never copied geometry or art. See `ART_DIRECTION.md`.
 
-## Core (Halo baseline)
+---
 
-- Shields absorb damage, then recharge after a delay. Health sits underneath.
-- Two-weapon carry, map weapon pickups, frag and plasma-style grenades.
-- Strong melee, headshot rule on unshielded targets.
-- Floaty jumps, no ADS slowdown on most weapons, no loadouts. Everyone spawns equal.
+## 1. Core pillars
+1. **Every fight is a readable duel.** Same spawn weapons, a consistent kill time and accurate hit detection.
+   No mechanic that hides the outcome from the shooter.
+2. **Movement is defence.** Strafing, jumping and crouching make you genuinely harder to hit, so good
+   movement beats a stationary aimer.
+3. **The map is the meta.** Power weapons and power-ups sit in neutral, contested spots on timers that are
+   never shown on screen. Tracking them is a skill.
+4. **Mastery stacks.** Each advanced technique is optional, has a visible tell and has a counter.
 
-## Advanced mechanics (the mastery layer)
+## 2. Player
+| Stat | Value | Why |
+|---|---|---|
+| Shield / Health | 70 / 45 | Halo-style shield over health |
+| Shield recharge | 4.5 s delay, 2 s refill | Rewards disengaging |
+| Walk speed | **660** (up from 600, ~10% faster than Halo 2) | Strafing matters |
+| Acceleration | 6000, braking 3200 | Instant direction changes for strafe dodging |
+| Jump | ~2.6 m apex, ~1.15 s airtime | Less floaty than Halo 2 |
+| BR kill | 4 bursts (~1.4 s) | Long enough for movement to matter, short enough for aim to win |
 
-Each mechanic has one input, a visible tell for opponents, and a cost.
+## 3. Advanced techniques (the skill gap)
+| Technique | How | Counter |
+|---|---|---|
+| **Overcharge Vent** | Tap Reload/Vent while the marker is in the sweet spot during recharge: instant full shield plus a small overshield. A miss restarts the recharge from empty. | Push them while they're recharging |
+| **Break Pulse** | Melee within 0.15 s of your shield popping: short-range shockwave that knocks back and strips shields | Keep your distance; it costs a longer recharge |
+| **Momentum Carry** | Sprint, crouch to slide, jump out of it: keeps the slide speed in the air; downhill slides speed up; slides chain | Shots get less accurate in the air |
+| **Grenade / rocket jumps** | Your own explosions launch you (rockets do 0.4× damage to you) | They cost shields and health |
+| **Crouch-jump** | Crouch mid-air to clear higher ledges | — |
+| **Radar discipline** | Crouch-walking keeps you off the enemy motion tracker | Allies always show |
 
-### 1. Shield Shaping (hold `Shape`)
-Concentrate your shield into a frontal arc. Frontal damage is reduced by about 40%, but hits from behind or the sides land at about 1.5× and the recharge delay is longer.
-- *Easy:* hold it when you are winning a 1v1 head-on.
-- *Mastery:* release it the instant a second enemy flanks you. Bait opponents into shooting a shaped shield, and read the visible glow on enemies' shields.
+**Removed:** Shield Shaping (directional shields). It made damage unreadable.
 
-### 2. Break Pulse (melee within ~0.15 s of your shield popping)
-If you melee right as your shield breaks, the collapsing shield is released as a short-range shockwave. It knocks back and staggers enemies and strips part of their shields.
-- *Easy:* it occasionally happens by accident and feels great.
-- *Mastery:* frame-tight timing, deliberately "letting" your shield break at the right range, and pulsing enemies off ledges.
-- *Cost:* the next shield recharge takes +2 s.
+## 4. Sandbox (deliberately small)
+| Item | Slot / source | Role |
+|---|---|---|
+| **Battle Rifle** | Spawn | 3-round burst; headshot kills an unshielded target; 4-burst kill |
+| **Sidearm** | Spawn | Semi-auto precision pistol: fast swap, finishing shots, headshot kills an unshielded target |
+| **Sniper Rifle** | Map, usually one per side | 2 body shots kill; a headshot kills through shields |
+| **Rocket Launcher** | Map, neutral and most contested | The best weapon: lethal splash, rocket jumps |
+| **Rail Lance** | Map, medium power | Hold to charge (~0.8 s, glow + sound tell), release for a one-hit-kill bolt. Released early it does about a third of the damage. 3 charges per pickup. |
+| **Aegis Shield** | Map item (equipment), light power | Hold Use Equipment to raise a frontal barrier that blocks bullets and Rail Lance bolts but **not** rockets, grenades or melee. You can't fire while it's raised. 200 hit points or 6 s of uptime per pickup. |
+| **Frag grenades** | 2 on spawn | Bounce, 1.1 s fuse after the first bounce |
+| **Overshield** | Map power-up (some maps) | +140 overshield that decays |
+| **Active Camo** | Map power-up (other maps) | Near-invisible while still; shimmers when moving or shooting; 30 s |
 
-### 3. Overcharge Vent (tap `Vent` during recharge)
-While your shield is recharging, a moving marker crosses the shield bar. Tap inside the sweet spot to finish recharging instantly *plus* gain a small overshield. Miss, and the recharge restarts from zero.
-- *Easy:* ignore it. Normal recharge is always safe.
-- *Mastery:* hitting it while under pressure, and deciding when the risk is worth it.
+**Removed from play:** SMG and Plasma Rifle (not competitive), and with them Shield Bleed.
 
-### 4. Momentum Carry (sprint → crouch-slide → jump)
-Sliding preserves sprint speed. Jumping out of a slide carries that velocity into the air. Shooting while airborne after a carry has slightly more bloom.
-- *Easy:* sprint and jump like normal.
-- *Mastery:* chaining slides down slopes, using grenade jumps, and rotating across the map faster than anyone else.
+## 5. Modes (launch)
+| Mode | Rules |
+|---|---|
+| **Slayer / Team Slayer** | First to 50 kills (team), 25 (FFA) |
+| **Capture the Flag** | Flags at each base. Your own flag must be home to score. A dropped flag returns after 15 s or when touched by its own team. Carrier: sidearm only, slower. First to 3. |
+| **King of the Hill** | One hill moves every 60 s. Score while only your team is in it. First to 100 s. |
+| **Oddball** | One ball in the middle. Score for each second you hold it; the carrier melees only and is visible on the tracker. First to 100 s. |
 
-### 5. Shield Bleed (weapon property)
-Some weapons, mainly plasma-style ones, do bonus shield damage and *extend the target's recharge delay*. Ballistic weapons do bonus health damage.
-- *Easy:* "shoot with anything."
-- *Mastery:* the Halo noob-combo, made deeper. Strip with plasma, swap, then headshot, while timing your swaps against the enemy's recharge.
+## 6. Launch maps (original layouts inspired by classic principles)
+| Map | Inspired by | Shape | Weapon placement | Power-up | Best modes |
+|---|---|---|---|---|---|
+| **Keel** | Midship | Symmetric, two bases joined through a raised central hub with low and high routes | Rockets at the hub top; Rail Lance below | Overshield under the hub | CTF, Slayer |
+| **Bastion** | Lockout | Asymmetric towers around a central pit, tight vertical angles | Sniper on the tallest tower; rockets in the pit | Camo | KOTH, Oddball, Slayer |
+| **Sanctum** | Sanctuary / The Pit | Symmetric open bowl with ruins on two flanks | A sniper per side; rockets low in the middle | Overshield | CTF, Slayer |
+| **Creekbed** | Beaver Creek | Small 4v4: two bases across a shallow creek, side caves | Rockets mid-creek; Aegis on a cave side | — | Slayer, CTF |
+| **Spire** | Narrows / Construct | Two bases joined by a long central bridge; gravity lifts; height wins | Rockets under the bridge; a sniper per base | Camo | CTF, KOTH |
 
-## Design rules for adding mechanics
-
-1. Every mechanic must be optional for a new player to succeed in a casual match.
-2. Every mechanic must have an audiovisual tell that opponents can read and counter.
-3. Every mechanic must have a cost or failure state, so there is no strictly-better option.
-4. Every number lives in a data asset (`UShieldTuningData`, weapon DataTables), never hard-coded, so playtesting can iterate fast.
+## 7. Build order
+1. Mechanics: remove Shaping, speed tuning, sandbox (Sidearm, Rail Lance, Aegis), with SMG/Plasma out of play.
+2. Mode framework plus CTF, KOTH and Oddball.
+3. Map framework (code-built layouts) plus the 5 maps as greyboxes.
+4. Art pass per `ART_DIRECTION.md`.
