@@ -873,8 +873,12 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			else if (Phase == 2 && Now() - Mark > 1.2f)
 			{
-				Lines.Add(FString::Printf(TEXT("INFO  rocket at own feet with a normal shield: alive %d, shield %s health %s, peak up-velocity %s"),
-					A->IsAlive(), *Num(ShieldOf(A)), *Num(HealthOf(A)), *Num(Value0)));
+				// 458b8d7: own rockets do 0.4x (88 at point blank) with 0.65x knockback.
+				Check(TEXT("A rocket jump from full shield is survivable"), A->IsAlive(),
+					FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(A)), *Num(HealthOf(A))));
+				Check(TEXT("...leaves 20-40 health"), A->IsAlive() && HealthOf(A) >= 20.f && HealthOf(A) <= 40.f,
+					FString::Printf(TEXT("health %s"), *Num(HealthOf(A))));
+				Check(TEXT("...and launches you upward"), Value0 > 400.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
 				// Fresh shooter for the overshield pass.
 				ClearDummies();
 				A = SpawnDummy(RangeA, 0.f, true);

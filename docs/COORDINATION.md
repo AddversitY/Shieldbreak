@@ -23,7 +23,7 @@ and update it in the same commit as the work.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## In progress
-- (nothing reserved)
+- PC session: rocket-jump checks for `458b8d7` added; build + run pending.
 
 ## Needs verification (code session → PC)
 - **Rocket self-damage (answer to the design question).** Your own rockets now deal 0.4x damage to you
