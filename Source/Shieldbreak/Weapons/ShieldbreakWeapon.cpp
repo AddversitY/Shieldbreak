@@ -18,6 +18,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakTracer.h"
+#include "Audio/ShieldbreakSFX.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -346,6 +347,7 @@ void AShieldbreakWeapon::FireShotLocal()
 	if (OwnerCharacter->IsPlayerControlled())
 	{
 		AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), bHit ? Hit.ImpactPoint : End, Stats.TracerColor);
+		FShieldbreakSFX::Play2D(this, GetShotSound(), 0.55f, FMath::FRandRange(0.96f, 1.04f));
 		ApplyRecoil();
 	}
 
@@ -510,6 +512,16 @@ void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
 	}
 
 	AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), End, Stats.TracerColor);
+	FShieldbreakSFX::PlayAt(this, GetShotSound(), GetMuzzleLocation(), 0.9f, FMath::FRandRange(0.96f, 1.04f));
+}
+
+EShieldbreakSound AShieldbreakWeapon::GetShotSound() const
+{
+	if (Stats.bUsesHeat)
+	{
+		return EShieldbreakSound::PlasmaShot;
+	}
+	return Stats.FireMode == EShieldbreakFireMode::Burst ? EShieldbreakSound::BattleRifleShot : EShieldbreakSound::SMGShot;
 }
 
 // ---- Reload ----

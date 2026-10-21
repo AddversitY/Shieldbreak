@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "Audio/ShieldbreakSFX.h"
 #include "ShieldbreakWeapon.generated.h"
 
 class AShieldbreakCharacter;
@@ -115,6 +116,7 @@ private:
 	void FireShotLocal();
 	FVector GetMuzzleLocation() const;
 	void ApplyRecoil();
+	EShieldbreakSound GetShotSound() const;
 
 	UFUNCTION(Server, Reliable) void ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction);
 	UFUNCTION(Server, Reliable) void ServerStartReload();

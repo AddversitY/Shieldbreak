@@ -1,5 +1,7 @@
 #include "Player/ShieldbreakCharacter.h"
 
+#include "Audio/ShieldbreakCharacterAudio.h"
+#include "Audio/ShieldbreakSFX.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -117,6 +119,7 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	ShapeShieldMesh->SetCastShadow(false);
 
 	ShieldHealth = CreateDefaultSubobject<UShieldHealthComponent>(TEXT("ShieldHealth"));
+	CreateDefaultSubobject<UShieldbreakCharacterAudio>(TEXT("ShieldAudio"));
 
 	PrimaryWeaponClass = AWeapon_BattleRifle::StaticClass();
 	SecondaryWeaponClass = AWeapon_SMG::StaticClass();
@@ -609,6 +612,10 @@ void AShieldbreakCharacter::Melee()
 	}
 	LastLocalMeleeTime = Now;
 	SetSprinting(false);
+	if (IsPlayerControlled())
+	{
+		FShieldbreakSFX::Play2D(this, EShieldbreakSound::Melee, 0.8f);
+	}
 
 	if (HasAuthority())
 	{

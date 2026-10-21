@@ -1,5 +1,6 @@
 #include "Player/ShieldbreakPlayerController.h"
 
+#include "Audio/ShieldbreakSFX.h"
 #include "Shieldbreak.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -117,6 +118,7 @@ void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(bool bKill,
 	}
 	bLastHitKill = bKill;
 	bLastHitHeadshot = bHeadshot;
+	FShieldbreakSFX::Play2D(this, bKill ? EShieldbreakSound::KillMarker : EShieldbreakSound::HitMarker);
 }
 
 void AShieldbreakPlayerController::ClientDamagedFrom_Implementation(FVector_NetQuantize SourceLocation)

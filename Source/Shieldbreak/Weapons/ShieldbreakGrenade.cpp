@@ -1,5 +1,6 @@
 #include "Weapons/ShieldbreakGrenade.h"
 
+#include "Audio/ShieldbreakSFX.h"
 #include "Shieldbreak.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -181,4 +182,5 @@ void AShieldbreakGrenade::PlayExplosionFX()
 		GrenadeMesh->SetVisibility(false);
 	}
 	AShieldbreakTracer::SpawnBurst(GetWorld(), GetActorLocation(), 30.f, InnerRadius, 0.3f, FLinearColor(1.f, 0.45f, 0.05f));
+	FShieldbreakSFX::PlayAt(this, EShieldbreakSound::GrenadeExplosion, GetActorLocation());
 }
