@@ -27,7 +27,14 @@ and update it in the same commit as the work.
   bot match (Saved/Screenshots/SelfTest).
 
 ## Needs verification (code session → PC)
-- (empty)
+- `d1204c4` **Power weapons + Overshield.** Please build and add self-test checks:
+  - Sniper Rifle: a body shot does 60, so two kill from full; a headshot kills from full shield (`bHeadshotIgnoresShields`).
+  - Rocket Launcher: firing spawns an `AShieldbreakRocket` 80 uu ahead; on impact, radial damage kills within ~180 uu and
+    knocks the shooter up when fired at their feet (rocket jump); it explodes after 6 s if it hits nothing.
+  - Overshield (`AShieldbreakPowerup` on tower level 1, (150,-150,420)): walking in sets overshield to 140, which decays
+    at 2/s; the orb hides and respawns after 90 s.
+  - Pickups: rockets at the tower top (120 s), snipers on both sky platforms (90 s), plasma rifles as before.
+  - Mannequin tint now uses `TeamColor` + `EmissiveColor1-3`: red/blue teams should be visible in the bot screenshots.
 
 ## Verified on the PC
 - 2026-10-21 `2a586f6` (includes Team Slayer `dae211e`): self-test **34/34 PASS**, ~15 FPS with 4 bots on
