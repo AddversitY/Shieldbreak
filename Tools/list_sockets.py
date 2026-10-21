@@ -24,12 +24,30 @@ for path in MESHES:
     if isinstance(asset, unreal.StaticMesh):
         bounds = asset.get_bounding_box()
         lines.append("  bounds min=%s max=%s" % (bounds.min, bounds.max))
-        for sock in asset.get_editor_property("sockets") or []:
-            lines.append("  socket %s loc=%s rot=%s" % (sock.socket_name, sock.relative_location, sock.relative_rotation))
+        found = False
+        for name in ["Muzzle", "MuzzleFlash", "muzzle", "Muzzle_Flash", "MuzzleSocket", "Weapon_Muzzle", "SOCKET_Muzzle", "Grip", "grip"]:
+            try:
+                sock = asset.find_socket(name)
+            except Exception as exc:
+                lines.append("  find_socket unavailable: %s" % exc)
+                break
+            if sock:
+                found = True
+                lines.append("  socket %s loc=%s rot=%s" % (sock.socket_name, sock.relative_location, sock.relative_rotation))
+        if not found:
+            lines.append("  (no socket with a common muzzle/grip name)")
     elif isinstance(asset, unreal.SkeletalMesh):
-        for i in range(asset.num_sockets()):
-            sock = asset.get_socket_by_index(i)
-            lines.append("  socket %s bone=%s loc=%s rot=%s" % (sock.socket_name, sock.bone_name, sock.relative_location, sock.relative_rotation))
+        try:
+            for i in range(asset.num_sockets()):
+                sock = asset.get_socket_by_index(i)
+                lines.append("  socket %s bone=%s loc=%s rot=%s" % (sock.socket_name, sock.bone_name, sock.relative_location, sock.relative_rotation))
+        except Exception as exc:
+            lines.append("  socket listing failed: %s" % exc)
+        try:
+            bounds = asset.get_bounds()
+            lines.append("  bounds origin=%s extent=%s" % (bounds.origin, bounds.box_extent))
+        except Exception:
+            pass
         skel = asset.get_editor_property("skeleton")
         if skel:
             lines.append("  skeleton %s" % skel.get_path_name())
