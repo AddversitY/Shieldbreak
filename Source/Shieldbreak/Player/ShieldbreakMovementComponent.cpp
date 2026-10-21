@@ -86,8 +86,9 @@ UShieldbreakMovementComponent::UShieldbreakMovementComponent()
 {
 	MaxWalkSpeed = 600.f;
 	MaxWalkSpeedCrouched = 260.f;
-	JumpZVelocity = 640.f;
-	GravityScale = 0.9f;
+	// Snappier than Halo 2: ~2.6 m apex but only ~1.15 s of airtime (h = v^2 / 2g, t = 2v / g with g = 980 * scale).
+	JumpZVelocity = 900.f;
+	GravityScale = 1.6f;
 	AirControl = 0.45f;
 	MaxAcceleration = 4096.f;
 	BrakingDecelerationWalking = 2400.f;
