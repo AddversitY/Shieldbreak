@@ -711,6 +711,17 @@ void AShieldbreakSelfTest::BuildSteps()
 				const AShieldbreakWeapon* Weapon = A->GetCurrentWeapon();
 				Check(TEXT("Shooter holds the Sniper Rifle"), Weapon && Weapon->IsA<AWeapon_SniperRifle>(), Weapon ? Weapon->GetName() : FString(TEXT("none")));
 				Value0 = ShieldOf(B) + HealthOf(B);
+				{
+					// Diagnostics: where the shot starts, where it points, and whether the head test would fire.
+					const FVector Origin = A->GetAimOrigin();
+					const FVector Dir = A->GetAimRotation().Vector();
+					FHitResult HeadHit;
+					const bool bHead = B->GetHeadMesh() && B->GetHeadMesh()->LineTraceComponent(HeadHit, Origin, Origin + Dir * 1000.f,
+						FCollisionQueryParams(SCENE_QUERY_STAT(SelfTestHead), true));
+					Lines.Add(FString::Printf(TEXT("INFO  sniper shot: eye z %s, aim pitch %s, target z %s, head z %s, head scale %s, head-ray hit %d"),
+						*Num(Origin.Z), *Num(A->GetAimRotation().Pitch), *Num(B->GetActorLocation().Z), *Num(HeadOf(B).Z),
+						*Num(B->GetHeadMesh() ? B->GetHeadMesh()->GetComponentScale().X : -1.f), bHead));
+				}
 				A->StartFire();
 				Mark = Now();
 				Phase = 1;
@@ -846,6 +857,14 @@ void AShieldbreakSelfTest::BuildSteps()
 			else if ((Phase == 1 || Phase == 4) && Now() - Mark > 0.05f)
 			{
 				A->StopFire();
+				FString Rockets;
+				for (TActorIterator<AShieldbreakRocket> It(GetWorld()); It; ++It)
+				{
+					Rockets += FString::Printf(TEXT(" (%s)"), *It->GetActorLocation().ToCompactString());
+				}
+				Lines.Add(FString::Printf(TEXT("INFO  rocket jump pass %d: shooter at %s, aim pitch %s, ammo %d, rockets:%s"), Phase == 1 ? 1 : 2,
+					*A->GetActorLocation().ToCompactString(), *Num(A->GetAimRotation().Pitch),
+					A->GetCurrentWeapon() ? A->GetCurrentWeapon()->GetAmmoInMagazine() : -1, Rockets.IsEmpty() ? TEXT(" none") : *Rockets));
 				++Phase;
 			}
 			else if (Phase == 2 && Now() - Mark > 1.2f)
