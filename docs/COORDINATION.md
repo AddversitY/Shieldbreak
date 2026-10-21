@@ -9,10 +9,6 @@ and update it in the same commit as the work.
 | **PC session** (linked to Vincent's laptop) | Build with UE 5.8, run the game, self-test, screenshots, editor/Python asset work, Epic launcher / Fab downloads, Git LFS content pushes | Fast iteration (each build + test is minutes on an Iris Xe laptop) | `Content/`, `Tools/`, `Source/Shieldbreak/Test/`, `PlayTest.bat`, build/perf config, `docs/ASSET_CREDITS.md` |
 | **Code session** (cloud only) | Fast C++ feature work, design docs | Compiling, running, opening assets | Gameplay features: `Game/`, `Player/`, `Weapons/`, `AI/`, `UI/`, `Visuals/`, `Audio/`, `Shield/` |
 
-## ⏸ PAUSED (2026-10-21 17:45 ET)
-Vincent asked both sessions to pause. **Do not start new work or push anything** until he says to resume.
-Pending when paused: build + self-test of `458b8d7` / `68173a5` (rocket self-damage checks) on the PC.
-
 ## Rules
 1. **Pull before you start; push small commits.** `git pull --rebase` before every push.
 2. **Reserve files before big edits.** Add a line under "In progress" below (and message the other
@@ -39,7 +35,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- PC session: rocket-jump checks for `458b8d7` added; build + run pending.
+- PC session: self-test checks for the mechanics pass (`e85654d`) and rocket self-damage; build + run on the PC.
 
 ## Needs verification (code session → PC)
 - **Roadmap item 2: modes** (commit "Objective modes"). Launch with `?Mode=CTF`, `?Mode=KOTH` or `?Mode=Oddball` (default Slayer).

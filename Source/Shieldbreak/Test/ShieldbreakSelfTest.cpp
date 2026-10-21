@@ -961,6 +961,319 @@ void AShieldbreakSelfTest::BuildSteps()
 			return false;
 		}, 8.f });
 
+	// ---- Mechanics pass (e85654d) ----
+	Steps.Add({ TEXT("Arena sandbox placement (mechanics pass)"),
+		[this]() { ClearDummies(); },
+		[this](float Elapsed)
+		{
+			int32 Rails = 0, OutOfPlay = 0, Aegis = 0;
+			for (TActorIterator<AShieldbreakWeaponPickup> It(GetWorld()); It; ++It)
+			{
+				Rails += It->GetWeaponClass() == AWeapon_RailLance::StaticClass() ? 1 : 0;
+				OutOfPlay += (It->GetWeaponClass() == AWeapon_SMG::StaticClass() || It->GetWeaponClass() == AWeapon_PlasmaRifle::StaticClass()) ? 1 : 0;
+			}
+			for (TActorIterator<AShieldbreakPowerup> It(GetWorld()); It; ++It)
+			{
+				Aegis += It->Type == EShieldbreakPowerupType::Aegis ? 1 : 0;
+			}
+			Check(TEXT("The arena places Rail Lances"), Rails >= 1, FString::Printf(TEXT("%d"), Rails));
+			Check(TEXT("...no SMG or Plasma Rifle pickups"), OutOfPlay == 0, FString::Printf(TEXT("%d"), OutOfPlay));
+			Check(TEXT("...and one Aegis"), Aegis == 1, FString::Printf(TEXT("%d"), Aegis));
+			return true;
+		}, 3.f });
+
+	Steps.Add({ TEXT("Spawn kit, walk speed and acceleration"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RunwayStart, 0.f, true);
+		},
+		[this](float Elapsed)
+		{
+			if (Phase == 0 && Elapsed > 0.8f)
+			{
+				const AShieldbreakWeapon* Primary = A->GetCurrentWeapon();
+				const AShieldbreakWeapon* Holstered = A->GetHolsteredWeapon();
+				Check(TEXT("Spawn kit is Battle Rifle + Sidearm"), Primary && Primary->IsA<AWeapon_BattleRifle>() && Holstered && Holstered->IsA<AWeapon_Sidearm>(),
+					FString::Printf(TEXT("%s / %s"), *GetNameSafe(Primary), *GetNameSafe(Holstered)));
+				Mark = Now();
+				Phase = 1;
+			}
+			if (Phase >= 1)
+			{
+				A->AddMovementInput(FVector::ForwardVector, 1.f);
+			}
+			const float Speed = static_cast<float>(A->GetVelocity().Size2D());
+			if (Phase == 1 && Now() - Mark > 0.25f)
+			{
+				Check(TEXT("Walking reaches ~600 within 0.25 s (snappy acceleration)"), Speed >= 600.f, FString::Printf(TEXT("%s uu/s"), *Num(Speed)));
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 1.2f)
+			{
+				Check(TEXT("Walk speed is 660"), FMath::IsNearlyEqual(Speed, 660.f, 15.f), FString::Printf(TEXT("%s uu/s"), *Num(Speed)));
+				return true;
+			}
+			return false;
+		}, 6.f });
+
+	Steps.Add({ TEXT("Power Jump"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true); // jump input is only consumed for controlled pawns
+		},
+		[this](float Elapsed)
+		{
+			UShieldbreakMovementComponent* Move = A->GetShieldbreakMovement();
+			Value0 = FMath::Max(Value0, static_cast<float>(A->GetVelocity().Z));
+			if (Phase == 0 && Elapsed > 0.6f)
+			{
+				A->Jump(); // plain jump for reference
+				Value0 = 0.f;
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.3f)
+			{
+				A->StopJumping();
+				Value1 = Value0; // peak take-off velocity of a normal jump
+				Phase = 2;
+			}
+			else if (Phase == 2 && Move->IsMovingOnGround() && Now() - Mark > 0.6f)
+			{
+				A->StartCrouchOrSlide();
+				Mark = Now();
+				Phase = 3;
+			}
+			else if (Phase == 3 && Now() - Mark > 0.3f)
+			{
+				Move->SetChargingPowerJump(true);
+				Mark = Now();
+				Phase = 4;
+			}
+			else if (Phase == 4 && Now() - Mark > 0.7f)
+			{
+				Check(TEXT("Jump while crouched charges a Power Jump"), Move->GetPowerJumpCharge() >= 0.99f,
+					FString::Printf(TEXT("charge %s"), *Num(Move->GetPowerJumpCharge())));
+				Value0 = 0.f;
+				Move->SetChargingPowerJump(false);
+				Mark = Now();
+				Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 0.4f)
+			{
+				Check(TEXT("A full charge launches ~1.5x height (Z ~1102)"), Value0 > 1050.f && Value0 < 1160.f,
+					FString::Printf(TEXT("%s uu/s (normal jump %s)"), *Num(Value0), *Num(Value1)));
+				A->StopCrouchOrSlide();
+				return true;
+			}
+			return false;
+		}, 8.f });
+
+	Steps.Add({ TEXT("Sidearm"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			B = SpawnDummy(RangeA + FVector(500.f, 0.f, 0.f), 180.f, false);
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_Sidearm::StaticClass());
+				A->GiveWeapon(AWeapon_Sidearm::StaticClass());
+			}
+		},
+		[this, ShieldOf, HealthOf, AimAt, HeadOf](float Elapsed)
+		{
+			AimAt(A, Phase < 3 ? B->GetActorLocation() + FVector(0.f, 0.f, 10.f) : HeadOf(B));
+			if ((Phase == 0 && Elapsed > 1.0f) || Phase == 3)
+			{
+				Value0 = ShieldOf(B) + HealthOf(B);
+				A->StartFire();
+				Mark = Now();
+				++Phase;
+			}
+			else if ((Phase == 1 || Phase == 4) && Now() - Mark > 0.05f)
+			{
+				A->StopFire();
+				++Phase;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.6f)
+			{
+				const float Lost = Value0 - (ShieldOf(B) + HealthOf(B));
+				Check(TEXT("A Sidearm body shot does 12"), FMath::IsNearlyEqual(Lost, 12.f, 0.5f), FString::Printf(TEXT("lost %s"), *Num(Lost)));
+				Damage(B, ShieldOf(B), UDamageType_Ballistic::StaticClass());
+				Phase = 3;
+			}
+			else if (Phase == 5 && Now() - Mark > 0.6f)
+			{
+				Check(TEXT("A Sidearm headshot kills an unshielded target"), !B->IsAlive(), FString::Printf(TEXT("health %s"), *Num(HealthOf(B))));
+				return true;
+			}
+			return false;
+		}, 6.f });
+
+	Steps.Add({ TEXT("Rail Lance charge"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			B = SpawnDummy(RangeA + FVector(700.f, 0.f, 0.f), 180.f, false);
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_RailLance::StaticClass());
+				A->GiveWeapon(AWeapon_RailLance::StaticClass());
+			}
+		},
+		[this, ShieldOf, HealthOf, AimAt](float Elapsed)
+		{
+			if (!B || B->IsActorBeingDestroyed())
+			{
+				return false;
+			}
+			AimAt(A, B->GetActorLocation() + FVector(0.f, 0.f, 10.f));
+			if (Phase == 0 && Elapsed > 1.0f)
+			{
+				const AShieldbreakWeapon* Weapon = A->GetCurrentWeapon();
+				Check(TEXT("Shooter holds the Rail Lance"), Weapon && Weapon->IsA<AWeapon_RailLance>(), GetNameSafe(Weapon));
+				Value0 = ShieldOf(B) + HealthOf(B);
+				A->StartFire(); // early release
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.2f)
+			{
+				A->StopFire();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.8f)
+			{
+				const float Lost = Value0 - (ShieldOf(B) + HealthOf(B));
+				Check(TEXT("An early Rail Lance release does ~66 and doesn't kill"), Lost > 60.f && Lost < 72.f && B->IsAlive(),
+					FString::Printf(TEXT("lost %s, alive %d"), *Num(Lost), B->IsAlive()));
+				B = SpawnDummy(RangeA + FVector(700.f, 250.f, 0.f), 180.f, false);
+				Phase = 3;
+			}
+			else if (Phase == 3 && Now() - Mark > 2.2f)
+			{
+				A->StartFire(); // full charge
+				Mark = Now();
+				Phase = 4;
+			}
+			else if (Phase == 4 && Now() - Mark > 1.1f)
+			{
+				A->StopFire();
+				Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 1.8f)
+			{
+				Check(TEXT("A fully charged Rail Lance kills from full"), !B->IsAlive(), FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(B)), *Num(HealthOf(B))));
+				return true;
+			}
+			return false;
+		}, 10.f });
+
+	Steps.Add({ TEXT("Aegis barrier"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			// B starts beside the pickup and is teleported onto it (overlaps present at spawn aren't reported).
+			B = SpawnDummy(RangeA + FVector(700.f, 300.f, 0.f), 180.f, false);
+			AShieldbreakPowerup* Pickup = GetWorld()->SpawnActorDeferred<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
+				FTransform(RangeA + FVector(700.f, 0.f, 0.f)), nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			if (Pickup)
+			{
+				Pickup->Type = EShieldbreakPowerupType::Aegis;
+				Pickup->FinishSpawning(FTransform(RangeA + FVector(700.f, 0.f, 0.f)));
+				Spawned.Add(Pickup);
+			}
+		},
+		[this, MaxShield, ShieldOf, AimAt](float Elapsed)
+		{
+			AimAt(A, B->GetActorLocation() + FVector(0.f, 0.f, 10.f));
+			if (Phase == 0 && Value1 == 0.f && Elapsed > 0.5f)
+			{
+				B->SetActorLocation(RangeA + FVector(700.f, 0.f, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+				Value1 = 1.f;
+			}
+			else if (Phase == 0 && Elapsed > 1.2f)
+			{
+				Check(TEXT("Walking over the Aegis pickup equips it"), B->GetEquipment() == EShieldbreakEquipment::Aegis,
+					FString::Printf(TEXT("equipment %d"), static_cast<int32>(B->GetEquipment())));
+				B->SetUsingEquipment(true);
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.3f)
+			{
+				Check(TEXT("Use Equipment raises the barrier"), B->IsAegisRaised());
+				A->StartFire();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.55f)
+			{
+				A->StopFire();
+				Phase = 3;
+			}
+			else if (Phase == 3 && Now() - Mark > 1.2f)
+			{
+				Check(TEXT("The raised barrier stops hitscan"), ShieldOf(B) >= MaxShield - 0.01f, FString::Printf(TEXT("shield %s"), *Num(ShieldOf(B))));
+				Check(TEXT("...and the bullets drain the barrier"), B->GetAegisHealthFraction() < 0.99f, FString::Printf(TEXT("barrier %s"), *Num(B->GetAegisHealthFraction())));
+				B->SetUsingEquipment(false);
+				Phase = 4;
+			}
+			else if (Phase == 4 && Now() - Mark > 1.5f)
+			{
+				Check(TEXT("Lowering the barrier"), !B->IsAegisRaised());
+				A->StartFire();
+				Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 1.75f)
+			{
+				A->StopFire();
+				Phase = 6;
+			}
+			else if (Phase == 6 && Now() - Mark > 2.4f)
+			{
+				Check(TEXT("...lets bullets through again"), ShieldOf(B) < MaxShield - 1.f, FString::Printf(TEXT("shield %s"), *Num(ShieldOf(B))));
+				return true;
+			}
+			return false;
+		}, 8.f });
+
+	Steps.Add({ TEXT("Active Camo power-up"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, false);
+			AShieldbreakPowerup* Pickup = GetWorld()->SpawnActorDeferred<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
+				FTransform(RangeB), nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			if (Pickup)
+			{
+				Pickup->Type = EShieldbreakPowerupType::ActiveCamo;
+				Pickup->FinishSpawning(FTransform(RangeB));
+				Spawned.Add(Pickup);
+			}
+		},
+		[this](float Elapsed)
+		{
+			if (Phase == 0 && Elapsed > 0.6f)
+			{
+				Check(TEXT("No camo before the pickup"), !A->IsCamouflaged());
+				A->SetActorLocation(RangeB, false, nullptr, ETeleportType::TeleportPhysics);
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.3f)
+			{
+				Check(TEXT("Walking into Active Camo cloaks you for ~30 s"), A->IsCamouflaged() && A->GetCamoTimeRemaining() > 28.f,
+					FString::Printf(TEXT("%s s left"), *Num(A->GetCamoTimeRemaining())));
+				return true;
+			}
+			return false;
+		}, 4.f });
+
 	// ---- Teams and friendly fire ----
 	Steps.Add({ TEXT("Teams and friendly fire"),
 		[this]()
