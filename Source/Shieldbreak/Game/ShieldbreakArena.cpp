@@ -19,6 +19,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
+#include "Weapons/ShieldbreakPowerup.h"
 
 namespace ShieldbreakArenaPrivate
 {
@@ -321,23 +322,50 @@ void AShieldbreakArena::SpawnPickups()
 		return;
 	}
 
-	PickupLocations =
+	// Power weapons sit on contested high ground with long timers: rockets on the tower top, one sniper at the
+	// far end of each sky platform. Plasma rifles stay on the floor lanes.
+	struct FPickupSpot
 	{
-		GetActorTransform().TransformPosition(FVector(2600.f, 1900.f, 70.f)),
-		GetActorTransform().TransformPosition(FVector(-2600.f, -1900.f, 70.f)),
-		GetActorTransform().TransformPosition(FVector(-150.f, 150.f, 570.f)),
+		FVector Location;
+		TSubclassOf<AShieldbreakWeapon> WeaponClass;
+		float RespawnTime;
+		int32 AmmoGrant;
+	};
+	const FPickupSpot Spots[] =
+	{
+		{ FVector(2600.f, 1900.f, 70.f), AWeapon_PlasmaRifle::StaticClass(), 30.f, 0 },
+		{ FVector(-2600.f, -1900.f, 70.f), AWeapon_PlasmaRifle::StaticClass(), 30.f, 0 },
+		{ FVector(-150.f, 150.f, 570.f), AWeapon_RocketLauncher::StaticClass(), 120.f, 2 },
+		{ FVector(-3300.f, 2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
+		{ FVector(3300.f, -2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
 	};
 
-	for (const FVector& Location : PickupLocations)
+	PickupLocations.Reset();
+	for (const FPickupSpot& Spot : Spots)
 	{
+		const FVector Location = GetActorTransform().TransformPosition(Spot.Location);
+		PickupLocations.Add(Location);
+
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		Params.ObjectFlags |= RF_Transient;
 		if (AShieldbreakWeaponPickup* Pickup = World->SpawnActor<AShieldbreakWeaponPickup>(AShieldbreakWeaponPickup::StaticClass(), Location, FRotator::ZeroRotator, Params))
 		{
-			Pickup->SetWeaponClass(AWeapon_PlasmaRifle::StaticClass());
+			Pickup->SetWeaponClass(Spot.WeaponClass);
+			Pickup->RespawnTime = Spot.RespawnTime;
+			if (Spot.AmmoGrant > 0)
+			{
+				Pickup->AmmoGrant = Spot.AmmoGrant;
+			}
 		}
 	}
+
+	// Overshield on the tower's lower level, under the rockets.
+	FActorSpawnParameters PowerupParams;
+	PowerupParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	PowerupParams.ObjectFlags |= RF_Transient;
+	World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
+		GetActorTransform().TransformPosition(FVector(150.f, -150.f, 420.f)), FRotator::ZeroRotator, PowerupParams);
 }
 
 // ---- Bot navigation ----

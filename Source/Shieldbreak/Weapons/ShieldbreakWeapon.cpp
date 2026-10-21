@@ -18,6 +18,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakTracer.h"
+#include "Weapons/ShieldbreakRocket.h"
 #include "Audio/ShieldbreakSFX.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshSocket.h"
@@ -387,12 +388,15 @@ void AShieldbreakWeapon::FireShotLocal()
 	const bool bHit = World->LineTraceSingleByChannel(Hit, Origin, End, ECC_Weapon, Params);
 	if (OwnerCharacter->IsPlayerControlled())
 	{
-		AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), bHit ? Hit.ImpactPoint : End, Stats.TracerColor);
-		PlayShotEffects(true);
-		if (bHit)
+		if (!Stats.ProjectileClass)
 		{
-			SpawnImpactFX(Hit);
+			AShieldbreakTracer::Spawn(World, GetMuzzleLocation(), bHit ? Hit.ImpactPoint : End, Stats.TracerColor);
+			if (bHit)
+			{
+				SpawnImpactFX(Hit);
+			}
 		}
+		PlayShotEffects(true);
 		ApplyRecoil();
 	}
 
@@ -495,6 +499,23 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 		return;
 	}
 
+	if (Stats.ProjectileClass)
+	{
+		// Spawned a little ahead of the eye so it clears the shooter's own capsule.
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = OwnerCharacter;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		const FVector SpawnLocation = FVector(Origin) + ShotDir * 80.f;
+		AActor* Projectile = World->SpawnActor<AActor>(Stats.ProjectileClass, SpawnLocation, ShotDir.Rotation(), SpawnParams);
+		if (AShieldbreakRocket* Rocket = Cast<AShieldbreakRocket>(Projectile))
+		{
+			Rocket->Launch(ShotDir);
+		}
+		MulticastShotFX(SpawnLocation);
+		return;
+	}
+
 	FHitResult Hit;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakServerShot), true, OwnerCharacter);
 	Params.AddIgnoredActor(this);
@@ -522,7 +543,7 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 		if (Victim && Stats.bPrecision && bHitHead)
 		{
 			const UShieldHealthComponent* VictimShield = Victim->GetShieldHealth();
-			if (VictimShield && VictimShield->GetShield() + VictimShield->GetOvershield() <= 0.f)
+			if (VictimShield && (Stats.bHeadshotIgnoresShields || VictimShield->GetShield() + VictimShield->GetOvershield() <= 0.f))
 			{
 				DamageAmount *= Stats.HeadshotMultiplier;
 				bHeadshot = true;
@@ -566,8 +587,12 @@ void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
 	}
 
 	const FVector Muzzle = GetMuzzleLocation();
-	AShieldbreakTracer::Spawn(World, Muzzle, End, Stats.TracerColor);
 	PlayShotEffects(false);
+	if (Stats.ProjectileClass)
+	{
+		return; // the replicated projectile is its own tracer
+	}
+	AShieldbreakTracer::Spawn(World, Muzzle, End, Stats.TracerColor);
 
 	// Only the end point is replicated; a short trace there recovers the surface for the impact effect.
 	const FVector ShotDir = (FVector(End) - Muzzle).GetSafeNormal();

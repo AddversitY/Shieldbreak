@@ -615,7 +615,17 @@ float AShieldbreakBotController::ScoreWeapon(const AShieldbreakWeapon* Weapon, f
 		Score -= 200.f;
 	}
 
-	if (Stats.bPrecision)
+	if (Stats.ProjectileClass)
+	{
+		// Rockets: devastating at mid range, suicidal up close.
+		Score += TargetDistance < 350.f ? -100.f : (TargetDistance < 2500.f ? 90.f : 20.f);
+	}
+	else if (Stats.bHeadshotIgnoresShields)
+	{
+		// Sniper: the long-range weapon of choice, still serviceable no-scope.
+		Score += TargetDistance > 1200.f ? 95.f : 25.f;
+	}
+	else if (Stats.bPrecision)
 	{
 		Score += TargetDistance > 900.f ? 60.f : 10.f;
 	}

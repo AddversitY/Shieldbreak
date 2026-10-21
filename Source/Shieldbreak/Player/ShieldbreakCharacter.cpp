@@ -459,18 +459,18 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
 
-	// Mannequin: the material's color parameter name isn't confirmed yet, so set the likely candidates
-	// (unknown names are ignored by SetVectorParameterValue).
+	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips.
 	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
 	{
-		static const FName ColorParameters[] = { TEXT("Tint"), TEXT("TeamColor"), TEXT("BodyColor"), TEXT("Color"), TEXT("BaseColor") };
+		static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
 		for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
 		{
 			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
 			{
-				for (const FName& Parameter : ColorParameters)
+				MID->SetVectorParameterValue(TEXT("TeamColor"), Color);
+				for (const FName& Parameter : GlowParameters)
 				{
-					MID->SetVectorParameterValue(Parameter, Color);
+					MID->SetVectorParameterValue(Parameter, Color * 4.f);
 				}
 			}
 		}

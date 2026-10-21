@@ -74,6 +74,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vent", meta = (ClampMin = "0"))
 	float OvershieldDecayPerSecond = 2.f;
 
+	/** Overshield granted by the Overshield power-up (two extra shield bars); also the absolute overshield cap. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Power-ups", meta = (ClampMin = "0"))
+	float PowerupOvershield = 140.f;
+
 	// ---- Break Pulse ----
 
 	/** Seconds after your shield pops in which a melee press triggers a pulse. */

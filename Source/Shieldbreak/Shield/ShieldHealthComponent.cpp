@@ -133,7 +133,8 @@ void UShieldHealthComponent::ServerTryVent_Implementation(float ClientServerTime
 	if (bSuccess)
 	{
 		SetShieldInternal(T.MaxShield);
-		SetOvershieldInternal(Overshield + T.VentOvershieldGain);
+		// The vent tops up to its own cap but never eats into a bigger power-up overshield.
+		SetOvershieldInternal(FMath::Max(Overshield, FMath::Min(Overshield + T.VentOvershieldGain, T.MaxOvershield)));
 		RechargeStartServerTime = -1.f;
 	}
 	else
@@ -387,11 +388,11 @@ void UShieldHealthComponent::SetShieldInternal(float NewShield)
 
 void UShieldHealthComponent::SetOvershieldInternal(float NewOvershield)
 {
-	NewOvershield = FMath::Clamp(NewOvershield, 0.f, GetTuning().MaxOvershield);
+	NewOvershield = FMath::Clamp(NewOvershield, 0.f, GetMaxOvershield());
 	if (NewOvershield != Overshield)
 	{
 		Overshield = NewOvershield;
-		OnOvershieldChanged.Broadcast(Overshield, GetTuning().MaxOvershield);
+		OnOvershieldChanged.Broadcast(Overshield, GetMaxOvershield());
 	}
 }
 
@@ -467,7 +468,7 @@ void UShieldHealthComponent::OnRep_ShieldBreakCount()
 
 void UShieldHealthComponent::OnRep_Overshield()
 {
-	OnOvershieldChanged.Broadcast(Overshield, GetTuning().MaxOvershield);
+	OnOvershieldChanged.Broadcast(Overshield, GetMaxOvershield());
 }
 
 void UShieldHealthComponent::OnRep_Health()
@@ -489,4 +490,18 @@ void UShieldHealthComponent::OnRep_Dead()
 	{
 		OnDeath.Broadcast(nullptr);
 	}
+}
+
+void UShieldHealthComponent::GrantOvershield(float Amount)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bDead)
+	{
+		return;
+	}
+	SetOvershieldInternal(FMath::Max(Overshield, Amount));
+}
+
+float UShieldHealthComponent::GetMaxOvershield() const
+{
+	return FMath::Max(GetTuning().MaxOvershield, GetTuning().PowerupOvershield);
 }

@@ -34,6 +34,10 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	/** Headshots on unshielded targets multiply damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") bool bPrecision = false;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float HeadshotMultiplier = 1.f;
+	/** Sniper rule: headshots get the multiplier even through shields. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") bool bHeadshotIgnoresShields = false;
+	/** When set, each shot spawns this projectile (it owns the damage) instead of a hitscan trace. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") TSubclassOf<AActor> ProjectileClass;
 	/** Between shots (auto/semi) or between bursts (burst). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float TimeBetweenShots = 0.2f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") int32 BurstCount = 1;

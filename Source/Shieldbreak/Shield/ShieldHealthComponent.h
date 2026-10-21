@@ -49,6 +49,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Shield")
 	void ApplyShieldOnlyDamage(float Damage, AController* InstigatedBy);
 
+	/** Server: Overshield power-up. Tops overshield up to Amount (never lowers it); it then decays. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Shield")
+	void GrantOvershield(float Amount);
+
+	/** Largest overshield possible (the power-up amount); the HUD scales the gold bar against this. */
+	float GetMaxOvershield() const;
+
 	// ---- Queries ----
 
 	UFUNCTION(BlueprintPure, Category = "Shield") float GetShield() const { return Shield; }

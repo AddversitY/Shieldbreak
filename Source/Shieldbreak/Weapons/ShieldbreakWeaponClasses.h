@@ -1,5 +1,6 @@
-// The starter sandbox: Battle Rifle (precision burst), SMG (close range, bleeds health) and
-// Plasma Rifle (heat, strips shields and delays recharge). Stats live in the constructors.
+// The sandbox: Battle Rifle (precision burst), SMG (close range, bleeds health), Plasma Rifle (heat, strips
+// shields and delays recharge), and the map power weapons Sniper Rifle and Rocket Launcher.
+// Stats live in the constructors.
 
 #pragma once
 
@@ -32,4 +33,24 @@ class SHIELDBREAK_API AWeapon_PlasmaRifle : public AShieldbreakWeapon
 
 public:
 	AWeapon_PlasmaRifle();
+};
+
+/** Power weapon: two body shots kill, a headshot kills through shields. Slow bolt, small magazine. */
+UCLASS()
+class SHIELDBREAK_API AWeapon_SniperRifle : public AShieldbreakWeapon
+{
+	GENERATED_BODY()
+
+public:
+	AWeapon_SniperRifle();
+};
+
+/** Power weapon: slow rockets with lethal splash and rocket-jump knockback. */
+UCLASS()
+class SHIELDBREAK_API AWeapon_RocketLauncher : public AShieldbreakWeapon
+{
+	GENERATED_BODY()
+
+public:
+	AWeapon_RocketLauncher();
 };

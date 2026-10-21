@@ -2,6 +2,7 @@
 
 #include "Visuals/ShieldbreakArt.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
+#include "Weapons/ShieldbreakRocket.h"
 
 AWeapon_BattleRifle::AWeapon_BattleRifle()
 {
@@ -87,4 +88,63 @@ AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
 	Stats.DamageType = UDamageType_Plasma::StaticClass();
 	Stats.MeshScale = FVector(0.42f, 0.11f, 0.1f);
 	// No imported plasma art: it keeps the purple greybox and the synthesized plasma sound so it reads as alien tech.
+}
+
+AWeapon_SniperRifle::AWeapon_SniperRifle()
+{
+	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "SniperRifle", "Sniper Rifle");
+	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
+	Stats.TimeBetweenShots = 0.7f;
+	// 70 shield + 45 health = 115: two body shots kill; a headshot (x3) kills outright.
+	Stats.Damage = 60.f;
+	Stats.bPrecision = true;
+	Stats.HeadshotMultiplier = 3.f;
+	Stats.bHeadshotIgnoresShields = true;
+	Stats.BaseSpreadDegrees = 0.05f;
+	Stats.SpreadPerShot = 0.f;
+	Stats.MaxSpreadDegrees = 0.05f;
+	Stats.SpreadRecoveryPerSecond = 1.f;
+	Stats.Range = 30000.f;
+	Stats.MagazineSize = 4;
+	Stats.MaxReserveAmmo = 8;
+	Stats.ReloadTime = 2.6f;
+	Stats.ZoomFOV = 18.f;
+	Stats.RecoilPitch = 1.8f;
+	Stats.Color = FLinearColor(0.12f, 0.12f, 0.14f);
+	Stats.TracerColor = FLinearColor(1.f, 1.f, 0.9f);
+	Stats.DamageType = UDamageType_Ballistic::StaticClass();
+	Stats.MeshScale = FVector(0.7f, 0.05f, 0.08f);
+	// Long rifle frame until the sniper gets original art.
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
+	Stats.ArtViewLength = 68.f;
+	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::ShotgunFire));
+	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
+}
+
+AWeapon_RocketLauncher::AWeapon_RocketLauncher()
+{
+	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "RocketLauncher", "Rocket Launcher");
+	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
+	Stats.TimeBetweenShots = 0.9f;
+	Stats.Damage = 0.f; // the rocket's explosion does the damage
+	Stats.bPrecision = false;
+	Stats.BaseSpreadDegrees = 0.f;
+	Stats.SpreadPerShot = 0.f;
+	Stats.MaxSpreadDegrees = 0.f;
+	Stats.Range = 20000.f;
+	Stats.MagazineSize = 2;
+	Stats.MaxReserveAmmo = 4;
+	Stats.ReloadTime = 3.f;
+	Stats.ZoomFOV = 50.f;
+	Stats.RecoilPitch = 2.5f;
+	Stats.Color = FLinearColor(0.25f, 0.3f, 0.2f);
+	Stats.TracerColor = FLinearColor(1.f, 0.6f, 0.2f);
+	Stats.DamageType = UDamageType_Explosive::StaticClass();
+	Stats.MeshScale = FVector(0.7f, 0.14f, 0.14f);
+	Stats.ProjectileClass = AShieldbreakRocket::StaticClass();
+	// Chunky shotgun frame until the launcher gets original art.
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::ShotgunMesh));
+	Stats.ArtViewLength = 70.f;
+	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::ShotgunFire));
+	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }

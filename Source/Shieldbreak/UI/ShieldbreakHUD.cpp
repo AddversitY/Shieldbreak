@@ -244,9 +244,9 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 	}
 
 	// Overshield: gold strip over the top half.
-	if (Shield->GetOvershield() > 0.f && Tuning && Tuning->MaxOvershield > 0.f)
+	if (Shield->GetOvershield() > 0.f && Shield->GetMaxOvershield() > 0.f)
 	{
-		Box(BarX, BarY, BarW * FMath::Clamp(Shield->GetOvershield() / Tuning->MaxOvershield, 0.f, 1.f), BarH * 0.45f, Overshield);
+		Box(BarX, BarY, BarW * FMath::Clamp(Shield->GetOvershield() / Shield->GetMaxOvershield(), 0.f, 1.f), BarH * 0.45f, Overshield);
 	}
 
 	// Overcharge Vent sweep.
