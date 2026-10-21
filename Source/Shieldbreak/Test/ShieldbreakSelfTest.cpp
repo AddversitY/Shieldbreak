@@ -2,8 +2,14 @@
 
 #include "Shieldbreak.h"
 #include "AIController.h"
+#include "AI/ShieldbreakBotController.h"
+#include "Camera/CameraActor.h"
+#include "Game/ShieldbreakTeams.h"
+#include "GameFramework/PlayerController.h"
+#include "UnrealClient.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "HAL/FileManager.h"
@@ -637,11 +643,71 @@ void AShieldbreakSelfTest::BuildSteps()
 			return false;
 		}, 6.f });
 
+	// ---- Teams and friendly fire ----
+	Steps.Add({ TEXT("Teams and friendly fire"),
+		[this]()
+		{
+			ClearDummies();
+			// Bot controllers give the dummies PlayerStates (teams live there); their AI is frozen.
+			auto MakeTeamDummy = [this](const FVector& Location, float Yaw, uint8 Team) -> AShieldbreakCharacter*
+			{
+				AShieldbreakCharacter* Dummy = SpawnDummy(Location, Yaw, false);
+				if (!Dummy)
+				{
+					return nullptr;
+				}
+				Dummy->AIControllerClass = AShieldbreakBotController::StaticClass();
+				Dummy->SpawnDefaultController();
+				if (AController* DummyController = Dummy->GetController())
+				{
+					DummyController->SetActorTickEnabled(false);
+					Spawned.Add(DummyController);
+					if (AShieldbreakPlayerState* State = DummyController->GetPlayerState<AShieldbreakPlayerState>())
+					{
+						State->SetTeamId(Team);
+					}
+				}
+				return Dummy;
+			};
+			A = MakeTeamDummy(RangeA, 0.f, ShieldbreakTeams::Red);
+			B = MakeTeamDummy(RangeB, 180.f, ShieldbreakTeams::Red);
+		},
+		[this, MaxShield, ShieldOf](float Elapsed)
+		{
+			if (Elapsed < 0.6f)
+			{
+				return false;
+			}
+			if (!ShieldbreakTeams::IsTeamGame(this))
+			{
+				Lines.Add(TEXT("INFO  free-for-all mode: team checks skipped"));
+				return true;
+			}
+			AController* TeamController = A->GetController();
+			Check(TEXT("Team dummies resolve to the same team"), ShieldbreakTeams::AreTeammates(A, B),
+				FString::Printf(TEXT("teams %d / %d"), ShieldbreakTeams::GetTeam(A), ShieldbreakTeams::GetTeam(B)));
+
+			UGameplayStatics::ApplyDamage(B, 20.f, TeamController, A, UDamageType_Ballistic::StaticClass());
+			Check(TEXT("Friendly fire is off by default"), ShieldOf(B) >= MaxShield - 0.01f, FString::Printf(TEXT("teammate shield %s"), *Num(ShieldOf(B))));
+
+			UGameplayStatics::ApplyDamage(A, 20.f, TeamController, A, UDamageType_Explosive::StaticClass());
+			Check(TEXT("Your own explosives still hurt you"), ShieldOf(A) < MaxShield - 1.f, FString::Printf(TEXT("own shield %s"), *Num(ShieldOf(A))));
+
+			if (AShieldbreakPlayerState* StateB = B->GetController() ? B->GetController()->GetPlayerState<AShieldbreakPlayerState>() : nullptr)
+			{
+				StateB->SetTeamId(ShieldbreakTeams::Blue);
+			}
+			UGameplayStatics::ApplyDamage(B, 20.f, TeamController, A, UDamageType_Ballistic::StaticClass());
+			Check(TEXT("Enemies take damage"), ShieldOf(B) < MaxShield - 1.f, FString::Printf(TEXT("enemy shield %s"), *Num(ShieldOf(B))));
+			return true;
+		}, 6.f });
+
 	// ---- Bots ----
 	Steps.Add({ TEXT("Bot match sanity (75 s)"),
 		[this]()
 		{
 			ClearDummies();
+			Phase = 0;
 			Value0 = static_cast<float>(GFrameCounter);
 			Value1 = static_cast<float>(FPlatformTime::Seconds());
 			if (AShieldbreakGameMode* GameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
@@ -651,10 +717,55 @@ void AShieldbreakSelfTest::BuildSteps()
 		},
 		[this](float Elapsed)
 		{
+			// Chase-camera screenshots of a bot at 25 s, 45 s and 65 s (third-person art, animation, team colors).
+			if (Phase < 3 && Elapsed > 25.f + Phase * 20.f)
+			{
+				APlayerController* Viewer = GetWorld()->GetFirstPlayerController();
+				AShieldbreakCharacter* Subject = nullptr;
+				for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+				{
+					if (It->IsAlive() && It->GetController() && !It->GetController()->IsPlayerController())
+					{
+						Subject = *It;
+						if (Phase % 2 == 0 && Subject->GetVelocity().SizeSquared2D() > 10000.f)
+						{
+							break; // prefer a moving bot
+						}
+					}
+				}
+				if (Viewer && Subject)
+				{
+					if (!ChaseCamera)
+					{
+						FActorSpawnParameters CameraParams;
+						CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						ChaseCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+					}
+					ChaseSubject = Subject;
+					Viewer->SetViewTarget(ChaseCamera);
+					ShotDue = Now() + 1.5f; // let the camera settle on the subject first
+				}
+				++Phase;
+			}
+			if (ChaseCamera && ChaseSubject.IsValid())
+			{
+				const FVector Back = ChaseSubject->GetActorForwardVector() * -320.f + ChaseSubject->GetActorRightVector() * 90.f + FVector(0.f, 0.f, 110.f);
+				const FVector CameraLocation = ChaseSubject->GetActorLocation() + Back;
+				ChaseCamera->SetActorLocationAndRotation(CameraLocation, (ChaseSubject->GetActorLocation() + FVector(0.f, 0.f, 40.f) - CameraLocation).Rotation());
+			}
+			if (ShotDue > 0.f && Now() >= ShotDue)
+			{
+				const FString Dir = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("SelfTest");
+				IFileManager::Get().MakeDirectory(*Dir, true);
+				FScreenshotRequest::RequestScreenshot(Dir / FString::Printf(TEXT("bot_%d.png"), ShotIndex++), true, false);
+				ShotDue = -1.f;
+			}
+
 			if (Elapsed < 75.f)
 			{
 				return false;
 			}
+			Lines.Add(FString::Printf(TEXT("INFO  %d third-person screenshots in Saved/Screenshots/SelfTest"), ShotIndex));
 			int32 Kills = 0;
 			int32 Bots = 0;
 			if (const AGameStateBase* GameState = GetWorld()->GetGameState())

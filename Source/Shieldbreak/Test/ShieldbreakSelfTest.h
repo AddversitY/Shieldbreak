@@ -58,6 +58,12 @@ private:
 	UPROPERTY(Transient) TObjectPtr<AShieldbreakCharacter> A;
 	UPROPERTY(Transient) TObjectPtr<AShieldbreakCharacter> B;
 
+	// Chase camera for the bot-match screenshots.
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> ChaseCamera;
+	TWeakObjectPtr<AShieldbreakCharacter> ChaseSubject;
+	float ShotDue = -1.f;
+	int32 ShotIndex = 0;
+
 	// Scratch state shared between a step's Begin and Update.
 	float Mark = -1.f;
 	float Value0 = 0.f;
