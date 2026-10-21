@@ -8,6 +8,7 @@
 #include "Engine/Font.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Game/ShieldbreakGameState.h"
 #include "GameFramework/PlayerState.h"
 #include "Player/ShieldbreakCharacter.h"
@@ -165,6 +166,7 @@ void AShieldbreakHUD::DrawHUD()
 		DrawCrosshair(Character, PC);
 		DrawWeaponInfo(Character);
 		DrawMomentum(Character);
+		DrawMotionTracker(Character);
 	}
 
 	if (GameState)
@@ -458,6 +460,71 @@ void AShieldbreakHUD::DrawMomentum(AShieldbreakCharacter* Character)
 	}
 }
 
+void AShieldbreakHUD::DrawMotionTracker(AShieldbreakCharacter* Character)
+{
+	using namespace ShieldbreakHUDPrivate;
+
+	const float Radius = 95.f * S;
+	const float CX = 40.f * S + Radius;
+	const float CY = Canvas->ClipY - 40.f * S - Radius;
+	const FLinearColor Ring(0.35f, 0.75f, 1.f, 0.6f);
+
+	// Translucent disc from thick concentric rings, then the frame, half-range ring and center cross.
+	for (float R = 6.f * S; R < Radius; R += 10.f * S)
+	{
+		Circle(CX, CY, R, FLinearColor(0.f, 0.02f, 0.05f, 0.35f), 11.f * S, 40);
+	}
+	Circle(CX, CY, Radius, Ring, 2.f * S, 48);
+	Circle(CX, CY, Radius * 0.5f, FLinearColor(Ring.R, Ring.G, Ring.B, 0.25f), 1.f * S, 32);
+	Line(CX - Radius, CY, CX + Radius, CY, FLinearColor(Ring.R, Ring.G, Ring.B, 0.15f));
+	Line(CX, CY - Radius, CX, CY + Radius, FLinearColor(Ring.R, Ring.G, Ring.B, 0.15f));
+
+	// Outgoing pulse ring, like the classic tracker sweep.
+	const float Pulse = FMath::Fmod(LocalTime(), 1.5f) / 1.5f;
+	Circle(CX, CY, Radius * Pulse, FLinearColor(Ring.R, Ring.G, Ring.B, 0.35f * (1.f - Pulse)), 2.f * S, 40);
+
+	// Player marker: small chevron pointing up (forward).
+	Line(CX - 6.f * S, CY + 6.f * S, CX, CY - 7.f * S, ShieldBright, 2.f * S);
+	Line(CX + 6.f * S, CY + 6.f * S, CX, CY - 7.f * S, ShieldBright, 2.f * S);
+
+	const float ViewYaw = PlayerOwner ? PlayerOwner->GetControlRotation().Yaw : Character->GetActorRotation().Yaw;
+	const FRotator ToView(0.f, -ViewYaw, 0.f);
+	const FVector MyLocation = Character->GetActorLocation();
+
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		const AShieldbreakCharacter* Other = *It;
+		if (Other == Character || !Other->IsAlive())
+		{
+			continue;
+		}
+
+		const FVector Delta = Other->GetActorLocation() - MyLocation;
+		if (Delta.Size2D() > MotionTrackerRange)
+		{
+			continue;
+		}
+
+		// Halo rule: slow movement (crouch-walking, standing) is invisible; jumping or running shows.
+		const FVector OtherVelocity = Other->GetVelocity();
+		if (OtherVelocity.Size2D() < MotionTrackerSpeedThreshold && FMath::Abs(OtherVelocity.Z) < 150.f)
+		{
+			continue;
+		}
+
+		// View space: X forward maps to up on the tracker, Y right maps to right.
+		const FVector Local = ToView.RotateVector(FVector(Delta.X, Delta.Y, 0.f));
+		const float PX = CX + static_cast<float>(Local.Y) / MotionTrackerRange * Radius;
+		const float PY = CY - static_cast<float>(Local.X) / MotionTrackerRange * Radius;
+
+		// Enemies well above or below draw smaller so verticality reads at a glance.
+		const float Size = (FMath::Abs(Delta.Z) > 250.f ? 6.f : 9.f) * S;
+		Box(PX - Size * 0.5f, PY - Size * 0.5f, Size, Size, Danger);
+	}
+
+	Text(TEXT("25m"), CX + Radius - 4.f * S, CY + Radius - 14.f * S, Dim, GEngine->GetSmallFont(), S * 0.8f, false, true);
+}
+
 // ---- Match info ----
 
 void AShieldbreakHUD::DrawKillFeed(AShieldbreakGameState* GameState)
@@ -618,6 +685,7 @@ void AShieldbreakHUD::DrawHelp()
 		TEXT("Break Pulse (F the instant your shield pops): shockwave that knocks back and strips nearby shields."),
 		TEXT("Momentum Carry (sprint > crouch to slide > jump): keep slide speed in the air. Downhill slides go faster."),
 		TEXT("Shield Bleed: plasma strips shields and delays recharge; bullets hurt health. Strip, swap, headshot."),
+		TEXT("Motion Tracker (bottom left): enemies within 25 m show when they move fast. Crouch-walk to stay hidden."),
 		TEXT(""),
 		TEXT("Console: SB_Bots N    SB_Skill 0-3"),
 	};

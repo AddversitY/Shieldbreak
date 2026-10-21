@@ -21,6 +21,14 @@ class SHIELDBREAK_API AShieldbreakHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	/** Motion tracker radius in world units (25 m). */
+	UPROPERTY(EditAnywhere, Category = "Motion Tracker")
+	float MotionTrackerRange = 2500.f;
+
+	/** Enemies moving slower than this (crouch-walking or standing still) stay off the tracker. */
+	UPROPERTY(EditAnywhere, Category = "Motion Tracker")
+	float MotionTrackerSpeedThreshold = 300.f;
+
 private:
 	// Sections.
 	void DrawShieldAndHealth(AShieldbreakCharacter* Character);
@@ -28,6 +36,7 @@ private:
 	void DrawDamageDirection(AShieldbreakCharacter* Character, AShieldbreakPlayerController* PC);
 	void DrawWeaponInfo(AShieldbreakCharacter* Character);
 	void DrawMomentum(AShieldbreakCharacter* Character);
+	void DrawMotionTracker(AShieldbreakCharacter* Character);
 	void DrawKillFeed(AShieldbreakGameState* GameState);
 	void DrawTopScores(AShieldbreakGameState* GameState);
 	void DrawScoreboard(AShieldbreakGameState* GameState);
