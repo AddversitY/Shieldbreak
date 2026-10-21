@@ -197,7 +197,10 @@ void AShieldbreakPlayerController::TakeAutoShot()
 
 	const FString Dir = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("AutoShot");
 	IFileManager::Get().MakeDirectory(*Dir, true);
-	const FString File = Dir / FString::Printf(TEXT("shot_%02d.png"), AutoShotIndex);
+	// -SBAutoShotPrefix=name keeps two instances (listen server + client) from overwriting each other.
+	FString Prefix = TEXT("shot");
+	FParse::Value(FCommandLine::Get(), TEXT("SBAutoShotPrefix="), Prefix);
+	const FString File = Dir / FString::Printf(TEXT("%s_%02d.png"), *Prefix, AutoShotIndex);
 	FScreenshotRequest::RequestScreenshot(File, true, false);
 	UE_LOG(LogShieldbreak, Log, TEXT("AutoShot: requested %s"), *File);
 	++AutoShotIndex;
