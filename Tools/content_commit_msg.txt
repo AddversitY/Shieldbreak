@@ -1,0 +1,8 @@
+Import Lyra Starter Game characters, weapons, effects and audio
+
+Copied from the Lyra (UE 5.8) Fab download at their original /Game paths;
+see docs/ASSET_CREDITS.md for the paths, license and what to avoid.
+Verified with Tools/CheckImports.bat: 1,512 assets, 0 load failures.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0134nLU4pgzuuG6eFzpo3xaj

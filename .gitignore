@@ -22,3 +22,7 @@ Plugins/**/Intermediate/
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# Editor-local content folders
+Content/Developers/
+Content/Collections/
