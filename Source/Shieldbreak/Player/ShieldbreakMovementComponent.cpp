@@ -167,7 +167,8 @@ void UShieldbreakMovementComponent::UpdateCharacterStateBeforeMovement(float Del
 {
 	if (CharacterOwner)
 	{
-		if (MovementMode == MOVE_Walking && !IsSliding() && CharacterOwner->bIsCrouched == false
+		// Crouched entry is allowed so landing from a slide-jump with crouch held chains straight into another slide.
+		if (MovementMode == MOVE_Walking && !IsSliding()
 			&& bWantsToCrouch && Safe_bWantsToSprint && Velocity.Size2D() >= SlideMinEntrySpeed)
 		{
 			EnterSlide();
@@ -303,6 +304,13 @@ void UShieldbreakMovementComponent::PhysSlide(float deltaTime, int32 Iterations)
 void UShieldbreakMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
 {
 	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+	// Super clears this for every non-walking mode; without it the crouch that follows slide entry shrinks the
+	// capsule about its center, lifting the feet off the floor so the slide immediately falls.
+	if (IsSliding())
+	{
+		bCrouchMaintainsBaseLocation = true;
+	}
 
 	const bool bWasSliding = PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Slide;
 	if (bWasSliding && MovementMode == MOVE_Falling)
