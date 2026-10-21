@@ -20,7 +20,9 @@ enum class EShieldbreakFireMode : uint8
 {
 	SemiAuto,
 	Burst,
-	FullAuto
+	FullAuto,
+	/** Hold to charge, release to fire; only a full charge does full damage (Rail Lance). */
+	Charge
 };
 
 USTRUCT(BlueprintType)
@@ -38,6 +40,10 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") bool bHeadshotIgnoresShields = false;
 	/** When set, each shot spawns this projectile (it owns the damage) instead of a hitscan trace. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") TSubclassOf<AActor> ProjectileClass;
+	/** Charge weapons: seconds to a full charge. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ChargeTime = 0.8f;
+	/** Charge weapons: damage fraction of a shot released before full charge. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float MinChargeDamageFraction = 0.33f;
 	/** Between shots (auto/semi) or between bursts (burst). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float TimeBetweenShots = 0.2f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") int32 BurstCount = 1;
@@ -99,7 +105,14 @@ public:
 	bool IsReloading() const { return bReloading; }
 	/** 0..1 while reloading on the owning machine, else -1. */
 	float GetReloadProgress() const;
-	bool IsFiring() const { return bWantsToFire || BurstShotsRemaining > 0; }
+	bool IsFiring() const { return bWantsToFire || BurstShotsRemaining > 0 || bCharging; }
+
+	/** Charge weapons: charging now (every machine; drives the glow and sound tell). */
+	bool IsCharging() const { return bCharging; }
+	/** Charge weapons: 0..1 progress of the current charge on this machine. */
+	float GetChargeFraction() const;
+	/** Charge weapons: drop the charge without firing. */
+	void CancelCharge();
 
 	int32 GetAmmoInMagazine() const { return AmmoInMagazine; }
 	int32 GetReserveAmmo() const { return ReserveAmmo; }
@@ -123,6 +136,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> BarrelMesh;
 
+	/** Charge weapons: glowing orb at the muzzle that grows while charging (visible to everyone). */
+	UPROPERTY(VisibleAnywhere, Category = "Weapon")
+	TObjectPtr<UStaticMeshComponent> ChargeGlowMesh;
+
 private:
 	bool CanFireShotLocal() const;
 	void FireShotLocal();
@@ -136,6 +153,10 @@ private:
 
 	UFUNCTION(Server, Reliable) void ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction);
 	UFUNCTION(Server, Reliable) void ServerStartReload();
+	UFUNCTION(Server, Reliable) void ServerSetCharging(bool bNewCharging);
+	UFUNCTION() void OnRep_Charging();
+	void ReleaseCharge();
+	void UpdateChargeGlow();
 	UFUNCTION(NetMulticast, Unreliable) void MulticastShotFX(FVector_NetQuantize End);
 
 	void BeginReload();
@@ -149,6 +170,8 @@ private:
 	UPROPERTY(Replicated) float Heat = 0.f;
 	UPROPERTY(Replicated) bool bOverheated = false;
 	UPROPERTY(ReplicatedUsing = OnRep_Reloading) bool bReloading = false;
+	/** Skips the owner, who predicts it locally. */
+	UPROPERTY(ReplicatedUsing = OnRep_Charging) bool bCharging = false;
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
 
@@ -170,11 +193,13 @@ private:
 	float LastShotLocalTime = -100.f;
 	float ReloadStartLocalTime = -1.f;
 	float OverheatEndLocalTime = -1.f;
+	float ChargeStartLocalTime = -1.f;
 
 	// Server validation.
 	float ServerShotTokens = 0.f;
 	float LastServerTokenTime = -1.f;
 	float LastServerShotTime = -100.f;
 	float ServerOverheatEndTime = -1.f;
+	float ServerChargeStartTime = -1.f;
 	FTimerHandle ReloadTimerHandle;
 };

@@ -16,7 +16,11 @@ UENUM(BlueprintType)
 enum class EShieldbreakPowerupType : uint8
 {
 	/** Two extra shield bars on top of a full shield; slowly decays. */
-	Overshield
+	Overshield,
+	/** Near-invisible while still, a flickering shimmer while moving or shooting. */
+	ActiveCamo,
+	/** Equipment: the Aegis frontal barrier (held, used with Use Equipment). */
+	Aegis
 };
 
 UCLASS()
@@ -32,11 +36,17 @@ public:
 
 	bool IsAvailable() const { return bAvailable; }
 
-	UPROPERTY(EditAnywhere, Category = "Power-up")
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Type, Category = "Power-up")
 	EShieldbreakPowerupType Type = EShieldbreakPowerupType::Overshield;
 
 	UPROPERTY(EditAnywhere, Category = "Power-up")
 	float RespawnTime = 90.f;
+
+	UPROPERTY(EditAnywhere, Category = "Power-up")
+	float CamoDuration = 30.f;
+
+	/** Server, before or right after spawning (updates the orb color on every machine via replication). */
+	void SetType(EShieldbreakPowerupType NewType);
 
 protected:
 	virtual void BeginPlay() override;
@@ -49,6 +59,8 @@ private:
 	UFUNCTION() void HandleOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION() void OnRep_Available();
+	UFUNCTION() void OnRep_Type();
+	void ApplyColor();
 
 	/** Server: applies the power-up; false if this character can't take it. */
 	bool TryConsume(AShieldbreakCharacter* Character);

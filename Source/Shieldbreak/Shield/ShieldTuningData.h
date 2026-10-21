@@ -36,22 +36,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Core", meta = (ClampMin = "0"))
 	float HealthRegenPerSecond = 30.f;
 
-	// ---- Shield Shaping ----
-
-	/** Full width of the frontal arc protected while shaping. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shaping", meta = (ClampMin = "0", ClampMax = "360"))
-	float ShapingFrontArcDegrees = 120.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shaping", meta = (ClampMin = "0"))
-	float ShapingFrontMultiplier = 0.6f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shaping", meta = (ClampMin = "0"))
-	float ShapingRearMultiplier = 1.5f;
-
-	/** Extra recharge delay for hits taken while shaping. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shaping", meta = (ClampMin = "0"))
-	float ShapingRechargeDelayBonus = 1.f;
-
 	// ---- Overcharge Vent ----
 
 	/** Seconds for the vent marker to sweep across the shield bar. */

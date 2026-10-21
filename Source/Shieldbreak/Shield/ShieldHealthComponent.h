@@ -1,5 +1,5 @@
 // Server-authoritative, replicated Halo-style shield + health, plus the shield-based mastery
-// mechanics: Shield Shaping, Overcharge Vent, Break Pulse and Shield Bleed. See docs/DESIGN.md.
+// mechanics: Overcharge Vent, Break Pulse and per-damage-type shield/health multipliers. See docs/DESIGN.md.
 
 #pragma once
 
@@ -28,9 +28,6 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	// ---- Player inputs (call on the owning client or server) ----
-
-	UFUNCTION(BlueprintCallable, Category = "Shield")
-	void SetShaping(bool bNewShaping);
 
 	UFUNCTION(BlueprintCallable, Category = "Shield")
 	void TryVent();
@@ -63,7 +60,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Shield") float GetOvershield() const { return Overshield; }
 	UFUNCTION(BlueprintPure, Category = "Shield") float GetHealth() const { return Health; }
 	UFUNCTION(BlueprintPure, Category = "Shield") float GetMaxHealth() const;
-	UFUNCTION(BlueprintPure, Category = "Shield") bool IsShaping() const { return bShaping; }
 	UFUNCTION(BlueprintPure, Category = "Shield") bool IsRecharging() const { return RechargeStartServerTime >= 0.f; }
 	UFUNCTION(BlueprintPure, Category = "Shield") bool IsDead() const { return bDead; }
 
@@ -100,7 +96,6 @@ protected:
 private:
 	const UShieldTuningData& GetTuning() const;
 	float GetServerTime() const;
-	float GetShapingMultiplier(const AActor* DamageCauser, const AController* InstigatedBy) const;
 
 	/** Returns the raw (pre-multiplier) damage the shield layers did not absorb. */
 	float AbsorbWithShield(float RawDamage, float ShieldMultiplier);
@@ -115,7 +110,6 @@ private:
 	UFUNCTION()
 	void HandleTakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
-	UFUNCTION(Server, Reliable) void ServerSetShaping(bool bNewShaping);
 	UFUNCTION(Server, Reliable) void ServerTryVent(float ClientServerTime);
 	UFUNCTION(Server, Reliable) void ServerTryBreakPulse(float ClientServerTime);
 	UFUNCTION(Client, Reliable) void ClientVentResult(bool bSuccess);
@@ -140,9 +134,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Health)
 	float Health = 0.f;
-
-	UPROPERTY(Replicated)
-	bool bShaping = false;
 
 	/** Server time the shield started refilling; -1 while not refilling. */
 	UPROPERTY(ReplicatedUsing = OnRep_RechargeStart)

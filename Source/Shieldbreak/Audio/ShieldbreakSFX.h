@@ -24,6 +24,11 @@ enum class EShieldbreakSound : uint8
 	BreakPulse,
 	Melee,
 	Death,
+	RailCharge,
+	RailFire,
+	AegisRaise,
+	AegisHit,
+	CamoOn,
 	Count
 };
 

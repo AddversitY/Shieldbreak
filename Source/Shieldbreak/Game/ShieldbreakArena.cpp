@@ -323,7 +323,7 @@ void AShieldbreakArena::SpawnPickups()
 	}
 
 	// Power weapons sit on contested high ground with long timers: rockets on the tower top, one sniper at the
-	// far end of each sky platform. Plasma rifles stay on the floor lanes.
+	// far end of each sky platform, a Rail Lance on each floor lane.
 	struct FPickupSpot
 	{
 		FVector Location;
@@ -333,8 +333,8 @@ void AShieldbreakArena::SpawnPickups()
 	};
 	const FPickupSpot Spots[] =
 	{
-		{ FVector(2600.f, 1900.f, 70.f), AWeapon_PlasmaRifle::StaticClass(), 30.f, 0 },
-		{ FVector(-2600.f, -1900.f, 70.f), AWeapon_PlasmaRifle::StaticClass(), 30.f, 0 },
+		{ FVector(2600.f, 1900.f, 70.f), AWeapon_RailLance::StaticClass(), 60.f, 3 },
+		{ FVector(-2600.f, -1900.f, 70.f), AWeapon_RailLance::StaticClass(), 60.f, 3 },
 		{ FVector(-150.f, 150.f, 570.f), AWeapon_RocketLauncher::StaticClass(), 120.f, 2 },
 		{ FVector(-3300.f, 2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
 		{ FVector(3300.f, -2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
@@ -366,6 +366,14 @@ void AShieldbreakArena::SpawnPickups()
 	PowerupParams.ObjectFlags |= RF_Transient;
 	World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
 		GetActorTransform().TransformPosition(FVector(150.f, -150.f, 420.f)), FRotator::ZeroRotator, PowerupParams);
+
+	// Aegis on the open mid floor beside the tower: neutral, but exposed to fetch.
+	if (AShieldbreakPowerup* AegisPickup = World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
+		GetActorTransform().TransformPosition(FVector(0.f, -800.f, 70.f)), FRotator::ZeroRotator, PowerupParams))
+	{
+		AegisPickup->SetType(EShieldbreakPowerupType::Aegis);
+		AegisPickup->RespawnTime = 45.f;
+	}
 }
 
 // ---- Bot navigation ----

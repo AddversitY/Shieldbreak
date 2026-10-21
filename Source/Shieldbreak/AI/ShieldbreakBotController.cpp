@@ -219,6 +219,16 @@ void AShieldbreakBotController::Perceive()
 			continue;
 		}
 
+		// Active Camo: a still camouflaged player is only spotted up close; a moving one at shorter range.
+		if (Other->IsCamouflaged())
+		{
+			const float CamoRange = Other->GetVelocity().Size2D() < 60.f ? 450.f : 1800.f;
+			if (FVector::DistSquared(Other->GetActorLocation(), Bot->GetActorLocation()) > FMath::Square(CamoRange))
+			{
+				continue;
+			}
+		}
+
 		const FVector ToOther = Other->GetActorLocation() - Eye;
 		const float Distance = static_cast<float>(ToOther.Size());
 		if (Distance > SightRange)
@@ -615,7 +625,12 @@ float AShieldbreakBotController::ScoreWeapon(const AShieldbreakWeapon* Weapon, f
 		Score -= 200.f;
 	}
 
-	if (Stats.ProjectileClass)
+	if (Stats.FireMode == EShieldbreakFireMode::Charge)
+	{
+		// Rail Lance: one-shot kill at any range a bot can track.
+		Score += TargetDistance > 400.f ? 85.f : 30.f;
+	}
+	else if (Stats.ProjectileClass)
 	{
 		// Rockets: devastating at mid range, suicidal up close.
 		Score += TargetDistance < 350.f ? -100.f : (TargetDistance < 2500.f ? 90.f : 20.f);
@@ -705,7 +720,27 @@ void AShieldbreakBotController::UpdateCombat(float DeltaSeconds)
 		Bot->ReloadOrVent();
 	}
 
-	if (bWantFire && !bFiring)
+	// Charge weapons: hold until fully charged, release only on target; drop the charge if the target is gone.
+	if (Weapon && Weapon->GetStats().FireMode == EShieldbreakFireMode::Charge)
+	{
+		if (!Weapon->IsCharging())
+		{
+			if (bWantFire || (Enemy && bTargetVisible))
+			{
+				Bot->StartFire();
+			}
+		}
+		else if (Weapon->GetChargeFraction() >= 1.f && bWantFire)
+		{
+			Bot->StopFire();
+		}
+		else if (!Enemy)
+		{
+			Weapon->CancelCharge();
+		}
+		bFiring = false;
+	}
+	else if (bWantFire && !bFiring)
 	{
 		Bot->StartFire();
 		bFiring = true;
@@ -757,19 +792,6 @@ void AShieldbreakBotController::UpdateMastery()
 
 	const UShieldTuningData* Tuning = Shield->GetTuningData();
 	AShieldbreakCharacter* Enemy = Target.Get();
-
-	// Shield Shaping: 1v1, head-on, shield getting low (Normal+).
-	bool bWantShape = false;
-	if (Skill >= 1 && Enemy && bTargetVisible && VisibleEnemyCount == 1)
-	{
-		const FVector EnemyDir = (Enemy->GetActorLocation() - Bot->GetActorLocation()).GetSafeNormal2D();
-		const bool bFrontal = FVector::DotProduct(EnemyDir, Bot->GetActorForwardVector()) > 0.8f;
-		bWantShape = bFrontal && Shield->GetShield() > 0.f && Shield->GetShield() < Shield->GetMaxShield() * 0.6f;
-	}
-	if (bWantShape != Shield->IsShaping())
-	{
-		Bot->SetShaping(bWantShape);
-	}
 
 	// Overcharge Vent: aim for the sweet spot with skill-scaled timing error (never on Easy).
 	const float Marker = Shield->GetVentMarkerPosition();

@@ -62,16 +62,14 @@ void AShieldbreakPowerup::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AShieldbreakPowerup, bAvailable);
+	DOREPLIFETIME(AShieldbreakPowerup, Type);
 }
 
 void AShieldbreakPowerup::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UMaterialInstanceDynamic* OrbMID = OrbMesh->CreateDynamicMaterialInstance(0))
-	{
-		OrbMID->SetVectorParameterValue(TEXT("Color"), GetPowerupColor());
-	}
+	ApplyColor();
 	if (UMaterialInstanceDynamic* BaseMID = BaseMesh->CreateDynamicMaterialInstance(0))
 	{
 		BaseMID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.15f, 0.15f, 0.17f));
@@ -88,9 +86,38 @@ FLinearColor AShieldbreakPowerup::GetPowerupColor() const
 {
 	switch (Type)
 	{
+	case EShieldbreakPowerupType::ActiveCamo:
+		return FLinearColor(0.55f, 0.9f, 0.6f);
+	case EShieldbreakPowerupType::Aegis:
+		return FLinearColor(0.2f, 0.75f, 1.f);
 	case EShieldbreakPowerupType::Overshield:
 	default:
 		return FLinearColor(1.f, 0.75f, 0.1f);
+	}
+}
+
+void AShieldbreakPowerup::SetType(EShieldbreakPowerupType NewType)
+{
+	Type = NewType;
+	ApplyColor();
+	ForceNetUpdate();
+}
+
+void AShieldbreakPowerup::OnRep_Type()
+{
+	ApplyColor();
+}
+
+void AShieldbreakPowerup::ApplyColor()
+{
+	if (UMaterialInstanceDynamic* OrbMID = OrbMesh ? OrbMesh->CreateDynamicMaterialInstance(0) : nullptr)
+	{
+		OrbMID->SetVectorParameterValue(TEXT("Color"), GetPowerupColor());
+	}
+	if (OrbMesh)
+	{
+		// Equipment reads as a flat disc, power-ups as orbs.
+		OrbMesh->SetRelativeScale3D(Type == EShieldbreakPowerupType::Aegis ? FVector(0.5f, 0.5f, 0.12f) : FVector(0.45f));
 	}
 }
 
@@ -129,6 +156,15 @@ bool AShieldbreakPowerup::TryConsume(AShieldbreakCharacter* Character)
 	{
 	case EShieldbreakPowerupType::Overshield:
 		ShieldComponent->GrantOvershield(ShieldComponent->GetTuningData()->PowerupOvershield);
+		break;
+	case EShieldbreakPowerupType::ActiveCamo:
+		Character->GrantCamo(CamoDuration);
+		break;
+	case EShieldbreakPowerupType::Aegis:
+		if (!Character->GiveEquipment(EShieldbreakEquipment::Aegis))
+		{
+			return false; // already carrying a full one
+		}
 		break;
 	}
 

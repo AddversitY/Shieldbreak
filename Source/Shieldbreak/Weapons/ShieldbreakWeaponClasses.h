@@ -1,6 +1,6 @@
-// The sandbox: Battle Rifle (precision burst), SMG (close range, bleeds health), Plasma Rifle (heat, strips
-// shields and delays recharge), and the map power weapons Sniper Rifle and Rocket Launcher.
-// Stats live in the constructors.
+// The competitive sandbox (docs/DESIGN.md): spawn with the Battle Rifle and Sidearm; on the map, the Sniper
+// Rifle, Rocket Launcher and Rail Lance. The SMG and Plasma Rifle are out of play (kept only until the
+// self-test stops referencing them). Stats live in the constructors.
 
 #pragma once
 
@@ -53,4 +53,24 @@ class SHIELDBREAK_API AWeapon_RocketLauncher : public AShieldbreakWeapon
 
 public:
 	AWeapon_RocketLauncher();
+};
+
+/** Spawn sidearm: semi-auto precision pistol for finishing shots; headshot kills an unshielded target. */
+UCLASS()
+class SHIELDBREAK_API AWeapon_Sidearm : public AShieldbreakWeapon
+{
+	GENERATED_BODY()
+
+public:
+	AWeapon_Sidearm();
+};
+
+/** Medium-power pickup: hold to charge (0.8 s, glow + whine tell), release for a one-hit-kill bolt. */
+UCLASS()
+class SHIELDBREAK_API AWeapon_RailLance : public AShieldbreakWeapon
+{
+	GENERATED_BODY()
+
+public:
+	AWeapon_RailLance();
 };

@@ -172,6 +172,7 @@ void AShieldbreakHUD::DrawHUD()
 		DrawMomentum(Character);
 		DrawMotionTracker(Character);
 		DrawTeammateNames(Character);
+		DrawEquipmentStatus(Character);
 	}
 
 	if (GameState)
@@ -218,11 +219,7 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 	Box(BarX - 3.f * S, BarY - 3.f * S, BarW + 6.f * S, BarH + 6.f * S, Panel);
 
 	const float Fraction = Shield->GetMaxShield() > 0.f ? Shield->GetShield() / Shield->GetMaxShield() : 0.f;
-	FLinearColor Fill = Shield->IsRecharging() ? ShieldBright : ShieldBlue;
-	if (Shield->IsShaping())
-	{
-		Fill = FLinearColor(0.15f, 0.4f, 1.f, 1.f);
-	}
+	const FLinearColor Fill = Shield->IsRecharging() ? ShieldBright : ShieldBlue;
 
 	// Ten segments with small gaps.
 	constexpr int32 Segments = 10;
@@ -288,11 +285,30 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 	const float CX = Canvas->ClipX * 0.5f;
 	const float CY = Canvas->ClipY * 0.5f;
 
-	// Shield Shaping: frontal chevron arc above the crosshair.
-	if (Shield->IsShaping())
+	// Aegis raised: frontal arc plus remaining strength / uptime.
+	if (Character->IsAegisRaised())
 	{
-		Arc(CX, CY, 70.f * S, -90.f, 100.f, FLinearColor(0.3f, 0.6f, 1.f, 0.9f), 4.f * S);
-		Arc(CX, CY, 78.f * S, -90.f, 70.f, FLinearColor(0.3f, 0.6f, 1.f, 0.5f), 2.f * S);
+		const FLinearColor AegisColor(0.3f, 0.8f, 1.f, 0.9f);
+		Arc(CX, CY, 70.f * S, -90.f, 120.f, AegisColor, 4.f * S);
+		Arc(CX, CY, 78.f * S, -90.f, 120.f * Character->GetAegisHealthFraction(), FLinearColor(AegisColor.R, AegisColor.G, AegisColor.B, 0.6f), 3.f * S);
+		Arc(CX, CY, 84.f * S, -90.f, 120.f * Character->GetAegisUptimeFraction(), FLinearColor(1.f, 1.f, 1.f, 0.4f), 2.f * S);
+		Text(TEXT("AEGIS"), CX, CY - 100.f * S, AegisColor, GEngine->GetSmallFont(), S, true);
+	}
+
+	// Power Jump charge: a bar under the crosshair.
+	if (const UShieldbreakMovementComponent* Movement = Character->GetShieldbreakMovement(); Movement && Movement->IsChargingPowerJump())
+	{
+		const float Charge = FMath::Clamp(Movement->GetPowerJumpCharge(), 0.f, 1.f);
+		Box(CX - 40.f * S, CY + 40.f * S, 80.f * S, 6.f * S, Panel);
+		Box(CX - 40.f * S, CY + 40.f * S, 80.f * S * Charge, 6.f * S, Charge >= 1.f ? Gold : ShieldBright);
+	}
+
+	// Charge weapon: a ring that closes as the charge builds; gold when it's a full-damage shot.
+	if (const AShieldbreakWeapon* ChargeWeapon = Character->GetCurrentWeapon(); ChargeWeapon && ChargeWeapon->IsCharging())
+	{
+		const float Charge = ChargeWeapon->GetChargeFraction();
+		const FLinearColor ChargeColor = Charge >= 1.f ? Gold : FLinearColor(0.3f, 0.95f, 1.f, 0.9f);
+		Arc(CX, CY, 30.f * S, 0.f, 360.f * Charge, ChargeColor, 3.f * S);
 	}
 
 	// Break Pulse prompt right after the shield pops (teaches the timing).
@@ -463,6 +479,25 @@ void AShieldbreakHUD::DrawMomentum(AShieldbreakCharacter* Character)
 	if (bCarry || bSlide)
 	{
 		Text(bCarry ? TEXT("CARRY") : TEXT("SLIDE"), X, Y + 26.f * S, ShieldbreakHUDPrivate::Gold, GEngine->GetSmallFont(), S, true);
+	}
+}
+
+void AShieldbreakHUD::DrawEquipmentStatus(AShieldbreakCharacter* Character)
+{
+	// Bottom-left, above the motion tracker: carried equipment and active power-ups.
+	float Y = Canvas->ClipY - 280.f * S;
+	const float X = 40.f * S;
+	UFont* Font = GEngine->GetSmallFont();
+	if (Character->GetEquipment() == EShieldbreakEquipment::Aegis)
+	{
+		Text(FString::Printf(TEXT("AEGIS  %d%%  [Alt]"), FMath::RoundToInt(100.f * FMath::Min(Character->GetAegisHealthFraction(), Character->GetAegisUptimeFraction()))),
+			X, Y, FLinearColor(0.3f, 0.8f, 1.f, 1.f), Font, S);
+		Y -= 22.f * S;
+	}
+	const float Camo = Character->GetCamoTimeRemaining();
+	if (Camo > 0.f)
+	{
+		Text(FString::Printf(TEXT("CAMO  %ds"), FMath::CeilToInt(Camo)), X, Y, FLinearColor(0.7f, 0.9f, 0.7f, 1.f), Font, S);
 	}
 }
 
@@ -750,14 +785,15 @@ void AShieldbreakHUD::DrawHelp()
 		TEXT(""),
 		TEXT("WASD move    Mouse look    Space jump    Shift sprint    Ctrl/C crouch"),
 		TEXT("LMB fire    RMB zoom    R reload / vent    Q swap    E pick up"),
-		TEXT("F melee    G grenade    Alt / Mouse4 shape shield    Tab scores"),
+		TEXT("F melee    G grenade    Alt / Mouse4 use equipment (Aegis)    Tab scores"),
 		TEXT(""),
 		TEXT("MASTERY"),
-		TEXT("Shield Shaping (hold Alt): -40% damage from the front, +50% from behind, slower recharge."),
+		TEXT("Aegis Shield (map item, hold Alt): frontal barrier that stops bullets, not explosives or melee. No firing while up."),
+		TEXT("Rail Lance (map weapon): hold fire to charge, release at full charge (gold ring) for a one-shot kill."),
 		TEXT("Overcharge Vent (R while recharging): tap in the green window for an instant refill + overshield. Miss = restart."),
 		TEXT("Break Pulse (F the instant your shield pops): shockwave that knocks back and strips nearby shields."),
 		TEXT("Momentum Carry (sprint > crouch to slide > jump): keep slide speed in the air. Downhill slides go faster."),
-		TEXT("Shield Bleed: plasma strips shields and delays recharge; bullets hurt health. Strip, swap, headshot."),
+		TEXT("Power Jump: crouch, hold Space, release: up to 1.5x height. Slow while charging."),
 		TEXT("Motion Tracker (bottom left): enemies within 25 m show when they move fast. Crouch-walk to stay hidden."),
 		TEXT(""),
 		TEXT("Console: SB_Bots N    SB_Skill 0-3"),

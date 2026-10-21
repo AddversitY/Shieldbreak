@@ -148,3 +148,58 @@ AWeapon_RocketLauncher::AWeapon_RocketLauncher()
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::ShotgunFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }
+
+AWeapon_Sidearm::AWeapon_Sidearm()
+{
+	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "Sidearm", "Sidearm");
+	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
+	Stats.TimeBetweenShots = 0.24f;
+	// 70 shield: six body shots strip it; then one headshot (x5) kills.
+	Stats.Damage = 12.f;
+	Stats.bPrecision = true;
+	Stats.HeadshotMultiplier = 5.f;
+	Stats.BaseSpreadDegrees = 0.2f;
+	Stats.SpreadPerShot = 0.25f;
+	Stats.MaxSpreadDegrees = 1.2f;
+	Stats.SpreadRecoveryPerSecond = 4.f;
+	Stats.Range = 6000.f;
+	Stats.MagazineSize = 12;
+	Stats.MaxReserveAmmo = 48;
+	Stats.ReloadTime = 1.4f;
+	Stats.ZoomFOV = 55.f;
+	Stats.RecoilPitch = 0.6f;
+	Stats.Color = FLinearColor(0.22f, 0.22f, 0.25f);
+	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.45f);
+	Stats.DamageType = UDamageType_Ballistic::StaticClass();
+	Stats.MeshScale = FVector(0.26f, 0.05f, 0.1f);
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
+	Stats.ArtViewLength = 26.f;
+	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::PistolFire));
+	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
+}
+
+AWeapon_RailLance::AWeapon_RailLance()
+{
+	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "RailLance", "Rail Lance");
+	Stats.FireMode = EShieldbreakFireMode::Charge;
+	Stats.ChargeTime = 0.8f;
+	// A full charge (200) kills from full shield + health (115); an early release does a third (66).
+	Stats.Damage = 200.f;
+	Stats.MinChargeDamageFraction = 0.33f;
+	Stats.TimeBetweenShots = 0.6f;
+	Stats.bPrecision = false;
+	Stats.BaseSpreadDegrees = 0.f;
+	Stats.SpreadPerShot = 0.f;
+	Stats.MaxSpreadDegrees = 0.f;
+	Stats.Range = 15000.f;
+	Stats.MagazineSize = 3;
+	Stats.MaxReserveAmmo = 0;
+	Stats.ReloadTime = 0.f;
+	Stats.ZoomFOV = 45.f;
+	Stats.RecoilPitch = 1.5f;
+	// No imported art yet: the distinctive glowing greybox reads as exotic tech.
+	Stats.Color = FLinearColor(0.85f, 0.88f, 0.92f);
+	Stats.TracerColor = FLinearColor(0.2f, 0.95f, 1.f);
+	Stats.DamageType = UDamageType_Ballistic::StaticClass();
+	Stats.MeshScale = FVector(0.6f, 0.07f, 0.09f);
+}

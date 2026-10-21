@@ -24,7 +24,19 @@ public:
 	// ---- Tuning ----
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Sprint")
-	float SprintSpeed = 880.f;
+	float SprintSpeed = 950.f;
+
+	/** Seconds of crouched jump-hold for a full Power Jump. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Power Jump")
+	float PowerJumpChargeTime = 0.5f;
+
+	/** Jump height multiplier at full charge (velocity scales with its square root). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Power Jump")
+	float PowerJumpMaxHeightScale = 1.5f;
+
+	/** Movement speed while charging: slow and readable. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Power Jump")
+	float PowerJumpChargeSpeed = 140.f;
 
 	/** Minimum 2D speed to start a slide from a sprint. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
@@ -54,9 +66,14 @@ public:
 	bool IsSliding() const;
 	bool IsSprinting() const;
 	bool IsMomentumCarrying() const { return bMomentumCarry; }
+	/** 0..1 Power Jump charge (0 when not charging). */
+	float GetPowerJumpCharge() const { return PowerJumpChargeTime > 0.f ? JumpCharge / PowerJumpChargeTime : 0.f; }
+	bool IsChargingPowerJump() const { return Safe_bWantsPowerJump && JumpCharge > 0.f; }
 
 	/** Called by the owning character from input or AI. */
 	void SetSprinting(bool bSprint);
+	/** Hold while crouched on the ground to charge, release to launch. */
+	void SetChargingPowerJump(bool bCharge);
 
 	// ---- UCharacterMovementComponent ----
 
@@ -68,6 +85,10 @@ public:
 
 	/** Replicated-by-saved-move intent. */
 	bool Safe_bWantsToSprint = false;
+	bool Safe_bWantsPowerJump = false;
+
+	/** Seconds charged so far (saved per move so replays match the server). */
+	float JumpCharge = 0.f;
 
 protected:
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;
@@ -79,6 +100,7 @@ private:
 	void ExitSlide(EMovementMode NewMode);
 	void PhysSlide(float deltaTime, int32 Iterations);
 	bool FindSlideSurface(FHitResult& OutHit) const;
+	void LaunchPowerJump();
 
 	bool bMomentumCarry = false;
 };

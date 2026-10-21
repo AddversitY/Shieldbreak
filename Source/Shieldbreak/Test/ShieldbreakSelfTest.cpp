@@ -293,33 +293,6 @@ void AShieldbreakSelfTest::BuildSteps()
 			return false;
 		}, 10.f });
 
-	// ---- Shield Shaping ----
-	Steps.Add({ TEXT("Shield Shaping"),
-		[this, T, MaxShield, ShieldOf]()
-		{
-			// B faces -X toward A. A front hit, then a hit from a causer placed behind B.
-			B->GetShieldHealth()->SetShaping(true);
-			Check(TEXT("Shaping turns on"), B->GetShieldHealth()->IsShaping());
-			Damage(B, 20.f, UDamageType_Ballistic::StaticClass(), A);
-			const float FrontLoss = MaxShield - ShieldOf(B);
-			Check(TEXT("Frontal hits are reduced while shaping"), FMath::IsNearlyEqual(FrontLoss, 20.f * T->ShapingFrontMultiplier, 0.05f),
-				FString::Printf(TEXT("lost %s (expected %s)"), *Num(FrontLoss), *Num(20.f * T->ShapingFrontMultiplier)));
-
-			AShieldbreakCharacter* Behind = SpawnDummy(RangeB + FVector(400.f, 0.f, 0.f), 180.f, false);
-			const float Before = ShieldOf(B);
-			Damage(B, 20.f, UDamageType_Ballistic::StaticClass(), Behind);
-			const float RearLoss = Before - ShieldOf(B);
-			Check(TEXT("Hits from behind are amplified while shaping"), FMath::IsNearlyEqual(RearLoss, 20.f * T->ShapingRearMultiplier, 0.05f),
-				FString::Printf(TEXT("lost %s (expected %s)"), *Num(RearLoss), *Num(20.f * T->ShapingRearMultiplier)));
-
-			const float BeforeExplosive = ShieldOf(B);
-			Damage(B, 10.f, UDamageType_Explosive::StaticClass(), A);
-			Check(TEXT("Explosives ignore shaping"), FMath::IsNearlyEqual(BeforeExplosive - ShieldOf(B), 10.f, 0.05f),
-				FString::Printf(TEXT("lost %s"), *Num(BeforeExplosive - ShieldOf(B))));
-			B->GetShieldHealth()->SetShaping(false);
-		},
-		nullptr, 3.f });
-
 	// ---- Overcharge Vent ----
 	Steps.Add({ TEXT("Overcharge Vent (hit)"),
 		[this, MaxShield]()
@@ -664,7 +637,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			for (TActorIterator<AShieldbreakPowerup> It(GetWorld()); It; ++It)
 			{
-				++Powerups;
+				Powerups += It->Type == EShieldbreakPowerupType::Overshield ? 1 : 0;
 			}
 			Check(TEXT("The arena places two Sniper Rifles"), Snipers == 2, FString::Printf(TEXT("%d"), Snipers));
 			Check(TEXT("...one Rocket Launcher"), Rockets == 1, FString::Printf(TEXT("%d"), Rockets));

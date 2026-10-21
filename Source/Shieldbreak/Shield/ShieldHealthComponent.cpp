@@ -24,7 +24,6 @@ void UShieldHealthComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UShieldHealthComponent, ShieldBreakCount);
 	DOREPLIFETIME(UShieldHealthComponent, Overshield);
 	DOREPLIFETIME(UShieldHealthComponent, Health);
-	DOREPLIFETIME(UShieldHealthComponent, bShaping);
 	DOREPLIFETIME(UShieldHealthComponent, RechargeStartServerTime);
 	DOREPLIFETIME(UShieldHealthComponent, bVentUsedThisRecharge);
 	DOREPLIFETIME(UShieldHealthComponent, bDead);
@@ -92,14 +91,6 @@ void UShieldHealthComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 // ---- Inputs ----
 
-void UShieldHealthComponent::SetShaping(bool bNewShaping)
-{
-	if (bNewShaping != bShaping)
-	{
-		ServerSetShaping(bNewShaping);
-	}
-}
-
 void UShieldHealthComponent::TryVent()
 {
 	ServerTryVent(GetServerTime());
@@ -108,11 +99,6 @@ void UShieldHealthComponent::TryVent()
 void UShieldHealthComponent::TryBreakPulse()
 {
 	ServerTryBreakPulse(GetServerTime());
-}
-
-void UShieldHealthComponent::ServerSetShaping_Implementation(bool bNewShaping)
-{
-	bShaping = bNewShaping && !bDead;
 }
 
 void UShieldHealthComponent::ServerTryVent_Implementation(float ClientServerTime)
@@ -188,24 +174,13 @@ float UShieldHealthComponent::ApplyShieldbreakDamage(float Damage, const UDamage
 		return 0.f;
 	}
 
-	const UShieldTuningData& T = GetTuning();
 	const UShieldbreakDamageType* SBType = Cast<UShieldbreakDamageType>(DamageType);
-
-	float ShieldMultiplier = SBType ? SBType->ShieldDamageMultiplier : 1.f;
-	if (!SBType || !SBType->bIgnoresShieldShaping)
-	{
-		ShieldMultiplier *= GetShapingMultiplier(DamageCauser, InstigatedBy);
-	}
+	const float ShieldMultiplier = SBType ? SBType->ShieldDamageMultiplier : 1.f;
 
 	const float Leftover = AbsorbWithShield(Damage, ShieldMultiplier);
 	const float HealthDamage = Leftover * (SBType ? SBType->HealthDamageMultiplier : 1.f);
 
-	float ExtraDelay = SBType ? SBType->RechargeDelayExtension : 0.f;
-	if (bShaping)
-	{
-		ExtraDelay += T.ShapingRechargeDelayBonus;
-	}
-	ResetRechargeDelay(ExtraDelay);
+	ResetRechargeDelay(SBType ? SBType->RechargeDelayExtension : 0.f);
 
 	if (HealthDamage > 0.f)
 	{
@@ -264,36 +239,6 @@ float UShieldHealthComponent::AbsorbWithShield(float RawDamage, float ShieldMult
 
 	// Convert what got through back into unmultiplied damage for the health layer.
 	return ShieldDamage / ShieldMultiplier;
-}
-
-float UShieldHealthComponent::GetShapingMultiplier(const AActor* DamageCauser, const AController* InstigatedBy) const
-{
-	const AActor* Owner = GetOwner();
-	if (!bShaping || !Owner)
-	{
-		return 1.f;
-	}
-
-	const AActor* Source = DamageCauser ? DamageCauser : (InstigatedBy ? InstigatedBy->GetPawn() : nullptr);
-	if (!Source)
-	{
-		return 1.f;
-	}
-
-	const UShieldTuningData& T = GetTuning();
-	const FVector ToSource = (Source->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal2D();
-	if (ToSource.IsNearlyZero())
-	{
-		return T.ShapingFrontMultiplier;
-	}
-
-	// Use aim yaw rather than actor rotation so shaping follows where the player is looking.
-	const APawn* OwnerPawn = Cast<APawn>(Owner);
-	const float FacingYaw = OwnerPawn ? OwnerPawn->GetBaseAimRotation().Yaw : Owner->GetActorRotation().Yaw;
-	const FVector Facing = FRotator(0.f, FacingYaw, 0.f).Vector();
-
-	const float CosHalfArc = FMath::Cos(FMath::DegreesToRadians(T.ShapingFrontArcDegrees * 0.5f));
-	return FVector::DotProduct(Facing, ToSource) >= CosHalfArc ? T.ShapingFrontMultiplier : T.ShapingRearMultiplier;
 }
 
 void UShieldHealthComponent::ResetRechargeDelay(float ExtraDelay)
@@ -364,7 +309,6 @@ void UShieldHealthComponent::Die(AController* Killer)
 	}
 
 	bDead = true;
-	bShaping = false;
 	RechargeStartServerTime = -1.f;
 	OnDeath.Broadcast(Killer);
 }

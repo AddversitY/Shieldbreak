@@ -55,6 +55,20 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	BarrelMesh->SetGenerateOverlapEvents(false);
 	BarrelMesh->SetCastShadow(false);
 
+	ChargeGlowMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ChargeGlowMesh"));
+	ChargeGlowMesh->SetupAttachment(WeaponMesh);
+	ChargeGlowMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ChargeGlowMesh->SetGenerateOverlapEvents(false);
+	ChargeGlowMesh->SetCastShadow(false);
+	ChargeGlowMesh->SetUsingAbsoluteScale(true);
+	ChargeGlowMesh->SetVisibility(false);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (SphereFinder.Succeeded())
+	{
+		ChargeGlowMesh->SetStaticMesh(SphereFinder.Object);
+	}
+
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -85,6 +99,7 @@ void AShieldbreakWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, Heat, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bOverheated, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bReloading, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bCharging, COND_SkipOwner);
 }
 
 void AShieldbreakWeapon::BeginPlay()
@@ -182,6 +197,7 @@ void AShieldbreakWeapon::OnEquipped()
 
 void AShieldbreakWeapon::OnUnequipped()
 {
+	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;
 	SetActorHiddenInGame(true);
@@ -199,6 +215,24 @@ void AShieldbreakWeapon::OnUnequipped()
 
 void AShieldbreakWeapon::StartFire()
 {
+	if (Stats.FireMode == EShieldbreakFireMode::Charge)
+	{
+		const UWorld* World = GetWorld();
+		const float Now = World ? World->GetTimeSeconds() : 0.f;
+		if (!bCharging && CanFireShotLocal() && Now >= NextShotLocalTime)
+		{
+			bCharging = true;
+			ChargeStartLocalTime = Now;
+			ServerSetCharging(true);
+			OnRep_Charging(); // local tell (sound + glow)
+		}
+		else if (!HasAmmo() && CanReload())
+		{
+			StartReload();
+		}
+		return;
+	}
+
 	bWantsToFire = true;
 	bSemiAutoLatched = false;
 
@@ -210,6 +244,10 @@ void AShieldbreakWeapon::StartFire()
 
 void AShieldbreakWeapon::StopFire()
 {
+	if (bCharging)
+	{
+		ReleaseCharge();
+	}
 	bWantsToFire = false;
 	bSemiAutoLatched = false;
 }
@@ -262,6 +300,8 @@ void AShieldbreakWeapon::Tick(float DeltaSeconds)
 		bOverheated = false;
 	}
 
+	UpdateChargeGlow();
+
 	if (!OwnerCharacter->IsLocallyControlled())
 	{
 		return;
@@ -274,6 +314,12 @@ void AShieldbreakWeapon::Tick(float DeltaSeconds)
 	if (ReloadStartLocalTime >= 0.f && Now - ReloadStartLocalTime >= Stats.ReloadTime + 0.3f && !bReloading)
 	{
 		ReloadStartLocalTime = -1.f;
+	}
+
+	// Charge weapons fire on release (StopFire), never from the loop.
+	if (Stats.FireMode == EShieldbreakFireMode::Charge)
+	{
+		return;
 	}
 
 	// Fire loop. Several shots can be due in one frame at low frame rates.
@@ -426,12 +472,24 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	UWorld* World = GetWorld();
-	if (!OwnerCharacter || !World || !OwnerCharacter->IsAlive() || OwnerCharacter->GetCurrentWeapon() != this)
+	if (!OwnerCharacter || !World || !OwnerCharacter->IsAlive() || OwnerCharacter->GetCurrentWeapon() != this
+		|| OwnerCharacter->IsAegisRaised())
 	{
 		return;
 	}
 
 	const float Now = GetServerTime();
+
+	// Charge weapons: only a full charge (timed on the server, so it can't be faked) does full damage.
+	float ChargeDamageScale = 1.f;
+	if (Stats.FireMode == EShieldbreakFireMode::Charge)
+	{
+		const float Charged = ServerChargeStartTime < 0.f ? 0.f : (Now - ServerChargeStartTime) / FMath::Max(Stats.ChargeTime, 0.01f);
+		// Small allowance for the start/release RPCs arriving with different delays.
+		ChargeDamageScale = Charged + 0.1f >= 1.f ? 1.f : Stats.MinChargeDamageFraction;
+		ServerChargeStartTime = -1.f;
+		bCharging = false;
+	}
 
 	// Rate: a token bucket refilled a bit faster than the weapon's real sustained rate.
 	const int32 Burst = Stats.FireMode == EShieldbreakFireMode::Burst ? FMath::Max(1, Stats.BurstCount) : 1;
@@ -523,13 +581,19 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 	const bool bHit = World->LineTraceSingleByChannel(Hit, Origin, End, ECC_Weapon, Params);
 	const FVector ImpactPoint = bHit ? FVector(Hit.ImpactPoint) : End;
 
-	if (bHit && Hit.GetActor())
+	// A raised Aegis barrier soaks the bullet instead of its owner.
+	AShieldbreakCharacter* BarrierOwner = bHit ? Cast<AShieldbreakCharacter>(Hit.GetActor()) : nullptr;
+	if (BarrierOwner && Hit.GetComponent() && Hit.GetComponent() == BarrierOwner->GetAegisMesh())
+	{
+		BarrierOwner->AbsorbWithAegis(Stats.Damage * ChargeDamageScale, Hit.ImpactPoint);
+	}
+	else if (bHit && Hit.GetActor())
 	{
 		AActor* HitActor = Hit.GetActor();
 		AShieldbreakCharacter* Victim = Cast<AShieldbreakCharacter>(HitActor);
 		const bool bVictimWasAlive = Victim && Victim->IsAlive();
 
-		float DamageAmount = Stats.Damage;
+		float DamageAmount = Stats.Damage * ChargeDamageScale;
 		bool bHeadshot = false;
 		// The head sphere sits mostly inside the body capsule, so a level shot usually hits the
 		// capsule first. Test the same ray against the head on its own.
@@ -697,6 +761,10 @@ void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
 
 EShieldbreakSound AShieldbreakWeapon::GetShotSound() const
 {
+	if (Stats.FireMode == EShieldbreakFireMode::Charge)
+	{
+		return EShieldbreakSound::RailFire;
+	}
 	if (Stats.bUsesHeat)
 	{
 		return EShieldbreakSound::PlasmaShot;
@@ -813,4 +881,84 @@ float AShieldbreakWeapon::GetServerTime() const
 		return static_cast<float>(GameState->GetServerWorldTimeSeconds());
 	}
 	return World->GetTimeSeconds();
+}
+
+// ---- Charge weapons ----
+
+float AShieldbreakWeapon::GetChargeFraction() const
+{
+	const UWorld* World = GetWorld();
+	if (!bCharging || ChargeStartLocalTime < 0.f || !World)
+	{
+		return 0.f;
+	}
+	return FMath::Clamp((World->GetTimeSeconds() - ChargeStartLocalTime) / FMath::Max(Stats.ChargeTime, 0.01f), 0.f, 1.f);
+}
+
+void AShieldbreakWeapon::ReleaseCharge()
+{
+	const UWorld* World = GetWorld();
+	bCharging = false;
+	ChargeStartLocalTime = -1.f;
+	UpdateChargeGlow();
+	if (World && CanFireShotLocal())
+	{
+		FireShotLocal();
+		NextShotLocalTime = World->GetTimeSeconds() + Stats.TimeBetweenShots;
+	}
+}
+
+void AShieldbreakWeapon::CancelCharge()
+{
+	if (!bCharging)
+	{
+		return;
+	}
+	bCharging = false;
+	ChargeStartLocalTime = -1.f;
+	UpdateChargeGlow();
+	ServerSetCharging(false);
+}
+
+void AShieldbreakWeapon::ServerSetCharging_Implementation(bool bNewCharging)
+{
+	bCharging = bNewCharging;
+	ServerChargeStartTime = bNewCharging ? GetServerTime() : -1.f;
+	OnRep_Charging();
+}
+
+void AShieldbreakWeapon::OnRep_Charging()
+{
+	const UWorld* World = GetWorld();
+	if (bCharging && World)
+	{
+		ChargeStartLocalTime = World->GetTimeSeconds();
+		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+		const bool bLocalView = OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
+		if (bLocalView)
+		{
+			FShieldbreakSFX::Play2D(this, EShieldbreakSound::RailCharge, 0.6f);
+		}
+		else
+		{
+			FShieldbreakSFX::PlayAt(this, EShieldbreakSound::RailCharge, GetMuzzleLocation(), 0.9f);
+		}
+	}
+	UpdateChargeGlow();
+}
+
+void AShieldbreakWeapon::UpdateChargeGlow()
+{
+	if (!ChargeGlowMesh)
+	{
+		return;
+	}
+	const bool bShow = bCharging && !IsHidden();
+	ChargeGlowMesh->SetVisibility(bShow);
+	if (bShow)
+	{
+		const float Fraction = GetChargeFraction();
+		ChargeGlowMesh->SetWorldLocation(GetMuzzleLocation());
+		ChargeGlowMesh->SetWorldScale3D(FVector(0.03f + 0.09f * Fraction));
+	}
 }

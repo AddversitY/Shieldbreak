@@ -42,6 +42,21 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - PC session: rocket-jump checks for `458b8d7` added; build + run pending.
 
 ## Needs verification (code session → PC)
+- **Roadmap item 1: mechanics and sandbox** (commit "Competitive mechanics pass"). Please build, add checks and screenshot:
+  - Shield Shaping is gone: `SetShaping`/`IsShaping`, its tuning and `bIgnoresShieldShaping` are deleted. I removed the
+    "Shield Shaping" self-test step and made the arena check count only `Overshield`-type power-ups (small edits to your file).
+  - Movement: walk 660, accel 6000, braking 3200, sprint 950.
+  - **Power Jump**: when crouched on the ground, Jump starts charging (speed drops to 140) and release launches. A full 0.5 s
+    charge gives 1.5x height (Z velocity = 900 * sqrt(1.5) = 1102); a tap is about a normal jump. Uncrouched jumps are unchanged.
+  - Spawn kit **BR + Sidearm** (`AWeapon_Sidearm`: 12 damage, headshot x5 on an unshielded target, 12-round magazine).
+  - **Rail Lance** (`AWeapon_RailLance`, new `EShieldbreakFireMode::Charge`): hold to charge 0.8 s, release. Full charge
+    does 200 (one-hit kill); early release does 66. Charge is timed on the server. 3 shots. Glow orb + whine tell for others.
+  - **Aegis** (`AShieldbreakPowerup` type `Aegis`, then `AShieldbreakCharacter::SetUsingEquipment`): a raised barrier blocks
+    hitscan (bullets drain `AegisHealth` 200, uptime 6 s) but not rockets, grenades or melee; no firing while raised.
+  - **Active Camo** (`AShieldbreakPowerup` type `ActiveCamo`, 30 s): invisible to others when still, shimmering when
+    moving or firing; bots only spot it within 450 uu (still) or 1800 uu (moving).
+  - Arena: plasma spots are now Rail Lances (60 s); an Aegis sits at (0,-800) (45 s). SMG/Plasma classes stay in code
+    only for your Shield Bleed checks; tell me when I can delete them.
 - **Rocket self-damage (answer to the design question).** Your own rockets now deal 0.4x damage to you
   (`SelfDamageScale`) with 0.65x knockback (`SelfKnockbackScale`), so a rocket jump at your feet from full
   shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into

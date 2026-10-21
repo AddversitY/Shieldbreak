@@ -18,6 +18,15 @@ class UShieldbreakMovementComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
 
+/** Map-pickup equipment, used with the Use Equipment input. */
+UENUM(BlueprintType)
+enum class EShieldbreakEquipment : uint8
+{
+	None,
+	/** Frontal barrier that blocks bullets (not explosives or melee); no firing while raised. */
+	Aegis
+};
+
 UCLASS(Config = Game)
 class SHIELDBREAK_API AShieldbreakCharacter : public ACharacter
 {
@@ -51,6 +60,18 @@ public:
 	float GetSpreadMultiplier() const;
 	FLinearColor GetPlayerColor() const;
 
+	// ---- Equipment and power-ups ----
+
+	EShieldbreakEquipment GetEquipment() const { return Equipment; }
+	bool IsAegisRaised() const { return bAegisRaised; }
+	/** Owning client / server: remaining barrier strength and uptime, 0..1. */
+	float GetAegisHealthFraction() const { return AegisMaxHealth > 0.f ? AegisHealth / AegisMaxHealth : 0.f; }
+	float GetAegisUptimeFraction() const { return AegisMaxUptime > 0.f ? AegisUptime / AegisMaxUptime : 0.f; }
+	UStaticMeshComponent* GetAegisMesh() const { return AegisMesh; }
+	bool IsCamouflaged() const;
+	/** Seconds of Active Camo left (server time based; 0 when none). */
+	float GetCamoTimeRemaining() const;
+
 	// ---- Actions (owning client input or server AI) ----
 
 	void StartFire();
@@ -61,7 +82,8 @@ public:
 	void SwapWeapon();
 	void Interact();
 	void SetSprinting(bool bSprint);
-	void SetShaping(bool bShape);
+	/** Hold Use Equipment: raise / lower the Aegis barrier. */
+	void SetUsingEquipment(bool bUse);
 	void SetZoomed(bool bZoom);
 	void ToggleZoom();
 	void StartCrouchOrSlide();
@@ -72,6 +94,11 @@ public:
 	void GiveWeapon(TSubclassOf<AShieldbreakWeapon> WeaponClass);
 	void EquipWeapon(AShieldbreakWeapon* Weapon);
 	void AddGrenades(int32 Count);
+	/** False if already carrying that equipment (the pickup then stays). */
+	bool GiveEquipment(EShieldbreakEquipment NewEquipment);
+	/** A bullet hit the raised barrier: drain it instead of hurting the character. */
+	void AbsorbWithAegis(float Damage, const FVector& ImpactPoint);
+	void GrantCamo(float Duration);
 
 protected:
 	virtual void BeginPlay() override;
@@ -93,9 +120,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shieldbreak")
 	TObjectPtr<UStaticMeshComponent> VisorMesh;
 
-	/** Frontal plate shown to others while Shield Shaping (the readable tell). */
+	/** Aegis barrier: visible to everyone else while raised, and the only thing bullets hit then. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shieldbreak")
-	TObjectPtr<UStaticMeshComponent> ShapeShieldMesh;
+	TObjectPtr<UStaticMeshComponent> AegisMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shieldbreak")
 	TObjectPtr<UShieldHealthComponent> ShieldHealth;
@@ -145,6 +172,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Shieldbreak|Camera")
 	float DefaultFOV = 78.f;
 
+	// ---- Equipment ----
+
+	/** Damage the barrier soaks per pickup. */
+	UPROPERTY(EditDefaultsOnly, Category = "Shieldbreak|Equipment")
+	float AegisMaxHealth = 200.f;
+
+	/** Seconds the barrier can be held up per pickup. */
+	UPROPERTY(EditDefaultsOnly, Category = "Shieldbreak|Equipment")
+	float AegisMaxUptime = 6.f;
+
+	/** Below this 2D speed a camouflaged player is (almost) invisible; above it they shimmer. */
+	UPROPERTY(EditDefaultsOnly, Category = "Shieldbreak|Equipment")
+	float CamoStillSpeed = 60.f;
+
 private:
 	// ---- Input handlers ----
 	void Input_Move(const FInputActionValue& Value);
@@ -154,8 +195,8 @@ private:
 	void Input_FireStarted();
 	void Input_FireCompleted();
 	void Input_Zoom();
-	void Input_ShapeStarted();
-	void Input_ShapeCompleted();
+	void Input_EquipmentStarted();
+	void Input_EquipmentCompleted();
 	void Input_Melee();
 	void Input_Grenade();
 	void Input_ReloadVent();
@@ -171,6 +212,12 @@ private:
 	UFUNCTION(Server, Reliable) void ServerThrowGrenade();
 	UFUNCTION(Server, Reliable) void ServerSwapWeapon();
 	UFUNCTION(Server, Reliable) void ServerInteract();
+	UFUNCTION(Server, Reliable) void ServerSetUsingEquipment(bool bUse);
+
+	void SetAegisRaisedInternal(bool bRaise);
+	void UpdateCamoVisuals();
+	UFUNCTION() void OnRep_AegisRaised();
+	UFUNCTION() void OnRep_CamoEnd();
 
 	UFUNCTION(NetMulticast, Unreliable) void MulticastMeleeFX(FVector_NetQuantize ImpactLocation, bool bAssassination);
 
@@ -203,12 +250,28 @@ private:
 	UPROPERTY(Replicated)
 	int32 GrenadeCount = 0;
 
+	UPROPERTY(Replicated)
+	EShieldbreakEquipment Equipment = EShieldbreakEquipment::None;
+
+	UPROPERTY(Replicated)
+	float AegisHealth = 0.f;
+
+	UPROPERTY(Replicated)
+	float AegisUptime = 0.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_AegisRaised)
+	bool bAegisRaised = false;
+
+	/** Server time Active Camo ends (-1 = none). */
+	UPROPERTY(ReplicatedUsing = OnRep_CamoEnd)
+	float CamoEndServerTime = -1.f;
+
 	// ---- Local state ----
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> HeadMID;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> VisorMID;
-	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> ShapeMID;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> AegisMID;
 
 	TWeakObjectPtr<AShieldbreakWeapon> VisualEquippedWeapon;
 	FLinearColor AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
@@ -217,4 +280,6 @@ private:
 	float LastShieldValue = -1.f;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
+	bool bCamoHidden = false;
+	bool bWantsEquipment = false;
 };

@@ -24,8 +24,4 @@ public:
 	/** Shield Bleed: extra seconds added to the victim's recharge delay. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Shield")
 	float RechargeDelayExtension = 0.f;
-
-	/** Explosives etc. hit the whole shield regardless of shaping. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Shield")
-	bool bIgnoresShieldShaping = false;
 };

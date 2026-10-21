@@ -50,7 +50,7 @@ public:
 	}
 };
 
-/** Grenades: hit the whole shield regardless of shaping. */
+/** Grenades and rockets: neutral, a separate type so effects and the Aegis can tell explosions apart. */
 UCLASS()
 class SHIELDBREAK_API UDamageType_Explosive : public UShieldbreakDamageType
 {
@@ -59,7 +59,6 @@ class SHIELDBREAK_API UDamageType_Explosive : public UShieldbreakDamageType
 public:
 	UDamageType_Explosive()
 	{
-		bIgnoresShieldShaping = true;
 	}
 };
 

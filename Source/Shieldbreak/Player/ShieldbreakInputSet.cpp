@@ -49,7 +49,7 @@ void UShieldbreakInputSet::Build()
 	Jump = MakeAction(TEXT("IA_Jump"), false);
 	Fire = MakeAction(TEXT("IA_Fire"), false);
 	Zoom = MakeAction(TEXT("IA_Zoom"), false);
-	Shape = MakeAction(TEXT("IA_Shape"), false);
+	Equipment = MakeAction(TEXT("IA_Equipment"), false);
 	Melee = MakeAction(TEXT("IA_Melee"), false);
 	Grenade = MakeAction(TEXT("IA_Grenade"), false);
 	ReloadVent = MakeAction(TEXT("IA_ReloadVent"), false);
@@ -104,7 +104,7 @@ void UShieldbreakInputSet::Build()
 	MapPair(Jump, { EKeys::SpaceBar, EKeys::Gamepad_FaceButton_Bottom });
 	MapPair(Fire, { EKeys::LeftMouseButton, EKeys::Gamepad_RightTriggerAxis });
 	MapPair(Zoom, { EKeys::RightMouseButton, EKeys::Gamepad_RightThumbstick });
-	MapPair(Shape, { EKeys::LeftAlt, EKeys::ThumbMouseButton, EKeys::Gamepad_LeftTriggerAxis });
+	MapPair(Equipment, { EKeys::LeftAlt, EKeys::ThumbMouseButton, EKeys::Gamepad_LeftTriggerAxis });
 	MapPair(Melee, { EKeys::F, EKeys::Gamepad_RightShoulder });
 	MapPair(Grenade, { EKeys::G, EKeys::Gamepad_LeftShoulder });
 	MapPair(ReloadVent, { EKeys::R, EKeys::Gamepad_FaceButton_Left });

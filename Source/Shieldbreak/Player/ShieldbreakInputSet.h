@@ -24,7 +24,7 @@ public:
 	UPROPERTY() TObjectPtr<UInputAction> Jump;
 	UPROPERTY() TObjectPtr<UInputAction> Fire;
 	UPROPERTY() TObjectPtr<UInputAction> Zoom;
-	UPROPERTY() TObjectPtr<UInputAction> Shape;
+	UPROPERTY() TObjectPtr<UInputAction> Equipment;
 	UPROPERTY() TObjectPtr<UInputAction> Melee;
 	UPROPERTY() TObjectPtr<UInputAction> Grenade;
 	UPROPERTY() TObjectPtr<UInputAction> ReloadVent;

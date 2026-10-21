@@ -38,6 +38,7 @@ private:
 	void DrawMomentum(AShieldbreakCharacter* Character);
 	void DrawMotionTracker(AShieldbreakCharacter* Character);
 	void DrawTeammateNames(AShieldbreakCharacter* Character);
+	void DrawEquipmentStatus(AShieldbreakCharacter* Character);
 	void DrawKillFeed(AShieldbreakGameState* GameState);
 	void DrawTopScores(AShieldbreakGameState* GameState);
 	void DrawScoreboard(AShieldbreakGameState* GameState);

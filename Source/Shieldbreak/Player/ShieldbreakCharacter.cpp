@@ -30,6 +30,7 @@
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakTracer.h"
+#include "GameFramework/GameStateBase.h"
 #include "Weapons/ShieldbreakWeapon.h"
 #include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
@@ -37,7 +38,7 @@
 namespace ShieldbreakCharacterPrivate
 {
 	const FLinearColor VisorColor(1.f, 0.65f, 0.08f);
-	const FLinearColor ShapeColor(0.15f, 0.45f, 1.f);
+	const FLinearColor AegisColor(0.2f, 0.75f, 1.f);
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
@@ -113,13 +114,18 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	VisorMesh->SetRelativeScale3D(FVector(0.08f, 0.3f, 0.12f));
 	VisorMesh->SetOwnerNoSee(true);
 
-	ShapeShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeShieldMesh"));
-	SetupMesh(ShapeShieldMesh, CubeAsset);
-	ShapeShieldMesh->SetRelativeLocation(FVector(48.f, 0.f, 10.f));
-	ShapeShieldMesh->SetRelativeScale3D(FVector(0.04f, 1.1f, 1.5f));
-	ShapeShieldMesh->SetOwnerNoSee(true);
-	ShapeShieldMesh->SetVisibility(false);
-	ShapeShieldMesh->SetCastShadow(false);
+	AegisMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AegisMesh"));
+	SetupMesh(AegisMesh, CubeAsset);
+	// 110 wide x 170 tall, covering head to shins from the front. Collision is only switched on while
+	// raised, and then only blocks weapon traces (explosives, melee and movement pass through).
+	AegisMesh->SetRelativeLocation(FVector(55.f, 0.f, 15.f));
+	AegisMesh->SetRelativeScale3D(FVector(0.04f, 1.1f, 1.7f));
+	AegisMesh->SetOwnerNoSee(true);
+	AegisMesh->SetVisibility(false);
+	AegisMesh->SetCastShadow(false);
+	AegisMesh->SetCollisionObjectType(ECC_WorldDynamic);
+	AegisMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	AegisMesh->SetCollisionResponseToChannel(ECC_Weapon, ECR_Block);
 
 	ShieldHealth = CreateDefaultSubobject<UShieldHealthComponent>(TEXT("ShieldHealth"));
 	CreateDefaultSubobject<UShieldbreakCharacterAudio>(TEXT("ShieldAudio"));
@@ -132,7 +138,7 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	GetMesh()->SetCollisionResponseToChannel(ECC_Weapon, ECR_Ignore);
 
 	PrimaryWeaponClass = AWeapon_BattleRifle::StaticClass();
-	SecondaryWeaponClass = AWeapon_SMG::StaticClass();
+	SecondaryWeaponClass = AWeapon_Sidearm::StaticClass();
 	GrenadeClass = AShieldbreakGrenade::StaticClass();
 }
 
@@ -143,6 +149,11 @@ void AShieldbreakCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(AShieldbreakCharacter, Inventory);
 	DOREPLIFETIME(AShieldbreakCharacter, CurrentWeapon);
 	DOREPLIFETIME_CONDITION(AShieldbreakCharacter, GrenadeCount, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AShieldbreakCharacter, Equipment, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AShieldbreakCharacter, AegisHealth, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AShieldbreakCharacter, AegisUptime, COND_OwnerOnly);
+	DOREPLIFETIME(AShieldbreakCharacter, bAegisRaised);
+	DOREPLIFETIME(AShieldbreakCharacter, CamoEndServerTime);
 }
 
 void AShieldbreakCharacter::BeginPlay()
@@ -164,7 +175,7 @@ void AShieldbreakCharacter::BeginPlay()
 	}
 
 	TintMesh(VisorMesh, ShieldbreakCharacterPrivate::VisorColor, VisorMID);
-	TintMesh(ShapeShieldMesh, ShieldbreakCharacterPrivate::ShapeColor, ShapeMID);
+	TintMesh(AegisMesh, ShieldbreakCharacterPrivate::AegisColor, AegisMID);
 	// The color may have been applied before the mannequin existed; force a re-apply now.
 	AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
 	ApplyPlayerColor();
@@ -495,10 +506,21 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 		FirstPersonCamera->SetRelativeRotation(Relative);
 	}
 
-	if (ShapeShieldMesh)
+	// Aegis uptime drains on the server while raised; out of time or strength drops the barrier for good.
+	if (HasAuthority() && bAegisRaised)
 	{
-		ShapeShieldMesh->SetVisibility(IsAlive() && ShieldHealth && ShieldHealth->IsShaping());
+		AegisUptime = FMath::Max(0.f, AegisUptime - DeltaSeconds);
+		if (AegisUptime <= 0.f || AegisHealth <= 0.f || !IsAlive())
+		{
+			SetAegisRaisedInternal(false);
+			if (AegisUptime <= 0.f || AegisHealth <= 0.f)
+			{
+				Equipment = EShieldbreakEquipment::None;
+			}
+		}
 	}
+
+	UpdateCamoVisuals();
 
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
@@ -529,8 +551,8 @@ void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	EnhancedInput->BindAction(Inputs->Fire, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_FireStarted);
 	EnhancedInput->BindAction(Inputs->Fire, ETriggerEvent::Completed, this, &AShieldbreakCharacter::Input_FireCompleted);
 	EnhancedInput->BindAction(Inputs->Zoom, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_Zoom);
-	EnhancedInput->BindAction(Inputs->Shape, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_ShapeStarted);
-	EnhancedInput->BindAction(Inputs->Shape, ETriggerEvent::Completed, this, &AShieldbreakCharacter::Input_ShapeCompleted);
+	EnhancedInput->BindAction(Inputs->Equipment, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_EquipmentStarted);
+	EnhancedInput->BindAction(Inputs->Equipment, ETriggerEvent::Completed, this, &AShieldbreakCharacter::Input_EquipmentCompleted);
 	EnhancedInput->BindAction(Inputs->Melee, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_Melee);
 	EnhancedInput->BindAction(Inputs->Grenade, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_Grenade);
 	EnhancedInput->BindAction(Inputs->ReloadVent, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_ReloadVent);
@@ -563,13 +585,31 @@ void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 	AddControllerPitchInput(-Axis.Y * Scale);
 }
 
-void AShieldbreakCharacter::Input_JumpStarted() { Jump(); }
-void AShieldbreakCharacter::Input_JumpCompleted() { StopJumping(); }
+void AShieldbreakCharacter::Input_JumpStarted()
+{
+	// Crouched on the ground: start charging a Power Jump (launches on release). Otherwise jump instantly.
+	UShieldbreakMovementComponent* Movement = GetShieldbreakMovement();
+	if (Movement && bIsCrouched && Movement->MovementMode == MOVE_Walking && !Movement->IsSliding())
+	{
+		Movement->SetChargingPowerJump(true);
+		return;
+	}
+	Jump();
+}
+
+void AShieldbreakCharacter::Input_JumpCompleted()
+{
+	if (UShieldbreakMovementComponent* Movement = GetShieldbreakMovement())
+	{
+		Movement->SetChargingPowerJump(false);
+	}
+	StopJumping();
+}
 void AShieldbreakCharacter::Input_FireStarted() { StartFire(); }
 void AShieldbreakCharacter::Input_FireCompleted() { StopFire(); }
 void AShieldbreakCharacter::Input_Zoom() { ToggleZoom(); }
-void AShieldbreakCharacter::Input_ShapeStarted() { SetShaping(true); }
-void AShieldbreakCharacter::Input_ShapeCompleted() { SetShaping(false); }
+void AShieldbreakCharacter::Input_EquipmentStarted() { SetUsingEquipment(true); }
+void AShieldbreakCharacter::Input_EquipmentCompleted() { SetUsingEquipment(false); }
 void AShieldbreakCharacter::Input_Melee() { Melee(); }
 void AShieldbreakCharacter::Input_Grenade() { ThrowGrenade(); }
 void AShieldbreakCharacter::Input_ReloadVent() { ReloadOrVent(); }
@@ -590,7 +630,7 @@ bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
 
 void AShieldbreakCharacter::StartFire()
 {
-	if (!IsAlive() || !CurrentWeapon)
+	if (!IsAlive() || !CurrentWeapon || bAegisRaised)
 	{
 		return;
 	}
@@ -614,11 +654,26 @@ void AShieldbreakCharacter::SetSprinting(bool bSprint)
 	}
 }
 
-void AShieldbreakCharacter::SetShaping(bool bShape)
+void AShieldbreakCharacter::SetUsingEquipment(bool bUse)
 {
-	if (ShieldHealth && (IsAlive() || !bShape))
+	if (bUse && (!IsAlive() || Equipment == EShieldbreakEquipment::None))
 	{
-		ShieldHealth->SetShaping(bShape);
+		return;
+	}
+	if (bUse)
+	{
+		// Raising the barrier means you stop shooting.
+		StopFire();
+		SetSprinting(false);
+	}
+	ServerSetUsingEquipment(bUse);
+}
+
+void AShieldbreakCharacter::ServerSetUsingEquipment_Implementation(bool bUse)
+{
+	if (Equipment == EShieldbreakEquipment::Aegis)
+	{
+		SetAegisRaisedInternal(bUse && IsAlive() && AegisHealth > 0.f && AegisUptime > 0.f);
 	}
 }
 
@@ -966,7 +1021,14 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	SetSprinting(false);
 
 	// Visuals on every machine: the mannequin ragdolls, or the greybox body collapses into physics debris.
-	ShapeShieldMesh->SetVisibility(false);
+	AegisMesh->SetVisibility(false);
+	AegisMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (HasAuthority())
+	{
+		bAegisRaised = false;
+		Equipment = EShieldbreakEquipment::None;
+		CamoEndServerTime = -1.f;
+	}
 	const bool bRagdoll = BodyAnimator && BodyAnimator->HasBodyArt();
 	if (bRagdoll)
 	{
@@ -1027,4 +1089,145 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	DetachFromControllerPendingDestroy();
 	SetLifeSpan(6.f);
 	DestroyInventory();
+}
+
+// ---- Equipment and power-ups ----
+
+bool AShieldbreakCharacter::GiveEquipment(EShieldbreakEquipment NewEquipment)
+{
+	if (!HasAuthority() || !IsAlive() || NewEquipment == EShieldbreakEquipment::None
+		|| (Equipment == NewEquipment && AegisHealth >= AegisMaxHealth && AegisUptime >= AegisMaxUptime))
+	{
+		return false;
+	}
+	SetAegisRaisedInternal(false);
+	Equipment = NewEquipment;
+	AegisHealth = AegisMaxHealth;
+	AegisUptime = AegisMaxUptime;
+	ForceNetUpdate();
+	return true;
+}
+
+void AShieldbreakCharacter::SetAegisRaisedInternal(bool bRaise)
+{
+	if (bAegisRaised == bRaise)
+	{
+		return;
+	}
+	bAegisRaised = bRaise;
+	if (bRaise)
+	{
+		StopFire();
+	}
+	OnRep_AegisRaised();
+	ForceNetUpdate();
+}
+
+void AShieldbreakCharacter::OnRep_AegisRaised()
+{
+	if (AegisMesh)
+	{
+		AegisMesh->SetVisibility(bAegisRaised && IsAlive());
+		AegisMesh->SetCollisionEnabled(bAegisRaised ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+	if (bAegisRaised)
+	{
+		if (IsLocallyControlled() && IsPlayerControlled())
+		{
+			FShieldbreakSFX::Play2D(this, EShieldbreakSound::AegisRaise, 0.7f);
+		}
+		else
+		{
+			FShieldbreakSFX::PlayAt(this, EShieldbreakSound::AegisRaise, GetActorLocation(), 0.9f);
+		}
+	}
+}
+
+void AShieldbreakCharacter::AbsorbWithAegis(float Damage, const FVector& ImpactPoint)
+{
+	if (!HasAuthority() || !bAegisRaised)
+	{
+		return;
+	}
+	AegisHealth = FMath::Max(0.f, AegisHealth - Damage);
+	FShieldbreakSFX::PlayAt(this, EShieldbreakSound::AegisHit, ImpactPoint, 0.8f);
+	if (AegisHealth <= 0.f)
+	{
+		SetAegisRaisedInternal(false);
+		Equipment = EShieldbreakEquipment::None;
+		AShieldbreakTracer::SpawnBurst(GetWorld(), ImpactPoint, 20.f, 120.f, 0.25f, ShieldbreakCharacterPrivate::AegisColor);
+	}
+	ForceNetUpdate();
+}
+
+void AShieldbreakCharacter::GrantCamo(float Duration)
+{
+	if (!HasAuthority() || !IsAlive())
+	{
+		return;
+	}
+	const AGameStateBase* GameState = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+	const float Now = GameState ? static_cast<float>(GameState->GetServerWorldTimeSeconds()) : 0.f;
+	CamoEndServerTime = Now + Duration;
+	OnRep_CamoEnd();
+	ForceNetUpdate();
+}
+
+void AShieldbreakCharacter::OnRep_CamoEnd()
+{
+	if (IsCamouflaged())
+	{
+		FShieldbreakSFX::PlayAt(this, EShieldbreakSound::CamoOn, GetActorLocation(), 0.8f);
+	}
+}
+
+float AShieldbreakCharacter::GetCamoTimeRemaining() const
+{
+	const AGameStateBase* GameState = GetWorld() ? GetWorld()->GetGameState() : nullptr;
+	if (!GameState || CamoEndServerTime < 0.f)
+	{
+		return 0.f;
+	}
+	return FMath::Max(0.f, CamoEndServerTime - static_cast<float>(GameState->GetServerWorldTimeSeconds()));
+}
+
+bool AShieldbreakCharacter::IsCamouflaged() const
+{
+	return IsAlive() && GetCamoTimeRemaining() > 0.f;
+}
+
+void AShieldbreakCharacter::UpdateCamoVisuals()
+{
+	// Camo is cosmetic on every machine except the owner, who keeps seeing their own viewmodel.
+	const bool bLocalView = IsLocallyControlled() && IsPlayerControlled();
+	bool bHide = false;
+	if (!bLocalView && IsCamouflaged() && GetWorld())
+	{
+		// Still: invisible. Moving or shooting: a broken shimmer that flickers in and out.
+		const bool bShooting = CurrentWeapon && CurrentWeapon->IsFiring();
+		const bool bMoving = GetVelocity().Size2D() > CamoStillSpeed;
+		const float Time = GetWorld()->GetTimeSeconds() * 23.f + static_cast<float>(GetUniqueID() % 97);
+		const float Noise = 0.5f + 0.5f * FMath::Sin(Time) * FMath::Sin(Time * 0.37f + 1.3f);
+		bHide = bShooting ? Noise < 0.25f : (bMoving ? Noise < 0.7f : true);
+	}
+
+	if (bHide == bCamoHidden)
+	{
+		return;
+	}
+	bCamoHidden = bHide;
+
+	if (USkeletalMeshComponent* Body = GetMesh())
+	{
+		Body->SetHiddenInGame(bHide);
+	}
+	if (BodyAnimator && !BodyAnimator->HasBodyArt())
+	{
+		BodyMesh->SetHiddenInGame(bHide);
+		VisorMesh->SetHiddenInGame(bHide);
+	}
+	if (CurrentWeapon && !bLocalView)
+	{
+		CurrentWeapon->SetActorHiddenInGame(bHide);
+	}
 }

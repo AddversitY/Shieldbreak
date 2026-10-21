@@ -209,6 +209,43 @@ namespace ShieldbreakSFXPrivate
 			S.AddNoise(0.3f, 3000.f, 300.f, 0.f, 0.12f);
 			return S.ToPCM(0.7f);
 		}
+		case EShieldbreakSound::RailCharge:
+		{
+			// Rising whine that tops out right at a full charge (0.8 s): the audible tell.
+			FSynth S(0.85f, 25);
+			S.AddTone(0.5f, 300.f, 1900.f, 0.8f, 0.05f, 6.f, 0.f, 0.4f);
+			S.AddBuzz(0.08f, 60.f, 240.f, 0.05f, 6.f);
+			return S.ToPCM(0.55f);
+		}
+		case EShieldbreakSound::RailFire:
+		{
+			FSynth S(0.5f, 26);
+			S.AddNoise(0.8f, 12000.f, 2000.f, 0.f, 0.05f);
+			S.AddTone(0.7f, 2400.f, 200.f, 0.2f, 0.001f, 0.12f, 0.f, 0.5f);
+			S.AddTone(0.6f, 90.f, 40.f, 0.3f, 0.002f, 0.15f);
+			return S.ToPCM(0.9f);
+		}
+		case EShieldbreakSound::AegisRaise:
+		{
+			FSynth S(0.3f, 27);
+			S.AddTone(0.5f, 180.f, 520.f, 0.15f, 0.01f, 0.2f, 0.f, 0.5f);
+			S.AddNoise(0.15f, 5000.f, 2000.f, 0.f, 0.1f);
+			return S.ToPCM(0.6f);
+		}
+		case EShieldbreakSound::AegisHit:
+		{
+			FSynth S(0.12f, 28);
+			S.AddTone(0.5f, 1300.f, 900.f, 0.08f, 0.001f, 0.04f, 0.f, 0.3f);
+			S.AddNoise(0.3f, 9000.f, 4000.f, 0.f, 0.02f);
+			return S.ToPCM(0.5f);
+		}
+		case EShieldbreakSound::CamoOn:
+		{
+			FSynth S(0.6f, 29);
+			S.AddTone(0.4f, 900.f, 200.f, 0.5f, 0.02f, 0.3f, 0.f, 0.6f);
+			S.AddNoise(0.2f, 3000.f, 600.f, 0.05f, 0.3f);
+			return S.ToPCM(0.5f);
+		}
 		default:
 			return TArray<int16>();
 		}

@@ -13,9 +13,12 @@ public:
 	typedef FSavedMove_Character Super;
 
 	uint8 Saved_bWantsToSprint : 1;
+	uint8 Saved_bWantsPowerJump : 1;
+	float Saved_JumpCharge = 0.f;
 
 	FSavedMove_Shieldbreak()
 		: Saved_bWantsToSprint(0)
+		, Saved_bWantsPowerJump(0)
 	{
 	}
 
@@ -23,6 +26,8 @@ public:
 	{
 		Super::Clear();
 		Saved_bWantsToSprint = 0;
+		Saved_bWantsPowerJump = 0;
+		Saved_JumpCharge = 0.f;
 	}
 
 	virtual uint8 GetCompressedFlags() const override
@@ -32,13 +37,17 @@ public:
 		{
 			Result |= FLAG_Custom_0;
 		}
+		if (Saved_bWantsPowerJump)
+		{
+			Result |= FLAG_Custom_1;
+		}
 		return Result;
 	}
 
 	virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const override
 	{
 		const FSavedMove_Shieldbreak* Other = static_cast<const FSavedMove_Shieldbreak*>(NewMove.Get());
-		if (Other && Saved_bWantsToSprint != Other->Saved_bWantsToSprint)
+		if (Other && (Saved_bWantsToSprint != Other->Saved_bWantsToSprint || Saved_bWantsPowerJump != Other->Saved_bWantsPowerJump))
 		{
 			return false;
 		}
@@ -51,6 +60,8 @@ public:
 		if (const UShieldbreakMovementComponent* Movement = C ? Cast<UShieldbreakMovementComponent>(C->GetCharacterMovement()) : nullptr)
 		{
 			Saved_bWantsToSprint = Movement->Safe_bWantsToSprint;
+			Saved_bWantsPowerJump = Movement->Safe_bWantsPowerJump;
+			Saved_JumpCharge = Movement->JumpCharge;
 		}
 	}
 
@@ -60,6 +71,8 @@ public:
 		if (UShieldbreakMovementComponent* Movement = C ? Cast<UShieldbreakMovementComponent>(C->GetCharacterMovement()) : nullptr)
 		{
 			Movement->Safe_bWantsToSprint = Saved_bWantsToSprint;
+			Movement->Safe_bWantsPowerJump = Saved_bWantsPowerJump;
+			Movement->JumpCharge = Saved_JumpCharge;
 		}
 	}
 };
@@ -84,14 +97,15 @@ public:
 
 UShieldbreakMovementComponent::UShieldbreakMovementComponent()
 {
-	MaxWalkSpeed = 600.f;
+	// ~10% faster than Halo 2 with near-instant direction changes, so strafing dodges shots.
+	MaxWalkSpeed = 660.f;
 	MaxWalkSpeedCrouched = 260.f;
 	// Snappier than Halo 2: ~2.6 m apex but only ~1.15 s of airtime (h = v^2 / 2g, t = 2v / g with g = 980 * scale).
 	JumpZVelocity = 900.f;
 	GravityScale = 1.6f;
 	AirControl = 0.45f;
-	MaxAcceleration = 4096.f;
-	BrakingDecelerationWalking = 2400.f;
+	MaxAcceleration = 6000.f;
+	BrakingDecelerationWalking = 3200.f;
 	GroundFriction = 8.f;
 	BrakingDecelerationFalling = 0.f;
 	FallingLateralFriction = 0.f;
@@ -117,11 +131,26 @@ void UShieldbreakMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
 	Safe_bWantsToSprint = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
+	Safe_bWantsPowerJump = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
 }
 
 void UShieldbreakMovementComponent::SetSprinting(bool bSprint)
 {
 	Safe_bWantsToSprint = bSprint;
+}
+
+void UShieldbreakMovementComponent::SetChargingPowerJump(bool bCharge)
+{
+	Safe_bWantsPowerJump = bCharge;
+}
+
+void UShieldbreakMovementComponent::LaunchPowerJump()
+{
+	const float Fraction = GetPowerJumpCharge();
+	JumpCharge = 0.f;
+	// Height scales with velocity squared, so scale the launch by the square root of the height multiplier.
+	Velocity.Z = JumpZVelocity * FMath::Sqrt(FMath::Lerp(1.f, PowerJumpMaxHeightScale, FMath::Clamp(Fraction, 0.f, 1.f)));
+	SetMovementMode(MOVE_Falling);
 }
 
 bool UShieldbreakMovementComponent::IsSliding() const
@@ -151,6 +180,10 @@ float UShieldbreakMovementComponent::GetMaxSpeed() const
 	if (IsSliding())
 	{
 		return SlideMaxSpeed;
+	}
+	if (IsChargingPowerJump() && MovementMode == MOVE_Walking)
+	{
+		return PowerJumpChargeSpeed;
 	}
 	if (IsSprinting())
 	{
@@ -184,6 +217,21 @@ void UShieldbreakMovementComponent::UpdateCharacterStateBeforeMovement(float Del
 		else if (IsSliding() && !bWantsToCrouch)
 		{
 			ExitSlide(MOVE_Walking);
+		}
+
+		// Power Jump: charges while crouched on solid ground with jump held; launches on release.
+		const bool bCanCharge = MovementMode == MOVE_Walking && !IsSliding() && IsCrouching();
+		if (Safe_bWantsPowerJump && bCanCharge)
+		{
+			JumpCharge = FMath::Min(JumpCharge + DeltaSeconds, PowerJumpChargeTime);
+		}
+		else if (JumpCharge > 0.f)
+		{
+			if (!Safe_bWantsPowerJump && bCanCharge)
+			{
+				LaunchPowerJump();
+			}
+			JumpCharge = 0.f;
 		}
 	}
 
