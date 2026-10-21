@@ -116,7 +116,8 @@ private:
 	/** Safety net: anyone left without a living pawn and no respawn queued gets one. */
 	void RescueStrandedControllers();
 
-	FVector SnapToFloor(const FVector& SpawnLocation, AController* ForController);
+	/** Re-seats a spawn point on the floor below it, so arena points may be at feet or capsule height. */
+	FVector SnapToFloor(const FVector& SpawnLocation, AController* ForController, float TraceUp, float TraceDown);
 
 	// ---- Match flow ----
 	void FinishMatch(const FString& Winner);

@@ -10,6 +10,7 @@
 #include "Game/ShieldbreakGameState.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerStart.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/ShieldbreakCharacter.h"
@@ -28,12 +29,15 @@ namespace ShieldbreakGameModePrivate
 		TEXT("Argent"), TEXT("Lark"), TEXT("Brine"), TEXT("Zephyr")
 	};
 
-	constexpr int32 MaxBots = UE_ARRAY_COUNT(BotNames);
+	constexpr int32 MaxBots = static_cast<int32>(UE_ARRAY_COUNT(BotNames));
 	constexpr int32 MaxBotSkill = 3;
 	constexpr int32 SpawnChoicePool = 3;
 	constexpr float InitialBotDelay = 0.5f;
 	constexpr float StrandedCheckInterval = 1.f;
 	constexpr float DefaultCapsuleHalfHeight = 92.f;
+	constexpr float FloorTraceUp = 100.f;
+	constexpr float FloorTraceDown = 500.f;
+	constexpr float FallbackTraceRange = 5000.f;
 
 	struct FSpawnCandidate
 	{
@@ -230,10 +234,14 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 	const AShieldbreakArena* Arena = EnsureArena();
 	if (!CurrentWorld || !Arena || Arena->GetSpawnTransforms().Num() == 0)
 	{
-		const AActor* Start = FindPlayerStart(ForController, FString());
-		const FVector StartLocation = Start ? Start->GetActorLocation() : FVector(0.f, 0.f, 300.f);
-		const double StartYaw = Start ? Start->GetActorRotation().Yaw : 0.0;
-		return FTransform(FRotator(0.0, StartYaw, 0.0), StartLocation);
+		// FindPlayerStart falls back to the WorldSettings (origin) when the map has no PlayerStarts.
+		if (const APlayerStart* Start = Cast<APlayerStart>(FindPlayerStart(ForController, FString())))
+		{
+			return FTransform(FRotator(0.0, Start->GetActorRotation().Yaw, 0.0), Start->GetActorLocation());
+		}
+
+		UE_LOG(LogShieldbreak, Warning, TEXT("No arena spawn points; spawning on the topmost surface at the origin."));
+		return FTransform(FRotator::ZeroRotator, SnapToFloor(FVector::ZeroVector, ForController, FallbackTraceRange, FallbackTraceRange));
 	}
 
 	const TArray<FTransform>& Spawns = Arena->GetSpawnTransforms();
@@ -281,10 +289,11 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 	const int32 PoolSize = FMath::Min(SpawnChoicePool, Candidates.Num());
 	const FTransform& Picked = Spawns[Candidates[FMath::RandRange(0, PoolSize - 1)].Index];
 
-	return FTransform(FRotator(0.0, Picked.Rotator().Yaw, 0.0), SnapToFloor(Picked.GetLocation(), ForController));
+	return FTransform(FRotator(0.0, Picked.Rotator().Yaw, 0.0),
+		SnapToFloor(Picked.GetLocation(), ForController, FloorTraceUp, FloorTraceDown));
 }
 
-FVector AShieldbreakGameMode::SnapToFloor(const FVector& SpawnLocation, AController* ForController)
+FVector AShieldbreakGameMode::SnapToFloor(const FVector& SpawnLocation, AController* ForController, float TraceUp, float TraceDown)
 {
 	UWorld* const CurrentWorld = GetWorld();
 	if (!CurrentWorld)
@@ -307,8 +316,8 @@ FVector AShieldbreakGameMode::SnapToFloor(const FVector& SpawnLocation, AControl
 	// Works whether the arena's spawn points sit at the feet or at capsule center.
 	FHitResult Hit;
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ShieldbreakSpawnFloor), false);
-	const FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 100.f);
-	const FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 500.f);
+	const FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, TraceUp);
+	const FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, TraceDown);
 	if (CurrentWorld->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
 	{
 		return FVector(SpawnLocation.X, SpawnLocation.Y, Hit.ImpactPoint.Z + HalfHeight + 5.0);
