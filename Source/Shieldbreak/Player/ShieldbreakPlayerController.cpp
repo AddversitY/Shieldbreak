@@ -7,6 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Game/ShieldbreakGameMode.h"
+#include "GameFramework/GameUserSettings.h"
 #include "Player/ShieldbreakInputSet.h"
 #include "HAL/FileManager.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -33,6 +34,7 @@ void AShieldbreakPlayerController::BeginPlay()
 			HelpAutoHideTime = World->GetTimeSeconds() + 12.f;
 		}
 		SetupAutoShots();
+		AutoDetectScalability();
 	}
 }
 
@@ -199,4 +201,28 @@ void AShieldbreakPlayerController::TakeAutoShot()
 	FScreenshotRequest::RequestScreenshot(File, true, false);
 	UE_LOG(LogShieldbreak, Log, TEXT("AutoShot: requested %s"), *File);
 	++AutoShotIndex;
+}
+
+// ---- First-run graphics settings ----
+
+void AShieldbreakPlayerController::AutoDetectScalability()
+{
+	// Standalone game only: in the editor this would also change the editor viewport's settings.
+	if (GIsEditor || !GEngine)
+	{
+		return;
+	}
+
+	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+	if (!Settings || Settings->GetLastGPUBenchmarkResult() >= 0.f)
+	{
+		return; // Already benchmarked on this machine (or the player picked settings).
+	}
+
+	// Lumen and virtual shadow maps at Epic settings run at a few FPS on integrated GPUs;
+	// let Unreal's hardware benchmark pick the scalability level once, then remember it.
+	Settings->RunHardwareBenchmark();
+	Settings->ApplyHardwareBenchmarkResults();
+	UE_LOG(LogShieldbreak, Log, TEXT("Scalability auto-detected: overall level %d (CPU %.0f, GPU %.0f)."),
+		Settings->GetOverallScalabilityLevel(), Settings->GetLastCPUBenchmarkResult(), Settings->GetLastGPUBenchmarkResult());
 }

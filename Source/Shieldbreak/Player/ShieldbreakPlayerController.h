@@ -54,6 +54,8 @@ private:
 
 	/** Play-test helper: -SBAutoShot=<seconds> saves screenshots to Saved/Screenshots/AutoShot; -SBAutoQuit exits after. */
 	void SetupAutoShots();
+	/** First standalone run on a machine: benchmark and apply scalability settings. */
+	void AutoDetectScalability();
 	void TakeAutoShot();
 
 	int32 AutoShotIndex = 0;
