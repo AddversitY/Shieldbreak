@@ -63,8 +63,23 @@ Action montages (`/Game/Characters/Heroes/Mannequin/Animations/Actions/`):
 | Shotgun | `/Game/Weapons/Shotgun/Mesh/SKM_Shotgun` | `/Game/Weapons/Shotgun/Mesh/SM_Shotgun` | `/Game/Weapons/Shotgun/Animations/AM_MM_Shotgun_{Fire,Reload}` | `AM_Weap_Shotgun_{Fire,Reload}` |
 | Grenade | — | `/Game/Weapons/Grenade/Mesh/SM_grenade` | `AM_MM_Rifle_GrenadeToss` (above) | — |
 
-Muzzle socket names were not inspected (needs the editor); look up the sockets on `SK_Rifle` etc. at
-runtime with `GetAllSocketNames()` and log them on first use, or fall back to the mesh bounds.
+Sockets and bounds (read with `Tools/ListSockets.bat`, 2026-10-21):
+
+| Mesh | Sockets | Bounds (local) |
+|---|---|---|
+| `SM_Rifle` | **none** (static meshes carry no sockets) | X -3.2..2.8, **Y -44.8..52.3** (barrel along +Y, muzzle near Y=52), Z -18.1..10.9 |
+| `SM_Pistol` | none | X -2.6..2.6, **Y -12.1..12.1**, Z -12.8..5.6 |
+| `SM_Shotgun` | none | X -9.4..9.4, **Y -38.2..34.1**, Z -22.4..8.5 |
+| `SM_grenade` | none | X -4.5..4.5, Y -4.3..4.3, Z -0.2..15.6 |
+| `SK_Rifle` | `Muzzle` (bone `Barrel`, +31.3 X), `ShellEject`, `ShellEject_0` | barrel bone points +X in bone space |
+| `SK_Pistol` | `Muzzle` (bone `Barrel`, +12.0 X), `ShellEject` | |
+| `SKM_Shotgun` | `Muzzle` (bone `Barrel`, +4.6 X), `ShellEject`, `ShellEject_0` | |
+| `SKM_Manny` | `weapon_r_muzzle` (bone `weapon_r`, offset (45, 0, 25)), `foot_r_Socket`, `foot_l_Socket` | |
+
+So: the static weapon meshes point down **+Y**, and their muzzle is at the +Y end of the bounds. Lyra holds
+guns by attaching to the mannequin's **`weapon_r` bone** (there is no `weapon_r` socket on the mesh,
+only the bone). For a muzzle on the static meshes use `(0, Bounds.Max.Y, ~0)` in mesh space, or switch to
+the `SK_*` meshes and their `Muzzle` socket.
 
 ### Effects (Niagara)
 | Use | Path |
