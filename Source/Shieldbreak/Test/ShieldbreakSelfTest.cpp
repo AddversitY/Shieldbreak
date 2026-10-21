@@ -91,6 +91,8 @@ AShieldbreakCharacter* AShieldbreakSelfTest::SpawnDummy(const FVector& Location,
 	if (UCharacterMovementComponent* DummyMovement = Dummy->GetCharacterMovement())
 	{
 		DummyMovement->bRunPhysicsWithNoController = true;
+		// Normally set by ACharacter::Restart on possession; without it the mode stays MOVE_None.
+		DummyMovement->SetDefaultMovementMode();
 	}
 
 	if (bWithController)
