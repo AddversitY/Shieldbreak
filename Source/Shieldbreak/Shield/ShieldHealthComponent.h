@@ -64,6 +64,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Shield")
 	float GetVentMarkerPosition() const;
 
+	/** The tuning in effect (asset or class defaults). Never null. C++ only (UHT rejects const UObject returns). */
+	const UShieldTuningData* GetTuningData() const { return &GetTuning(); }
+
+	/** Local world time (GetWorld()->GetTimeSeconds()) of the last shield pop on this machine, or -1. */
+	UFUNCTION(BlueprintPure, Category = "Shield")
+	float GetLastShieldBreakLocalTime() const { return LastShieldBreakLocalTime; }
+
 	// ---- Events (fire on server and clients) ----
 
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakValueChanged OnShieldChanged;
@@ -144,5 +151,8 @@ private:
 	float NextRechargeServerTime = 0.f;
 	float ShieldBrokenServerTime = -1.f;
 	float LastBreakPulsePressServerTime = -1.f;
+
+	// Set on every machine when the shield pops (server directly, clients via OnRep_ShieldBreakCount).
+	float LastShieldBreakLocalTime = -1.f;
 	float PendingRechargePenalty = 0.f;
 };

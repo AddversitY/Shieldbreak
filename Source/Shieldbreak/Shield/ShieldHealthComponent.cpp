@@ -249,6 +249,7 @@ float UShieldHealthComponent::AbsorbWithShield(float RawDamage, float ShieldMult
 	if (bHadShield && Shield <= 0.f)
 	{
 		ShieldBrokenServerTime = GetServerTime();
+		LastShieldBreakLocalTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -1.f;
 		++ShieldBreakCount;
 		OnShieldBroken.Broadcast();
 
@@ -453,6 +454,7 @@ void UShieldHealthComponent::OnRep_Shield()
 
 void UShieldHealthComponent::OnRep_ShieldBreakCount()
 {
+	LastShieldBreakLocalTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -1.f;
 	OnShieldBroken.Broadcast();
 }
 
