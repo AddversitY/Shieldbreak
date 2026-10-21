@@ -28,7 +28,7 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.48f, 0.05f, 0.075f);
 	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
-	Stats.ArtViewLength = 60.f;
+	Stats.ArtViewLength = 50.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::RifleFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }
@@ -57,7 +57,7 @@ AWeapon_SMG::AWeapon_SMG()
 	Stats.MeshScale = FVector(0.38f, 0.07f, 0.11f);
 	// Compact pistol-frame mesh until the SMG gets original art.
 	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
-	Stats.ArtViewLength = 34.f;
+	Stats.ArtViewLength = 30.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::Rifle2Fire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
 }
