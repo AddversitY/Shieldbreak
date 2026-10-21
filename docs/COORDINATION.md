@@ -23,7 +23,7 @@ and update it in the same commit as the work.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## In progress
-- (nothing reserved)
+- PC session: self-test checks for `d1204c4` (sniper, rockets, rocket jump, rocket timeout, overshield, arena placement); build + run pending.
 
 ## Needs verification (code session → PC)
 - `d1204c4` **Power weapons + Overshield.** Please build and add self-test checks:

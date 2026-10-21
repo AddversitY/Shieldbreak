@@ -27,6 +27,10 @@
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakWeapon.h"
+#include "Weapons/ShieldbreakWeaponClasses.h"
+#include "Weapons/ShieldbreakWeaponPickup.h"
+#include "Weapons/ShieldbreakPowerup.h"
+#include "Weapons/ShieldbreakRocket.h"
 
 namespace ShieldbreakSelfTestPrivate
 {
@@ -645,6 +649,317 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			return false;
 		}, 6.f });
+
+	// ---- Power weapons and power-ups (d1204c4) ----
+	Steps.Add({ TEXT("Arena power weapon and power-up placement"),
+		[this]() { ClearDummies(); },
+		[this](float Elapsed)
+		{
+			int32 Snipers = 0, Rockets = 0, Powerups = 0;
+			for (TActorIterator<AShieldbreakWeaponPickup> It(GetWorld()); It; ++It)
+			{
+				Snipers += It->GetWeaponClass() == AWeapon_SniperRifle::StaticClass() ? 1 : 0;
+				Rockets += It->GetWeaponClass() == AWeapon_RocketLauncher::StaticClass() ? 1 : 0;
+			}
+			for (TActorIterator<AShieldbreakPowerup> It(GetWorld()); It; ++It)
+			{
+				++Powerups;
+			}
+			Check(TEXT("The arena places two Sniper Rifles"), Snipers == 2, FString::Printf(TEXT("%d"), Snipers));
+			Check(TEXT("...one Rocket Launcher"), Rockets == 1, FString::Printf(TEXT("%d"), Rockets));
+			Check(TEXT("...and one Overshield"), Powerups == 1, FString::Printf(TEXT("%d"), Powerups));
+			return true;
+		}, 3.f });
+
+	auto AimAt = [](AShieldbreakCharacter* Shooter, const FVector& Target)
+	{
+		if (AAIController* AI = Cast<AAIController>(Shooter ? Shooter->GetController() : nullptr))
+		{
+			AI->ClearFocus(EAIFocusPriority::Gameplay);
+			AI->bSetControlRotationFromPawnOrientation = false;
+			AI->SetControlRotation((Target - Shooter->GetAimOrigin()).Rotation());
+		}
+	};
+	auto HeadOf = [](const AShieldbreakCharacter* C)
+	{
+		return C->GetHeadMesh() ? C->GetHeadMesh()->GetComponentLocation() : C->GetActorLocation() + FVector(0.f, 0.f, 72.f);
+	};
+
+	Steps.Add({ TEXT("Sniper Rifle body shots and headshot"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			B = SpawnDummy(RangeA + FVector(700.f, 0.f, 0.f), 180.f, false);
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_SniperRifle::StaticClass());
+				A->GiveWeapon(AWeapon_SniperRifle::StaticClass()); // inventory full: replaces the weapon in hand
+			}
+		},
+		[this, MaxShield, MaxHealth, ShieldOf, HealthOf, AimAt, HeadOf](float Elapsed)
+		{
+			if (!B || B->IsActorBeingDestroyed())
+			{
+				return false;
+			}
+			// Chest for the body shots, head for the last one.
+			AimAt(A, Phase < 6 ? B->GetActorLocation() + FVector(0.f, 0.f, 10.f) : HeadOf(B));
+
+			if (Phase == 0 && Elapsed > 1.0f)
+			{
+				const AShieldbreakWeapon* Weapon = A->GetCurrentWeapon();
+				Check(TEXT("Shooter holds the Sniper Rifle"), Weapon && Weapon->IsA<AWeapon_SniperRifle>(), Weapon ? Weapon->GetName() : FString(TEXT("none")));
+				Value0 = ShieldOf(B) + HealthOf(B);
+				A->StartFire();
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.1f)
+			{
+				A->StopFire();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.9f)
+			{
+				const float Lost = Value0 - (ShieldOf(B) + HealthOf(B));
+				Check(TEXT("A sniper body shot does 60"), FMath::IsNearlyEqual(Lost, 60.f, 1.f) && B->IsAlive(),
+					FString::Printf(TEXT("lost %s, alive %d"), *Num(Lost), B->IsAlive()));
+				A->StartFire();
+				Mark = Now();
+				Phase = 3;
+			}
+			else if (Phase == 3 && Now() - Mark > 0.1f)
+			{
+				A->StopFire();
+				Phase = 4;
+			}
+			else if (Phase == 4 && Now() - Mark > 0.9f)
+			{
+				Check(TEXT("Two sniper body shots kill from full"), !B->IsAlive(), FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(B)), *Num(HealthOf(B))));
+				B = SpawnDummy(RangeA + FVector(700.f, 250.f, 0.f), 180.f, false); // clear of the ragdoll
+				Mark = Now();
+				Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 0.8f)
+			{
+				Check(TEXT("Fresh target has a full shield"), ShieldOf(B) >= MaxShield - 0.01f && HealthOf(B) >= MaxHealth - 0.01f);
+				Phase = 6;
+			}
+			else if (Phase == 6)
+			{
+				A->StartFire();
+				Mark = Now();
+				Phase = 7;
+			}
+			else if (Phase == 7 && Now() - Mark > 0.1f)
+			{
+				A->StopFire();
+				Phase = 8;
+			}
+			else if (Phase == 8 && Now() - Mark > 0.9f)
+			{
+				Check(TEXT("A sniper headshot kills through a full shield"), !B->IsAlive(),
+					FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(B)), *Num(HealthOf(B))));
+				return true;
+			}
+			return false;
+		}, 10.f });
+
+	Steps.Add({ TEXT("Rocket Launcher direct hit"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			B = SpawnDummy(RangeA + FVector(700.f, 0.f, 0.f), 180.f, false);
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+				A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+			}
+		},
+		[this, ShieldOf, HealthOf, AimAt](float Elapsed)
+		{
+			AimAt(A, B->GetActorLocation());
+			if (Phase == 0 && Elapsed > 1.0f)
+			{
+				const AShieldbreakWeapon* Weapon = A->GetCurrentWeapon();
+				Check(TEXT("Shooter holds the Rocket Launcher"), Weapon && Weapon->IsA<AWeapon_RocketLauncher>(), Weapon ? Weapon->GetName() : FString(TEXT("none")));
+				A->StartFire();
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.05f)
+			{
+				A->StopFire();
+				AShieldbreakRocket* Rocket = nullptr;
+				for (TActorIterator<AShieldbreakRocket> It(GetWorld()); It; ++It)
+				{
+					Rocket = *It;
+				}
+				const float Ahead = Rocket ? static_cast<float>(FVector::Dist(Rocket->GetActorLocation(), A->GetAimOrigin())) : -1.f;
+				Check(TEXT("Firing spawns a rocket ahead of the shooter"), Rocket != nullptr && Ahead > 60.f,
+					FString::Printf(TEXT("%s uu from the eye"), *Num(Ahead)));
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 1.5f)
+			{
+				Check(TEXT("A direct rocket hit kills from full"), !B->IsAlive(), FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(B)), *Num(HealthOf(B))));
+				Check(TEXT("...and the shooter 700 uu away is unharmed"), A->IsAlive() && ShieldOf(A) > 60.f, FString::Printf(TEXT("shooter shield %s"), *Num(ShieldOf(A))));
+				return true;
+			}
+			return false;
+		}, 6.f });
+
+	Steps.Add({ TEXT("Rocket jump"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, true);
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+				A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+			}
+		},
+		[this, ShieldOf, HealthOf, AimAt](float Elapsed)
+		{
+			if (!A || A->IsActorBeingDestroyed())
+			{
+				return false;
+			}
+			AimAt(A, A->GetActorLocation() + FVector(5.f, 0.f, -500.f)); // straight at the feet
+			Value0 = FMath::Max(Value0, static_cast<float>(A->GetVelocity().Z));
+
+			// Pass 1 with a plain shield (is it survivable?), pass 2 with an overshield for the knockback check.
+			if ((Phase == 0 || Phase == 3) && Elapsed > (Phase == 0 ? 1.0f : 0.f) && (Phase == 0 || Now() - Mark > 1.0f))
+			{
+				if (Phase == 3)
+				{
+					A->GetShieldHealth()->GrantOvershield(A->GetShieldHealth()->GetTuningData()->PowerupOvershield);
+				}
+				Value0 = 0.f;
+				A->StartFire();
+				Mark = Now();
+				++Phase;
+			}
+			else if ((Phase == 1 || Phase == 4) && Now() - Mark > 0.05f)
+			{
+				A->StopFire();
+				++Phase;
+			}
+			else if (Phase == 2 && Now() - Mark > 1.2f)
+			{
+				Lines.Add(FString::Printf(TEXT("INFO  rocket at own feet with a normal shield: alive %d, shield %s health %s, peak up-velocity %s"),
+					A->IsAlive(), *Num(ShieldOf(A)), *Num(HealthOf(A)), *Num(Value0)));
+				// Fresh shooter for the overshield pass.
+				ClearDummies();
+				A = SpawnDummy(RangeA, 0.f, true);
+				if (A)
+				{
+					A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+					A->GiveWeapon(AWeapon_RocketLauncher::StaticClass());
+				}
+				Mark = Now();
+				Phase = 3;
+			}
+			else if (Phase == 5 && Now() - Mark > 1.2f)
+			{
+				Check(TEXT("With an overshield, a rocket at your feet is survivable"), A->IsAlive(),
+					FString::Printf(TEXT("overshield %s shield %s health %s"), *Num(A->GetShieldHealth()->GetOvershield()), *Num(ShieldOf(A)), *Num(HealthOf(A))));
+				Check(TEXT("...and launches you upward (rocket jump)"), Value0 > 400.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
+				return true;
+			}
+			return false;
+		}, 10.f });
+
+	Steps.Add({ TEXT("Rocket times out after 6 s"),
+		[this]()
+		{
+			ClearDummies();
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			AShieldbreakRocket* Rocket = GetWorld()->SpawnActor<AShieldbreakRocket>(AShieldbreakRocket::StaticClass(),
+				RangeA + FVector(0.f, 0.f, 300.f), FRotator(90.f, 0.f, 0.f), Params);
+			if (Rocket)
+			{
+				Rocket->Launch(FVector::UpVector);
+			}
+			Probe = Rocket;
+			Mark = Now();
+		},
+		[this](float Elapsed)
+		{
+			AActor* Rocket = Probe.Get();
+			const bool bGone = !IsValid(Rocket) || Rocket->IsActorBeingDestroyed() || !Rocket->GetActorEnableCollision();
+			if (Phase == 0 && Elapsed > 0.1f)
+			{
+				Check(TEXT("A rocket fired into the open sky spawns"), IsValid(Rocket));
+				Phase = 1;
+			}
+			else if (Phase == 1 && (bGone || Elapsed > 7.5f))
+			{
+				Check(TEXT("...and explodes on its own after ~6 s"), bGone && Elapsed > 5.5f && Elapsed < 7.f, FString::Printf(TEXT("gone at %s s"), *Num(Elapsed)));
+				return true;
+			}
+			return false;
+		}, 9.f });
+
+	Steps.Add({ TEXT("Overshield power-up"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, false);
+			AShieldbreakPowerup* Powerup = GetWorld()->SpawnActorDeferred<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
+				FTransform(RangeB), nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			if (Powerup)
+			{
+				Powerup->RespawnTime = 3.f; // the arena uses 90 s
+				Powerup->FinishSpawning(FTransform(RangeB));
+				Spawned.Add(Powerup);
+			}
+			Probe = Powerup;
+		},
+		[this, MaxShield](float Elapsed)
+		{
+			AShieldbreakPowerup* Powerup = Cast<AShieldbreakPowerup>(Probe.Get());
+			if (!Powerup)
+			{
+				Check(TEXT("Test power-up spawns"), false);
+				return true;
+			}
+			UShieldHealthComponent* Shield = A->GetShieldHealth();
+			if (Phase == 0 && Elapsed > 0.6f)
+			{
+				A->SetActorLocation(RangeB, false, nullptr, ETeleportType::TeleportPhysics);
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.2f)
+			{
+				Value0 = Shield->GetOvershield();
+				Check(TEXT("Walking into the Overshield grants 140"), Value0 >= 139.f, FString::Printf(TEXT("overshield %s"), *Num(Value0)));
+				Check(TEXT("...and the orb is consumed"), !Powerup->IsAvailable());
+				A->SetActorLocation(RangeA, false, nullptr, ETeleportType::TeleportPhysics);
+				Mark = Now();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 2.f)
+			{
+				const float Decay = (Value0 - Shield->GetOvershield()) / (Now() - Mark);
+				Check(TEXT("The overshield decays at ~2/s"), Decay > 1.5f && Decay < 2.5f, FString::Printf(TEXT("%s/s, now %s"), *Num(Decay), *Num(Shield->GetOvershield())));
+				Damage(A, 50.f, UDamageType_Ballistic::StaticClass());
+				Check(TEXT("Damage drains the overshield before the shield"), Shield->GetShield() >= MaxShield - 0.01f,
+					FString::Printf(TEXT("overshield %s shield %s"), *Num(Shield->GetOvershield()), *Num(Shield->GetShield())));
+				Phase = 3;
+			}
+			else if (Phase == 3 && Now() - Mark > 3.6f)
+			{
+				Check(TEXT("The orb respawns after its timer"), Powerup->IsAvailable());
+				return true;
+			}
+			return false;
+		}, 8.f });
 
 	// ---- Teams and friendly fire ----
 	Steps.Add({ TEXT("Teams and friendly fire"),

@@ -61,6 +61,9 @@ private:
 	// Chase camera for the bot-match screenshots.
 	UPROPERTY(Transient) TObjectPtr<class ACameraActor> ChaseCamera;
 	TWeakObjectPtr<AShieldbreakCharacter> ChaseSubject;
+
+	// A non-character actor a step watches (a rocket, a power-up).
+	TWeakObjectPtr<AActor> Probe;
 	float ShotDue = -1.f;
 	int32 ShotIndex = 0;
 
