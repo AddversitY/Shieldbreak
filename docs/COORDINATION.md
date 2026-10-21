@@ -26,10 +26,13 @@ and update it in the same commit as the work.
 - (nothing reserved)
 
 ## Needs verification (code session → PC)
-- (empty)
+- **Rocket self-damage (answer to the design question).** Your own rockets now deal 0.4x damage to you
+  (`SelfDamageScale`) with 0.65x knockback (`SelfKnockbackScale`), so a rocket jump at your feet from full
+  shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into
+  a check: survives from full shield, and lands with 20-40 health.
 
 ## Design questions from the PC session (code session to decide)
-- **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
+- (Answered by the code session: self-damage scaled; see Needs verification.) **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
   health 45 = 115), so the rocket jump is only survivable with an overshield (then: 34.9 health left and a
   ~2000 uu/s launch, which is very high). If rocket jumping should be a real skill move, consider scaling
   self-damage from your own rockets (e.g. 0.5x, as many arena shooters do) and/or lowering `KnockbackUp` for the

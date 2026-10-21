@@ -132,10 +132,27 @@ void AShieldbreakRocket::Explode()
 	const FVector Origin = GetActorLocation();
 	AController* InstigatorController = GetInstigatorController();
 
+	AActor* Shooter = GetInstigator();
 	TArray<AActor*> Ignore;
 	Ignore.Add(this);
+	if (Shooter)
+	{
+		Ignore.Add(Shooter);
+	}
 	UGameplayStatics::ApplyRadialDamageWithFalloff(this, BaseDamage, MinDamage, Origin, InnerRadius, OuterRadius, 1.f,
 		UDamageType_Explosive::StaticClass(), Ignore, this, InstigatorController, ECC_Visibility);
+
+	// The shooter takes the same falloff curve, scaled down (rocket jumps).
+	if (Shooter)
+	{
+		const float ShooterDistance = static_cast<float>(FVector::Dist(Shooter->GetActorLocation(), Origin));
+		if (ShooterDistance < OuterRadius)
+		{
+			const float Alpha = FMath::Clamp((ShooterDistance - InnerRadius) / FMath::Max(1.f, OuterRadius - InnerRadius), 0.f, 1.f);
+			const float SelfDamage = FMath::Lerp(BaseDamage, MinDamage, Alpha) * SelfDamageScale;
+			UGameplayStatics::ApplyDamage(Shooter, SelfDamage, InstigatorController, this, UDamageType_Explosive::StaticClass());
+		}
+	}
 
 	// Knockback everyone in range, the shooter included (rocket jumps).
 	if (World)
@@ -157,7 +174,8 @@ void AShieldbreakRocket::Explode()
 			const FVector Offset = HitCharacter->GetActorLocation() - Origin;
 			const float Distance = static_cast<float>(Offset.Size());
 			const float Falloff = 1.f - FMath::Clamp((Distance - InnerRadius) / FMath::Max(1.f, OuterRadius - InnerRadius), 0.f, 1.f);
-			HitCharacter->LaunchCharacter(Offset.GetSafeNormal() * KnockbackStrength * Falloff + FVector(0.f, 0.f, KnockbackUp * Falloff), false, false);
+			const float Scale = Falloff * (HitCharacter == Shooter ? SelfKnockbackScale : 1.f);
+			HitCharacter->LaunchCharacter(Offset.GetSafeNormal() * KnockbackStrength * Scale + FVector(0.f, 0.f, KnockbackUp * Scale), false, false);
 		}
 	}
 
