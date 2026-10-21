@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.7",
+	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "Shieldbreak: a code-only Halo-style arena FPS prototype with recharging shields and shield-based mastery mechanics.",
 	"Modules": [
