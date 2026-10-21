@@ -82,9 +82,9 @@ void AShieldbreakBotController::OnPossess(APawn* InPawn)
 
 void AShieldbreakBotController::OnUnPossess()
 {
-	if (APawn* OldPawn = GetPawn())
+	if (APawn* PreviousPawn = GetPawn())
 	{
-		OldPawn->OnTakeAnyDamage.RemoveDynamic(this, &AShieldbreakBotController::HandlePawnDamaged);
+		PreviousPawn->OnTakeAnyDamage.RemoveDynamic(this, &AShieldbreakBotController::HandlePawnDamaged);
 	}
 	Super::OnUnPossess();
 	ResetState();

@@ -72,13 +72,13 @@ void AShieldbreakPlayerController::OnPossess(APawn* InPawn)
 
 void AShieldbreakPlayerController::OnUnPossess()
 {
-	APawn* OldPawn = GetPawn();
+	APawn* PreviousPawn = GetPawn();
 	Super::OnUnPossess();
 
 	// Keep watching the body until the respawn.
-	if (IsValid(OldPawn))
+	if (IsValid(PreviousPawn))
 	{
-		SetViewTarget(OldPawn);
+		SetViewTarget(PreviousPawn);
 	}
 }
 
