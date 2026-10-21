@@ -56,6 +56,8 @@ public:
 	int32 GetBotSkill() const { return BotSkill; }
 	int32 GetScoreLimit() const { return ScoreLimit; }
 	float GetRespawnDelay() const { return RespawnDelay; }
+	bool IsTeamGame() const { return bTeamGame; }
+	bool IsFriendlyFireEnabled() const { return bFriendlyFire; }
 
 protected:
 	/** Arena spawn farthest from living enemies, picked at random among the best few. */
@@ -63,7 +65,7 @@ protected:
 
 	/** Bots kept in the match. URL option ?Bots=N. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Bots", meta = (ClampMin = "0", ClampMax = "16"))
-	int32 NumBots = 5;
+	int32 NumBots = 7;
 
 	/** 0 Easy, 1 Normal, 2 Heroic, 3 Legendary. URL option ?Skill=N. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Bots", meta = (ClampMin = "0", ClampMax = "3"))
@@ -78,6 +80,18 @@ protected:
 	/** Kills to win. URL option ?ScoreLimit=N. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
 	int32 ScoreLimit = 25;
+
+	/** Team Slayer (red vs blue) instead of free-for-all. URL option ?Teams=0/1. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")
+	bool bTeamGame = true;
+
+	/** Team kills to win in Team Slayer. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
+	int32 TeamScoreLimit = 50;
+
+	/** Teammates can damage each other (betrayals cost a point). URL option ?FriendlyFire=1. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")
+	bool bFriendlyFire = false;
 
 	/** Seconds the match-over banner shows before stats reset and everyone respawns. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "0"))
@@ -102,6 +116,8 @@ private:
 	// ---- Players ----
 	FString MakeHumanName(const APlayerState* ForState) const;
 	void EnsurePlayerColor(AController* ForController);
+	/** Team Slayer: puts the controller on the smaller team and tints it in the team color. */
+	void AssignTeam(AController* ForController);
 
 	/** Players and bots with a non-spectator PlayerState that are ready to spawn. */
 	bool CanParticipate(AController* Candidate);

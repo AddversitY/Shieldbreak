@@ -55,6 +55,9 @@ public:
 	void ResetMatch();
 
 	void SetScoreLimit(int32 NewScoreLimit);
+	void SetTeamGame(bool bNewTeamGame);
+	/** Adds (or with a negative delta, removes) team points. */
+	void AddTeamScore(uint8 Team, int32 Delta);
 
 	// ---- Queries ----
 
@@ -70,6 +73,9 @@ public:
 
 	/** Seconds left on the match-over banner (0 when the match is running). */
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") float GetMatchRestartCountdown() const;
+
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") bool IsTeamGame() const { return bTeamGame; }
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 
 	/** Non-spectator players by kills (desc), then deaths (asc), then join order. */
 	TArray<APlayerState*> GetSortedPlayers() const;
@@ -90,6 +96,13 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
 	float MatchRestartServerTime = -1.f;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
+	bool bTeamGame = false;
+
+	/** Indexed by ShieldbreakTeams::Red / Blue. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
+	TArray<int32> TeamScores;
 
 protected:
 	virtual void BeginPlay() override;

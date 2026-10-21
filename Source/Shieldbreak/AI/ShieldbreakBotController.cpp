@@ -1,5 +1,7 @@
 #include "AI/ShieldbreakBotController.h"
 
+#include "Game/ShieldbreakTeams.h"
+
 #include "Shieldbreak.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/HitResult.h"
@@ -109,7 +111,8 @@ void AShieldbreakBotController::ResetState()
 
 void AShieldbreakBotController::HandlePawnDamaged(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
 {
-	if (InstigatedBy && InstigatedBy != this)
+	// A teammate's stray grenade shouldn't turn bots on each other.
+	if (InstigatedBy && InstigatedBy != this && !ShieldbreakTeams::AreTeammates(InstigatedBy, this))
 	{
 		if (AShieldbreakCharacter* Attacker = Cast<AShieldbreakCharacter>(InstigatedBy->GetPawn()))
 		{
@@ -211,7 +214,7 @@ void AShieldbreakBotController::Perceive()
 	for (TActorIterator<AShieldbreakCharacter> It(World); It; ++It)
 	{
 		AShieldbreakCharacter* Other = *It;
-		if (!IsValid(Other) || Other == Bot || !Other->IsAlive())
+		if (!IsValid(Other) || Other == Bot || !Other->IsAlive() || ShieldbreakTeams::AreTeammates(Other, Bot))
 		{
 			continue;
 		}

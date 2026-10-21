@@ -3,6 +3,8 @@
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Game/ShieldbreakTeams.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -163,6 +165,8 @@ void AShieldbreakCharacter::BeginPlay()
 
 	TintMesh(VisorMesh, ShieldbreakCharacterPrivate::VisorColor, VisorMID);
 	TintMesh(ShapeShieldMesh, ShieldbreakCharacterPrivate::ShapeColor, ShapeMID);
+	// The color may have been applied before the mannequin existed; force a re-apply now.
+	AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
 	ApplyPlayerColor();
 
 	if (ShieldHealth)
@@ -203,6 +207,23 @@ void AShieldbreakCharacter::NotifyControllerChanged()
 	{
 		CurrentWeapon->OnEquipped();
 	}
+}
+
+bool AShieldbreakCharacter::ShouldTakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const
+{
+	if (!Super::ShouldTakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser))
+	{
+		return false;
+	}
+
+	// Friendly fire off: teammates can't hurt each other, but your own grenades still hurt you.
+	const AActor* Source = EventInstigator ? static_cast<const AActor*>(EventInstigator) : DamageCauser;
+	if (Source && EventInstigator != GetController() && ShieldbreakTeams::AreTeammates(Source, this))
+	{
+		const AShieldbreakGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AShieldbreakGameMode>() : nullptr;
+		return GameMode && GameMode->IsFriendlyFireEnabled();
+	}
+	return true;
 }
 
 void AShieldbreakCharacter::OnRep_PlayerState()
@@ -437,6 +458,23 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 	AppliedColor = Color;
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
+
+	// Mannequin: the material's color parameter name isn't confirmed yet, so set the likely candidates
+	// (unknown names are ignored by SetVectorParameterValue).
+	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
+	{
+		static const FName ColorParameters[] = { TEXT("Tint"), TEXT("TeamColor"), TEXT("BodyColor"), TEXT("Color"), TEXT("BaseColor") };
+		for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+		{
+			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
+			{
+				for (const FName& Parameter : ColorParameters)
+				{
+					MID->SetVectorParameterValue(Parameter, Color);
+				}
+			}
+		}
+	}
 }
 
 void AShieldbreakCharacter::Tick(float DeltaSeconds)

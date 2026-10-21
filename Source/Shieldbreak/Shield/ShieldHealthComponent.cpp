@@ -2,6 +2,7 @@
 
 #include "Shield/ShieldTuningData.h"
 #include "Shield/ShieldbreakDamageType.h"
+#include "Game/ShieldbreakTeams.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -329,6 +330,12 @@ void UShieldHealthComponent::DoBreakPulse()
 			continue;
 		}
 		AlreadyHit.Add(Other);
+
+		// The pulse only shoves and strips enemies.
+		if (ShieldbreakTeams::AreTeammates(Other, Owner))
+		{
+			continue;
+		}
 
 		if (UShieldHealthComponent* OtherShield = Other->FindComponentByClass<UShieldHealthComponent>())
 		{

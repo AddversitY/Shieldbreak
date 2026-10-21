@@ -1,7 +1,11 @@
 #include "UI/ShieldbreakHUD.h"
 
+#include "Game/ShieldbreakTeams.h"
+
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -167,6 +171,7 @@ void AShieldbreakHUD::DrawHUD()
 		DrawWeaponInfo(Character);
 		DrawMomentum(Character);
 		DrawMotionTracker(Character);
+		DrawTeammateNames(Character);
 	}
 
 	if (GameState)
@@ -323,7 +328,8 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 		if (GetWorld()->LineTraceSingleByChannel(Hit, ViewLocation, ViewLocation + ViewRotation.Vector() * Weapon->GetStats().Range, ECC_Weapon, Params))
 		{
 			const AShieldbreakCharacter* HitCharacter = Cast<AShieldbreakCharacter>(Hit.GetActor());
-			bOnEnemy = HitCharacter && HitCharacter != Character && HitCharacter->IsAlive();
+			bOnEnemy = HitCharacter && HitCharacter != Character && HitCharacter->IsAlive()
+				&& !ShieldbreakTeams::AreTeammates(HitCharacter, Character);
 		}
 	}
 	const FLinearColor ReticleColor = bOnEnemy ? Danger : FLinearColor(1.f, 1.f, 1.f, 0.85f);
@@ -460,6 +466,49 @@ void AShieldbreakHUD::DrawMomentum(AShieldbreakCharacter* Character)
 	}
 }
 
+void AShieldbreakHUD::DrawTeammateNames(AShieldbreakCharacter* Character)
+{
+	if (!PlayerOwner || !ShieldbreakTeams::IsTeamGame(this))
+	{
+		return;
+	}
+
+	if (!PlayerOwner->PlayerCameraManager)
+	{
+		return;
+	}
+	const FVector CameraLocation = PlayerOwner->PlayerCameraManager->GetCameraLocation();
+	const FVector CameraForward = PlayerOwner->PlayerCameraManager->GetCameraRotation().Vector();
+	UFont* Font = GEngine->GetSmallFont();
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		const AShieldbreakCharacter* Other = *It;
+		if (Other == Character || !Other->IsAlive() || !ShieldbreakTeams::AreTeammates(Other, Character))
+		{
+			continue;
+		}
+
+		const FVector HeadTop = Other->GetActorLocation() + FVector(0.f, 0.f, 120.f);
+		const float Distance = static_cast<float>(FVector::Dist(CameraLocation, HeadTop));
+		if (Distance > 6000.f)
+		{
+			continue;
+		}
+
+		if (FVector::DotProduct(HeadTop - CameraLocation, CameraForward) <= 0.0)
+		{
+			continue; // behind the camera
+		}
+		const FVector Screen = Project(HeadTop);
+
+		const APlayerState* OtherState = Other->GetPlayerState();
+		const FString Name = OtherState ? OtherState->GetPlayerName() : FString();
+		const float Alpha = FMath::GetMappedRangeValueClamped(FVector2f(3000.f, 6000.f), FVector2f(1.f, 0.35f), Distance);
+		const FLinearColor TeamColor = ShieldbreakTeams::GetTeamColor(ShieldbreakTeams::GetTeam(Other)) * 1.5f;
+		Text(Name, static_cast<float>(Screen.X), static_cast<float>(Screen.Y), FLinearColor(TeamColor.R, TeamColor.G, TeamColor.B, Alpha), Font, S * 0.9f, true);
+	}
+}
+
 void AShieldbreakHUD::DrawMotionTracker(AShieldbreakCharacter* Character)
 {
 	using namespace ShieldbreakHUDPrivate;
@@ -505,9 +554,10 @@ void AShieldbreakHUD::DrawMotionTracker(AShieldbreakCharacter* Character)
 			continue;
 		}
 
-		// Halo rule: slow movement (crouch-walking, standing) is invisible; jumping or running shows.
+		// Halo rule: allies always show; enemies only when running or jumping (crouch-walking hides them).
+		const bool bAlly = ShieldbreakTeams::AreTeammates(Other, Character);
 		const FVector OtherVelocity = Other->GetVelocity();
-		if (OtherVelocity.Size2D() < MotionTrackerSpeedThreshold && FMath::Abs(OtherVelocity.Z) < 150.f)
+		if (!bAlly && OtherVelocity.Size2D() < MotionTrackerSpeedThreshold && FMath::Abs(OtherVelocity.Z) < 150.f)
 		{
 			continue;
 		}
@@ -519,7 +569,7 @@ void AShieldbreakHUD::DrawMotionTracker(AShieldbreakCharacter* Character)
 
 		// Enemies well above or below draw smaller so verticality reads at a glance.
 		const float Size = (FMath::Abs(Delta.Z) > 250.f ? 6.f : 9.f) * S;
-		Box(PX - Size * 0.5f, PY - Size * 0.5f, Size, Size, Danger);
+		Box(PX - Size * 0.5f, PY - Size * 0.5f, Size, Size, bAlly ? Gold : Danger);
 	}
 
 	Text(TEXT("25m"), CX + Radius - 4.f * S, CY + Radius - 14.f * S, Dim, GEngine->GetSmallFont(), S * 0.8f, false, true);
@@ -567,6 +617,29 @@ void AShieldbreakHUD::DrawTopScores(AShieldbreakGameState* GameState)
 	UFont* Font = GEngine->GetSmallFont();
 	const float Right = Canvas->ClipX - 30.f * S;
 	float Y = 30.f * S;
+
+	if (GameState->IsTeamGame())
+	{
+		Text(FString::Printf(TEXT("TEAM SLAYER  -  FIRST TO %d"), GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
+		Y += 26.f * S;
+
+		// Your team first, Halo-style.
+		const uint8 MyTeam = ShieldbreakTeams::GetTeam(Mine);
+		const uint8 First = MyTeam == ShieldbreakTeams::Blue ? ShieldbreakTeams::Blue : ShieldbreakTeams::Red;
+		const uint8 Second = First == ShieldbreakTeams::Red ? ShieldbreakTeams::Blue : ShieldbreakTeams::Red;
+		for (const uint8 Team : { First, Second })
+		{
+			const float BarWidth = 220.f * S;
+			const float Fill = FMath::Clamp(static_cast<float>(GameState->GetTeamScore(Team)) / FMath::Max(1, GameState->GetScoreLimit()), 0.f, 1.f);
+			const FLinearColor TeamColor = ShieldbreakTeams::GetTeamColor(Team);
+			Box(Right - BarWidth, Y, BarWidth, 22.f * S, ShieldbreakHUDPrivate::Panel);
+			Box(Right - BarWidth, Y, BarWidth * Fill, 22.f * S, FLinearColor(TeamColor.R, TeamColor.G, TeamColor.B, 0.75f));
+			const FString Label = FString::Printf(TEXT("%s%s   %d"), Team == MyTeam ? TEXT("> ") : TEXT(""), *ShieldbreakTeams::GetTeamName(Team).ToUpper(), GameState->GetTeamScore(Team));
+			Text(Label, Right - 6.f * S, Y + 3.f * S, ShieldbreakHUDPrivate::White, Font, S, false, true);
+			Y += 28.f * S;
+		}
+		return;
+	}
 
 	Text(FString::Printf(TEXT("SLAYER  -  FIRST TO %d"), GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
 	Y += 24.f * S;

@@ -2,6 +2,7 @@
 
 #include "Shieldbreak.h"
 #include "AI/ShieldbreakBotController.h"
+#include "Game/ShieldbreakTeams.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -85,6 +86,12 @@ void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Optio
 	NumBots = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("Bots"), NumBots), 0, MaxBots);
 	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("Skill"), BotSkill), 0, MaxBotSkill);
 	ScoreLimit = FMath::Max(1, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), ScoreLimit));
+	bTeamGame = UGameplayStatics::GetIntOption(Options, TEXT("Teams"), bTeamGame ? 1 : 0) != 0;
+	bFriendlyFire = UGameplayStatics::GetIntOption(Options, TEXT("FriendlyFire"), bFriendlyFire ? 1 : 0) != 0;
+	if (bTeamGame)
+	{
+		TeamScoreLimit = FMath::Max(1, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), TeamScoreLimit));
+	}
 
 	// Local players log in before BeginPlay, so the spawn points must exist this early.
 	EnsureArena();
@@ -96,7 +103,8 @@ void AShieldbreakGameMode::InitGameState()
 
 	if (AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>())
 	{
-		SBGameState->SetScoreLimit(ScoreLimit);
+		SBGameState->SetTeamGame(bTeamGame);
+		SBGameState->SetScoreLimit(bTeamGame ? TeamScoreLimit : ScoreLimit);
 	}
 }
 
@@ -246,12 +254,14 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 
 	const TArray<FTransform>& Spawns = Arena->GetSpawnTransforms();
 
-	// Free-for-all: every other living character is an enemy.
+	// Every other living character is an enemy, except teammates in Team Slayer.
+	const uint8 SpawnTeam = ShieldbreakTeams::GetTeam(ForController);
 	TArray<FVector> EnemyLocations;
 	for (TActorIterator<AShieldbreakCharacter> It(CurrentWorld); It; ++It)
 	{
 		const AShieldbreakCharacter* Other = *It;
-		if (IsValid(Other) && Other->IsAlive() && Other->GetController() != ForController)
+		if (IsValid(Other) && Other->IsAlive() && Other->GetController() != ForController
+			&& !ShieldbreakTeams::AreTeammates(Other, ForController))
 		{
 			EnemyLocations.Add(Other->GetActorLocation());
 		}
@@ -275,6 +285,16 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 			for (const FVector& EnemyLocation : EnemyLocations)
 			{
 				Candidate.Rating = FMath::Min(Candidate.Rating, FVector::DistSquared(SpawnLocation, EnemyLocation));
+			}
+		}
+
+		// Teams start from their own half of the (X-symmetric) arena: red at -X, blue at +X.
+		if (SpawnTeam != ShieldbreakTeams::NoTeam)
+		{
+			const bool bOwnHalf = (SpawnTeam == ShieldbreakTeams::Red) == (Spawns[SpawnIndex].GetLocation().X < 0.0);
+			if (bOwnHalf)
+			{
+				Candidate.Rating *= 2.0;
 			}
 		}
 
@@ -385,7 +405,35 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 		ScheduleRespawn(VictimController, RespawnDelay);
 	}
 
-	if (!bSuicide && KillerState && KillerState->GetKills() >= ScoreLimit)
+	if (bTeamGame)
+	{
+		AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>();
+		const uint8 VictimTeam = VictimState ? VictimState->GetTeamId() : ShieldbreakTeams::NoTeam;
+		const uint8 KillerTeam = KillerState ? KillerState->GetTeamId() : ShieldbreakTeams::NoTeam;
+		if (SBGameState)
+		{
+			if (bSuicide)
+			{
+				SBGameState->AddTeamScore(VictimTeam, -1);
+			}
+			else if (KillerState && KillerTeam == VictimTeam)
+			{
+				// Betrayal: undo the kill AddKill() just credited and take one more, and the team loses a point.
+				KillerState->RemoveKill();
+				KillerState->RemoveKill();
+				SBGameState->AddTeamScore(KillerTeam, -1);
+			}
+			else
+			{
+				SBGameState->AddTeamScore(KillerTeam, 1);
+				if (SBGameState->GetTeamScore(KillerTeam) >= TeamScoreLimit)
+				{
+					FinishMatch(ShieldbreakTeams::GetTeamName(KillerTeam));
+				}
+			}
+		}
+	}
+	else if (!bSuicide && KillerState && KillerState->GetKills() >= ScoreLimit)
 	{
 		FinishMatch(KillerState->GetPlayerName());
 	}
@@ -556,6 +604,12 @@ FString AShieldbreakGameMode::MakeHumanName(const APlayerState* ForState) const
 
 void AShieldbreakGameMode::EnsurePlayerColor(AController* ForController)
 {
+	if (bTeamGame)
+	{
+		AssignTeam(ForController);
+		return;
+	}
+
 	AShieldbreakPlayerState* ForState = ForController ? ForController->GetPlayerState<AShieldbreakPlayerState>() : nullptr;
 	if (!ForState || ForState->GetColorIndex() != INDEX_NONE || PlayerColors.Num() == 0)
 	{
@@ -590,6 +644,35 @@ void AShieldbreakGameMode::EnsurePlayerColor(AController* ForController)
 		Slot = OtherCount % PlayerColors.Num();
 	}
 	ForState->SetPlayerColor(PlayerColors[Slot], Slot);
+}
+
+void AShieldbreakGameMode::AssignTeam(AController* ForController)
+{
+	AShieldbreakPlayerState* ForState = ForController ? ForController->GetPlayerState<AShieldbreakPlayerState>() : nullptr;
+	if (!ForState)
+	{
+		return;
+	}
+
+	uint8 Team = ForState->GetTeamId();
+	if (Team == ShieldbreakTeams::NoTeam)
+	{
+		int32 Counts[ShieldbreakTeams::NumTeams] = { 0, 0 };
+		if (GameState)
+		{
+			for (const APlayerState* Other : GameState->PlayerArray)
+			{
+				const AShieldbreakPlayerState* OtherState = Cast<AShieldbreakPlayerState>(Other);
+				if (OtherState && OtherState != ForState && OtherState->GetTeamId() < ShieldbreakTeams::NumTeams)
+				{
+					++Counts[OtherState->GetTeamId()];
+				}
+			}
+		}
+		Team = Counts[ShieldbreakTeams::Blue] < Counts[ShieldbreakTeams::Red] ? ShieldbreakTeams::Blue : ShieldbreakTeams::Red;
+		ForState->SetTeamId(Team);
+	}
+	ForState->SetPlayerColor(ShieldbreakTeams::GetTeamColor(Team), Team);
 }
 
 bool AShieldbreakGameMode::CanParticipate(AController* Candidate)

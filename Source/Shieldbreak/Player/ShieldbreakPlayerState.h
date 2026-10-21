@@ -40,12 +40,20 @@ public:
 	/** Palette slot of PlayerColor, or INDEX_NONE before the GameMode assigned one. Server only. */
 	int32 GetColorIndex() const { return ColorIndex; }
 
+	/** ShieldbreakTeams::NoTeam (255) in free-for-all. */
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") uint8 GetTeamId() const { return TeamId; }
+	/** Server. */
+	void SetTeamId(uint8 NewTeamId);
+
 private:
 	UPROPERTY(Replicated)
 	int32 Kills = 0;
 
 	UPROPERTY(Replicated)
 	int32 Deaths = 0;
+
+	UPROPERTY(Replicated)
+	uint8 TeamId = 255;
 
 	UPROPERTY(Replicated)
 	FLinearColor PlayerColor = FLinearColor(0.6f, 0.6f, 0.6f, 1.f);

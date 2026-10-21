@@ -13,6 +13,7 @@ void AShieldbreakPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(AShieldbreakPlayerState, Kills);
 	DOREPLIFETIME(AShieldbreakPlayerState, Deaths);
 	DOREPLIFETIME(AShieldbreakPlayerState, PlayerColor);
+	DOREPLIFETIME(AShieldbreakPlayerState, TeamId);
 }
 
 void AShieldbreakPlayerState::CopyProperties(APlayerState* NewPlayerState)
@@ -89,4 +90,13 @@ void AShieldbreakPlayerState::SetPlayerColor(const FLinearColor& NewColor, int32
 	PlayerColor = NewColor;
 	ColorIndex = PaletteIndex;
 	ForceNetUpdate();
+}
+
+void AShieldbreakPlayerState::SetTeamId(uint8 NewTeamId)
+{
+	if (HasAuthority() && TeamId != NewTeamId)
+	{
+		TeamId = NewTeamId;
+		ForceNetUpdate();
+	}
 }

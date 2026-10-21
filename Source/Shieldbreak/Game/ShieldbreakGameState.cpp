@@ -1,5 +1,7 @@
 #include "Game/ShieldbreakGameState.h"
 
+#include "Game/ShieldbreakTeams.h"
+
 #include "Algo/Sort.h"
 #include "Game/ShieldbreakArena.h"
 #include "GameFramework/PlayerState.h"
@@ -24,6 +26,8 @@ void AShieldbreakGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(AShieldbreakGameState, bMatchOver);
 	DOREPLIFETIME(AShieldbreakGameState, WinnerName);
 	DOREPLIFETIME(AShieldbreakGameState, MatchRestartServerTime);
+	DOREPLIFETIME(AShieldbreakGameState, bTeamGame);
+	DOREPLIFETIME(AShieldbreakGameState, TeamScores);
 }
 
 void AShieldbreakGameState::BeginPlay()
@@ -87,6 +91,10 @@ void AShieldbreakGameState::ResetMatch()
 	}
 
 	KillFeed.Reset();
+	for (int32& Score : TeamScores)
+	{
+		Score = 0;
+	}
 	bMatchOver = false;
 	WinnerName.Reset();
 	MatchRestartServerTime = -1.f;
@@ -164,4 +172,24 @@ TArray<APlayerState*> AShieldbreakGameState::GetSortedPlayers() const
 float AShieldbreakGameState::GetServerTimeNow() const
 {
 	return static_cast<float>(GetServerWorldTimeSeconds());
+}
+
+void AShieldbreakGameState::SetTeamGame(bool bNewTeamGame)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	bTeamGame = bNewTeamGame;
+	TeamScores.Init(0, bTeamGame ? ShieldbreakTeams::NumTeams : 0);
+	ForceNetUpdate();
+}
+
+void AShieldbreakGameState::AddTeamScore(uint8 Team, int32 Delta)
+{
+	if (HasAuthority() && TeamScores.IsValidIndex(Team))
+	{
+		TeamScores[Team] = FMath::Max(0, TeamScores[Team] + Delta);
+		ForceNetUpdate();
+	}
 }
