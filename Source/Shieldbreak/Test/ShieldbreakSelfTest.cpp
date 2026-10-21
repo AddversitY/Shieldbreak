@@ -467,6 +467,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			// AAIController only pitches toward a focus *pawn* (and then at its center), so aim by hand.
 			const FVector Head = B->GetHeadMesh() ? B->GetHeadMesh()->GetComponentLocation() : B->GetActorLocation() + FVector(0.f, 0.f, 72.f);
+			AI->SetActorTickEnabled(false); // see AimAt below: the AI tick would zero our pitch
 			AI->ClearFocus(EAIFocusPriority::Gameplay);
 			AI->bSetControlRotationFromPawnOrientation = false;
 			AI->SetControlRotation((Head - A->GetAimOrigin()).Rotation());
@@ -675,6 +676,9 @@ void AShieldbreakSelfTest::BuildSteps()
 	{
 		if (AAIController* AI = Cast<AAIController>(Shooter ? Shooter->GetController() : nullptr))
 		{
+			// AAIController::UpdateControlRotation (its Tick) zeroes pitch unless focused on a pawn, and the
+			// weapon may tick in between; freeze the controller so the aim we set is the aim that fires.
+			AI->SetActorTickEnabled(false);
 			AI->ClearFocus(EAIFocusPriority::Gameplay);
 			AI->bSetControlRotationFromPawnOrientation = false;
 			AI->SetControlRotation((Target - Shooter->GetAimOrigin()).Rotation());
