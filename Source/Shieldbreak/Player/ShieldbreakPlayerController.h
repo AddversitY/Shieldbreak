@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 #include "ShieldbreakPlayerController.generated.h"
 
 UCLASS()
@@ -50,6 +51,15 @@ private:
 	void OnScoreboardStarted();
 	void OnScoreboardCompleted();
 	void OnToggleHelp();
+
+	/** Play-test helper: -SBAutoShot=<seconds> saves screenshots to Saved/Screenshots/AutoShot; -SBAutoQuit exits after. */
+	void SetupAutoShots();
+	void TakeAutoShot();
+
+	int32 AutoShotIndex = 0;
+	int32 AutoShotCount = 0;
+	float AutoShotInterval = 4.f;
+	FTimerHandle AutoShotTimerHandle;
 
 	bool bScoreboardVisible = false;
 	/** -1 = automatic (shown for the first seconds of play). */

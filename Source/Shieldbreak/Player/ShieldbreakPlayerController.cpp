@@ -7,6 +7,12 @@
 #include "Engine/World.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "Player/ShieldbreakInputSet.h"
+#include "HAL/FileManager.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Paths.h"
+#include "TimerManager.h"
+#include "UnrealClient.h"
 
 AShieldbreakPlayerController::AShieldbreakPlayerController()
 {
@@ -25,6 +31,7 @@ void AShieldbreakPlayerController::BeginPlay()
 		{
 			HelpAutoHideTime = World->GetTimeSeconds() + 12.f;
 		}
+		SetupAutoShots();
 	}
 }
 
@@ -152,4 +159,42 @@ void AShieldbreakPlayerController::ServerSetBotSkill_Implementation(int32 Skill)
 	{
 		GameMode->SetBotSkill(Skill);
 	}
+}
+
+// ---- Play-test screenshots ----
+
+void AShieldbreakPlayerController::SetupAutoShots()
+{
+	float FirstDelay = 0.f;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("SBAutoShot="), FirstDelay) || FirstDelay <= 0.f)
+	{
+		return;
+	}
+	FParse::Value(FCommandLine::Get(), TEXT("SBAutoShotCount="), AutoShotCount);
+	FParse::Value(FCommandLine::Get(), TEXT("SBAutoShotInterval="), AutoShotInterval);
+	AutoShotCount = FMath::Clamp(AutoShotCount, 1, 30);
+	AutoShotInterval = FMath::Max(0.5f, AutoShotInterval);
+
+	GetWorldTimerManager().SetTimer(AutoShotTimerHandle, this, &AShieldbreakPlayerController::TakeAutoShot, AutoShotInterval, true, FirstDelay);
+	UE_LOG(LogShieldbreak, Log, TEXT("AutoShot: %d shots, first at %.1fs, every %.1fs."), AutoShotCount, FirstDelay, AutoShotInterval);
+}
+
+void AShieldbreakPlayerController::TakeAutoShot()
+{
+	if (AutoShotIndex >= AutoShotCount)
+	{
+		GetWorldTimerManager().ClearTimer(AutoShotTimerHandle);
+		if (FParse::Param(FCommandLine::Get(), TEXT("SBAutoQuit")))
+		{
+			UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+		}
+		return;
+	}
+
+	const FString Dir = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("AutoShot");
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	const FString File = Dir / FString::Printf(TEXT("shot_%02d.png"), AutoShotIndex);
+	FScreenshotRequest::RequestScreenshot(File, true, false);
+	UE_LOG(LogShieldbreak, Log, TEXT("AutoShot: requested %s"), *File);
+	++AutoShotIndex;
 }
