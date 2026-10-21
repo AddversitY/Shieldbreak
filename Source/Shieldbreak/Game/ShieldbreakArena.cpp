@@ -238,6 +238,17 @@ void AShieldbreakArena::BuildGeometry()
 
 void AShieldbreakArena::BuildSpawnPoints()
 {
+	// Objective layout (arena-local, then world): flags on each base platform (red at -X), hills rotating through
+	// mid, the sky platforms and the tower top, the ball on the open mid floor.
+	FlagLocations[0] = GetActorTransform().TransformPosition(FVector(-3200.f, 0.f, 390.f));
+	FlagLocations[1] = GetActorTransform().TransformPosition(FVector(3200.f, 0.f, 390.f));
+	HillLocations.Reset();
+	for (const FVector& Local : { FVector(0.f, -800.f, 220.f), FVector(-2400.f, 2000.f, 670.f), FVector(0.f, 800.f, 220.f), FVector(2400.f, -2000.f, 670.f) })
+	{
+		HillLocations.Add(GetActorTransform().TransformPosition(Local));
+	}
+	BallLocation = GetActorTransform().TransformPosition(FVector(0.f, 800.f, 90.f));
+
 	SpawnTransforms.Reset();
 
 	const FVector Spots[] =
@@ -620,4 +631,9 @@ bool AShieldbreakArena::FindPath(int32 FromIndex, int32 ToIndex, TArray<int32>& 
 		}
 	}
 	return false;
+}
+
+FVector AShieldbreakArena::GetFlagLocation(uint8 Team) const
+{
+	return Team < 2 ? FlagLocations[Team] : GetActorLocation();
 }

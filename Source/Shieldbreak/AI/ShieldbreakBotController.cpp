@@ -1,6 +1,8 @@
 #include "AI/ShieldbreakBotController.h"
 
 #include "Game/ShieldbreakTeams.h"
+#include "Game/ShieldbreakGameState.h"
+#include "Game/ShieldbreakObjectives.h"
 
 #include "Shieldbreak.h"
 #include "Components/StaticMeshComponent.h"
@@ -459,6 +461,31 @@ void AShieldbreakBotController::UpdateMovement(float DeltaSeconds)
 	AShieldbreakCharacter* Enemy = Target.Get();
 	const FVector BotLocation = Bot->GetActorLocation();
 
+	// Objective modes: an urgent objective (carrying it, chasing a stolen flag, getting into the hill) beats dueling;
+	// combat aim and fire keep running while the bot moves.
+	FVector ObjectiveGoal;
+	bool bObjectiveUrgent = false;
+	const bool bHasObjective = GetObjectiveGoal(ObjectiveGoal, bObjectiveUrgent);
+	if (bHasObjective && (bObjectiveUrgent || !(Enemy && bTargetVisible)))
+	{
+		if (Bot->bIsCrouched && !bSliding)
+		{
+			Bot->StopCrouchOrSlide();
+		}
+		Bot->SetSprinting(!(Enemy && bTargetVisible) && !Bot->GetCarriedObjective());
+		if (FVector::Dist2D(BotLocation, ObjectiveGoal) > 120.f)
+		{
+			FollowPathTo(ObjectiveGoal, DeltaSeconds);
+		}
+		else if (Enemy && bTargetVisible)
+		{
+			// On the spot (e.g. in the hill): strafe in place.
+			const FVector ToEnemy = (Enemy->GetActorLocation() - BotLocation).GetSafeNormal2D();
+			Bot->AddMovementInput(FVector(-ToEnemy.Y, ToEnemy.X, 0.f) * StrafeDir, 1.f);
+		}
+		return;
+	}
+
 	if (Enemy && bTargetVisible)
 	{
 		Bot->SetSprinting(false);
@@ -826,5 +853,97 @@ void AShieldbreakBotController::UpdateMastery()
 		{
 			Bot->Melee();
 		}
+	}
+}
+
+// ---- Objectives ----
+
+bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrgent) const
+{
+	bOutUrgent = false;
+	const AShieldbreakCharacter* Bot = Cast<AShieldbreakCharacter>(GetPawn());
+	const UWorld* World = GetWorld();
+	const AShieldbreakGameState* GameState = World ? World->GetGameState<AShieldbreakGameState>() : nullptr;
+	if (!Bot || !GameState || GameState->GetGameType() == EShieldbreakGameType::Slayer)
+	{
+		return false;
+	}
+
+	const uint8 MyTeam = ShieldbreakTeams::GetTeam(Bot);
+	const AShieldbreakCarriable* Carried = Bot->GetCarriedObjective();
+	// Half the team attacks, half defends (stable per bot).
+	const bool bAttacker = (GetUniqueID() % 2) == 0;
+
+	switch (GameState->GetGameType())
+	{
+	case EShieldbreakGameType::CaptureTheFlag:
+	{
+		const AShieldbreakCarriable* OurFlag = nullptr;
+		const AShieldbreakCarriable* TheirFlag = nullptr;
+		for (TActorIterator<AShieldbreakCarriable> It(World); It; ++It)
+		{
+			(It->GetTeam() == MyTeam ? OurFlag : TheirFlag) = *It;
+		}
+		if (Carried && OurFlag)
+		{
+			OutGoal = OurFlag->GetHomeLocation();
+			bOutUrgent = true;
+			return true;
+		}
+		if (OurFlag && !OurFlag->IsAtHome())
+		{
+			// Stolen or dropped: everyone near enough goes after it.
+			OutGoal = OurFlag->GetActorLocation();
+			bOutUrgent = !bAttacker || FVector::Dist(Bot->GetActorLocation(), OutGoal) < 2500.f;
+			return true;
+		}
+		if (bAttacker && TheirFlag)
+		{
+			OutGoal = TheirFlag->GetCarrier() ? TheirFlag->GetCarrier()->GetActorLocation() : TheirFlag->GetActorLocation();
+			return true;
+		}
+		if (OurFlag)
+		{
+			OutGoal = OurFlag->GetHomeLocation() + FVector(FMath::Sin(static_cast<float>(GetUniqueID())) * 400.f, FMath::Cos(static_cast<float>(GetUniqueID())) * 400.f, 0.f);
+			return true;
+		}
+		return false;
+	}
+	case EShieldbreakGameType::KingOfTheHill:
+	{
+		for (TActorIterator<AShieldbreakHill> It(World); It; ++It)
+		{
+			OutGoal = It->GetActorLocation();
+			bOutUrgent = FVector::Dist2D(Bot->GetActorLocation(), OutGoal) > 250.f;
+			return true;
+		}
+		return false;
+	}
+	case EShieldbreakGameType::Oddball:
+	{
+		for (TActorIterator<AShieldbreakCarriable> It(World); It; ++It)
+		{
+			if (Carried == *It)
+			{
+				// Keep the ball away from the enemy: fall back toward our own half.
+				const float SideX = MyTeam == ShieldbreakTeams::Red ? -2600.f : 2600.f;
+				OutGoal = FVector(SideX, 0.f, Bot->GetActorLocation().Z);
+				bOutUrgent = true;
+				return true;
+			}
+			const AShieldbreakCharacter* Carrier = It->GetCarrier();
+			if (Carrier && ShieldbreakTeams::AreTeammates(Carrier, Bot))
+			{
+				OutGoal = Carrier->GetActorLocation();
+				return true;
+			}
+			OutGoal = Carrier ? Carrier->GetActorLocation() : It->GetActorLocation();
+			bOutUrgent = !Carrier;
+			return true;
+		}
+		return false;
+	}
+	default:
+		return false;
 	}
 }

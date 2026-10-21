@@ -39,6 +39,8 @@ private:
 	void DrawMotionTracker(AShieldbreakCharacter* Character);
 	void DrawTeammateNames(AShieldbreakCharacter* Character);
 	void DrawEquipmentStatus(AShieldbreakCharacter* Character);
+	void DrawObjectives(AShieldbreakCharacter* Character);
+	void DrawObjectiveMarker(const FVector& WorldLocation, const FString& Label, const FLinearColor& Color);
 	void DrawKillFeed(AShieldbreakGameState* GameState);
 	void DrawTopScores(AShieldbreakGameState* GameState);
 	void DrawScoreboard(AShieldbreakGameState* GameState);

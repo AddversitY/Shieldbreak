@@ -27,6 +27,7 @@ void AShieldbreakGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(AShieldbreakGameState, WinnerName);
 	DOREPLIFETIME(AShieldbreakGameState, MatchRestartServerTime);
 	DOREPLIFETIME(AShieldbreakGameState, bTeamGame);
+	DOREPLIFETIME(AShieldbreakGameState, GameType);
 	DOREPLIFETIME(AShieldbreakGameState, TeamScores);
 }
 
@@ -190,6 +191,15 @@ void AShieldbreakGameState::AddTeamScore(uint8 Team, int32 Delta)
 	if (HasAuthority() && TeamScores.IsValidIndex(Team))
 	{
 		TeamScores[Team] = FMath::Max(0, TeamScores[Team] + Delta);
+		ForceNetUpdate();
+	}
+}
+
+void AShieldbreakGameState::SetGameType(EShieldbreakGameType NewGameType)
+{
+	if (HasAuthority())
+	{
+		GameType = NewGameType;
 		ForceNetUpdate();
 	}
 }

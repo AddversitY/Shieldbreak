@@ -33,6 +33,9 @@ protected:
 	virtual void OnUnPossess() override;
 
 private:
+	/** Objective modes: where to go, and whether it overrides fighting. False in Slayer. */
+	bool GetObjectiveGoal(FVector& OutGoal, bool& bOutUrgent) const;
+
 	struct FSkillProfile
 	{
 		float Reaction;

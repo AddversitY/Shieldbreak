@@ -1,6 +1,7 @@
 #include "UI/ShieldbreakHUD.h"
 
 #include "Game/ShieldbreakTeams.h"
+#include "Game/ShieldbreakObjectives.h"
 
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
@@ -173,6 +174,7 @@ void AShieldbreakHUD::DrawHUD()
 		DrawMotionTracker(Character);
 		DrawTeammateNames(Character);
 		DrawEquipmentStatus(Character);
+		DrawObjectives(Character);
 	}
 
 	if (GameState)
@@ -482,6 +484,109 @@ void AShieldbreakHUD::DrawMomentum(AShieldbreakCharacter* Character)
 	}
 }
 
+void AShieldbreakHUD::DrawObjectiveMarker(const FVector& WorldLocation, const FString& Label, const FLinearColor& Color)
+{
+	if (!PlayerOwner || !PlayerOwner->PlayerCameraManager)
+	{
+		return;
+	}
+
+	const FVector CameraLocation = PlayerOwner->PlayerCameraManager->GetCameraLocation();
+	const FVector CameraForward = PlayerOwner->PlayerCameraManager->GetCameraRotation().Vector();
+	const bool bInFront = FVector::DotProduct(WorldLocation - CameraLocation, CameraForward) > 0.0;
+	FVector Screen = Project(WorldLocation);
+
+	// Off-screen or behind: pin the marker to the screen edge in the right direction.
+	const float Margin = 40.f * S;
+	float X = static_cast<float>(Screen.X);
+	float Y = static_cast<float>(Screen.Y);
+	if (!bInFront)
+	{
+		X = Canvas->ClipX - X;
+		Y = Canvas->ClipY - Margin;
+	}
+	X = FMath::Clamp(X, Margin, Canvas->ClipX - Margin);
+	Y = FMath::Clamp(Y, Margin, Canvas->ClipY - Margin);
+
+	const float Size = 9.f * S;
+	Line(X, Y - Size, X + Size, Y, Color, 2.f * S);
+	Line(X + Size, Y, X, Y + Size, Color, 2.f * S);
+	Line(X, Y + Size, X - Size, Y, Color, 2.f * S);
+	Line(X - Size, Y, X, Y - Size, Color, 2.f * S);
+
+	const int32 Meters = FMath::RoundToInt(static_cast<float>(FVector::Dist(CameraLocation, WorldLocation)) / 100.f);
+	Text(FString::Printf(TEXT("%s  %dm"), *Label, Meters), X, Y + 12.f * S, Color, GEngine->GetSmallFont(), S * 0.85f, true);
+}
+
+void AShieldbreakHUD::DrawObjectives(AShieldbreakCharacter* Character)
+{
+	const uint8 MyTeam = ShieldbreakTeams::GetTeam(Character);
+	const AShieldbreakCarriable* Mine = Character->GetCarriedObjective();
+
+	for (TActorIterator<AShieldbreakCarriable> It(GetWorld()); It; ++It)
+	{
+		const AShieldbreakCarriable* Objective = *It;
+		if (Objective == Mine)
+		{
+			continue;
+		}
+		const AShieldbreakCharacter* Carrier = Objective->GetCarrier();
+		const bool bFriendlyCarrier = Carrier && ShieldbreakTeams::AreTeammates(Carrier, Character);
+		const FVector Where = Objective->GetActorLocation() + FVector(0.f, 0.f, Carrier ? 120.f : 100.f);
+
+		if (Objective->GetKind() == EShieldbreakCarriableKind::Ball)
+		{
+			const FString Label = !Carrier ? TEXT("BALL") : (bFriendlyCarrier ? TEXT("PROTECT") : TEXT("KILL CARRIER"));
+			DrawObjectiveMarker(Where, Label, FLinearColor(1.f, 0.9f, 0.3f));
+			continue;
+		}
+
+		const bool bOurFlag = Objective->GetTeam() == MyTeam;
+		const FLinearColor FlagColor = ShieldbreakTeams::GetTeamColor(Objective->GetTeam()) * 1.5f;
+		FString Label;
+		if (bOurFlag)
+		{
+			Label = Objective->IsAtHome() ? TEXT("DEFEND") : (Carrier ? TEXT("FLAG STOLEN") : TEXT("RETURN"));
+		}
+		else
+		{
+			Label = Objective->IsAtHome() ? TEXT("CAPTURE") : (Carrier ? (bFriendlyCarrier ? TEXT("ESCORT") : TEXT("FLAG")) : TEXT("TAKE"));
+		}
+		DrawObjectiveMarker(Where, Label, FlagColor);
+
+		// Carrying the enemy flag: point home.
+		if (Mine && bOurFlag)
+		{
+			DrawObjectiveMarker(Objective->GetHomeLocation() + FVector(0.f, 0.f, 140.f), TEXT("SCORE"), ShieldbreakHUDPrivate::Gold);
+		}
+	}
+
+	for (TActorIterator<AShieldbreakHill> It(GetWorld()); It; ++It)
+	{
+		const uint8 Control = It->GetControllingTeam();
+		FLinearColor HillColor(0.95f, 0.95f, 0.95f);
+		FString Label = TEXT("HILL");
+		if (Control == AShieldbreakHill::ContestedTeam)
+		{
+			HillColor = FLinearColor(0.75f, 0.4f, 1.f);
+			Label = TEXT("CONTESTED");
+		}
+		else if (Control < ShieldbreakTeams::NumTeams)
+		{
+			HillColor = ShieldbreakTeams::GetTeamColor(Control) * 1.5f;
+			Label = Control == MyTeam ? TEXT("HOLD") : TEXT("TAKE HILL");
+		}
+		DrawObjectiveMarker(It->GetActorLocation(), Label, HillColor);
+	}
+
+	if (Mine)
+	{
+		const bool bFlag = Mine->GetKind() == EShieldbreakCarriableKind::Flag;
+		Text(bFlag ? TEXT("YOU HAVE THE FLAG  -  SIDEARM ONLY") : TEXT("YOU HAVE THE BALL  -  MELEE ONLY"),
+			Canvas->ClipX * 0.5f, Canvas->ClipY - 160.f * S, ShieldbreakHUDPrivate::Gold, GEngine->GetMediumFont(), S, true);
+	}
+}
+
 void AShieldbreakHUD::DrawEquipmentStatus(AShieldbreakCharacter* Character)
 {
 	// Bottom-left, above the motion tracker: carried equipment and active power-ups.
@@ -626,7 +731,19 @@ void AShieldbreakHUD::DrawKillFeed(AShieldbreakGameState* GameState)
 		}
 		const float X = 30.f * S;
 		const bool bSuicide = Entry.KillerName == Entry.VictimName;
-		if (bSuicide)
+		if (Entry.bEvent)
+		{
+			// Objective event: "<name> <action>", or just the action for system events.
+			float W = 0.f;
+			float H = 0.f;
+			if (!Entry.KillerName.IsEmpty())
+			{
+				Canvas->TextSize(Font, Entry.KillerName + TEXT(" "), W, H, S, S);
+				Text(Entry.KillerName, X, Y, Entry.KillerColor * 1.4f, Font, S);
+			}
+			Text(Entry.VictimName, X + W, Y, Entry.KillerName.IsEmpty() ? Entry.KillerColor * 1.4f : ShieldbreakHUDPrivate::White, Font, S);
+		}
+		else if (bSuicide)
 		{
 			Text(FString::Printf(TEXT("%s  died"), *Entry.VictimName), X, Y, Entry.VictimColor * 1.4f, Font, S);
 		}
@@ -655,7 +772,15 @@ void AShieldbreakHUD::DrawTopScores(AShieldbreakGameState* GameState)
 
 	if (GameState->IsTeamGame())
 	{
-		Text(FString::Printf(TEXT("TEAM SLAYER  -  FIRST TO %d"), GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
+		const TCHAR* ModeName = TEXT("TEAM SLAYER");
+		switch (GameState->GetGameType())
+		{
+		case EShieldbreakGameType::CaptureTheFlag: ModeName = TEXT("CAPTURE THE FLAG"); break;
+		case EShieldbreakGameType::KingOfTheHill: ModeName = TEXT("KING OF THE HILL"); break;
+		case EShieldbreakGameType::Oddball: ModeName = TEXT("ODDBALL"); break;
+		default: break;
+		}
+		Text(FString::Printf(TEXT("%s  -  FIRST TO %d"), ModeName, GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
 		Y += 26.f * S;
 
 		// Your team first, Halo-style.

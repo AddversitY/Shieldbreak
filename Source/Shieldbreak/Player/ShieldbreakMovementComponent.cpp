@@ -4,6 +4,7 @@
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "Player/ShieldbreakCharacter.h"
 
 // ---- Network prediction: carry the sprint intent in the saved move ----
 
@@ -185,11 +186,14 @@ float UShieldbreakMovementComponent::GetMaxSpeed() const
 	{
 		return PowerJumpChargeSpeed;
 	}
+	// Objective carriers (flag / ball) move at 85%, predicted from the replicated carry state.
+	const AShieldbreakCharacter* ShieldbreakOwner = Cast<AShieldbreakCharacter>(CharacterOwner);
+	const float CarryScale = ShieldbreakOwner && ShieldbreakOwner->GetCarriedObjective() ? 0.85f : 1.f;
 	if (IsSprinting())
 	{
-		return SprintSpeed;
+		return SprintSpeed * CarryScale;
 	}
-	return Super::GetMaxSpeed();
+	return Super::GetMaxSpeed() * CarryScale;
 }
 
 bool UShieldbreakMovementComponent::IsMovingOnGround() const

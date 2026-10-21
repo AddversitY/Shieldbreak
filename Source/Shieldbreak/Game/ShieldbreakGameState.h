@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "Game/ShieldbreakObjectives.h"
 #include "ShieldbreakGameState.generated.h"
 
 class APlayerState;
@@ -25,6 +26,10 @@ struct SHIELDBREAK_API FShieldbreakKillFeedEntry
 
 	UPROPERTY(BlueprintReadOnly, Category = "Shieldbreak")
 	FLinearColor VictimColor = FLinearColor::White;
+
+	/** Objective event ("<Killer> <Victim>", e.g. "Player 1 captured the flag!") rather than a kill. */
+	UPROPERTY(BlueprintReadOnly, Category = "Shieldbreak")
+	bool bEvent = false;
 
 	/** AGameStateBase::GetServerWorldTimeSeconds() when the kill happened. */
 	UPROPERTY(BlueprintReadOnly, Category = "Shieldbreak")
@@ -56,6 +61,7 @@ public:
 
 	void SetScoreLimit(int32 NewScoreLimit);
 	void SetTeamGame(bool bNewTeamGame);
+	void SetGameType(EShieldbreakGameType NewGameType);
 	/** Adds (or with a negative delta, removes) team points. */
 	void AddTeamScore(uint8 Team, int32 Delta);
 
@@ -75,6 +81,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") float GetMatchRestartCountdown() const;
 
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") bool IsTeamGame() const { return bTeamGame; }
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") EShieldbreakGameType GetGameType() const { return GameType; }
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 
 	/** Non-spectator players by kills (desc), then deaths (asc), then join order. */
@@ -99,6 +106,9 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
 	bool bTeamGame = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
+	EShieldbreakGameType GameType = EShieldbreakGameType::Slayer;
 
 	/** Indexed by ShieldbreakTeams::Red / Blue. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")

@@ -88,6 +88,29 @@ void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Optio
 	BotSkill = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("Skill"), BotSkill), 0, MaxBotSkill);
 	ScoreLimit = FMath::Max(1, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), ScoreLimit));
 	bTeamGame = UGameplayStatics::GetIntOption(Options, TEXT("Teams"), bTeamGame ? 1 : 0) != 0;
+
+	const FString ModeOption = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
+	if (ModeOption.Equals(TEXT("CTF"), ESearchCase::IgnoreCase))
+	{
+		GameType = EShieldbreakGameType::CaptureTheFlag;
+	}
+	else if (ModeOption.Equals(TEXT("KOTH"), ESearchCase::IgnoreCase))
+	{
+		GameType = EShieldbreakGameType::KingOfTheHill;
+	}
+	else if (ModeOption.Equals(TEXT("Oddball"), ESearchCase::IgnoreCase))
+	{
+		GameType = EShieldbreakGameType::Oddball;
+	}
+	else if (ModeOption.Equals(TEXT("Slayer"), ESearchCase::IgnoreCase))
+	{
+		GameType = EShieldbreakGameType::Slayer;
+	}
+	// Objective modes are always red vs blue.
+	if (GameType != EShieldbreakGameType::Slayer)
+	{
+		bTeamGame = true;
+	}
 	bFriendlyFire = UGameplayStatics::GetIntOption(Options, TEXT("FriendlyFire"), bFriendlyFire ? 1 : 0) != 0;
 	if (bTeamGame)
 	{
@@ -105,7 +128,8 @@ void AShieldbreakGameMode::InitGameState()
 	if (AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>())
 	{
 		SBGameState->SetTeamGame(bTeamGame);
-		SBGameState->SetScoreLimit(bTeamGame ? TeamScoreLimit : ScoreLimit);
+		SBGameState->SetGameType(GameType);
+		SBGameState->SetScoreLimit(GetModeScoreLimit());
 	}
 }
 
@@ -114,6 +138,8 @@ void AShieldbreakGameMode::StartPlay()
 	EnsureArena();
 
 	Super::StartPlay();
+
+	SpawnObjectives();
 
 	if (AShieldbreakSelfTest::IsRequested())
 	{
@@ -166,6 +192,7 @@ void AShieldbreakGameMode::Tick(float DeltaSeconds)
 	}
 
 	ProcessPendingRespawns();
+	TickObjectives(DeltaSeconds);
 
 	StrandedCheckCountdown -= DeltaSeconds;
 	if (StrandedCheckCountdown <= 0.f)
@@ -421,7 +448,7 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 		ScheduleRespawn(VictimController, RespawnDelay);
 	}
 
-	if (bTeamGame)
+	if (bTeamGame && GameType == EShieldbreakGameType::Slayer)
 	{
 		AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>();
 		const uint8 VictimTeam = VictimState ? VictimState->GetTeamId() : ShieldbreakTeams::NoTeam;
@@ -449,7 +476,7 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 			}
 		}
 	}
-	else if (!bSuicide && KillerState && KillerState->GetKills() >= ScoreLimit)
+	else if (!bTeamGame && !bSuicide && KillerState && KillerState->GetKills() >= ScoreLimit)
 	{
 		FinishMatch(KillerState->GetPlayerName());
 	}
@@ -883,6 +910,8 @@ void AShieldbreakGameMode::PerformMatchReset()
 	PendingRespawns.Reset();
 	StrandedCheckCountdown = ShieldbreakGameModePrivate::StrandedCheckInterval;
 
+	ResetObjectives();
+
 	// Clears the kill feed and banner and zeroes every PlayerState's stats.
 	if (AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>())
 	{
@@ -928,4 +957,171 @@ float AShieldbreakGameMode::GetServerTimeSeconds() const
 
 	const UWorld* CurrentWorld = GetWorld();
 	return CurrentWorld ? static_cast<float>(CurrentWorld->GetTimeSeconds()) : 0.f;
+}
+
+// ---- Objective modes ----
+
+int32 AShieldbreakGameMode::GetModeScoreLimit() const
+{
+	switch (GameType)
+	{
+	case EShieldbreakGameType::CaptureTheFlag: return CaptureLimit;
+	case EShieldbreakGameType::KingOfTheHill: return HillScoreLimit;
+	case EShieldbreakGameType::Oddball: return BallScoreLimit;
+	default: return bTeamGame ? TeamScoreLimit : ScoreLimit;
+	}
+}
+
+void AShieldbreakGameMode::SpawnObjectives()
+{
+	UWorld* const CurrentWorld = GetWorld();
+	const AShieldbreakArena* Arena = EnsureArena();
+	if (!CurrentWorld || !Arena || GameType == EShieldbreakGameType::Slayer)
+	{
+		return;
+	}
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (GameType == EShieldbreakGameType::CaptureTheFlag)
+	{
+		for (uint8 Team = 0; Team < ShieldbreakTeams::NumTeams; ++Team)
+		{
+			const FVector Home = Arena->GetFlagLocation(Team);
+			if (AShieldbreakCarriable* Flag = CurrentWorld->SpawnActor<AShieldbreakCarriable>(AShieldbreakCarriable::StaticClass(), Home, FRotator::ZeroRotator, Params))
+			{
+				Flag->Setup(EShieldbreakCarriableKind::Flag, Team, Home);
+				Carriables.Add(Flag);
+			}
+		}
+	}
+	else if (GameType == EShieldbreakGameType::Oddball)
+	{
+		const FVector Home = Arena->GetBallLocation();
+		if (AShieldbreakCarriable* Ball = CurrentWorld->SpawnActor<AShieldbreakCarriable>(AShieldbreakCarriable::StaticClass(), Home, FRotator::ZeroRotator, Params))
+		{
+			Ball->Setup(EShieldbreakCarriableKind::Ball, ShieldbreakTeams::NoTeam, Home);
+			Carriables.Add(Ball);
+		}
+	}
+	else if (GameType == EShieldbreakGameType::KingOfTheHill && Arena->GetHillLocations().Num() > 0)
+	{
+		HillIndex = 0;
+		HillMoveTimer = HillMoveInterval;
+		Hill = CurrentWorld->SpawnActor<AShieldbreakHill>(AShieldbreakHill::StaticClass(), Arena->GetHillLocations()[0], FRotator::ZeroRotator, Params);
+	}
+}
+
+void AShieldbreakGameMode::ResetObjectives()
+{
+	for (AShieldbreakCarriable* Carriable : Carriables)
+	{
+		if (IsValid(Carriable))
+		{
+			Carriable->ReturnHome();
+		}
+	}
+	const AShieldbreakArena* Arena = EnsureArena();
+	if (Hill && Arena && Arena->GetHillLocations().Num() > 0)
+	{
+		HillIndex = 0;
+		HillMoveTimer = HillMoveInterval;
+		Hill->MoveTo(Arena->GetHillLocations()[0]);
+	}
+	ObjectiveSecondAccumulator = 0.f;
+}
+
+void AShieldbreakGameMode::TickObjectives(float DeltaSeconds)
+{
+	AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>();
+	if (!SBGameState || (GameType != EShieldbreakGameType::KingOfTheHill && GameType != EShieldbreakGameType::Oddball))
+	{
+		return;
+	}
+
+	// The hill relocates on a fixed cadence.
+	if (GameType == EShieldbreakGameType::KingOfTheHill && Hill)
+	{
+		HillMoveTimer -= DeltaSeconds;
+		const AShieldbreakArena* Arena = EnsureArena();
+		if (HillMoveTimer <= 0.f && Arena && Arena->GetHillLocations().Num() > 1)
+		{
+			HillIndex = (HillIndex + 1) % Arena->GetHillLocations().Num();
+			HillMoveTimer = HillMoveInterval;
+			Hill->MoveTo(Arena->GetHillLocations()[HillIndex]);
+			AnnounceObjective(nullptr, TEXT("Hill moved"), ShieldbreakTeams::NoTeam);
+		}
+	}
+
+	// Score whole seconds of control / possession.
+	ObjectiveSecondAccumulator += DeltaSeconds;
+	while (ObjectiveSecondAccumulator >= 1.f)
+	{
+		ObjectiveSecondAccumulator -= 1.f;
+
+		uint8 ScoringTeam = ShieldbreakTeams::NoTeam;
+		if (GameType == EShieldbreakGameType::KingOfTheHill && Hill)
+		{
+			ScoringTeam = Hill->EvaluateControl();
+		}
+		else if (GameType == EShieldbreakGameType::Oddball)
+		{
+			for (const AShieldbreakCarriable* Carriable : Carriables)
+			{
+				if (IsValid(Carriable) && Carriable->GetCarrier())
+				{
+					ScoringTeam = ShieldbreakTeams::GetTeam(Carriable->GetCarrier());
+				}
+			}
+		}
+
+		if (ScoringTeam < ShieldbreakTeams::NumTeams)
+		{
+			SBGameState->AddTeamScore(ScoringTeam, 1);
+			if (SBGameState->GetTeamScore(ScoringTeam) >= GetModeScoreLimit())
+			{
+				FinishMatch(ShieldbreakTeams::GetTeamName(ScoringTeam));
+				return;
+			}
+		}
+	}
+
+	// Keep the hill's color live between whole-second ticks.
+	if (Hill)
+	{
+		Hill->EvaluateControl();
+	}
+}
+
+void AShieldbreakGameMode::ScoreFlagCapture(AShieldbreakCharacter* Scorer, uint8 ScoringTeam)
+{
+	AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>();
+	if (!SBGameState || bMatchOver)
+	{
+		return;
+	}
+	SBGameState->AddTeamScore(ScoringTeam, 1);
+	AnnounceObjective(Scorer, TEXT("captured the flag!"), ScoringTeam);
+	if (SBGameState->GetTeamScore(ScoringTeam) >= GetModeScoreLimit())
+	{
+		FinishMatch(ShieldbreakTeams::GetTeamName(ScoringTeam));
+	}
+}
+
+void AShieldbreakGameMode::AnnounceObjective(AShieldbreakCharacter* Who, const FString& Action, uint8 Team)
+{
+	AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>();
+	if (!SBGameState)
+	{
+		return;
+	}
+	const APlayerState* WhoState = Who ? Who->GetPlayerState() : nullptr;
+	FShieldbreakKillFeedEntry Entry;
+	Entry.bEvent = true;
+	Entry.KillerName = WhoState ? WhoState->GetPlayerName() : FString();
+	Entry.KillerColor = Team < ShieldbreakTeams::NumTeams ? ShieldbreakTeams::GetTeamColor(Team) : FLinearColor::White;
+	Entry.VictimName = Action;
+	Entry.VictimColor = FLinearColor::White;
+	SBGameState->AddKillFeedEntry(Entry);
 }

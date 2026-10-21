@@ -473,7 +473,7 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	UWorld* World = GetWorld();
 	if (!OwnerCharacter || !World || !OwnerCharacter->IsAlive() || OwnerCharacter->GetCurrentWeapon() != this
-		|| OwnerCharacter->IsAegisRaised())
+		|| OwnerCharacter->IsAegisRaised() || !OwnerCharacter->CanFireWhileCarrying())
 	{
 		return;
 	}

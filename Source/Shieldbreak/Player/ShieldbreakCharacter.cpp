@@ -4,6 +4,7 @@
 #include "Audio/ShieldbreakSFX.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Game/ShieldbreakTeams.h"
+#include "Game/ShieldbreakObjectives.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
@@ -154,6 +155,7 @@ void AShieldbreakCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION(AShieldbreakCharacter, AegisUptime, COND_OwnerOnly);
 	DOREPLIFETIME(AShieldbreakCharacter, bAegisRaised);
 	DOREPLIFETIME(AShieldbreakCharacter, CamoEndServerTime);
+	DOREPLIFETIME(AShieldbreakCharacter, CarriedObjective);
 }
 
 void AShieldbreakCharacter::BeginPlay()
@@ -630,7 +632,7 @@ bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
 
 void AShieldbreakCharacter::StartFire()
 {
-	if (!IsAlive() || !CurrentWeapon || bAegisRaised)
+	if (!IsAlive() || !CurrentWeapon || bAegisRaised || !CanFireWhileCarrying())
 	{
 		return;
 	}
@@ -1025,6 +1027,10 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	AegisMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (HasAuthority())
 	{
+		if (CarriedObjective)
+		{
+			CarriedObjective->Drop();
+		}
 		bAegisRaised = false;
 		Equipment = EShieldbreakEquipment::None;
 		CamoEndServerTime = -1.f;
@@ -1230,4 +1236,41 @@ void AShieldbreakCharacter::UpdateCamoVisuals()
 	{
 		CurrentWeapon->SetActorHiddenInGame(bHide);
 	}
+}
+
+// ---- Objectives ----
+
+void AShieldbreakCharacter::SetCarriedObjective(AShieldbreakCarriable* NewObjective)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	CarriedObjective = NewObjective;
+	if (NewObjective)
+	{
+		SetZoomed(false);
+		// Grabbing the flag puts the sidearm in hand if you're carrying one.
+		AShieldbreakWeapon* Holstered = GetHolsteredWeapon();
+		if (NewObjective->GetKind() == EShieldbreakCarriableKind::Flag && CurrentWeapon && !CurrentWeapon->IsA<AWeapon_Sidearm>()
+			&& Holstered && Holstered->IsA<AWeapon_Sidearm>())
+		{
+			EquipWeapon(Holstered);
+		}
+		if (!CanFireWhileCarrying())
+		{
+			StopFire();
+		}
+	}
+	ForceNetUpdate();
+}
+
+bool AShieldbreakCharacter::CanFireWhileCarrying() const
+{
+	if (!CarriedObjective)
+	{
+		return true;
+	}
+	// Flag carriers keep a sidearm (Halo-style one-handed); ball carriers fight with melee only.
+	return CarriedObjective->GetKind() == EShieldbreakCarriableKind::Flag && CurrentWeapon && CurrentWeapon->IsA<AWeapon_Sidearm>();
 }

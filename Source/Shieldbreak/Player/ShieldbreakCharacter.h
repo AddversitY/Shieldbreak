@@ -8,6 +8,7 @@
 #include "GameFramework/Character.h"
 #include "ShieldbreakCharacter.generated.h"
 
+class AShieldbreakCarriable;
 class AShieldbreakGrenade;
 class AShieldbreakWeapon;
 class UCameraComponent;
@@ -71,6 +72,15 @@ public:
 	bool IsCamouflaged() const;
 	/** Seconds of Active Camo left (server time based; 0 when none). */
 	float GetCamoTimeRemaining() const;
+
+	// ---- Objectives ----
+
+	/** Flag or ball being carried, if any. Carriers move slower; flag carriers may only use the sidearm, ball carriers only melee. */
+	AShieldbreakCarriable* GetCarriedObjective() const { return CarriedObjective; }
+	/** Server, from AShieldbreakCarriable. */
+	void SetCarriedObjective(AShieldbreakCarriable* NewObjective);
+	/** Whether the current weapon may fire given what is being carried. */
+	bool CanFireWhileCarrying() const;
 
 	// ---- Actions (owning client input or server AI) ----
 
@@ -261,6 +271,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_AegisRaised)
 	bool bAegisRaised = false;
+
+	UPROPERTY(Replicated)
+	TObjectPtr<AShieldbreakCarriable> CarriedObjective;
 
 	/** Server time Active Camo ends (-1 = none). */
 	UPROPERTY(ReplicatedUsing = OnRep_CamoEnd)

@@ -42,6 +42,21 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - PC session: rocket-jump checks for `458b8d7` added; build + run pending.
 
 ## Needs verification (code session → PC)
+- **Roadmap item 2: modes** (commit "Objective modes"). Launch with `?Mode=CTF`, `?Mode=KOTH` or `?Mode=Oddball` (default Slayer).
+  Objective modes force teams; kills don't score the team there.
+  - **CTF** (`AShieldbreakCarriable` Flag): flags on each base platform ((-3200,0,390) red, (3200,0,390) blue).
+    Walk over the enemy flag to take it (you auto-swap to the sidearm; only the sidearm fires; 85% speed). Bring it to
+    your own flag *while it's home* to capture (+1). Dying drops it; your team touching a dropped flag returns it;
+    it auto-returns after 15 s. First to 3.
+  - **KOTH** (`AShieldbreakHill`, 600x600 zone): +1 per second while only one team is inside; the zone moves every 60 s
+    through 4 spots. First to 100.
+  - **Oddball** (`AShieldbreakCarriable` Ball at (0,800,90)): +1 per second while held; melee only while carrying;
+    drops on death; resets after 30 s dropped. First to 100.
+  - HUD: mode header, objective markers clamped to the screen edge with distance, a carrier banner, event lines in the
+    kill feed (`FShieldbreakKillFeedEntry::bEvent`). Bots play objectives (attack/defend split, carry home, chase
+    stolen flags, hold the hill, keep the ball).
+  - Please add checks: capture scoring, flag drop/return/auto-return, the carrier fire restriction, hill scoring and
+    contesting, ball scoring. Also screenshots of each mode.
 - **Roadmap item 1: mechanics and sandbox** (commit "Competitive mechanics pass"). Please build, add checks and screenshot:
   - Shield Shaping is gone: `SetShaping`/`IsShaping`, its tuning and `bIgnoresShieldShaping` are deleted. I removed the
     "Shield Shaping" self-test step and made the arena check count only `Overshield`-type power-ups (small edits to your file).

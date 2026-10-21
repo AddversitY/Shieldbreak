@@ -7,6 +7,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameModeBase.h"
 #include "TimerManager.h"
+#include "Game/ShieldbreakObjectives.h"
 #include "ShieldbreakGameMode.generated.h"
 
 class AShieldbreakArena;
@@ -57,6 +58,14 @@ public:
 	int32 GetScoreLimit() const { return ScoreLimit; }
 	float GetRespawnDelay() const { return RespawnDelay; }
 	bool IsTeamGame() const { return bTeamGame; }
+	EShieldbreakGameType GetGameType() const { return GameType; }
+
+	// ---- Objective modes (called by the objective actors) ----
+
+	/** A carrier brought the enemy flag home to their own (at-home) flag. */
+	void ScoreFlagCapture(AShieldbreakCharacter* Scorer, uint8 ScoringTeam);
+	/** Kill-feed style event line, e.g. "Player 1 took the flag". Who may be null (system event). */
+	void AnnounceObjective(AShieldbreakCharacter* Who, const FString& Action, uint8 Team);
 	bool IsFriendlyFireEnabled() const { return bFriendlyFire; }
 
 protected:
@@ -80,6 +89,24 @@ protected:
 	/** Kills to win. URL option ?ScoreLimit=N. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
 	int32 ScoreLimit = 25;
+
+	/** Slayer, CaptureTheFlag, KingOfTheHill or Oddball. URL option ?Mode=Slayer|CTF|KOTH|Oddball. Objective modes are team games. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")
+	EShieldbreakGameType GameType = EShieldbreakGameType::Slayer;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
+	int32 CaptureLimit = 3;
+
+	/** Seconds of hill control to win King of the Hill. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
+	int32 HillScoreLimit = 100;
+
+	/** Seconds of ball possession to win Oddball. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
+	int32 BallScoreLimit = 100;
+
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "5"))
+	float HillMoveInterval = 60.f;
 
 	/** Team Slayer (red vs blue) instead of free-for-all. URL option ?Teams=0/1. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")
@@ -153,6 +180,22 @@ private:
 	FTimerHandle MatchResetTimerHandle;
 
 	float StrandedCheckCountdown = 1.f;
+	// Objective modes.
+	void SpawnObjectives();
+	void ResetObjectives();
+	void TickObjectives(float DeltaSeconds);
+	int32 GetModeScoreLimit() const;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AShieldbreakCarriable>> Carriables;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AShieldbreakHill> Hill;
+
+	int32 HillIndex = 0;
+	float HillMoveTimer = 0.f;
+	float ObjectiveSecondAccumulator = 0.f;
+
 	float MatchRestartServerTime = -1.f;
 	bool bMatchOver = false;
 	bool bBotsStarted = false;

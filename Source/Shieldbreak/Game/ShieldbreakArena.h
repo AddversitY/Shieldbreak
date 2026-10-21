@@ -38,6 +38,10 @@ public:
 	bool FindPath(int32 FromIndex, int32 ToIndex, TArray<int32>& OutPath) const;
 
 	/** Locations of the map's weapon pickups (for bots). */
+	/** Objective modes: flag home for a team (ShieldbreakTeams::Red/Blue), hill rotation, ball spawn. */
+	FVector GetFlagLocation(uint8 Team) const;
+	const TArray<FVector>& GetHillLocations() const { return HillLocations; }
+	FVector GetBallLocation() const { return BallLocation; }
 	const TArray<FVector>& GetPickupLocations() const { return PickupLocations; }
 
 protected:
@@ -70,6 +74,9 @@ private:
 	TArray<FTransform> SpawnTransforms;
 	TArray<FVector> Waypoints;
 	TArray<TArray<int32>> WaypointLinks;
+	TArray<FVector> HillLocations;
+	FVector BallLocation = FVector::ZeroVector;
+	FVector FlagLocations[2] = { FVector::ZeroVector, FVector::ZeroVector };
 	TArray<FVector> PickupLocations;
 
 	bool bGeometryBuilt = false;
