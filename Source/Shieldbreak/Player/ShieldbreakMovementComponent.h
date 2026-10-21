@@ -62,6 +62,7 @@ public:
 
 	virtual float GetMaxSpeed() const override;
 	virtual bool IsMovingOnGround() const override;
+	virtual bool CanAttemptJump() const override;
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 

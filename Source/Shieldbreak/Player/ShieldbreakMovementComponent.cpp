@@ -164,6 +164,13 @@ bool UShieldbreakMovementComponent::IsMovingOnGround() const
 	return Super::IsMovingOnGround() || IsSliding();
 }
 
+bool UShieldbreakMovementComponent::CanAttemptJump() const
+{
+	// The engine refuses jumps while bWantsToCrouch is set, which made jumping out of a slide
+	// (Momentum Carry) and Halo-style crouch-jumps impossible.
+	return IsJumpAllowed() && (IsMovingOnGround() || IsFalling());
+}
+
 void UShieldbreakMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
 	if (CharacterOwner)

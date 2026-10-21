@@ -510,7 +510,16 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 		float DamageAmount = Stats.Damage;
 		bool bHeadshot = false;
-		if (Victim && Stats.bPrecision && Hit.GetComponent() == Victim->GetHeadMesh())
+		// The head sphere sits mostly inside the body capsule, so a level shot usually hits the
+		// capsule first. Test the same ray against the head on its own.
+		bool bHitHead = Victim && Hit.GetComponent() == Victim->GetHeadMesh();
+		if (Victim && !bHitHead && Victim->GetHeadMesh())
+		{
+			FHitResult HeadHit;
+			FCollisionQueryParams HeadParams(SCENE_QUERY_STAT(ShieldbreakHeadCheck), true);
+			bHitHead = Victim->GetHeadMesh()->LineTraceComponent(HeadHit, FVector(Origin), FVector(Hit.ImpactPoint) + ShotDir * 120.f, HeadParams);
+		}
+		if (Victim && Stats.bPrecision && bHitHead)
 		{
 			const UShieldHealthComponent* VictimShield = Victim->GetShieldHealth();
 			if (VictimShield && VictimShield->GetShield() + VictimShield->GetOvershield() <= 0.f)

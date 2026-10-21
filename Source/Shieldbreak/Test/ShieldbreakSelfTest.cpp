@@ -12,6 +12,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerState.h"
@@ -85,6 +86,12 @@ AShieldbreakCharacter* AShieldbreakSelfTest::SpawnDummy(const FVector& Location,
 		return nullptr;
 	}
 	Spawned.Add(Dummy);
+
+	// Uncontrolled characters normally skip movement entirely; the tests need knockback to move them.
+	if (UCharacterMovementComponent* DummyMovement = Dummy->GetCharacterMovement())
+	{
+		DummyMovement->bRunPhysicsWithNoController = true;
+	}
 
 	if (bWithController)
 	{
@@ -357,12 +364,14 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				Value0 = ShieldOf(B);
 				Shield->TryVent();
+				// Checked in the same frame: the vent is resolved synchronously on the server.
+				Value1 = ShieldOf(B);
 				Phase = 3;
 			}
 			else if (Phase == 3)
 			{
-				Check(TEXT("Missed vent restarts the recharge from empty"), ShieldOf(B) < 1.f && Value0 > 1.f,
-					FString::Printf(TEXT("shield %s before, %s after"), *Num(Value0), *Num(ShieldOf(B))));
+				Check(TEXT("Missed vent restarts the recharge from empty"), Value1 < 0.01f && Value0 > 0.01f,
+					FString::Printf(TEXT("shield %s before, %s right after"), *Num(Value0), *Num(Value1)));
 				Check(TEXT("...and only one attempt per recharge"), Shield->GetVentMarkerPosition() < 0.f,
 					FString::Printf(TEXT("marker %s"), *Num(Shield->GetVentMarkerPosition())));
 				return true;
