@@ -23,7 +23,7 @@
 namespace ShieldbreakWeaponPrivate
 {
 	// Halo-style viewmodel: low on the right, angled slightly in toward the crosshair.
-	const FVector EquippedOffset(40.f, 12.f, -15.f);
+	const FVector EquippedOffset(46.f, 13.f, -15.f);
 	const FRotator EquippedRotation(1.5f, -4.f, 0.f);
 	constexpr float OriginTolerance = 150.f;
 	constexpr float DirectionToleranceDegrees = 5.f;

@@ -298,23 +298,19 @@ void AShieldbreakArena::SpawnLighting()
 		{
 			SkyComponent->SetMobility(EComponentMobility::Movable);
 			SkyComponent->bRealTimeCapture = true;
-			SkyComponent->SetIntensity(1.f);
+			SkyComponent->SetIntensity(1.5f);
 			SkyComponent->RecaptureSky();
 		}
 	}
 
 	// Auto exposure was blowing out sunlit floors whenever a dark wall filled the view:
-	// pull it down a stop and keep it inside a narrow range.
+	// pull it down a little (clamping the range crushed shadowed faces to black).
 	if (APostProcessVolume* PostProcess = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
 	{
 		PostProcess->bUnbound = true;
 		FPostProcessSettings& Settings = PostProcess->Settings;
 		Settings.bOverride_AutoExposureBias = true;
-		Settings.AutoExposureBias = -1.f;
-		Settings.bOverride_AutoExposureMinBrightness = true;
-		Settings.AutoExposureMinBrightness = 0.f;
-		Settings.bOverride_AutoExposureMaxBrightness = true;
-		Settings.AutoExposureMaxBrightness = 2.f;
+		Settings.AutoExposureBias = -0.6f;
 	}
 
 	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.f, 0.f, -200.f), FRotator::ZeroRotator, Params))

@@ -25,7 +25,7 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.Color = FLinearColor(0.28f, 0.32f, 0.26f);
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
-	Stats.MeshScale = FVector(0.55f, 0.06f, 0.09f);
+	Stats.MeshScale = FVector(0.48f, 0.05f, 0.075f);
 }
 
 AWeapon_SMG::AWeapon_SMG()
