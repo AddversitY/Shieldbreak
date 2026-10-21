@@ -55,6 +55,43 @@ for path in MESHES:
         # Skeleton-level sockets are exposed through a preview mesh; list bones of interest instead.
         pass
 
+# Material slots and parameters on the mannequin (for team tinting).
+for mesh_path in ["/Game/Characters/Heroes/Mannequin/Meshes/SKM_Manny.SKM_Manny", "/Game/Characters/Heroes/Mannequin/Meshes/SKM_Quinn.SKM_Quinn"]:
+    mesh = unreal.load_asset(mesh_path)
+    if mesh is None:
+        continue
+    lines.append("MATERIALS %s" % mesh_path)
+    try:
+        slots = mesh.get_editor_property("materials")
+    except Exception as exc:
+        lines.append("  materials unreadable: %s" % exc)
+        slots = []
+    for index, slot in enumerate(slots):
+        mat = slot.get_editor_property("material_interface")
+        lines.append("  slot %d '%s': %s" % (index, slot.get_editor_property("material_slot_name"), mat.get_path_name() if mat else None))
+        chain = mat
+        depth = 0
+        while chain is not None and depth < 4:
+            for label, getter in (("vector", "get_vector_parameter_names"), ("scalar", "get_scalar_parameter_names"), ("texture", "get_texture_parameter_names")):
+                try:
+                    names = getattr(unreal.MaterialEditingLibrary, getter)(chain)
+                    lines.append("    %s%s params: %s" % ("  " * depth, label, ", ".join(str(n) for n in names)))
+                except Exception as exc:
+                    lines.append("    %s%s params unreadable: %s" % ("  " * depth, label, exc))
+            if isinstance(chain, unreal.MaterialInstance):
+                try:
+                    for vp in chain.get_editor_property("vector_parameter_values") or []:
+                        info = vp.get_editor_property("parameter_info")
+                        lines.append("    %soverride %s = %s" % ("  " * depth, info.get_editor_property("name"), vp.get_editor_property("parameter_value")))
+                except Exception:
+                    pass
+                parent = chain.get_editor_property("parent")
+                lines.append("    %sparent: %s" % ("  " * depth, parent.get_path_name() if parent else None))
+                chain = parent
+                depth += 1
+            else:
+                break
+
 out = os.path.join(unreal.Paths.project_saved_dir(), "Logs", "Sockets.txt")
 with open(out, "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
