@@ -9,7 +9,6 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
-#include "Engine/PostProcessVolume.h"
 #include "Engine/HitResult.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMesh.h"
@@ -301,16 +300,6 @@ void AShieldbreakArena::SpawnLighting()
 			SkyComponent->SetIntensity(1.5f);
 			SkyComponent->RecaptureSky();
 		}
-	}
-
-	// Auto exposure was blowing out sunlit floors whenever a dark wall filled the view:
-	// pull it down a little (clamping the range crushed shadowed faces to black).
-	if (APostProcessVolume* PostProcess = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
-	{
-		PostProcess->bUnbound = true;
-		FPostProcessSettings& Settings = PostProcess->Settings;
-		Settings.bOverride_AutoExposureBias = true;
-		Settings.AutoExposureBias = -0.6f;
 	}
 
 	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.f, 0.f, -200.f), FRotator::ZeroRotator, Params))
