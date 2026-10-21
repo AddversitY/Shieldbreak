@@ -9,6 +9,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
+#include "Engine/PostProcessVolume.h"
 #include "Engine/HitResult.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMesh.h"
@@ -23,7 +24,7 @@
 namespace ShieldbreakArenaPrivate
 {
 	// Region tints.
-	const FLinearColor FloorColor(0.32f, 0.34f, 0.37f);
+	const FLinearColor FloorColor(0.2f, 0.21f, 0.23f);
 	const FLinearColor WallColor(0.16f, 0.17f, 0.19f);
 	const FLinearColor BaseAColor(0.55f, 0.16f, 0.13f);
 	const FLinearColor BaseBColor(0.13f, 0.24f, 0.55f);
@@ -246,7 +247,7 @@ void AShieldbreakArena::BuildSpawnPoints()
 		FVector(-2200.f, 2000.f, 450.f),
 		FVector(-600.f, 1400.f, 0.f),
 		FVector(-2200.f, -1000.f, 0.f),
-		FVector(-600.f, -600.f, 0.f),
+		FVector(-1100.f, -1500.f, 0.f),
 	};
 
 	for (int32 Side = 0; Side < 2; ++Side)
@@ -300,6 +301,20 @@ void AShieldbreakArena::SpawnLighting()
 			SkyComponent->SetIntensity(1.f);
 			SkyComponent->RecaptureSky();
 		}
+	}
+
+	// Auto exposure was blowing out sunlit floors whenever a dark wall filled the view:
+	// pull it down a stop and keep it inside a narrow range.
+	if (APostProcessVolume* PostProcess = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
+	{
+		PostProcess->bUnbound = true;
+		FPostProcessSettings& Settings = PostProcess->Settings;
+		Settings.bOverride_AutoExposureBias = true;
+		Settings.AutoExposureBias = -1.f;
+		Settings.bOverride_AutoExposureMinBrightness = true;
+		Settings.AutoExposureMinBrightness = 0.f;
+		Settings.bOverride_AutoExposureMaxBrightness = true;
+		Settings.AutoExposureMaxBrightness = 2.f;
 	}
 
 	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.f, 0.f, -200.f), FRotator::ZeroRotator, Params))

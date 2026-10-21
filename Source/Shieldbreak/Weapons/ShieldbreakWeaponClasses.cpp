@@ -22,10 +22,10 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.ReloadTime = 2.f;
 	Stats.ZoomFOV = 40.f;
 	Stats.RecoilPitch = 0.35f;
-	Stats.Color = FLinearColor(0.15f, 0.17f, 0.15f);
+	Stats.Color = FLinearColor(0.28f, 0.32f, 0.26f);
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
-	Stats.MeshScale = FVector(0.7f, 0.1f, 0.14f);
+	Stats.MeshScale = FVector(0.55f, 0.06f, 0.09f);
 }
 
 AWeapon_SMG::AWeapon_SMG()
@@ -46,10 +46,10 @@ AWeapon_SMG::AWeapon_SMG()
 	Stats.ReloadTime = 2.f;
 	Stats.ZoomFOV = 0.f;
 	Stats.RecoilPitch = 0.15f;
-	Stats.Color = FLinearColor(0.08f, 0.08f, 0.1f);
+	Stats.Color = FLinearColor(0.2f, 0.2f, 0.24f);
 	Stats.TracerColor = FLinearColor(1.f, 0.7f, 0.3f);
 	Stats.DamageType = UDamageType_BallisticLight::StaticClass();
-	Stats.MeshScale = FVector(0.45f, 0.1f, 0.16f);
+	Stats.MeshScale = FVector(0.38f, 0.07f, 0.11f);
 }
 
 AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
@@ -75,5 +75,5 @@ AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
 	Stats.Color = FLinearColor(0.25f, 0.1f, 0.45f);
 	Stats.TracerColor = FLinearColor(0.2f, 0.9f, 1.f);
 	Stats.DamageType = UDamageType_Plasma::StaticClass();
-	Stats.MeshScale = FVector(0.5f, 0.18f, 0.16f);
+	Stats.MeshScale = FVector(0.42f, 0.11f, 0.1f);
 }

@@ -22,7 +22,9 @@
 
 namespace ShieldbreakWeaponPrivate
 {
-	const FVector EquippedOffset(42.f, 16.f, -20.f);
+	// Halo-style viewmodel: low on the right, angled slightly in toward the crosshair.
+	const FVector EquippedOffset(40.f, 12.f, -15.f);
+	const FRotator EquippedRotation(1.5f, -4.f, 0.f);
 	constexpr float OriginTolerance = 150.f;
 	constexpr float DirectionToleranceDegrees = 5.f;
 	constexpr float RateTolerance = 1.25f;
@@ -142,7 +144,7 @@ void AShieldbreakWeapon::OnEquipped()
 
 	AttachToComponent(OwnerCharacter->GetFirstPersonCamera(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	SetActorRelativeLocation(ShieldbreakWeaponPrivate::EquippedOffset);
-	SetActorRelativeRotation(FRotator::ZeroRotator);
+	SetActorRelativeRotation(ShieldbreakWeaponPrivate::EquippedRotation);
 	SetActorHiddenInGame(false);
 	CurrentSpread = Stats.BaseSpreadDegrees;
 }
