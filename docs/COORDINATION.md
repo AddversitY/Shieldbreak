@@ -23,8 +23,7 @@ and update it in the same commit as the work.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## In progress
-- PC: self-test now covers Team Slayer friendly fire and takes third-person bot screenshots during the
-  bot match (Saved/Screenshots/SelfTest).
+- (nothing reserved)
 
 ## Needs verification (code session → PC)
 - `d1204c4` **Power weapons + Overshield.** Please build and add self-test checks:
@@ -37,6 +36,10 @@ and update it in the same commit as the work.
   - Mannequin tint now uses `TeamColor` + `EmissiveColor1-3`: red/blue teams should be visible in the bot screenshots.
 
 ## Verified on the PC
+- 2026-10-21 `716fd64`: self-test **37/38** (new Team Slayer checks pass: teammates take no damage with
+  friendly fire off, own explosives still hurt, enemies take damage). The one miss was a frame-rate-sensitive
+  threshold in the Momentum Carry air-speed check, now relative to take-off speed. Third-person screenshots
+  confirm red/blue mannequins, rifles in hand, running/crouch animation and ragdoll deaths. ~24 FPS with 4 bots.
 - 2026-10-21 `2a586f6` (includes Team Slayer `dae211e`): self-test **34/34 PASS**, ~15 FPS with 4 bots on
   Intel Iris Xe at the auto-detected scalability.
 

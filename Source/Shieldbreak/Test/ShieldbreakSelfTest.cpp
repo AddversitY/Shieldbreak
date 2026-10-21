@@ -548,6 +548,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				Check(TEXT("The slide keeps far more speed than a crouch-walk"), Speed > Move->MaxWalkSpeedCrouched * 2.f,
 					FString::Printf(TEXT("%s uu/s after 0.45 s (crouch walk %s)"), *Num(Speed), *Num(Move->MaxWalkSpeedCrouched)));
+				Value1 = Speed;
 				A->Jump();
 				Phase = 4;
 			}
@@ -555,7 +556,9 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				Check(TEXT("Jumping out of a slide sets Momentum Carry"), Move->IsMomentumCarrying() && Move->IsFalling(),
 					FString::Printf(TEXT("carry=%d falling=%d"), Move->IsMomentumCarrying(), Move->IsFalling()));
-				Check(TEXT("...and keeps the speed in the air"), Speed > 600.f, FString::Printf(TEXT("%s uu/s"), *Num(Speed)));
+				// Compare with the speed at take-off: slide decay depends on frame rate on slow machines.
+				Check(TEXT("...and keeps the speed in the air"), Speed >= Value1 * 0.95f && Speed > 500.f,
+					FString::Printf(TEXT("%s uu/s in the air, %s at take-off"), *Num(Speed), *Num(Value1)));
 				A->StopCrouchOrSlide();
 				A->SetSprinting(false);
 				return true;
