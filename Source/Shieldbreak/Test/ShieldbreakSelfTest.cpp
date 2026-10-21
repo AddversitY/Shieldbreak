@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakGameMode.h"
+#include "Game/ShieldbreakGameState.h"
+#include "Game/ShieldbreakObjectives.h"
 #include "GameFramework/GameStateBase.h"
 #include "HAL/FileManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -197,7 +199,7 @@ void AShieldbreakSelfTest::Finish()
 	ClearDummies();
 
 	Lines.Add(FString::Printf(TEXT("RESULT %d passed, %d failed"), Passed, Failed));
-	const FString Path = FPaths::ProjectSavedDir() / TEXT("Logs") / TEXT("SelfTest.txt");
+	const FString Path = FPaths::ProjectSavedDir() / TEXT("Logs") / (ModeTag == TEXT("Bot") ? FString(TEXT("SelfTest.txt")) : FString::Printf(TEXT("SelfTest-%s.txt"), *ModeTag));
 	FFileHelper::SaveStringToFile(FString::Join(Lines, TEXT("\n")) + TEXT("\n"), *Path);
 	UE_LOG(LogShieldbreak, Log, TEXT("SelfTest: %d passed, %d failed. Report: %s"), Passed, Failed, *Path);
 
@@ -217,6 +219,20 @@ void AShieldbreakSelfTest::BuildSteps()
 
 	// ---- Settle: let the arena and the first characters finish BeginPlay. ----
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
+
+	// Objective modes run only their own checks plus the bot match; Slayer runs the full mechanics suite.
+	const AShieldbreakGameMode* SBGameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+	const EShieldbreakGameType Mode = SBGameMode ? SBGameMode->GetGameType() : EShieldbreakGameType::Slayer;
+	ModeTag = Mode == EShieldbreakGameType::CaptureTheFlag ? TEXT("CTF")
+		: Mode == EShieldbreakGameType::KingOfTheHill ? TEXT("KOTH")
+		: Mode == EShieldbreakGameType::Oddball ? TEXT("Oddball") : TEXT("Bot");
+	if (Mode != EShieldbreakGameType::Slayer)
+	{
+		BuildModeSteps(Mode);
+	}
+	else
+	{
+	// (Slayer-only steps below are not re-indented, to keep diffs readable.)
 
 	// ---- Core shield layers ----
 	Steps.Add({ TEXT("Shield absorbs damage"),
@@ -1063,8 +1079,11 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			else if (Phase == 5 && Now() - Mark > 0.4f)
 			{
-				Check(TEXT("A full charge launches ~1.5x height (Z ~1102)"), Value0 > 1050.f && Value0 < 1160.f,
-					FString::Printf(TEXT("%s uu/s (normal jump %s)"), *Num(Value0), *Num(Value1)));
+				// Peaks are sampled a frame after take-off (gravity already applied), so compare against the
+				// normal jump measured the same way: 1.5x height = sqrt(1.5) = 1.22x launch speed.
+				const float Ratio = Value1 > 1.f ? Value0 / Value1 : 0.f;
+				Check(TEXT("A full charge launches ~1.5x height (~1.22x jump speed)"), Ratio > 1.15f && Ratio < 1.32f,
+					FString::Printf(TEXT("%s uu/s vs normal jump %s (x%s)"), *Num(Value0), *Num(Value1), *Num(Ratio)));
 				A->StopCrouchOrSlide();
 				return true;
 			}
@@ -1333,6 +1352,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			return true;
 		}, 6.f });
 
+	} // end of Slayer-only steps
+
 	// ---- Bots ----
 	Steps.Add({ TEXT("Bot match sanity (75 s)"),
 		[this]()
@@ -1388,7 +1409,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				const FString Dir = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("SelfTest");
 				IFileManager::Get().MakeDirectory(*Dir, true);
-				FScreenshotRequest::RequestScreenshot(Dir / FString::Printf(TEXT("bot_%d.png"), ShotIndex++), true, false);
+				FScreenshotRequest::RequestScreenshot(Dir / FString::Printf(TEXT("%s_%d.png"), *ModeTag.ToLower(), ShotIndex++), true, false);
 				ShotDue = -1.f;
 			}
 
@@ -1397,6 +1418,11 @@ void AShieldbreakSelfTest::BuildSteps()
 				return false;
 			}
 			Lines.Add(FString::Printf(TEXT("INFO  %d third-person screenshots in Saved/Screenshots/SelfTest"), ShotIndex));
+			if (const AShieldbreakGameState* State = GetWorld()->GetGameState<AShieldbreakGameState>())
+			{
+				Lines.Add(FString::Printf(TEXT("INFO  %s team score after the bot match: red %d, blue %d"), *ModeTag,
+					State->GetTeamScore(ShieldbreakTeams::Red), State->GetTeamScore(ShieldbreakTeams::Blue)));
+			}
 			int32 Kills = 0;
 			int32 Bots = 0;
 			if (const AGameStateBase* GameState = GetWorld()->GetGameState())
@@ -1420,4 +1446,314 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("Bots find and fight each other"), Kills > 0, FString::Printf(TEXT("%d kills+deaths in 75 s"), Kills));
 			return true;
 		}, 90.f });
+}
+
+// ---- Objective modes (launch with ?Mode=CTF|KOTH|Oddball; see Tools/SelfTest.bat) ----
+
+AShieldbreakCharacter* AShieldbreakSelfTest::SpawnTeamDummy(const FVector& Location, float Yaw, uint8 Team)
+{
+	// Bot controllers give dummies PlayerStates (teams live there); their AI is frozen.
+	AShieldbreakCharacter* Dummy = SpawnDummy(Location, Yaw, false);
+	if (!Dummy)
+	{
+		return nullptr;
+	}
+	Dummy->AIControllerClass = AShieldbreakBotController::StaticClass();
+	Dummy->SpawnDefaultController();
+	if (AController* DummyController = Dummy->GetController())
+	{
+		DummyController->SetActorTickEnabled(false);
+		Spawned.Add(DummyController);
+		if (AShieldbreakPlayerState* State = DummyController->GetPlayerState<AShieldbreakPlayerState>())
+		{
+			State->SetTeamId(Team);
+		}
+	}
+	return Dummy;
+}
+
+void AShieldbreakSelfTest::KillTeamDummy(AShieldbreakCharacter* Dummy)
+{
+	if (!Dummy)
+	{
+		return;
+	}
+	AController* DummyController = Dummy->GetController();
+	Damage(Dummy, 1000.f, UDamageType_Ballistic::StaticClass());
+	// Destroy the controller so the game mode can't respawn a live pawn into later steps.
+	if (IsValid(DummyController))
+	{
+		DummyController->Destroy();
+	}
+}
+
+void AShieldbreakSelfTest::BuildModeSteps(EShieldbreakGameType Mode)
+{
+	using namespace ShieldbreakSelfTestPrivate;
+	using namespace ShieldbreakTeams;
+
+	auto TeamScore = [this](uint8 Team)
+	{
+		const AShieldbreakGameState* State = GetWorld()->GetGameState<AShieldbreakGameState>();
+		return State ? State->GetTeamScore(Team) : -1;
+	};
+	auto FindFlag = [this](uint8 Team) -> AShieldbreakCarriable*
+	{
+		for (TActorIterator<AShieldbreakCarriable> It(GetWorld()); It; ++It)
+		{
+			if (It->GetKind() == EShieldbreakCarriableKind::Flag && It->GetTeam() == Team)
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	};
+	auto FindBall = [this]() -> AShieldbreakCarriable*
+	{
+		for (TActorIterator<AShieldbreakCarriable> It(GetWorld()); It; ++It)
+		{
+			if (It->GetKind() == EShieldbreakCarriableKind::Ball)
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	};
+	auto FindHill = [this]() -> AShieldbreakHill*
+	{
+		TActorIterator<AShieldbreakHill> It(GetWorld());
+		return It ? *It : nullptr;
+	};
+	auto Teleport = [](AShieldbreakCharacter* C, const FVector& Where)
+	{
+		if (C)
+		{
+			C->SetActorLocation(Where + FVector(0.f, 0.f, 40.f), false, nullptr, ETeleportType::TeleportPhysics);
+		}
+	};
+
+	if (Mode == EShieldbreakGameType::CaptureTheFlag)
+	{
+		Steps.Add({ TEXT("CTF: take and capture"),
+			[this]() { ClearDummies(); },
+			[this, TeamScore, FindFlag, Teleport](float Elapsed)
+			{
+				AShieldbreakCarriable* RedFlag = FindFlag(Red);
+				AShieldbreakCarriable* BlueFlag = FindFlag(Blue);
+				if (Phase == 0 && Elapsed > 0.5f)
+				{
+					Check(TEXT("Both flags spawn at home"), RedFlag && BlueFlag && RedFlag->IsAtHome() && BlueFlag->IsAtHome());
+					if (!RedFlag || !BlueFlag)
+					{
+						return true;
+					}
+					A = SpawnTeamDummy(BlueFlag->GetHomeLocation() + FVector(0.f, 300.f, 60.f), 0.f, Red);
+					Mark = Now();
+					Phase = 1;
+				}
+				else if (Phase == 1 && Now() - Mark > 0.8f)
+				{
+					Teleport(A, BlueFlag->GetHomeLocation());
+					Phase = 2;
+				}
+				else if (Phase == 2 && Now() - Mark > 1.4f)
+				{
+					Check(TEXT("Walking over the enemy flag takes it"), BlueFlag->GetCarrier() == A && A->GetCarriedObjective() == BlueFlag);
+					const AShieldbreakWeapon* Weapon = A->GetCurrentWeapon();
+					Check(TEXT("...the carrier switches to the sidearm"), Weapon && Weapon->IsA<AWeapon_Sidearm>(), GetNameSafe(Weapon));
+					Check(TEXT("...and the sidearm may fire"), A->CanFireWhileCarrying());
+					Value0 = static_cast<float>(TeamScore(Red));
+					Teleport(A, RedFlag->GetHomeLocation());
+					Phase = 3;
+				}
+				else if (Phase == 3 && Now() - Mark > 2.2f)
+				{
+					Check(TEXT("Bringing it to your home flag captures (+1)"), TeamScore(Red) == static_cast<int32>(Value0) + 1,
+						FString::Printf(TEXT("red %s -> %d"), *Num(Value0), TeamScore(Red)));
+					Check(TEXT("...and the captured flag goes home"), BlueFlag->IsAtHome() && !A->GetCarriedObjective());
+					return true;
+				}
+				return false;
+			}, 8.f });
+
+		Steps.Add({ TEXT("CTF: drop, return and auto-return"),
+			[this]() { ClearDummies(); },
+			[this, FindFlag, Teleport](float Elapsed)
+			{
+				AShieldbreakCarriable* BlueFlag = FindFlag(Blue);
+				if (!BlueFlag)
+				{
+					Check(TEXT("Blue flag exists"), false);
+					return true;
+				}
+				if (Phase == 0 && Elapsed > 0.3f)
+				{
+					A = SpawnTeamDummy(BlueFlag->GetHomeLocation() + FVector(0.f, 300.f, 60.f), 0.f, Red);
+					Mark = Now();
+					Phase = 1;
+				}
+				else if (Phase == 1 && Now() - Mark > 0.6f)
+				{
+					Teleport(A, BlueFlag->GetHomeLocation());
+					Phase = 2;
+				}
+				else if (Phase == 2 && Now() - Mark > 1.2f)
+				{
+					// Move away from the flag stand, then die.
+					Teleport(A, BlueFlag->GetHomeLocation() + FVector(0.f, -500.f, 0.f));
+					Phase = 3;
+				}
+				else if (Phase == 3 && Now() - Mark > 1.6f)
+				{
+					Check(TEXT("(carrier still has the flag)"), BlueFlag->GetCarrier() == A);
+					KillTeamDummy(A);
+					Phase = 4;
+				}
+				else if (Phase == 4 && Now() - Mark > 1.9f)
+				{
+					Check(TEXT("Dying drops the flag"), BlueFlag->IsDropped(), FString::Printf(TEXT("home %d carrier %s"), BlueFlag->IsAtHome(), *GetNameSafe(BlueFlag->GetCarrier())));
+					B = SpawnTeamDummy(BlueFlag->GetActorLocation() + FVector(0.f, 400.f, 60.f), 0.f, Blue);
+					Phase = 5;
+				}
+				else if (Phase == 5 && Now() - Mark > 2.6f)
+				{
+					Teleport(B, BlueFlag->GetActorLocation());
+					Phase = 6;
+				}
+				else if (Phase == 6 && Now() - Mark > 3.2f)
+				{
+					Check(TEXT("A defender touching the dropped flag returns it"), BlueFlag->IsAtHome());
+					// Second drop for the timer.
+					B->SetActorLocation(BlueFlag->GetHomeLocation() + FVector(0.f, 900.f, 100.f), false, nullptr, ETeleportType::TeleportPhysics);
+					A = SpawnTeamDummy(BlueFlag->GetHomeLocation() + FVector(0.f, 300.f, 60.f), 0.f, Red);
+					Phase = 7;
+				}
+				else if (Phase == 7 && Now() - Mark > 3.8f)
+				{
+					Teleport(A, BlueFlag->GetHomeLocation());
+					Phase = 8;
+				}
+				else if (Phase == 8 && Now() - Mark > 4.4f)
+				{
+					Teleport(A, BlueFlag->GetHomeLocation() + FVector(0.f, -500.f, 0.f));
+					Phase = 9;
+				}
+				else if (Phase == 9 && Now() - Mark > 4.8f)
+				{
+					KillTeamDummy(A);
+					Value0 = Now();
+					Phase = 10;
+				}
+				else if (Phase == 10)
+				{
+					if (BlueFlag->IsAtHome() || Now() - Value0 > 18.f)
+					{
+						const float Waited = Now() - Value0;
+						Check(TEXT("A dropped flag returns on its own after ~15 s"), BlueFlag->IsAtHome() && Waited > 13.f && Waited < 17.5f,
+							FString::Printf(TEXT("home %d after %s s"), BlueFlag->IsAtHome(), *Num(Waited)));
+						return true;
+					}
+				}
+				return false;
+			}, 30.f });
+	}
+	else if (Mode == EShieldbreakGameType::KingOfTheHill)
+	{
+		Steps.Add({ TEXT("KOTH: scoring and contesting"),
+			[this]() { ClearDummies(); },
+			[this, TeamScore, FindHill, Teleport](float Elapsed)
+			{
+				AShieldbreakHill* Hill = FindHill();
+				if (!Hill)
+				{
+					Check(TEXT("The hill spawns"), false);
+					return true;
+				}
+				if (Phase == 0 && Elapsed > 0.5f)
+				{
+					A = SpawnTeamDummy(Hill->GetActorLocation() + FVector(0.f, 0.f, 60.f), 0.f, Red);
+					Value0 = static_cast<float>(TeamScore(Red));
+					Mark = Now();
+					Phase = 1;
+				}
+				else if (Phase == 1 && Now() - Mark > 3.5f)
+				{
+					const int32 Gained = TeamScore(Red) - static_cast<int32>(Value0);
+					Check(TEXT("One team alone in the hill scores ~1/s"), Gained >= 2 && Gained <= 4, FString::Printf(TEXT("+%d in 3.5 s"), Gained));
+					Check(TEXT("...and controls it"), Hill->GetControllingTeam() == Red, FString::Printf(TEXT("team %d"), Hill->GetControllingTeam()));
+					B = SpawnTeamDummy(Hill->GetActorLocation() + FVector(120.f, 120.f, 60.f), 0.f, Blue);
+					Phase = 2;
+				}
+				else if (Phase == 2 && Now() - Mark > 4.2f)
+				{
+					Value0 = static_cast<float>(TeamScore(Red));
+					Value1 = static_cast<float>(TeamScore(Blue));
+					Phase = 3;
+				}
+				else if (Phase == 3 && Now() - Mark > 7.2f)
+				{
+					Check(TEXT("A contested hill scores for nobody"), TeamScore(Red) == static_cast<int32>(Value0) && TeamScore(Blue) == static_cast<int32>(Value1),
+						FString::Printf(TEXT("red %s->%d blue %s->%d"), *Num(Value0), TeamScore(Red), *Num(Value1), TeamScore(Blue)));
+					Check(TEXT("...and shows as contested"), Hill->GetControllingTeam() == AShieldbreakHill::ContestedTeam,
+						FString::Printf(TEXT("team %d"), Hill->GetControllingTeam()));
+					return true;
+				}
+				return false;
+			}, 12.f });
+	}
+	else if (Mode == EShieldbreakGameType::Oddball)
+	{
+		Steps.Add({ TEXT("Oddball: carry, score and drop"),
+			[this]() { ClearDummies(); },
+			[this, TeamScore, FindBall, Teleport](float Elapsed)
+			{
+				AShieldbreakCarriable* Ball = FindBall();
+				if (!Ball)
+				{
+					Check(TEXT("The ball spawns"), false);
+					return true;
+				}
+				if (Phase == 0 && Elapsed > 0.5f)
+				{
+					A = SpawnTeamDummy(Ball->GetHomeLocation() + FVector(0.f, 300.f, 60.f), 0.f, Blue);
+					Mark = Now();
+					Phase = 1;
+				}
+				else if (Phase == 1 && Now() - Mark > 0.6f)
+				{
+					Teleport(A, Ball->GetActorLocation());
+					Phase = 2;
+				}
+				else if (Phase == 2 && Now() - Mark > 1.2f)
+				{
+					Check(TEXT("Walking over the ball picks it up"), Ball->GetCarrier() == A);
+					Check(TEXT("...and the carrier can't shoot (melee only)"), !A->CanFireWhileCarrying());
+					Value0 = static_cast<float>(TeamScore(Blue));
+					Phase = 3;
+				}
+				else if (Phase == 3 && Now() - Mark > 4.7f)
+				{
+					const int32 Gained = TeamScore(Blue) - static_cast<int32>(Value0);
+					Check(TEXT("Holding the ball scores ~1/s"), Gained >= 2 && Gained <= 4, FString::Printf(TEXT("+%d in 3.5 s"), Gained));
+					KillTeamDummy(A);
+					Phase = 4;
+				}
+				else if (Phase == 4 && Now() - Mark > 5.1f)
+				{
+					Check(TEXT("Dying drops the ball"), Ball->IsDropped());
+					Value0 = Now();
+					Value1 = static_cast<float>(TeamScore(Blue));
+					Phase = 5;
+				}
+				else if (Phase == 5 && (Ball->IsAtHome() || Now() - Value0 > 33.f))
+				{
+					const float Waited = Now() - Value0;
+					Check(TEXT("A dropped ball scores nothing"), TeamScore(Blue) == static_cast<int32>(Value1));
+					Check(TEXT("...and resets after ~30 s"), Ball->IsAtHome() && Waited > 28.f && Waited < 32.5f,
+						FString::Printf(TEXT("home %d after %s s"), Ball->IsAtHome(), *Num(Waited)));
+					return true;
+				}
+				return false;
+			}, 40.f });
+	}
 }

@@ -9,6 +9,7 @@
 #include "ShieldbreakSelfTest.generated.h"
 
 class AAIController;
+enum class EShieldbreakGameType : uint8;
 class AShieldbreakCharacter;
 
 UCLASS(NotPlaceable, Transient)
@@ -37,11 +38,17 @@ private:
 	};
 
 	void BuildSteps();
+	/** Objective-mode checks (CTF / KOTH / Oddball), used instead of the mechanics suite in those modes. */
+	void BuildModeSteps(EShieldbreakGameType Mode);
 	void Check(const FString& What, bool bPassed, const FString& Detail = FString());
 	void Finish();
 
 	AShieldbreakCharacter* SpawnDummy(const FVector& Location, float Yaw, bool bWithController);
 	void ClearDummies();
+	/** A dummy with a frozen bot controller, so it has a PlayerState and a team. */
+	AShieldbreakCharacter* SpawnTeamDummy(const FVector& Location, float Yaw, uint8 Team);
+	/** Kills a team dummy and destroys its controller so the game mode can't respawn it. */
+	void KillTeamDummy(AShieldbreakCharacter* Dummy);
 	void Damage(AShieldbreakCharacter* Target, float Amount, TSubclassOf<class UDamageType> Type, AActor* Causer = nullptr);
 	float Now() const;
 
@@ -65,6 +72,8 @@ private:
 	// A non-character actor a step watches (a rocket, a power-up).
 	TWeakObjectPtr<AActor> Probe;
 	float ShotDue = -1.f;
+	/** "Bot" in Slayer, else the mode name: prefixes screenshots and names the report. */
+	FString ModeTag = TEXT("Bot");
 	int32 ShotIndex = 0;
 
 	// Scratch state shared between a step's Begin and Update.
