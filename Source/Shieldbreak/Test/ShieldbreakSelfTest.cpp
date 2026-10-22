@@ -1573,8 +1573,8 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 
 	if (Arena->GetMapId() == FName(TEXT("Sanctum")))
 	{
-		// The rockets plinth (300x300, top z=280 at the center) should take a Power Jump, not a plain jump.
-		const FVector PlinthTop = ToWorld.TransformPosition(FVector(0.f, 0.f, 280.f));
+		// The rockets plinth (300x300, top z=320 at the center) should take a Power Jump, not a plain jump.
+		const FVector PlinthTop = ToWorld.TransformPosition(FVector(0.f, 0.f, 320.f));
 		const FVector Start = ToWorld.TransformPosition(FVector(-330.f, 0.f, 100.f));
 		Steps.Add({ TEXT("Sanctum: Power Jump onto the rockets plinth"),
 			[this]() { ClearDummies(); },
@@ -1586,12 +1586,18 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 					return A && A->GetShieldbreakMovement() && A->GetShieldbreakMovement()->IsMovingOnGround()
 						&& FMath::Abs(FeetZ() - PlinthTop.Z) < 25.f && FVector::Dist2D(A->GetActorLocation(), PlinthTop) < 160.f;
 				};
-				// Once over the plinth, stop pushing forward so the dummy doesn't walk off the far side.
+				// Run at the plinth; once above its top, steer for the center like a player would, so air momentum
+				// doesn't carry the dummy off the far side.
 				auto Push = [this, PlinthTop, FeetZ]()
 				{
-					if (!(FeetZ() > PlinthTop.Z - 10.f && FVector::Dist2D(A->GetActorLocation(), PlinthTop) < 100.f))
+					const FVector ToCenter = (PlinthTop - A->GetActorLocation()).GetSafeNormal2D();
+					if (FeetZ() < PlinthTop.Z - 10.f)
 					{
 						A->AddMovementInput(FVector::ForwardVector, 1.f);
+					}
+					else if (FVector::Dist2D(A->GetActorLocation(), PlinthTop) > 40.f)
+					{
+						A->AddMovementInput(ToCenter, 1.f);
 					}
 				};
 				if (Phase == 0 || Phase == 10)
@@ -1633,8 +1639,8 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 					if (Now() - Mark > 2.2f)
 					{
 						A->StopJumping();
-						Lines.Add(FString::Printf(TEXT("INFO  Sanctum: a plain running jump %s the plinth (feet z %s)"),
-							*Reached ? TEXT("reaches") : TEXT("does not reach"), *ShieldbreakSelfTestPrivate::Num(FeetZ())));
+						Check(TEXT("Sanctum: a plain running jump does not reach the rockets plinth"), !*Reached,
+							FString::Printf(TEXT("feet z %s"), *ShieldbreakSelfTestPrivate::Num(FeetZ())));
 						Phase = 10;
 					}
 				}
@@ -1665,7 +1671,7 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 					Push();
 					if (Now() - Mark > 2.2f)
 					{
-						Check(TEXT("Sanctum: a crouched Power Jump reaches the rockets plinth (z=280)"), *Reached,
+						Check(TEXT("Sanctum: a crouched Power Jump reaches the rockets plinth (z=320)"), *Reached,
 							FString::Printf(TEXT("feet (%s, %s, %s)"), *ShieldbreakSelfTestPrivate::Num(A->GetActorLocation().X), *ShieldbreakSelfTestPrivate::Num(A->GetActorLocation().Y), *ShieldbreakSelfTestPrivate::Num(FeetZ())));
 						A->StopCrouchOrSlide();
 						return true;
