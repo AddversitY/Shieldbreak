@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/ShieldbreakArena.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "Game/ShieldbreakGameState.h"
 #include "Game/ShieldbreakObjectives.h"
@@ -658,6 +659,28 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("The arena places two Sniper Rifles"), Snipers == 2, FString::Printf(TEXT("%d"), Snipers));
 			Check(TEXT("...one Rocket Launcher"), Rockets == 1, FString::Printf(TEXT("%d"), Rockets));
 			Check(TEXT("...and one Overshield"), Powerups == 1, FString::Printf(TEXT("%d"), Powerups));
+			return true;
+		}, 3.f });
+
+	// The listen test found the host couldn't resolve the client's floor (movement base): arena pieces must be net addressable.
+	Steps.Add({ TEXT("Arena pieces are net addressable"),
+		nullptr,
+		[this](float Elapsed)
+		{
+			const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+			Check(TEXT("An arena exists"), Arena != nullptr, TEXT(""));
+			if (!Arena)
+			{
+				return true;
+			}
+			int32 Unstable = 0;
+			for (const UStaticMeshComponent* Piece : Arena->GetPieces())
+			{
+				Unstable += Piece && Piece->IsFullNameStableForNetworking() ? 0 : 1;
+			}
+			Check(TEXT("The arena's name is stable for networking"), Arena->IsFullNameStableForNetworking(), Arena->GetName());
+			Check(TEXT("...and so is every floor/wall piece"), Arena->GetPieces().Num() > 0 && Unstable == 0,
+				FString::Printf(TEXT("%d of %d not stable"), Unstable, Arena->GetPieces().Num()));
 			return true;
 		}, 3.f });
 

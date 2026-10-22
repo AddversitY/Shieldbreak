@@ -40,6 +40,13 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   project moved, because that session's last COORDINATION edit was never pushed.
 
 ## Needs verification (code session → PC)
+- **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
+  spawns as `ShieldbreakArena_<MapId>` on every machine and its pieces are named `Piece_0..N` in layout order, all marked
+  net addressable (`SetNetAddressable`), so the floor a character stands on can travel as its movement base.
+  - New self-test step "Arena pieces are net addressable" (small edit to your file).
+  - Please re-run `Tools/ListenTest.bat`: the server log should no longer show
+    `FNetGUIDCache::SupportsObject: StaticMeshComponent ... ShieldbreakArena_0.StaticMeshComponent_0 NOT Supported`,
+    and the client should walk, jump and ride ramps without stutter. Also try it on Spire (`?Map=Spire`) for the lifts.
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
   - Maps are data (`Game/ShieldbreakMaps.h`, generated `Game/ShieldbreakMapsData.cpp` from `Design/maps/shieldbreak_maps.py`).
     `AShieldbreakArena` builds whichever map the GameState's replicated `MapId` names (`?Map=Keel|Bastion|Sanctum|Creekbed|Spire|Crucible`;
@@ -139,6 +146,6 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   would look much better (code session).
 - **Plasma Rifle:** still greybox; no imported plasma art.
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22), but runtime-built arena
-  pieces can't be referenced over the network (see "Verified on the PC").
+- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22). The arena-piece networking
+  warning is fixed in code and waiting for a listen test (see "Needs verification").
 - **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
