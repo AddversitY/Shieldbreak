@@ -35,7 +35,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- PC session: objective-mode self-tests (`Tools/SelfTestModes.bat` runs CTF, KOTH, Oddball); running on the PC.
+- (none) The PC session's last run (all three objective modes, then the first listen-server test) finished on
+  2026-10-22; its results are under "Verified on the PC". They were recovered from the PC session's chat after the
+  project moved, because that session's last COORDINATION edit was never pushed.
 
 ## Needs verification (code session → PC)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
@@ -95,6 +97,15 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-22 `ab39f6f` (objective modes `5116512`; maps `dd66cf7` had not landed on the PC yet), **all three objective
+  modes PASS**: CTF 12/12 again, **KOTH 6/6** (bots actively play the hill, 29-23), **Oddball 8/8**. Bots also captured
+  a flag in the CTF bot match.
+- 2026-10-22 **first 2-window listen-server test** (`Tools/ListenTest.bat`): the client connected ("Welcomed by
+  server") and weapons replicated. **One real issue** in the server log: the arena's runtime-built floor and wall
+  pieces can't be referenced over the network (they aren't stably named/replicated, so the client can't resolve
+  them). Not yet investigated further; this goes to the code session (`AShieldbreakArena`). Screenshots from that run:
+  `docs/playtests/2026-10-22_listen_test_a.jpg`, `_b.jpg`. They also show the open lighting problem: walls in
+  shadow render nearly black.
 - 2026-10-21 `c49f9a7` (objective modes `5116512`), **CTF: 12/12 PASS**: both flags spawn home; walking over the enemy flag
   takes it and swaps to the Sidearm (which may fire); capture at your home flag scores +1 and sends the flag home; dying
   drops it; a defender's touch returns it; a dropped flag auto-returns at 15.0 s; 4 bots join and fight (4 kills in 75 s,
@@ -128,4 +139,6 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   would look much better (code session).
 - **Plasma Rifle:** still greybox; no imported plasma art.
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** listen-server play with two real clients has never been tested.
+- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22), but runtime-built arena
+  pieces can't be referenced over the network (see "Verified on the PC").
+- **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
