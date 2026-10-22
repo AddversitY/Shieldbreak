@@ -1621,7 +1621,7 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 					{
 						A->StopJumping();
 						Lines.Add(FString::Printf(TEXT("INFO  Sanctum: a plain running jump %s the plinth (feet z %s)"),
-							OnTop() ? TEXT("reaches") : TEXT("does not reach"), *Num(FeetZ())));
+							OnTop() ? TEXT("reaches") : TEXT("does not reach"), *ShieldbreakSelfTestPrivate::Num(FeetZ())));
 						Phase = 10;
 					}
 				}
@@ -1653,7 +1653,7 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 					if (Now() - Mark > 2.2f)
 					{
 						Check(TEXT("Sanctum: a crouched Power Jump reaches the rockets plinth (z=280)"), OnTop(),
-							FString::Printf(TEXT("feet (%s, %s, %s)"), *Num(A->GetActorLocation().X), *Num(A->GetActorLocation().Y), *Num(FeetZ())));
+							FString::Printf(TEXT("feet (%s, %s, %s)"), *ShieldbreakSelfTestPrivate::Num(A->GetActorLocation().X), *ShieldbreakSelfTestPrivate::Num(A->GetActorLocation().Y), *ShieldbreakSelfTestPrivate::Num(FeetZ())));
 						A->StopCrouchOrSlide();
 						return true;
 					}
