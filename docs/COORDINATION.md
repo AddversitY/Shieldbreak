@@ -167,6 +167,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
+  **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
+  pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
+  - Lumen on vs off on Keel: **21.4 vs 20.0 FPS** (no gain), but without Lumen shaded walls are soft blue-grey instead of
+    black, so Lumen is now off by default (`r.DynamicGlobalIlluminationMethod=0`, SSR reflections).
 - 2026-10-22 `d0afb80` → `5a4a19a`, run by the code session through the laptop (`Saved/RunNext.bat`,
   `RunSanctum.bat`, `RunLighting.bat`). Clean builds.
   - Map tour: **Spire 9/9** (26.9 FPS; all four gravity lifts launch now), **Bastion 5/5** (23.6 FPS; the 7.9 was a
