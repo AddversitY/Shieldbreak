@@ -72,8 +72,22 @@ private:
 	// A non-character actor a step watches (a rocket, a power-up).
 	TWeakObjectPtr<AActor> Probe;
 	float ShotDue = -1.f;
-	/** "Bot" in Slayer, else the mode name: prefixes screenshots and names the report. */
+	/** "Bot" in Slayer on Crucible, else the map and/or mode name: prefixes screenshots and names the report. */
 	FString ModeTag = TEXT("Bot");
+
+	/** Map tour (any map but Crucible): every gravity lift lands where the layout says. */
+	void BuildMapSteps(const class AShieldbreakArena* Arena);
+
+	// Bot-match stuck detection.
+	struct FBotSample
+	{
+		TWeakObjectPtr<APawn> Pawn;
+		FVector Location = FVector::ZeroVector;
+		int32 StillSamples = 0;
+	};
+	TMap<TWeakObjectPtr<AController>, FBotSample> BotSamples;
+	float NextBotSample = 0.f;
+	TArray<FString> StuckReports;
 	int32 ShotIndex = 0;
 
 	// Scratch state shared between a step's Begin and Update.

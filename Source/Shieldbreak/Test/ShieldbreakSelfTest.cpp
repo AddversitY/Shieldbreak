@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/ShieldbreakArena.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "Game/ShieldbreakGameState.h"
 #include "Game/ShieldbreakObjectives.h"
@@ -226,7 +227,19 @@ void AShieldbreakSelfTest::BuildSteps()
 	ModeTag = Mode == EShieldbreakGameType::CaptureTheFlag ? TEXT("CTF")
 		: Mode == EShieldbreakGameType::KingOfTheHill ? TEXT("KOTH")
 		: Mode == EShieldbreakGameType::Oddball ? TEXT("Oddball") : TEXT("Bot");
-	if (Mode != EShieldbreakGameType::Slayer)
+	// Any map but Crucible (the test arena) gets the map tour: spawns, pickups, lifts, then the mode checks and bot match.
+	const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+	const bool bMapTour = Arena && Arena->GetMapId() != FName(TEXT("Crucible"));
+	if (bMapTour)
+	{
+		ModeTag = Arena->GetMapId().ToString() + (Mode != EShieldbreakGameType::Slayer ? TEXT("-") + ModeTag : FString());
+		BuildMapSteps(Arena);
+		if (Mode != EShieldbreakGameType::Slayer)
+		{
+			BuildModeSteps(Mode);
+		}
+	}
+	else if (Mode != EShieldbreakGameType::Slayer)
 	{
 		BuildModeSteps(Mode);
 	}
@@ -986,14 +999,19 @@ void AShieldbreakSelfTest::BuildSteps()
 			for (TActorIterator<AShieldbreakWeaponPickup> It(GetWorld()); It; ++It)
 			{
 				Rails += It->GetWeaponClass() == AWeapon_RailLance::StaticClass() ? 1 : 0;
-				OutOfPlay += (It->GetWeaponClass() == AWeapon_SMG::StaticClass() || It->GetWeaponClass() == AWeapon_PlasmaRifle::StaticClass()) ? 1 : 0;
+				// Only the competitive sandbox may be placed (no SMG / Plasma Rifle); doesn't name the retired classes.
+				const UClass* WeaponClass = It->GetWeaponClass();
+				const bool bSandbox = WeaponClass == AWeapon_BattleRifle::StaticClass() || WeaponClass == AWeapon_Sidearm::StaticClass()
+					|| WeaponClass == AWeapon_SniperRifle::StaticClass() || WeaponClass == AWeapon_RocketLauncher::StaticClass()
+					|| WeaponClass == AWeapon_RailLance::StaticClass();
+				OutOfPlay += bSandbox ? 0 : 1;
 			}
 			for (TActorIterator<AShieldbreakPowerup> It(GetWorld()); It; ++It)
 			{
 				Aegis += It->Type == EShieldbreakPowerupType::Aegis ? 1 : 0;
 			}
 			Check(TEXT("The arena places Rail Lances"), Rails >= 1, FString::Printf(TEXT("%d"), Rails));
-			Check(TEXT("...no SMG or Plasma Rifle pickups"), OutOfPlay == 0, FString::Printf(TEXT("%d"), OutOfPlay));
+			Check(TEXT("...and only sandbox weapons (no SMG or Plasma Rifle)"), OutOfPlay == 0, FString::Printf(TEXT("%d"), OutOfPlay));
 			Check(TEXT("...and one Aegis"), Aegis == 1, FString::Printf(TEXT("%d"), Aegis));
 			return true;
 		}, 3.f });
@@ -1413,6 +1431,39 @@ void AShieldbreakSelfTest::BuildSteps()
 				ShotDue = -1.f;
 			}
 
+			// Stuck detection: sample every bot every 5 s (after a 10 s warm-up); four still samples in a row
+			// (20 s within 150 uu while alive) is reported once, with the spot, for the map author.
+			if (Elapsed > 10.f && Now() >= NextBotSample)
+			{
+				NextBotSample = Now() + 5.f;
+				for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+				{
+					AController* BotController = It->Get();
+					APawn* BotPawn = BotController ? BotController->GetPawn() : nullptr;
+					const AShieldbreakCharacter* BotCharacter = Cast<AShieldbreakCharacter>(BotPawn);
+					if (!BotController || BotController->IsPlayerController() || !BotCharacter || !BotCharacter->IsAlive())
+					{
+						continue;
+					}
+					FBotSample& Sample = BotSamples.FindOrAdd(BotController);
+					const FVector Location = BotPawn->GetActorLocation();
+					if (Sample.Pawn.Get() == BotPawn && FVector::Dist(Sample.Location, Location) < 150.f)
+					{
+						if (++Sample.StillSamples == 4)
+						{
+							StuckReports.Add(FString::Printf(TEXT("%s at (%.0f, %.0f, %.0f)"), *GetNameSafe(BotController->PlayerState),
+								Location.X, Location.Y, Location.Z));
+						}
+					}
+					else
+					{
+						Sample.StillSamples = 0;
+					}
+					Sample.Pawn = BotPawn;
+					Sample.Location = Location;
+				}
+			}
+
 			if (Elapsed < 75.f)
 			{
 				return false;
@@ -1439,6 +1490,8 @@ void AShieldbreakSelfTest::BuildSteps()
 					}
 				}
 			}
+			Check(TEXT("No bot stays stuck in one spot for 20 s"), StuckReports.Num() == 0,
+				FString::Printf(TEXT("%d stuck: %s"), StuckReports.Num(), *FString::Join(StuckReports, TEXT("; "))));
 			const float RealSeconds = static_cast<float>(FPlatformTime::Seconds()) - Value1;
 			const float Fps = (static_cast<float>(GFrameCounter) - Value0) / FMath::Max(1.f, RealSeconds);
 			Lines.Add(FString::Printf(TEXT("INFO  average %.1f FPS over %.0f real seconds with 4 bots"), Fps, RealSeconds));
@@ -1446,6 +1499,102 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("Bots find and fight each other"), Kills > 0, FString::Printf(TEXT("%d kills+deaths in 75 s"), Kills));
 			return true;
 		}, 90.f });
+}
+
+// ---- Map tour (launch with ?Map=Keel|Bastion|Sanctum|Creekbed|Spire; see Tools/MapTour.bat) ----
+
+void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
+{
+	const FTransform ToWorld = Arena->GetActorTransform();
+	const FShieldbreakMapLayout& Layout = Arena->GetLayout();
+	const FString MapName = Arena->GetMapId().ToString();
+
+	Steps.Add({ FString::Printf(TEXT("%s: spawns and pickups"), *MapName),
+		nullptr,
+		[this, Arena, Layout, MapName](float Elapsed)
+		{
+			if (Elapsed < 0.5f)
+			{
+				return false;
+			}
+			// Every spawn point has floor right under it and lies inside the map bounds.
+			TArray<FString> BadSpawns;
+			for (const FTransform& Spawn : Arena->GetSpawnTransforms())
+			{
+				const FVector Feet = Spawn.GetLocation();
+				FHitResult Hit;
+				const bool bFloor = GetWorld()->LineTraceSingleByObjectType(Hit, Feet + FVector(0.f, 0.f, 60.f), Feet - FVector(0.f, 0.f, 120.f),
+					FCollisionObjectQueryParams(ECC_WorldStatic));
+				const FVector Local = Arena->GetActorTransform().InverseTransformPosition(Feet);
+				const bool bInside = FMath::Abs(Local.X) <= Layout.HalfExtent.X && FMath::Abs(Local.Y) <= Layout.HalfExtent.Y;
+				// Free space for a standing capsule.
+				const bool bClear = !GetWorld()->OverlapBlockingTestByChannel(Feet + FVector(0.f, 0.f, 100.f), FQuat::Identity, ECC_Pawn,
+					FCollisionShape::MakeCapsule(34.f, 80.f));
+				if (!bFloor || !bInside || !bClear)
+				{
+					BadSpawns.Add(FString::Printf(TEXT("(%.0f, %.0f, %.0f)%s%s%s"), Feet.X, Feet.Y, Feet.Z,
+						bFloor ? TEXT("") : TEXT(" no floor"), bInside ? TEXT("") : TEXT(" outside"), bClear ? TEXT("") : TEXT(" blocked")));
+				}
+			}
+			Check(FString::Printf(TEXT("%s: all %d spawns stand on floor, inside the map, with headroom"), *MapName, Arena->GetSpawnTransforms().Num()),
+				BadSpawns.Num() == 0 && Arena->GetSpawnTransforms().Num() >= 8, FString::Join(BadSpawns, TEXT("; ")));
+
+			int32 Weapons = 0, Powerups = 0;
+			for (TActorIterator<AShieldbreakWeaponPickup> It(GetWorld()); It; ++It) { ++Weapons; }
+			for (TActorIterator<AShieldbreakPowerup> It(GetWorld()); It; ++It) { ++Powerups; }
+			Check(FString::Printf(TEXT("%s: every weapon pickup and power-up spawns"), *MapName),
+				Weapons == Layout.Weapons.Num() && Powerups == Layout.Powerups.Num(),
+				FString::Printf(TEXT("weapons %d/%d, power-ups %d/%d"), Weapons, Layout.Weapons.Num(), Powerups, Layout.Powerups.Num()));
+			Lines.Add(FString::Printf(TEXT("INFO  %s waypoint graph: %d nodes"), *MapName, Arena->GetWaypoints().Num()));
+			return true;
+		}, 5.f });
+
+	if (Layout.Lifts.Num() == 0)
+	{
+		return;
+	}
+	TArray<TPair<FVector, FVector>> Lifts;
+	for (const FShieldbreakMapLift& Lift : Layout.Lifts)
+	{
+		Lifts.Add(TPair<FVector, FVector>(ToWorld.TransformPosition(Lift.Base), ToWorld.TransformPosition(Lift.Target)));
+	}
+	Steps.Add({ FString::Printf(TEXT("%s: gravity lifts"), *MapName),
+		[this]() { ClearDummies(); },
+		[this, Lifts, MapName](float Elapsed)
+		{
+			const int32 Index = Phase / 2;
+			if (Index >= Lifts.Num())
+			{
+				return true;
+			}
+			const FVector Base = Lifts[Index].Key;
+			const FVector Target = Lifts[Index].Value;
+			if (Phase % 2 == 0)
+			{
+				// Drop a dummy onto the pad; the lift's trigger launches it.
+				ClearDummies();
+				Phase = Index * 2;
+				A = SpawnDummy(Base + FVector(0.f, 0.f, 140.f), 0.f, true);
+				Mark = Now();
+				Phase = Index * 2 + 1;
+			}
+			else if (Now() - Mark > 5.f)
+			{
+				const FVector Feet = A ? A->GetActorLocation() - FVector(0.f, 0.f, A->GetSimpleCollisionHalfHeight()) : FVector::ZeroVector;
+				const float Miss2D = static_cast<float>(FVector::Dist2D(Feet, Target));
+				const float MissZ = static_cast<float>(Feet.Z - Target.Z);
+				Check(FString::Printf(TEXT("%s: lift %d lands you on its target"), *MapName, Index + 1),
+					A && Miss2D < 300.f && FMath::Abs(MissZ) < 120.f && A->GetShieldbreakMovement() && A->GetShieldbreakMovement()->IsMovingOnGround(),
+					FString::Printf(TEXT("pad (%.0f, %.0f, %.0f) -> target (%.0f, %.0f, %.0f), landed (%.0f, %.0f, %.0f): %.0f uu off, dz %.0f"),
+						Base.X, Base.Y, Base.Z, Target.X, Target.Y, Target.Z, Feet.X, Feet.Y, Feet.Z, Miss2D, MissZ));
+				Phase = (Index + 1) * 2;
+				// ClearDummies resets Phase; keep it.
+				const int32 Keep = Phase;
+				ClearDummies();
+				Phase = Keep;
+			}
+			return false;
+		}, 7.f * Lifts.Num() + 3.f });
 }
 
 // ---- Objective modes (launch with ?Mode=CTF|KOTH|Oddball; see Tools/SelfTest.bat) ----

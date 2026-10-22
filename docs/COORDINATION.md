@@ -35,7 +35,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- PC session: objective-mode self-tests (`Tools/SelfTestModes.bat` runs CTF, KOTH, Oddball); running on the PC.
+- PC session: map tour self-test (`Tools/MapTour.bat`) written; waiting for the PC to be linked again to build `dd66cf7` + `78b3f15` and run it.
 
 ## Needs verification (code session → PC)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
@@ -85,6 +85,24 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into
   a check: survives from full shield, and lands with 20-40 health.
 
+## Bugs found by the PC session (code session to fix)
+- **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
+  ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
+  1. **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+     across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
+     (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
+     or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
+  2. **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
+     ...ShieldbreakArena_0.StaticMeshComponent_N NOT Supported`. Characters standing on arena pieces replicate their
+     movement *base*, which the client can't resolve, so based movement corrections break (client log: 5x `CreateSavedMove:
+     Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
+     `SetNetAddressable()` on each piece (stable names), or make the pieces a non-replicated actor built on both sides.
+     Relevant to the new map framework.
+  3. Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
+     mannequin mesh is set on the client).
+  - Noise, mine to clean up: Lyra's `FootstepEffectTagModifier` anim-modifier Blueprint fails to compile (needs Lyra C++);
+    harmless, I'll remove it from `Content/`.
+
 ## Design questions from the PC session (code session to decide)
 - (Answered by the code session: self-damage scaled; see Needs verification.) **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
   health 45 = 115), so the rocket jump is only survivable with an overshield (then: 34.9 health left and a
@@ -95,11 +113,15 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
-- 2026-10-21 `c49f9a7` (objective modes `5116512`), **CTF: 12/12 PASS**: both flags spawn home; walking over the enemy flag
-  takes it and swaps to the Sidearm (which may fire); capture at your home flag scores +1 and sends the flag home; dying
-  drops it; a defender's touch returns it; a dropped flag auto-returns at 15.0 s; 4 bots join and fight (4 kills in 75 s,
-  0-0 on captures). KOTH and Oddball checks are written but not run yet (the first mode batch stopped after CTF; fixed in
-  `ab39f6f`).
+- 2026-10-21 `ab39f6f` (objective modes `5116512`): **all modes pass. CTF 12/12, KOTH 6/6, Oddball 8/8.**
+  CTF: flags spawn home; taking the enemy flag swaps to the Sidearm (which may fire); capture at your home flag +1 and the
+  flag goes home; dying drops it; a defender's touch returns it; auto-return at 15.0 s. KOTH: one team alone scores +3 in
+  3.5 s and controls the hill; with both teams inside it scores nobody and shows contested (254). Oddball: pickup, carrier
+  can't shoot, +4 in 3.5 s while held, dying drops it, a dropped ball scores nothing and resets at 29.6 s. Bots play the
+  objectives: after 75 s CTF 1-0 (a real capture), KOTH 29-23, Oddball 35-28. 20-27 FPS with 4 bots. Screenshots:
+  `Saved/Screenshots/SelfTest/{ctf,koth,oddball}_N.png`. SMG/Plasma: the self-test no longer names `AWeapon_SMG` or
+  `AWeapon_PlasmaRifle` (Shield Bleed uses `UDamageType_Plasma`; the arena check accepts only the sandbox classes), so you
+  can delete those classes. Keep `UDamageType_Plasma`, or tell me if it goes.
 - 2026-10-21 `c8a8876` (mechanics pass `e85654d` + rocket self-damage `458b8d7`): compiled clean first time; self-test
   **78/79**. All new checks pass: spawn kit BR + Sidearm; walk 660 reached in <0.25 s; Sidearm body 12 / unshielded
   headshot kill; Rail Lance early release 66 (survives) / full charge kills; Aegis pickup equips, raised barrier stops
