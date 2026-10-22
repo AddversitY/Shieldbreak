@@ -18,9 +18,11 @@ listen-server test clean (no net warnings, client viewmodel correct).
 **Next steps, in order:**
 1. Build `da83e64`+ and re-run the Spire map tour (base lifts 1-2: arc clearance fix, untested) and `Tools/ListenTest.bat`
    (the merged viewmodel guard `97647c5` and the Sanctum plinth check `887e99d` came in after the last run).
-2. Bastion runs at ~8 FPS vs ~20 elsewhere: profile it (`stat unit`, `stat scenerendering`).
-3. Walls in shadow render nearly black (lighting; see `docs/playtests/`).
-4. Delete the SMG / Plasma Rifle classes (no longer referenced by tests; keep `UDamageType_Plasma`).
+2. Bastion ran at 7.9 FPS in its Slayer map tour but 21.9 FPS in the Bastion KOTH run right after, so it's probably a
+   one-off (shader compile / memory pressure), not the map. Re-run Bastion Slayer once to confirm.
+3. Walls in shadow rendered nearly black: the arena now adds a shadowless fill light opposite the sun and a lit lower
+   hemisphere on the sky light. Needs a look in screenshots (any map run's `Saved/Screenshots`).
+4. The SMG / Plasma Rifle classes are deleted (`UDamageType_Plasma` stays). Needs a build.
 5. Roadmap items 4-5 below: screenshots/FPS per map and mode; find licensed art for the art pass (Vincent approves picks).
 6. Backlog: proper anim BP for the mannequin, original art pass, per-map feedback from Vincent.
 
