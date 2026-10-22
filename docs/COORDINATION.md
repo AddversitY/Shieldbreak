@@ -16,6 +16,7 @@ KOTH 7/7, Oddball 9/9; map tour passes on every map (Keel, Bastion, Sanctum 7/7,
 KOTH); listen-server test clean (0 net warnings on server and client, client viewmodel correct).
 
 **Next steps, in order:**
+0. Build and check the new main menu and Esc menu (see "Needs verification").
 1. Build `HEAD` and look at any map run's screenshots: the sky light is now 6 (was 1.5) and motion blur is off. Shaded
    walls went from black to grey in the comparison (`docs/playtests/2026-10-22_lighting_sky1.5_vs_sky6.jpg`), but a few
    faces were still dark. If they still look too dark, try `-SBSky=10` (and `-SBFill=0`) on the command line first.
@@ -71,6 +72,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- **Main menu and Esc menu** (commit "Main menu and in-game Esc menu"). A bare `-game` launch (or `PlayTest.bat` without
+  `-SBAutoShot`) should open the menu: pick map/mode/bots/skill, PLAY starts the match, HOST LAN GAME starts it with
+  `?listen`, JOIN connects to the typed IP. In a match, Esc opens Resume / Leave match / Quit; Leave match returns to the
+  menu. The Crucible self-test gains "Main menu launch rules" (3 checks). Screenshot the menu once.
 - **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
   spawns as `ShieldbreakArena_<MapId>` on every machine and its pieces are named `Piece_0..N` in layout order, all marked
   net addressable (`SetNetAddressable`), so the floor a character stands on can travel as its movement base.

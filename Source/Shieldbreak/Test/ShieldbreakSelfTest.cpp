@@ -34,6 +34,7 @@
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Weapons/ShieldbreakRocket.h"
+#include "UI/ShieldbreakMenu.h"
 
 namespace ShieldbreakSelfTestPrivate
 {
@@ -246,6 +247,36 @@ void AShieldbreakSelfTest::BuildSteps()
 	else
 	{
 	// (Slayer-only steps below are not re-indented, to keep diffs readable.)
+
+	// ---- Front end ----
+	Steps.Add({ TEXT("Main menu launch rules"), nullptr,
+		[this](float Elapsed)
+		{
+			using namespace ShieldbreakMenu;
+			Check(TEXT("The game runs with the Shieldbreak game instance (menu routing)"),
+				Cast<UShieldbreakGameInstance>(GetWorld()->GetGameInstance()) != nullptr,
+				GetWorld()->GetGameInstance() ? GetWorld()->GetGameInstance()->GetClass()->GetName() : FString(TEXT("none")));
+			const bool bBareLaunch = ShouldShowMainMenu(TEXT(""), TEXT("Shieldbreak.uproject -game"));
+			const bool bMenuOption = ShouldShowMainMenu(TEXT("?Menu"), TEXT("-game -SBSelfTest"));
+			const bool bMatch = ShouldShowMainMenu(TEXT("?Map=Keel?Mode=CTF"), TEXT("-game"));
+			const bool bHost = ShouldShowMainMenu(TEXT("?listen?Mode=Slayer?Bots=2"), TEXT("-game"));
+			const bool bTest = ShouldShowMainMenu(TEXT(""), TEXT("-game -SBSelfTest"));
+			const bool bShots = ShouldShowMainMenu(TEXT(""), TEXT("-game -SBAutoShot=8"));
+			Check(TEXT("A bare launch opens the menu; match options, ?listen and test flags go straight to a match"),
+				bBareLaunch && bMenuOption && !bMatch && !bHost && !bTest && !bShots,
+				FString::Printf(TEXT("bare %d, ?Menu %d, match %d, host %d, self-test %d, autoshot %d"),
+					bBareLaunch, bMenuOption, bMatch, bHost, bTest, bShots));
+			// OpenLevel prefixes the '?' that the option parsers expect.
+			const FString Options = TEXT("?") + BuildMatchOptions(FName(TEXT("Spire")), TEXT("KOTH"), 5, 2, true);
+			Check(TEXT("Menu match options parse back to the same map, mode, bots and skill"),
+				UGameplayStatics::ParseOption(Options, TEXT("Map")) == TEXT("Spire")
+				&& UGameplayStatics::ParseOption(Options, TEXT("Mode")) == TEXT("KOTH")
+				&& UGameplayStatics::GetIntOption(Options, TEXT("Bots"), -1) == 5
+				&& UGameplayStatics::GetIntOption(Options, TEXT("Skill"), -1) == 2
+				&& UGameplayStatics::HasOption(Options, TEXT("listen")),
+				Options);
+			return true;
+		}, 2.f });
 
 	// ---- Core shield layers ----
 	Steps.Add({ TEXT("Shield absorbs damage"),
