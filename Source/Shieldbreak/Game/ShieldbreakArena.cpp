@@ -86,12 +86,27 @@ AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 		return nullptr;
 	}
 
+	const FName BuildId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+
+	// Characters stand on the arena's pieces, and replicated movement references its movement base by path, so
+	// the arena and its pieces must have the same names on every machine and be net-addressable.
+	FActorSpawnParameters Params;
+	Params.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *BuildId.ToString()));
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// Deferred so MapId is set before OnConstruction builds the geometry.
-	AShieldbreakArena* Arena = World->SpawnActorDeferred<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity,
-		nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	Params.bDeferConstruction = true;
+	if (UObject* NameHolder = StaticFindObjectFast(nullptr, World->PersistentLevel, Params.Name))
+	{
+		// A destroyed arena awaiting garbage collection still holds the name.
+		NameHolder->Rename(*MakeUniqueObjectName(World->PersistentLevel, NameHolder->GetClass()).ToString(), nullptr,
+			REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
+	}
+
+	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, Params);
 	if (Arena)
 	{
-		Arena->MapId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+		Arena->MapId = BuildId;
+		Arena->SetNetAddressable();
 		Arena->FinishSpawning(FTransform::Identity);
 	}
 	return Arena;
@@ -135,7 +150,7 @@ void AShieldbreakArena::BeginPlay()
 
 UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation)
 {
-	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, NAME_None, RF_Transient);
+	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, FName(TEXT("Piece"), Pieces.Num() + 1), RF_Transient);
 	if (!Piece)
 	{
 		return nullptr;
@@ -156,6 +171,8 @@ UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVe
 	Piece->SetupAttachment(Root);
 	Piece->SetRelativeLocationAndRotation(Center, Rotation);
 	Piece->SetRelativeScale3D(Size / 100.f);
+	// Same build order on every machine, so the same name: a movement base the server can reference.
+	Piece->SetNetAddressable();
 	Piece->RegisterComponent();
 	AddInstanceComponent(Piece);
 
