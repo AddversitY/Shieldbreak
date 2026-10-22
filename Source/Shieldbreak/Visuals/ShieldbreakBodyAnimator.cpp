@@ -3,7 +3,10 @@
 #include "Shieldbreak.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -40,6 +43,7 @@ void UShieldbreakBodyAnimator::BeginPlay()
 	Body->SetOwnerNoSee(true);
 	Body->bCastHiddenShadow = true;
 	bHasBodyArt = true;
+	AttachArmor(Body);
 
 	// On clients the equipped weapon can replicate before the mesh exists; re-attach it to the hand now.
 	if (const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner()))
@@ -177,6 +181,10 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 	bRagdoll = true;
 
 	Body->SetOwnerNoSee(false);
+	for (UStaticMeshComponent* Piece : ArmorPieces)
+	{
+		Piece->SetOwnerNoSee(false);
+	}
 	Body->SetCollisionProfileName(TEXT("Ragdoll"));
 	Body->SetCollisionResponseToChannel(ECC_Weapon, ECR_Ignore);
 	Body->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -185,4 +193,105 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 	Body->WakeAllRigidBodies();
 	Body->bBlendPhysics = true;
 	Body->AddImpulse(Impulse, NAME_None, true);
+}
+
+namespace ShieldbreakBodyAnimatorPrivate
+{
+	/** Bones that carry an armor piece; the mesh is SM_SB_Armor_<bone> in /Game/Shieldbreak/Art/Armor. */
+	const TCHAR* const ArmorBones[] = {
+		TEXT("head"), TEXT("spine_05"), TEXT("spine_03"), TEXT("pelvis"),
+		TEXT("upperarm_l"), TEXT("upperarm_r"), TEXT("lowerarm_l"), TEXT("lowerarm_r"),
+		TEXT("thigh_l"), TEXT("thigh_r"), TEXT("calf_l"), TEXT("calf_r"), TEXT("foot_l"), TEXT("foot_r"),
+	};
+	/** Plates are a little darker than the HUD's team color so they don't wash out in sunlight. */
+	constexpr float PlateBrightness = 0.55f;
+	constexpr float GlowBrightness = 1.6f;
+
+	/** The bone's reference-pose transform in component (mesh) space. */
+	FTransform RefPoseComponentSpace(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
+	{
+		FTransform Result = FTransform::Identity;
+		while (BoneIndex != INDEX_NONE)
+		{
+			Result = Result * RefSkeleton.GetRefBonePose()[BoneIndex];
+			BoneIndex = RefSkeleton.GetParentIndex(BoneIndex);
+		}
+		return Result;
+	}
+}
+
+void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const USkeletalMesh* Asset = Body ? Body->GetSkeletalMeshAsset() : nullptr;
+	if (!Asset || ArmorPieces.Num() > 0 || (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
+	{
+		return;
+	}
+
+	const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
+	for (const TCHAR* Bone : ArmorBones)
+	{
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(Bone);
+		const FString Name = FString(TEXT("SM_SB_Armor_")) + Bone;
+		const FString Path = FString(TEXT("/Game/Shieldbreak/Art/Armor/")) + Name + TEXT(".") + Name;
+		UStaticMesh* Mesh = BoneIndex != INDEX_NONE ? ShieldbreakArt::Load<UStaticMesh>(*Path) : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+
+		UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(GetOwner(), *(FString(TEXT("Armor_")) + Bone));
+		Piece->SetStaticMesh(Mesh);
+		Piece->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Piece->SetGenerateOverlapEvents(false);
+		Piece->SetCanEverAffectNavigation(false);
+		Piece->SetOwnerNoSee(true);
+		Piece->bCastHiddenShadow = true;
+		Piece->SetupAttachment(Body, Bone);
+		// The piece is modeled where it sits on the reference pose, so undo the bone's reference transform.
+		Piece->SetRelativeTransform(RefPoseComponentSpace(RefSkeleton, BoneIndex).Inverse());
+		Piece->RegisterComponent();
+		ArmorPieces.Add(Piece);
+
+		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+		{
+			const FString SlotName = Slots[Slot].MaterialSlotName.ToString();
+			const bool bGlow = SlotName.StartsWith(TEXT("M_TeamGlow"));
+			if (bGlow || SlotName == TEXT("M_Team") || SlotName.StartsWith(TEXT("M_Team_")))
+			{
+				if (UMaterialInstanceDynamic* MID = Piece->CreateDynamicMaterialInstance(Slot))
+				{
+					(bGlow ? ArmorGlowMIDs : ArmorTeamMIDs).Add(MID);
+				}
+			}
+		}
+	}
+	if (ArmorPieces.Num() > 0)
+	{
+		UE_LOG(LogShieldbreak, Log, TEXT("%s: %d armor pieces"), *GetOwner()->GetName(), ArmorPieces.Num());
+	}
+}
+
+void UShieldbreakBodyAnimator::SetArmorColor(const FLinearColor& TeamColor)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	for (UMaterialInstanceDynamic* MID : ArmorTeamMIDs)
+	{
+		MID->SetVectorParameterValue(TEXT("BaseColor"), TeamColor * PlateBrightness);
+	}
+	for (UMaterialInstanceDynamic* MID : ArmorGlowMIDs)
+	{
+		MID->SetVectorParameterValue(TEXT("BaseColor"), TeamColor);
+		MID->SetVectorParameterValue(TEXT("EmissiveColor"), TeamColor * GlowBrightness);
+	}
+}
+
+void UShieldbreakBodyAnimator::SetArmorHidden(bool bHidden)
+{
+	for (UStaticMeshComponent* Piece : ArmorPieces)
+	{
+		Piece->SetHiddenInGame(bHidden);
+	}
 }

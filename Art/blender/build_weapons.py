@@ -192,5 +192,25 @@ def main():
         f.write("\n".join(report) + "\n")
 
 
+def lineup(path):
+    """All weapons in one picture, stacked like a weapon rack."""
+    import sb_render
+    k.reset_scene()
+    objs = []
+    z = 0.0
+    for name, build in WEAPONS.items():
+        parts, _ = build()
+        obj = k.join(name, parts)
+        lo = min(v.co.z for v in obj.data.vertices)
+        hi = max(v.co.z for v in obj.data.vertices)
+        obj.location = (0, 0, z - hi)
+        z -= (hi - lo) + 8.0
+        objs.append(obj)
+    sb_render.render_views(objs, path, [((1.0, 0.35, 0.25), False)], resolution=(1400, 1400))
+
+
 if __name__ == "__main__":
+    if "--lineup" in sys.argv:
+        lineup(os.path.abspath(sys.argv[-1]))
+        sys.exit(0)
     main()

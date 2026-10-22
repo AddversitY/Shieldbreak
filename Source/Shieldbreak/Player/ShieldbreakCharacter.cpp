@@ -40,6 +40,7 @@ namespace ShieldbreakCharacterPrivate
 {
 	const FLinearColor VisorColor(1.f, 0.65f, 0.08f);
 	const FLinearColor AegisColor(0.2f, 0.75f, 1.f);
+	const FLinearColor UndersuitColor(0.035f, 0.036f, 0.04f);
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
@@ -477,7 +478,13 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
 
-	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips.
+	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips. Under our
+	// armor the mannequin is a dark undersuit and only its strips keep the team color.
+	const bool bArmored = BodyAnimator && BodyAnimator->HasArmor();
+	if (bArmored)
+	{
+		BodyAnimator->SetArmorColor(Color);
+	}
 	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
 	{
 		static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
@@ -485,7 +492,7 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 		{
 			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
 			{
-				MID->SetVectorParameterValue(TEXT("TeamColor"), Color);
+				MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
 				for (const FName& Parameter : GlowParameters)
 				{
 					MID->SetVectorParameterValue(Parameter, Color * 4.f);
@@ -1239,6 +1246,10 @@ void AShieldbreakCharacter::UpdateCamoVisuals()
 	if (USkeletalMeshComponent* Body = GetMesh())
 	{
 		Body->SetHiddenInGame(bHide);
+	}
+	if (BodyAnimator)
+	{
+		BodyAnimator->SetArmorHidden(bHide);
 	}
 	if (BodyAnimator && !BodyAnimator->HasBodyArt())
 	{
