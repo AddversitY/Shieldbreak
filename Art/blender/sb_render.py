@@ -64,8 +64,12 @@ def render_views(objects, path, views, resolution=(900, 600), floor=False):
     lo, hi = _bbox(objects)
     center = (lo + hi) * 0.5
     ext = hi - lo
-    # Fit the longest side, and the height with the 3:2 frame.
-    size = max(ext.x, ext.y, ext.z * resolution[0] / resolution[1] * 1.1)
+    # The camera's field of view spans the frame's longer side; fit the subject's width and height in it.
+    w, h = resolution
+    if w >= h:
+        size = max(ext.x, ext.y, ext.z * w / h * 1.1)
+    else:
+        size = max(ext.z * 1.1, max(ext.x, ext.y) * h / w)
     if floor:
         bpy.ops.mesh.primitive_plane_add(size=size * 20, location=(center.x, center.y, lo.z))
         plane = bpy.context.active_object

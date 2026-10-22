@@ -1,8 +1,8 @@
 """Builds Shieldbreak's soldier armor around the Lyra mannequin and exports one FBX per bone.
 
-    python build_armor.py <SKM_Manny.fbx> [--render [preview_dir]]
+    python build_armor.py <bones.json> [SKM_Manny.obj | --proxy] [--render] [--preview-dir <dir>]
 
-The mannequin FBX comes from Tools/ExportArtReference.bat. Each piece is a faceted shell: the convex hull of the body
+bones.json comes from Tools/ExportArtReference.bat, the skin from Tools/DumpMannequin.bat. Each piece is a faceted shell: the convex hull of the body
 vertices that bone drives, pushed outward, simplified to big flat plates, trimmed, and painted by facet direction
 (team plates, dark trim, visor, team-colored glow strips). Pieces are exported in the mannequin's mesh space, and the
 game attaches each to its bone with the bone's inverse reference pose (UShieldbreakBodyAnimator::AttachArmor), so
@@ -19,56 +19,108 @@ import bmesh  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 
-# ---- Loading the mannequin into Unreal mesh space (cm; X = the mannequin's left, Y = forward, Z = up) ----------
+# ---- Loading the mannequin (Unreal mesh space: cm; X = the mannequin's left, Y = forward, Z = up) -------------
+# Inputs come from the laptop: bones.json (Tools/ExportArtReference.bat, reference pose in component space) and the
+# skin as SKM_Manny.obj (Tools/DumpMannequin.bat). Without the skin, a proxy body of capsules stands in.
 
-def load_mannequin(path):
-    bpy.ops.import_scene.fbx(filepath=path, use_anim=False, ignore_leaf_bones=True, automatic_bone_orientation=False)
-    arm = next(o for o in bpy.context.scene.objects if o.type == "ARMATURE")
-    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-    body = max(meshes, key=lambda o: len(o.data.vertices))
-    bones = {b.name: arm.matrix_world @ b.head_local for b in arm.data.bones}
-    tails = {b.name: arm.matrix_world @ b.tail_local for b in arm.data.bones}
+# (bone, child or offset, (start radius x, y), (end radius x, y)): segments that claim skin vertices. Radii are only
+# used by the proxy body.
+SEGMENTS = [
+    ("pelvis", "spine_01", (16, 11), (15, 10.5)),
+    ("pelvis", (0, 0, -9), (16, 11), (15, 10)),
+    ("spine_01", "spine_02", (15, 10.5), (14.5, 10)),
+    ("spine_02", "spine_03", (14.5, 10), (15, 10.5)),
+    ("spine_03", "spine_04", (15, 10.5), (16.5, 11.5)),
+    ("spine_04", "spine_05", (16.5, 11.5), (17, 12)),
+    ("spine_05", "neck_01", (17, 12), (12, 9)),
+    ("neck_01", "head", (6, 6.5), (6, 6.5)),
+    ("head", (0, 1.5, 18), (8.5, 10.5), (8, 10)),
+    ("clavicle_l", "upperarm_l", (7, 7), (6.5, 6.5)),
+    ("clavicle_r", "upperarm_r", (7, 7), (6.5, 6.5)),
+    ("upperarm_l", "lowerarm_l", (6.2, 6.2), (4.6, 4.6)),
+    ("upperarm_r", "lowerarm_r", (6.2, 6.2), (4.6, 4.6)),
+    ("lowerarm_l", "hand_l", (4.6, 4.6), (3.4, 3.0)),
+    ("lowerarm_r", "hand_r", (4.6, 4.6), (3.4, 3.0)),
+    ("thigh_l", "calf_l", (8.5, 8.5), (6.0, 6.0)),
+    ("thigh_r", "calf_r", (8.5, 8.5), (6.0, 6.0)),
+    ("calf_l", "foot_l", (6.0, 6.0), (4.0, 4.0)),
+    ("calf_r", "foot_r", (6.0, 6.0), (4.0, 4.0)),
+    ("foot_l", "ball_l", (4.5, 5.0), (4.5, 3.5)),
+    ("foot_r", "ball_r", (4.5, 5.0), (4.5, 3.5)),
+    ("ball_l", (0, 7, 0), (4.5, 3.0), (4.0, 2.5)),
+    ("ball_r", (0, 7, 0), (4.5, 3.0), (4.0, 2.5)),
+]
 
-    # Find the axis map that puts the head up, the toes forward and the "_l" side at +X, whatever the FBX used.
-    up = (bones["head"] - bones["pelvis"]).normalized()
-    fwd = (bones["ball_l"] - bones["foot_l"])
-    fwd = (fwd - up * fwd.dot(up)).normalized()
-    left = (bones["upperarm_l"] - bones["upperarm_r"])
-    left = (left - up * left.dot(up) - fwd * left.dot(fwd)).normalized()
-    height = (bones["head"] - (bones["foot_l"] + bones["foot_r"]) * 0.5).dot(up)
-    # Unreal's mannequin head bone sits ~160 cm above the feet: derive the cm scale from it.
-    scale = 1.0 if height > 50 else 100.0
-    to_ue = Matrix((left, fwd, up)).to_4x4() * 1.0
-    to_ue = Matrix.Scale(scale, 4) @ to_ue
-    to_ue[3][3] = 1.0
 
-    to_ue_world = to_ue @ body.matrix_world
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    mesh = body.evaluated_get(depsgraph).to_mesh()
-    names = [g.name for g in body.vertex_groups]
+def load_bones(path):
+    import json
+    with open(path) as f:
+        data = json.load(f)
+    return {name: Vector(b["loc"]) for name, b in data.items()}
+
+
+def _segments(j):
+    out = []
+    for bone, end, r0, r1 in SEGMENTS:
+        a = j[bone]
+        b = j[end] if isinstance(end, str) else a + Vector(end)
+        out.append((bone, a, b, r0, r1))
+    return out
+
+
+def _closest_bone(p, segs):
+    best, best_d = None, 1e9
+    for bone, a, b, _, _ in segs:
+        ab = b - a
+        t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.length_squared, 1e-6)))
+        d = (p - (a + ab * t)).length
+        if d < best_d:
+            best, best_d = bone, d
+    return best
+
+
+def load_skin(obj_path, j):
+    segs = _segments(j)
+    points = []
+    with open(obj_path) as f:
+        for line in f:
+            if line.startswith("v "):
+                x, y, z = map(float, line.split()[1:4])
+                points.append(Vector((x, y, z)))
+    verts = [(p, _closest_bone(p, segs), None) for p in points]
+    print("skin: %d vertices from %s" % (len(verts), obj_path))
+    return verts
+
+
+def proxy_skin(j):
+    """Capsule body along the bones: elliptical rings every 2 cm (X/Y radii in the segment's frame)."""
     verts = []
-    for v in mesh.vertices:
-        co = to_ue_world @ v.co
-        weights = {names[g.group]: g.weight for g in v.groups if g.weight > 0.0}
-        dominant = max(weights, key=weights.get) if weights else None
-        verts.append((co, dominant, weights))
-    joints = {n: to_ue @ p for n, p in bones.items()}
-    joint_tails = {n: to_ue @ p for n, p in tails.items()}
-    body.matrix_world = to_ue @ body.matrix_world  # so the preview shows the body where the armor is
-    print("mannequin: %d verts, height %.1f cm (scale %.0f), head at %s" % (len(verts), height * scale, scale, joints["head"]))
-    return verts, joints, joint_tails, body
+    for bone, a, b, r0, r1 in _segments(j):
+        axis = (b - a)
+        length = max(axis.length, 0.01)
+        axis.normalize()
+        ref = Vector((0, 1, 0)) if abs(axis.y) < 0.9 else Vector((0, 0, 1))
+        u = ref.cross(axis).normalized()   # across (mostly X for vertical segments)
+        w = axis.cross(u).normalized()      # depth (mostly Y)
+        steps = max(2, int(length / 2.0))
+        for i in range(steps + 1):
+            t = i / steps
+            rx = r0[0] + (r1[0] - r0[0]) * t
+            ry = r0[1] + (r1[1] - r0[1]) * t
+            c = a + axis * (length * t)
+            for k in range(16):
+                ang = 2 * math.pi * k / 16
+                verts.append((c + u * (math.cos(ang) * rx) + w * (math.sin(ang) * ry), bone, None))
+    print("proxy skin: %d points" % len(verts))
+    return verts
 
 
 # ---- Shell construction --------------------------------------------------------------------------------------
 
 def gather(verts, bones, min_weight=0.5, clip=None):
-    """Vertices whose weight on any of bones (summed) is at least min_weight, optionally filtered by clip(co)."""
-    out = []
-    for co, _, weights in verts:
-        w = sum(weights.get(b, 0.0) for b in bones)
-        if w >= min_weight and (clip is None or clip(co)):
-            out.append(co.copy())
-    return out
+    """Skin vertices claimed by any of bones (nearest bone segment), optionally filtered by clip(co)."""
+    keep = set(bones)
+    return [co.copy() for co, bone, _ in verts if bone in keep and (clip is None or clip(co))]
 
 
 def shell(name, points, inflate, simplify_angle=12.0, scale=(1.0, 1.0, 1.0), pivot=None):
@@ -264,18 +316,20 @@ def build(verts, j, jt):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args = sys.argv[1:]
     if not args:
         sys.exit(__doc__)
     here = os.path.dirname(os.path.abspath(__file__))
     out_dir = os.path.join(here, "..", "Export", "Armor")
     os.makedirs(out_dir, exist_ok=True)
-    preview_dir = os.path.abspath(args[1]) if len(args) > 1 else os.path.join(here, "previews")
+    preview_dir = args[args.index("--preview-dir") + 1] if "--preview-dir" in args else os.path.join(here, "previews")
     os.makedirs(preview_dir, exist_ok=True)
 
     k.reset_scene()
-    verts, joints, tails, body = load_mannequin(os.path.abspath(args[0]))
-    pieces = build(verts, joints, tails)
+    joints = load_bones(args[0])
+    skin = next((a for a in args[1:] if a.endswith(".obj")), None)
+    verts = load_skin(skin, joints) if skin else proxy_skin(joints)
+    pieces = build(verts, joints, None)
     report = []
     exported = []
     for bone, objs in pieces.items():
@@ -287,25 +341,34 @@ def main():
         k.export_fbx(os.path.join(out_dir, obj.name + ".fbx"), [obj])
     print("\n".join(report))
     with open(os.path.join(out_dir, "armor_report.txt"), "w") as f:
+        f.write("source: %s\n" % (os.path.basename(skin) if skin else "proxy body"))
         f.write("\n".join(report) + "\n")
-    if "--render" in sys.argv:
-        render_preview(body, exported, joints, preview_dir)
+    if "--render" in args:
+        render_preview(skin, verts, exported, preview_dir)
 
 
-def render_preview(body, armor, joints, preview_dir):
-    """Renders the armored mannequin (red team) from the front-left and the back-right."""
+def render_preview(skin, verts, armor, preview_dir):
+    """Renders the armored mannequin (red team) from the front, the back and the side, over a dark undersuit body."""
     import sb_render
-    # Put the mannequin body (dark undersuit) into the same space as the armor.
-    for o in list(bpy.context.scene.objects):
-        if o.type == "ARMATURE":
-            o.hide_render = True
-    body.data.materials.clear()
-    body.data.materials.append(k.material("Undersuit"))
-    for poly in body.data.polygons:
-        poly.use_smooth = True
+    if skin:
+        bpy.ops.wm.obj_import(filepath=skin, forward_axis="Y", up_axis="Z", global_scale=1.0)
+        body = bpy.context.selected_objects[0]
+        # The OBJ importer reads Unreal's left-handed numbers as right-handed: same numbers, so keep them.
+        body.matrix_world = Matrix.Identity(4)
+        bodies = [body]
+    else:
+        bodies = []
+        for bone in sorted({v[1] for v in verts}):
+            pts = [v[0] for v in verts if v[1] == bone]
+            bodies.append(shell("proxy_" + bone, pts, 0.0, 1.0))
+    for body in bodies:
+        body.data.materials.clear()
+        body.data.materials.append(k.material("Undersuit"))
+        for poly in body.data.polygons:
+            poly.use_smooth = True
     sb_render.render_views(armor, os.path.join(preview_dir, "SB_Armor.png"),
-                           [((0.8, 1.0, 0.25), False), ((-0.9, -1.0, 0.3), False), ((1.0, 0.0, 0.05), True)],
-                           resolution=(700, 1000), floor=True)
+                           [((0.45, 1.0, 0.15), False), ((-0.5, -1.0, 0.2), False), ((1.0, 0.0, 0.05), True)],
+                           resolution=(640, 1000), floor=True)
 
 
 if __name__ == "__main__":

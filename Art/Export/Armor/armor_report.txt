@@ -1,0 +1,15 @@
+source: proxy body
+SM_SB_Armor_head: 196 tris, 4 materials, bounds X -11.1..11.1 Y -13.4..15.5 Z 159.5..183.7
+SM_SB_Armor_spine_05: 236 tris, 2 materials, bounds X -24.7..24.7 Y -15.6..18.9 Z 117.4..156.8
+SM_SB_Armor_spine_03: 140 tris, 2 materials, bounds X -17.2..17.2 Y -8.7..16.1 Z 105.2..122.2
+SM_SB_Armor_pelvis: 228 tris, 3 materials, bounds X -19.1..19.1 Y -10.9..16.2 Z 85.2..102.0
+SM_SB_Armor_upperarm_l: 194 tris, 2 materials, bounds X 13.0..33.4 Y -13.5..7.9 Z 127.8..155.3
+SM_SB_Armor_lowerarm_l: 124 tris, 2 materials, bounds X 32.7..51.3 Y -2.5..18.2 Z 101.6..122.0
+SM_SB_Armor_thigh_l: 156 tris, 2 materials, bounds X 1.0..19.7 Y -6.8..11.9 Z 44.9..87.0
+SM_SB_Armor_calf_l: 144 tris, 3 materials, bounds X 4.5..20.0 Y -6.5..10.4 Z 14.1..52.5
+SM_SB_Armor_foot_l: 176 tris, 2 materials, bounds X 8.4..21.8 Y -4.5..22.2 Z -3.9..13.9
+SM_SB_Armor_upperarm_r: 194 tris, 2 materials, bounds X -33.4..-13.0 Y -13.5..7.9 Z 127.8..155.3
+SM_SB_Armor_lowerarm_r: 124 tris, 2 materials, bounds X -51.3..-32.7 Y -2.5..18.2 Z 101.6..122.0
+SM_SB_Armor_thigh_r: 171 tris, 2 materials, bounds X -19.7..-1.0 Y -6.8..12.0 Z 54.8..87.0
+SM_SB_Armor_calf_r: 156 tris, 3 materials, bounds X -20.0..-4.6 Y -6.4..10.4 Z 14.2..52.4
+SM_SB_Armor_foot_r: 184 tris, 2 materials, bounds X -21.8..-8.4 Y -4.6..22.2 Z -4.0..14.0

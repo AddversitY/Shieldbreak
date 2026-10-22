@@ -43,6 +43,7 @@ public:
 
 	/** True when at least one armor piece is on the body (the mannequin then wears a dark undersuit). */
 	bool HasArmor() const { return ArmorPieces.Num() > 0; }
+	int32 GetArmorPieceCount() const { return ArmorPieces.Num(); }
 	/** Paints the armor's team plates and glow strips. */
 	void SetArmorColor(const FLinearColor& TeamColor);
 	/** Active Camo hides the armor along with the body. */
