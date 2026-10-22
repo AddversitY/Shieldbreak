@@ -226,9 +226,15 @@ void AShieldbreakSelfTest::BuildSteps()
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
 
 	// ---- Original art (Art/blender, imported by Tools/ImportArt.bat): every gun has its own model, soldiers wear armor. ----
-	Steps.Add({ TEXT("Original art is in place"), nullptr,
+	Steps.Add({ TEXT("Original art is in place"),
+		[this]()
+		{
+			// A dummy of our own (high above the map, so it fits on any layout): the match may not have spawned anyone yet.
+			A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f), 0.f, false);
+		},
 		[this](float Elapsed)
 		{
+			if (Elapsed < 0.3f) return false;
 			const TSubclassOf<AShieldbreakWeapon> Weapons[] = { AWeapon_BattleRifle::StaticClass(), AWeapon_Sidearm::StaticClass(),
 				AWeapon_SniperRifle::StaticClass(), AWeapon_RocketLauncher::StaticClass(), AWeapon_RailLance::StaticClass() };
 			for (const TSubclassOf<AShieldbreakWeapon>& WeaponClass : Weapons)
@@ -237,16 +243,10 @@ void AShieldbreakSelfTest::BuildSteps()
 				Check(FString::Printf(TEXT("%s uses its own model"), *WeaponClass->GetName()), Art && Art->GetName().StartsWith(TEXT("SM_SB_")),
 					Art ? Art->GetName() : TEXT("no art mesh"));
 			}
-			int32 Pieces = -1;
-			for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
-			{
-				if (const UShieldbreakBodyAnimator* Animator = It->GetBodyAnimator())
-				{
-					Pieces = Animator->GetArmorPieceCount();
-					break;
-				}
-			}
+			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
 			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
+			ClearDummies();
 			return true;
 		}, 5.f });
 
