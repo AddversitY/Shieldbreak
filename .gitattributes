@@ -9,3 +9,6 @@
 *.ogg filter=lfs diff=lfs merge=lfs -text
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.exr filter=lfs diff=lfs merge=lfs -text
+
+# Scripted art exports are small and regenerated from Art/blender; keep them in plain git so the cloud can push them
+Art/Export/** -filter -diff -merge -text
