@@ -417,5 +417,8 @@ Scale everything by `Canvas->ClipY / 1080`. Fonts: `GEngine->GetSmallFont()/GetM
 - `SShieldbreakMainMenu`: map / mode / bots / bot-skill choosers, PLAY (`OpenLevel Entry?Map=..?Mode=..?Bots=..?Skill=..`),
   HOST LAN GAME (same plus `?listen`), JOIN (address box, `ClientTravel`), QUIT. Choices persist in
   GameUserSettings.ini `[Shieldbreak.Menu]`.
+- Both menus show the player settings (`Player/ShieldbreakSettings.h`): sensitivity 0.2-3.0 (multiplies look input),
+  hip-fire field of view 70-110 (default 78; scopes keep their zoom FOV), invert look. Stored in GameUserSettings.ini
+  `[Shieldbreak.Settings]`, read by `AShieldbreakCharacter::Input_Look` and the camera FOV in Tick.
 - In a match, Esc (`UShieldbreakInputSet::Pause`) opens `SShieldbreakPauseMenu` (Resume / Leave match / Quit) with UI-only
   input; the match keeps running. Leave match = `OpenLevel Entry?Menu`.

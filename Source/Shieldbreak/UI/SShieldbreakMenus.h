@@ -21,7 +21,6 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
 private:
-	TSharedRef<SWidget> MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step);
 	FText GetMapDetails() const;
 	FReply StartMatch(bool bListen);
 	FReply Join();
@@ -58,4 +57,8 @@ namespace ShieldbreakMenuStyle
 {
 	/** Big menu button with a fixed width, shared by both menus. */
 	TSharedRef<SWidget> MakeButton(const FText& Label, TFunction<void()> OnClick, float Width = 320.f);
+	/** "Label   <  value  >" row; Step gets -1 or +1. */
+	TSharedRef<SWidget> MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step);
+	/** Sensitivity, field of view and invert look choosers (ShieldbreakSettings), shared by both menus. */
+	TSharedRef<SWidget> MakeSettingsRows();
 }

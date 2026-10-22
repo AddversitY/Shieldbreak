@@ -37,6 +37,7 @@
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Weapons/ShieldbreakRocket.h"
 #include "UI/ShieldbreakMenu.h"
+#include "Player/ShieldbreakSettings.h"
 
 namespace ShieldbreakSelfTestPrivate
 {
@@ -302,6 +303,19 @@ void AShieldbreakSelfTest::BuildSteps()
 				&& UGameplayStatics::GetIntOption(Options, TEXT("Skill"), -1) == 2
 				&& UGameplayStatics::HasOption(Options, TEXT("listen")),
 				Options);
+
+			// Settings clamp to their ranges; the player's own values are put back afterwards.
+			const float OldSensitivity = ShieldbreakSettings::GetSensitivity();
+			const float OldFov = ShieldbreakSettings::GetFieldOfView();
+			ShieldbreakSettings::SetSensitivity(99.f);
+			ShieldbreakSettings::SetFieldOfView(10.f);
+			const float ClampedSensitivity = ShieldbreakSettings::GetSensitivity();
+			const float ClampedFov = ShieldbreakSettings::GetFieldOfView();
+			ShieldbreakSettings::SetSensitivity(OldSensitivity);
+			ShieldbreakSettings::SetFieldOfView(OldFov);
+			Check(TEXT("Sensitivity and field of view clamp to their ranges"),
+				FMath::IsNearlyEqual(ClampedSensitivity, ShieldbreakSettings::MaxSensitivity) && FMath::IsNearlyEqual(ClampedFov, ShieldbreakSettings::MinFieldOfView),
+				FString::Printf(TEXT("sensitivity %.2f, fov %.0f"), ClampedSensitivity, ClampedFov));
 			return true;
 		}, 2.f });
 

@@ -8,6 +8,7 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 #include "ShieldbreakMenu.generated.h"
 
 class SShieldbreakMainMenu;
@@ -57,6 +58,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	/** Play-test helper: -SBMenuShot=<seconds> saves Saved/Screenshots/AutoShot/menu.png; -SBAutoQuit exits after. */
+	void TakeMenuShot();
+
+	FTimerHandle MenuShotTimerHandle;
 	TSharedPtr<SWidget> MenuWidget;
 	TSharedPtr<SWidget> ViewportWidget;
 };

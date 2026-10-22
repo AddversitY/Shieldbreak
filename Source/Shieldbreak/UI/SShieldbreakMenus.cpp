@@ -7,6 +7,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Player/ShieldbreakPlayerController.h"
+#include "Player/ShieldbreakSettings.h"
 #include "Styling/CoreStyle.h"
 #include "UI/ShieldbreakMenu.h"
 #include "Widgets/Images/SImage.h"
@@ -84,6 +85,33 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFuncti
 		];
 }
 
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("Sensitivity", "Sensitivity"),
+				[]()
+				{
+					static const FNumberFormattingOptions OneDecimal = FNumberFormattingOptions().SetMinimumFractionalDigits(1).SetMaximumFractionalDigits(1);
+					return FText::AsNumber(ShieldbreakSettings::GetSensitivity(), &OneDecimal);
+				},
+				[](int32 Delta) { ShieldbreakSettings::SetSensitivity(FMath::RoundToFloat((ShieldbreakSettings::GetSensitivity() + 0.1f * Delta) * 10.f) / 10.f); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("FieldOfView", "Field of view"),
+				[]() { return FText::AsNumber(FMath::RoundToInt(ShieldbreakSettings::GetFieldOfView())); },
+				[](int32 Delta) { ShieldbreakSettings::SetFieldOfView(ShieldbreakSettings::GetFieldOfView() + 5.f * Delta); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("InvertLook", "Invert look"),
+				[]() { return ShieldbreakSettings::GetInvertLook() ? LOCTEXT("On", "On") : LOCTEXT("Off", "Off"); },
+				[](int32) { ShieldbreakSettings::SetInvertLook(!ShieldbreakSettings::GetInvertLook()); })
+		];
+}
+
 // ---- Main menu ----
 
 void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
@@ -117,7 +145,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				MakeChooser(LOCTEXT("Map", "Map"),
+				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Map", "Map"),
 					[this]() { return Maps.IsValidIndex(MapIndex) ? FText::FromName(Maps[MapIndex]) : FText::GetEmpty(); },
 					[this](int32 Delta) { MapIndex = Maps.Num() > 0 ? (MapIndex + Delta + Maps.Num()) % Maps.Num() : 0; })
 			]
@@ -127,21 +155,25 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				MakeChooser(LOCTEXT("Mode", "Mode"),
+				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Mode", "Mode"),
 					[this, &Modes]() { return FText::FromString(Modes[ModeIndex]); },
 					[this, &Modes](int32 Delta) { ModeIndex = (ModeIndex + Delta + Modes.Num()) % Modes.Num(); })
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				MakeChooser(LOCTEXT("Bots", "Bots"),
+				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Bots", "Bots"),
 					[this]() { return FText::AsNumber(Bots); },
 					[this](int32 Delta) { Bots = FMath::Clamp(Bots + Delta, 0, AShieldbreakGameMode::GetMaxBots()); })
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				MakeChooser(LOCTEXT("Skill", "Bot skill"),
+				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Skill", "Bot skill"),
 					[this]() { return FText::FromString(SkillName(Skill)); },
 					[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); })
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 14.f, 0.f, 0.f)
+			[
+				ShieldbreakMenuStyle::MakeSettingsRows()
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 22.f, 0.f, 0.f)
 			[
@@ -203,7 +235,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedRef<SWidget> SShieldbreakMainMenu::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step)
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step)
 {
 	using namespace ShieldbreakMenuPrivate;
 	auto Arrow = [Step](const FText& Glyph, int32 Delta) -> TSharedRef<SWidget>
@@ -238,7 +270,7 @@ TSharedRef<SWidget> SShieldbreakMainMenu::MakeChooser(const FText& Label, TFunct
 		[
 			SNew(SBox).WidthOverride(260.f).HAlign(HAlign_Center)
 			[
-				SNew(STextBlock).Text_Lambda(Value).Font(Font(24, "Bold")).ColorAndOpacity(FLinearColor::White)
+				SNew(STextBlock).Text_Lambda([Value]() { return Value(); }).Font(Font(24, "Bold")).ColorAndOpacity(FLinearColor::White)
 			]
 		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(4.f)
@@ -342,6 +374,10 @@ void SShieldbreakPauseMenu::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 16.f)
 			[
 				SNew(STextBlock).Text(LOCTEXT("Paused", "MENU")).Font(Font(40, "Bold")).ColorAndOpacity(FLinearColor::White)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 12.f)
+			[
+				ShieldbreakMenuStyle::MakeSettingsRows()
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
