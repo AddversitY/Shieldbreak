@@ -1,4 +1,5 @@
 #include "Player/ShieldbreakCharacter.h"
+#include "Player/ShieldbreakSettings.h"
 
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
@@ -540,7 +541,8 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
 		const float ZoomFOV = (bZoomed && CurrentWeapon) ? CurrentWeapon->GetStats().ZoomFOV : 0.f;
-		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : DefaultFOV;
+		// Hip-fire FOV is the player's setting (DefaultFOV for bots' and spectators' views); scopes keep their zoom.
+		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : (IsLocallyControlled() ? ShieldbreakSettings::GetFieldOfView() : DefaultFOV);
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ShieldbreakCharacterPrivate::ZoomInterpSpeed));
 	}
 }
@@ -595,9 +597,9 @@ void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
 	// Zoomed aim is slower so the scope stays usable.
-	const float Scale = bZoomed ? 0.55f : 1.f;
+	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
-	AddControllerPitchInput(-Axis.Y * Scale);
+	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
 }
 
 void AShieldbreakCharacter::Input_JumpStarted()
