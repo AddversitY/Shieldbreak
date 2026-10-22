@@ -53,6 +53,10 @@ public:
 
 	bool IsMatchOver() const { return bMatchOver; }
 
+	/** Limits for ?Bots= and ?Skill= (the menu's choosers use them too). */
+	static int32 GetMaxBots();
+	static int32 GetMaxBotSkill();
+
 	int32 GetBotCount() const { return NumBots; }
 	int32 GetBotSkill() const { return BotSkill; }
 	int32 GetScoreLimit() const { return ScoreLimit; }

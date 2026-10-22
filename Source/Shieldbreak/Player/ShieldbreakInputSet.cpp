@@ -59,6 +59,7 @@ void UShieldbreakInputSet::Build()
 	CrouchSlide = MakeAction(TEXT("IA_CrouchSlide"), false);
 	Scoreboard = MakeAction(TEXT("IA_Scoreboard"), false);
 	ToggleHelp = MakeAction(TEXT("IA_ToggleHelp"), false);
+	Pause = MakeAction(TEXT("IA_Pause"), false);
 
 	Context = NewObject<UInputMappingContext>(this, TEXT("IMC_Shieldbreak"));
 
@@ -114,4 +115,5 @@ void UShieldbreakInputSet::Build()
 	MapPair(CrouchSlide, { EKeys::LeftControl, EKeys::C, EKeys::Gamepad_FaceButton_Right });
 	MapPair(Scoreboard, { EKeys::Tab, EKeys::Gamepad_Special_Left });
 	MapPair(ToggleHelp, { EKeys::F1, EKeys::Gamepad_Special_Right });
+	MapPair(Pause, { EKeys::Escape });
 }

@@ -910,7 +910,7 @@ void AShieldbreakHUD::DrawHelp()
 		TEXT(""),
 		TEXT("WASD move    Mouse look    Space jump    Shift sprint    Ctrl/C crouch"),
 		TEXT("LMB fire    RMB zoom    R reload / vent    Q swap    E pick up"),
-		TEXT("F melee    G grenade    Alt / Mouse4 use equipment (Aegis)    Tab scores"),
+		TEXT("F melee    G grenade    Alt / Mouse4 use equipment (Aegis)    Tab scores    Esc menu"),
 		TEXT("Console (~):  SB_Map <Keel|Bastion|Sanctum|Creekbed|Spire> <Slayer|CTF|KOTH|Oddball>    SB_Bots <n>    SB_Skill <0-3>"),
 		TEXT(""),
 		TEXT("MASTERY"),

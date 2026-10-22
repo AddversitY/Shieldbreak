@@ -283,8 +283,9 @@ def sanctum():
     # Courtyard steps: wide ramps from each end and each flank.
     m.ramp((-1400, 0, 200), (-900, 0, 0), 500, "stone", sym=True)
     m.ramp((0, 1000, 200), (0, 600, 0), 500, "stone", sym=True)
-    # Plinth (top 280): rockets on top; a normal jump (~258) can't make it, a crouch-jump (~292) or Power Jump can.
-    m.block((-150, -150, 0), (150, 150, 280), "stone")
+    # Plinth (top 320): rockets on top. Falling characters step up ledges within 45, so a plain jump reaches ~303
+    # (can't make it), a crouch-jump ~337 and a Power Jump ~430 can.
+    m.block((-150, -150, 0), (150, 150, 320), "stone")
     # Courtyard cover.
     m.block((-900, 600, 0), (-750, 850, 160), "rock", sym=True)
     m.block((500, 450, 0), (750, 520, 120), "rock", sym=True)
@@ -302,7 +303,7 @@ def sanctum():
     m.block((-2200, 2050, 200), (-600, 2450, 450), "stone", sym=True)
     m.ramp((-600, 2250, 450), (200, 2250, 200), 300, sym=True)
     # Items.
-    m.weapon("rockets", (0, 0, 350))
+    m.weapon("rockets", (0, 0, 390))
     m.weapon("sniper", (-3600, 0, 870), sym=True)
     m.weapon("rail", (-1400, 2250, 520), sym=True)
     m.powerup("overshield", (0, -1800, 270))
