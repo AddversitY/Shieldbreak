@@ -1,5 +1,5 @@
 // Per-player view and aim settings (mouse/stick sensitivity, field of view, invert look). Stored in
-// GameUserSettings.ini [Shieldbreak.Settings]; edited from the main menu and the Esc menu.
+// GameUserSettings.ini [Shieldbreak.Settings]; graphics quality is the engine's own scalability level. Edited from the main menu and the Esc menu.
 
 #pragma once
 
@@ -21,4 +21,10 @@ namespace ShieldbreakSettings
 	SHIELDBREAK_API void SetFieldOfView(float Value);
 	SHIELDBREAK_API bool GetInvertLook();
 	SHIELDBREAK_API void SetInvertLook(bool bInvert);
+
+	/** Overall engine scalability, 0 (Low) to 3 (Epic); -1 when individual groups were set by hand. Stored by
+	 *  UGameUserSettings (GameUserSettings.ini [ScalabilityGroups]), applied at once. */
+	SHIELDBREAK_API int32 GetGraphicsQuality();
+	SHIELDBREAK_API void SetGraphicsQuality(int32 Level);
+	SHIELDBREAK_API FText GetGraphicsQualityName(int32 Level);
 }

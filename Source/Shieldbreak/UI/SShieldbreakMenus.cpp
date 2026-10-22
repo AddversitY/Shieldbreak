@@ -109,6 +109,18 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 			MakeChooser(LOCTEXT("InvertLook", "Invert look"),
 				[]() { return ShieldbreakSettings::GetInvertLook() ? LOCTEXT("On", "On") : LOCTEXT("Off", "Off"); },
 				[](int32) { ShieldbreakSettings::SetInvertLook(!ShieldbreakSettings::GetInvertLook()); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("Graphics", "Graphics"),
+				[]() { return ShieldbreakSettings::GetGraphicsQualityName(ShieldbreakSettings::GetGraphicsQuality()); },
+				[](int32 Delta)
+				{
+					// From "Custom" (-1), the first step lands on Low or Epic.
+					const int32 Current = ShieldbreakSettings::GetGraphicsQuality();
+					const int32 Next = Current < 0 ? (Delta > 0 ? 0 : 3) : (Current + Delta + 4) % 4;
+					ShieldbreakSettings::SetGraphicsQuality(Next);
+				})
 		];
 }
 
