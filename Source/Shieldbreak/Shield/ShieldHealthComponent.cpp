@@ -1,0 +1,451 @@
+#include "Shield/ShieldHealthComponent.h"
+
+#include "Shield/ShieldTuningData.h"
+#include "Shield/ShieldbreakDamageType.h"
+#include "Game/ShieldbreakTeams.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/GameStateBase.h"
+#include "Net/UnrealNetwork.h"
+
+UShieldHealthComponent::UShieldHealthComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+	SetIsReplicatedByDefault(true);
+}
+
+void UShieldHealthComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UShieldHealthComponent, Shield);
+	DOREPLIFETIME(UShieldHealthComponent, ShieldBreakCount);
+	DOREPLIFETIME(UShieldHealthComponent, Overshield);
+	DOREPLIFETIME(UShieldHealthComponent, Health);
+	DOREPLIFETIME(UShieldHealthComponent, RechargeStartServerTime);
+	DOREPLIFETIME(UShieldHealthComponent, bVentUsedThisRecharge);
+	DOREPLIFETIME(UShieldHealthComponent, bDead);
+}
+
+void UShieldHealthComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AActor* Owner = GetOwner();
+	const bool bAuthority = Owner && Owner->HasAuthority();
+
+	// Recharge, regen and decay are simulated on the server only; clients just read replicated values.
+	SetComponentTickEnabled(bAuthority);
+
+	if (bAuthority)
+	{
+		SetShieldInternal(GetMaxShield());
+		SetHealthInternal(GetMaxHealth());
+		Owner->OnTakeAnyDamage.AddDynamic(this, &UShieldHealthComponent::HandleTakeAnyDamage);
+	}
+}
+
+void UShieldHealthComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bDead)
+	{
+		return;
+	}
+
+	const UShieldTuningData& T = GetTuning();
+	const float Now = GetServerTime();
+
+	if (Overshield > 0.f && T.OvershieldDecayPerSecond > 0.f)
+	{
+		SetOvershieldInternal(Overshield - T.OvershieldDecayPerSecond * DeltaTime);
+	}
+
+	if (Shield < T.MaxShield)
+	{
+		if (Now >= NextRechargeServerTime)
+		{
+			if (RechargeStartServerTime < 0.f)
+			{
+				RechargeStartServerTime = Now;
+				bVentUsedThisRecharge = false;
+				PendingRechargePenalty = 0.f;
+				OnRechargeStarted.Broadcast();
+			}
+
+			SetShieldInternal(Shield + T.MaxShield / T.RechargeDuration * DeltaTime);
+			if (Shield >= T.MaxShield)
+			{
+				RechargeStartServerTime = -1.f;
+			}
+		}
+	}
+	else if (T.bRegenHealthWhenShieldFull && Health < T.MaxHealth)
+	{
+		SetHealthInternal(Health + T.HealthRegenPerSecond * DeltaTime);
+	}
+}
+
+// ---- Inputs ----
+
+void UShieldHealthComponent::TryVent()
+{
+	ServerTryVent(GetServerTime());
+}
+
+void UShieldHealthComponent::TryBreakPulse()
+{
+	ServerTryBreakPulse(GetServerTime());
+}
+
+void UShieldHealthComponent::ServerTryVent_Implementation(float ClientServerTime)
+{
+	if (bDead || RechargeStartServerTime < 0.f || bVentUsedThisRecharge)
+	{
+		return;
+	}
+
+	const UShieldTuningData& T = GetTuning();
+	const float PressTime = ResolveInputTime(ClientServerTime);
+	const float MarkerPosition = (PressTime - RechargeStartServerTime) / T.VentSweepDuration;
+	const bool bSuccess = MarkerPosition >= T.VentSweetSpotStart
+		&& MarkerPosition <= T.VentSweetSpotStart + T.VentSweetSpotWidth;
+
+	bVentUsedThisRecharge = true;
+
+	if (bSuccess)
+	{
+		SetShieldInternal(T.MaxShield);
+		// The vent tops up to its own cap but never eats into a bigger power-up overshield.
+		SetOvershieldInternal(FMath::Max(Overshield, FMath::Min(Overshield + T.VentOvershieldGain, T.MaxOvershield)));
+		RechargeStartServerTime = -1.f;
+	}
+	else
+	{
+		// Botched vent: the recharge restarts from an empty shield (no delay, but no second attempt).
+		SetShieldInternal(0.f);
+		RechargeStartServerTime = GetServerTime();
+	}
+
+	ClientVentResult(bSuccess);
+}
+
+void UShieldHealthComponent::ServerTryBreakPulse_Implementation(float ClientServerTime)
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	// Buffer the press so a melee slightly *before* the shield pops still counts.
+	LastBreakPulsePressServerTime = ResolveInputTime(ClientServerTime);
+
+	if (ShieldBrokenServerTime >= 0.f
+		&& FMath::Abs(LastBreakPulsePressServerTime - ShieldBrokenServerTime) <= GetTuning().BreakPulseWindow)
+	{
+		DoBreakPulse();
+	}
+}
+
+void UShieldHealthComponent::ClientVentResult_Implementation(bool bSuccess)
+{
+	OnVentResult.Broadcast(bSuccess);
+}
+
+void UShieldHealthComponent::MulticastBreakPulse_Implementation()
+{
+	OnBreakPulse.Broadcast();
+}
+
+// ---- Damage ----
+
+void UShieldHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
+{
+	ApplyShieldbreakDamage(Damage, DamageType, InstigatedBy, DamageCauser);
+}
+
+float UShieldHealthComponent::ApplyShieldbreakDamage(float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bDead || Damage <= 0.f)
+	{
+		return 0.f;
+	}
+
+	const UShieldbreakDamageType* SBType = Cast<UShieldbreakDamageType>(DamageType);
+	const float ShieldMultiplier = SBType ? SBType->ShieldDamageMultiplier : 1.f;
+
+	const float Leftover = AbsorbWithShield(Damage, ShieldMultiplier);
+	const float HealthDamage = Leftover * (SBType ? SBType->HealthDamageMultiplier : 1.f);
+
+	ResetRechargeDelay(SBType ? SBType->RechargeDelayExtension : 0.f);
+
+	if (HealthDamage > 0.f)
+	{
+		SetHealthInternal(Health - HealthDamage);
+		if (Health <= 0.f)
+		{
+			Die(InstigatedBy);
+		}
+	}
+
+	return Damage;
+}
+
+void UShieldHealthComponent::ApplyShieldOnlyDamage(float Damage, AController* InstigatedBy)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bDead || Damage <= 0.f)
+	{
+		return;
+	}
+
+	AbsorbWithShield(Damage, 1.f);
+	ResetRechargeDelay(0.f);
+}
+
+float UShieldHealthComponent::AbsorbWithShield(float RawDamage, float ShieldMultiplier)
+{
+	if (ShieldMultiplier <= 0.f)
+	{
+		return RawDamage;
+	}
+
+	float ShieldDamage = RawDamage * ShieldMultiplier;
+
+	const float FromOvershield = FMath::Min(Overshield, ShieldDamage);
+	SetOvershieldInternal(Overshield - FromOvershield);
+	ShieldDamage -= FromOvershield;
+
+	const bool bHadShield = Shield > 0.f;
+	const float FromShield = FMath::Min(Shield, ShieldDamage);
+	SetShieldInternal(Shield - FromShield);
+	ShieldDamage -= FromShield;
+
+	if (bHadShield && Shield <= 0.f)
+	{
+		ShieldBrokenServerTime = GetServerTime();
+		LastShieldBreakLocalTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -1.f;
+		++ShieldBreakCount;
+		OnShieldBroken.Broadcast();
+
+		if (LastBreakPulsePressServerTime >= 0.f
+			&& ShieldBrokenServerTime - LastBreakPulsePressServerTime <= GetTuning().BreakPulseWindow)
+		{
+			DoBreakPulse();
+		}
+	}
+
+	// Convert what got through back into unmultiplied damage for the health layer.
+	return ShieldDamage / ShieldMultiplier;
+}
+
+void UShieldHealthComponent::ResetRechargeDelay(float ExtraDelay)
+{
+	NextRechargeServerTime = GetServerTime() + GetTuning().RechargeDelay + ExtraDelay + PendingRechargePenalty;
+	RechargeStartServerTime = -1.f;
+}
+
+void UShieldHealthComponent::DoBreakPulse()
+{
+	AActor* Owner = GetOwner();
+	UWorld* World = GetWorld();
+	if (!Owner || !World)
+	{
+		return;
+	}
+
+	ShieldBrokenServerTime = -1.f;
+	LastBreakPulsePressServerTime = -1.f;
+
+	const UShieldTuningData& T = GetTuning();
+	const FVector Origin = Owner->GetActorLocation();
+	AController* InstigatorController = Owner->GetInstigatorController();
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakBreakPulse), false, Owner);
+	World->OverlapMultiByChannel(Overlaps, Origin, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(T.BreakPulseRadius), Params);
+
+	TSet<AActor*> AlreadyHit;
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Other = Overlap.GetActor();
+		if (!Other || Other == Owner || AlreadyHit.Contains(Other))
+		{
+			continue;
+		}
+		AlreadyHit.Add(Other);
+
+		// The pulse only shoves and strips enemies.
+		if (ShieldbreakTeams::AreTeammates(Other, Owner))
+		{
+			continue;
+		}
+
+		if (UShieldHealthComponent* OtherShield = Other->FindComponentByClass<UShieldHealthComponent>())
+		{
+			OtherShield->ApplyShieldOnlyDamage(T.BreakPulseShieldDamage, InstigatorController);
+		}
+
+		if (ACharacter* OtherCharacter = Cast<ACharacter>(Other))
+		{
+			const FVector Away = (Other->GetActorLocation() - Origin).GetSafeNormal2D();
+			OtherCharacter->LaunchCharacter(Away * T.BreakPulseImpulse + FVector::UpVector * T.BreakPulseUpImpulse, true, true);
+		}
+	}
+
+	PendingRechargePenalty += T.BreakPulseRechargePenalty;
+	NextRechargeServerTime += T.BreakPulseRechargePenalty;
+
+	MulticastBreakPulse();
+}
+
+void UShieldHealthComponent::Die(AController* Killer)
+{
+	if (bDead)
+	{
+		return;
+	}
+
+	bDead = true;
+	RechargeStartServerTime = -1.f;
+	OnDeath.Broadcast(Killer);
+}
+
+// ---- State helpers ----
+
+void UShieldHealthComponent::SetShieldInternal(float NewShield)
+{
+	NewShield = FMath::Clamp(NewShield, 0.f, GetMaxShield());
+	if (NewShield < KINDA_SMALL_NUMBER)
+	{
+		NewShield = 0.f;
+	}
+
+	if (NewShield != Shield)
+	{
+		Shield = NewShield;
+		OnShieldChanged.Broadcast(Shield, GetMaxShield());
+	}
+}
+
+void UShieldHealthComponent::SetOvershieldInternal(float NewOvershield)
+{
+	NewOvershield = FMath::Clamp(NewOvershield, 0.f, GetMaxOvershield());
+	if (NewOvershield != Overshield)
+	{
+		Overshield = NewOvershield;
+		OnOvershieldChanged.Broadcast(Overshield, GetMaxOvershield());
+	}
+}
+
+void UShieldHealthComponent::SetHealthInternal(float NewHealth)
+{
+	NewHealth = FMath::Clamp(NewHealth, 0.f, GetMaxHealth());
+	if (NewHealth != Health)
+	{
+		Health = NewHealth;
+		OnHealthChanged.Broadcast(Health, GetMaxHealth());
+	}
+}
+
+float UShieldHealthComponent::ResolveInputTime(float ClientServerTime) const
+{
+	// Trust the client's timestamp only within a small window, so lag can't be abused to rewind time.
+	const float Now = GetServerTime();
+	return FMath::Clamp(ClientServerTime, Now - GetTuning().MaxInputLagCompensation, Now);
+}
+
+float UShieldHealthComponent::GetVentMarkerPosition() const
+{
+	if (bDead || RechargeStartServerTime < 0.f || bVentUsedThisRecharge)
+	{
+		return -1.f;
+	}
+
+	return FMath::Clamp((GetServerTime() - RechargeStartServerTime) / GetTuning().VentSweepDuration, 0.f, 1.f);
+}
+
+float UShieldHealthComponent::GetMaxShield() const
+{
+	return GetTuning().MaxShield;
+}
+
+float UShieldHealthComponent::GetMaxHealth() const
+{
+	return GetTuning().MaxHealth;
+}
+
+const UShieldTuningData& UShieldHealthComponent::GetTuning() const
+{
+	return Tuning ? *Tuning : *GetDefault<UShieldTuningData>();
+}
+
+float UShieldHealthComponent::GetServerTime() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return 0.f;
+	}
+
+	if (const AGameStateBase* GameState = World->GetGameState())
+	{
+		return static_cast<float>(GameState->GetServerWorldTimeSeconds());
+	}
+	return World->GetTimeSeconds();
+}
+
+// ---- Replication notifies ----
+
+void UShieldHealthComponent::OnRep_Shield()
+{
+	OnShieldChanged.Broadcast(Shield, GetMaxShield());
+}
+
+void UShieldHealthComponent::OnRep_ShieldBreakCount()
+{
+	LastShieldBreakLocalTime = GetWorld() ? GetWorld()->GetTimeSeconds() : -1.f;
+	OnShieldBroken.Broadcast();
+}
+
+void UShieldHealthComponent::OnRep_Overshield()
+{
+	OnOvershieldChanged.Broadcast(Overshield, GetMaxOvershield());
+}
+
+void UShieldHealthComponent::OnRep_Health()
+{
+	OnHealthChanged.Broadcast(Health, GetMaxHealth());
+}
+
+void UShieldHealthComponent::OnRep_RechargeStart(float OldRechargeStart)
+{
+	if (OldRechargeStart < 0.f && RechargeStartServerTime >= 0.f)
+	{
+		OnRechargeStarted.Broadcast();
+	}
+}
+
+void UShieldHealthComponent::OnRep_Dead()
+{
+	if (bDead)
+	{
+		OnDeath.Broadcast(nullptr);
+	}
+}
+
+void UShieldHealthComponent::GrantOvershield(float Amount)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bDead)
+	{
+		return;
+	}
+	SetOvershieldInternal(FMath::Max(Overshield, Amount));
+}
+
+float UShieldHealthComponent::GetMaxOvershield() const
+{
+	return FMath::Max(GetTuning().MaxOvershield, GetTuning().PowerupOvershield);
+}
