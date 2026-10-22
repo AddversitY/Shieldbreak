@@ -104,11 +104,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 ## Bugs found by the PC session (code session to fix)
 - **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
   ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
-  1. (Fixed in code, needs the listen test; see Needs verification.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+  1. (Fixed and verified 2026-10-22.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
      across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
      (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
      or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
-  2. (Fixed in code, needs the listen test; see Needs verification.) **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
+  2. (Fixed and verified 2026-10-22.) **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
      ...ShieldbreakArena_0.StaticMeshComponent_N NOT Supported`. Characters standing on arena pieces replicate their
      movement *base*, which the client can't resolve, so based movement corrections break (client log: 5x `CreateSavedMove:
      Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
@@ -129,6 +129,20 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-22 `bb69ab9` (PR #2: maps + arena networking fix + map tour + client viewmodel fix), run by the code session
+  through the laptop (`Saved/RunPR2.bat`). **Compiled clean first time** (maps `dd66cf7` included).
+  - Self-test (Crucible) **83/83**, incl. the new "Arena pieces are net addressable" (0 of 32 unstable) and the Power Jump
+    check (now passes). CTF **13/13**, KOTH **7/7**, Oddball **8/9**: the stuck-bot check flagged the Oddball carrier
+    standing still at its base with both escorts on top of it (fixed in code: carrier moves around its base, escorts
+    spread out; needs a re-run).
+  - Map tour: **Keel 5/5** (16.5 FPS), **Bastion 5/5** (7.9 FPS, the slowest map: look at its draw cost), **Sanctum 5/5**
+    (21.8), **Creekbed 5/5** (22.1), **Spire 5/9** (19.2): all 4 gravity lifts failed, the test dummy stayed on the pad
+    (a begin-overlap didn't fire for a character already inside the trigger; fixed in code: the lift also polls the
+    pad every 0.1 s; needs a re-run). **Keel CTF 15/15** (21.0 FPS), **Bastion KOTH 9/9** (21.9 FPS). No bot stuck on
+    any map in Slayer.
+  - **Listen test: fixed.** The server log has **0** `FNetGUIDCache ... NOT Supported` lines (was 56), the client has
+    **0** `Hit limit of 96 saved moves` (was 5), and the client's Battle Rifle now sits correctly in first person
+    (`docs/playtests/2026-10-22_listen_test_c_client.jpg`, on Keel).
 - 2026-10-21 `ab39f6f` (objective modes `5116512`): **all modes pass. CTF 12/12, KOTH 6/6, Oddball 8/8.**
   CTF: flags spawn home; taking the enemy flag swaps to the Sidearm (which may fire); capture at your home flag +1 and the
   flag goes home; dying drops it; a defender's touch returns it; auto-return at 15.0 s. KOTH: one team alone scores +3 in
@@ -172,6 +186,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   would look much better (code session).
 - **Plasma Rifle:** still greybox; no imported plasma art.
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22). The arena-piece networking
-  warning is fixed in code and waiting for a listen test (see "Needs verification").
+- **Multiplayer:** a client joins a listen server, weapons replicate, the arena pieces resolve over the network and
+  the client's viewmodel is right (all verified 2026-10-22).
+- **Bastion FPS:** 7.9 FPS in the map tour vs ~20 on the other maps.
 - **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
