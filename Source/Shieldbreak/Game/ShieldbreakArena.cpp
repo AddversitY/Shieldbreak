@@ -16,7 +16,6 @@
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
@@ -87,28 +86,26 @@ AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 		return nullptr;
 	}
 
-	const FName ResolvedMapId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+	const FName BuildId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
 
-	// The arena isn't replicated, but characters stand on its pieces, and movement sends the floor under the player
-	// (the movement base) over the network by name. So every machine gives the arena and its pieces the same names
-	// and marks them net addressable; otherwise the host can't resolve the client's floor and the client's movement
-	// corrections stutter. A destroyed arena may still hold the name until garbage collection: move it aside.
-	const FName StableName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *ResolvedMapId.ToString()));
-	if (UObject* Stale = StaticFindObjectFast(nullptr, World->PersistentLevel, StableName))
+	// Characters stand on the arena's pieces, and replicated movement references its movement base by path, so
+	// the arena and its pieces must have the same names on every machine and be net-addressable.
+	FActorSpawnParameters Params;
+	Params.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *BuildId.ToString()));
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// Deferred so MapId is set before OnConstruction builds the geometry.
+	Params.bDeferConstruction = true;
+	if (UObject* NameHolder = StaticFindObjectFast(nullptr, World->PersistentLevel, Params.Name))
 	{
-		Stale->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_NonTransactional);
+		// A destroyed arena awaiting garbage collection still holds the name.
+		NameHolder->Rename(*MakeUniqueObjectName(World->PersistentLevel, NameHolder->GetClass()).ToString(), nullptr,
+			REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
 	}
 
-	// Deferred so MapId is set before OnConstruction builds the geometry.
-	FActorSpawnParameters Params;
-	Params.Name = StableName;
-	Params.OverrideLevel = World->PersistentLevel;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Params.bDeferConstruction = true;
 	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, Params);
 	if (Arena)
 	{
-		Arena->MapId = ResolvedMapId;
+		Arena->MapId = BuildId;
 		Arena->SetNetAddressable();
 		Arena->FinishSpawning(FTransform::Identity);
 	}
@@ -153,13 +150,11 @@ void AShieldbreakArena::BeginPlay()
 
 UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation)
 {
-	// Same name on every machine (pieces are built in layout order), so it can be the movement base over the network.
 	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, FName(TEXT("Piece"), Pieces.Num() + 1), RF_Transient);
 	if (!Piece)
 	{
 		return nullptr;
 	}
-	Piece->SetNetAddressable();
 
 	Piece->SetMobility(EComponentMobility::Static);
 	if (CubeMesh)
@@ -176,6 +171,8 @@ UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVe
 	Piece->SetupAttachment(Root);
 	Piece->SetRelativeLocationAndRotation(Center, Rotation);
 	Piece->SetRelativeScale3D(Size / 100.f);
+	// Same build order on every machine, so the same name: a movement base the server can reference.
+	Piece->SetNetAddressable();
 	Piece->RegisterComponent();
 	AddInstanceComponent(Piece);
 

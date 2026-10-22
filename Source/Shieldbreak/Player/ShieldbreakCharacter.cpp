@@ -497,6 +497,14 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	// The PlayerState color can replicate after the pawn; cheap to re-check.
 	ApplyPlayerColor();
 
+	// On a client, who controls this pawn, the body mesh and the weapon art can arrive in any order, and the owning
+	// client could end up seeing the hand-attached gun through its own camera (sideways across the screen). Re-attach
+	// whenever the right layout changes.
+	if (CurrentWeapon && !CurrentWeapon->IsHidden() && CurrentWeapon->NeedsReattach())
+	{
+		CurrentWeapon->OnEquipped();
+	}
+
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
 	if (!bLocalPlayerView && FirstPersonCamera)
 	{

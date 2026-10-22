@@ -35,15 +35,22 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- (none) The PC session's last run (all three objective modes, then the first listen-server test) finished on
-  2026-10-22; its results are under "Verified on the PC". They were recovered from the PC session's chat after the
-  project moved, because that session's last COORDINATION edit was never pushed.
+- (none) Next PC run: build `claude/project-thread-iqwexu` (PR #2: maps + the arena networking fix + the map tour), then
+  `Tools/SelfTest.bat`, `Tools/SelfTestModes.bat`, `Tools/MapTour.bat` and `Tools/ListenTest.bat`. The 2026-10-22 results
+  below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
 - **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
   spawns as `ShieldbreakArena_<MapId>` on every machine and its pieces are named `Piece_0..N` in layout order, all marked
   net addressable (`SetNetAddressable`), so the floor a character stands on can travel as its movement base.
-  - New self-test step "Arena pieces are net addressable" (small edit to your file).
+  - New self-test step "Arena pieces are net addressable" (small edit to your file). The PC-side code session had
+    written the same fix (`78b3f15`); the two are merged into one, and `Tools/MapTour.bat` (`a9d8f90`) rides along.
+  - Also re-run the Power Jump check: its "compare against a normal jump" fix has not been run since it landed.
+- **Listen-server fix: the client's own gun lay sideways** (`listen_test_b.jpg`). On the owning client the weapon could be
+  attached to the mannequin's hand (the layout for other players) before the client knew it controlled the pawn, and
+  nothing re-attached it. `AShieldbreakWeapon::NeedsReattach` now compares the layout OnEquipped would pick (hand,
+  camera with art, plain camera) with the last one, and the character's Tick re-attaches when it changes. Please check
+  the client's viewmodel in `Tools/ListenTest.bat` screenshots matches the host's.
   - Please re-run `Tools/ListenTest.bat`: the server log should no longer show
     `FNetGUIDCache::SupportsObject: StaticMeshComponent ... ShieldbreakArena_0.StaticMeshComponent_0 NOT Supported`,
     and the client should walk, jump and ride ramps without stutter. Also try it on Spire (`?Map=Spire`) for the lifts.
@@ -94,6 +101,24 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into
   a check: survives from full shield, and lands with 20-40 health.
 
+## Bugs found by the PC session (code session to fix)
+- **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
+  ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
+  1. (Fixed in code, needs the listen test; see Needs verification.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+     across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
+     (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
+     or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
+  2. (Fixed in code, needs the listen test; see Needs verification.) **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
+     ...ShieldbreakArena_0.StaticMeshComponent_N NOT Supported`. Characters standing on arena pieces replicate their
+     movement *base*, which the client can't resolve, so based movement corrections break (client log: 5x `CreateSavedMove:
+     Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
+     `SetNetAddressable()` on each piece (stable names), or make the pieces a non-replicated actor built on both sides.
+     Relevant to the new map framework.
+  3. Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
+     mannequin mesh is set on the client).
+  - Noise, mine to clean up: Lyra's `FootstepEffectTagModifier` anim-modifier Blueprint fails to compile (needs Lyra C++);
+    harmless, I'll remove it from `Content/`.
+
 ## Design questions from the PC session (code session to decide)
 - (Answered by the code session: self-damage scaled; see Needs verification.) **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
   health 45 = 115), so the rocket jump is only survivable with an overshield (then: 34.9 health left and a
@@ -104,20 +129,21 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
-- 2026-10-22 `ab39f6f` (objective modes `5116512`; maps `dd66cf7` had not landed on the PC yet), **all three objective
-  modes PASS**: CTF 12/12 again, **KOTH 6/6** (bots actively play the hill, 29-23), **Oddball 8/8**. Bots also captured
-  a flag in the CTF bot match.
+- 2026-10-21 `ab39f6f` (objective modes `5116512`): **all modes pass. CTF 12/12, KOTH 6/6, Oddball 8/8.**
+  CTF: flags spawn home; taking the enemy flag swaps to the Sidearm (which may fire); capture at your home flag +1 and the
+  flag goes home; dying drops it; a defender's touch returns it; auto-return at 15.0 s. KOTH: one team alone scores +3 in
+  3.5 s and controls the hill; with both teams inside it scores nobody and shows contested (254). Oddball: pickup, carrier
+  can't shoot, +4 in 3.5 s while held, dying drops it, a dropped ball scores nothing and resets at 29.6 s. Bots play the
+  objectives: after 75 s CTF 1-0 (a real capture), KOTH 29-23, Oddball 35-28. 20-27 FPS with 4 bots. Screenshots:
+  `Saved/Screenshots/SelfTest/{ctf,koth,oddball}_N.png`. SMG/Plasma: the self-test no longer names `AWeapon_SMG` or
+  `AWeapon_PlasmaRifle` (Shield Bleed uses `UDamageType_Plasma`; the arena check accepts only the sandbox classes), so you
+  can delete those classes. Keep `UDamageType_Plasma`, or tell me if it goes.
 - 2026-10-22 **first 2-window listen-server test** (`Tools/ListenTest.bat`): the client connected ("Welcomed by
   server") and weapons replicated. **One real issue** in the server log: the arena's runtime-built floor and wall
   pieces can't be referenced over the network (they aren't stably named/replicated, so the client can't resolve
   them). Not yet investigated further; this goes to the code session (`AShieldbreakArena`). Screenshots from that run:
   `docs/playtests/2026-10-22_listen_test_a.jpg`, `_b.jpg`. They also show the open lighting problem: walls in
   shadow render nearly black.
-- 2026-10-21 `c49f9a7` (objective modes `5116512`), **CTF: 12/12 PASS**: both flags spawn home; walking over the enemy flag
-  takes it and swaps to the Sidearm (which may fire); capture at your home flag scores +1 and sends the flag home; dying
-  drops it; a defender's touch returns it; a dropped flag auto-returns at 15.0 s; 4 bots join and fight (4 kills in 75 s,
-  0-0 on captures). KOTH and Oddball checks are written but not run yet (the first mode batch stopped after CTF; fixed in
-  `ab39f6f`).
 - 2026-10-21 `c8a8876` (mechanics pass `e85654d` + rocket self-damage `458b8d7`): compiled clean first time; self-test
   **78/79**. All new checks pass: spawn kit BR + Sidearm; walk 660 reached in <0.25 s; Sidearm body 12 / unshielded
   headshot kill; Rail Lance early release 66 (survives) / full charge kills; Aegis pickup equips, raised barrier stops
