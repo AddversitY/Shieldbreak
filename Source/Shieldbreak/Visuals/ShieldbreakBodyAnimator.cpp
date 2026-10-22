@@ -7,7 +7,9 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Player/ShieldbreakCharacter.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Weapons/ShieldbreakWeapon.h"
 
 UShieldbreakBodyAnimator::UShieldbreakBodyAnimator()
 {
@@ -38,6 +40,15 @@ void UShieldbreakBodyAnimator::BeginPlay()
 	Body->SetOwnerNoSee(true);
 	Body->bCastHiddenShadow = true;
 	bHasBodyArt = true;
+
+	// On clients the equipped weapon can replicate before the mesh exists; re-attach it to the hand now.
+	if (const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner()))
+	{
+		if (AShieldbreakWeapon* Weapon = OwnerCharacter->GetCurrentWeapon())
+		{
+			Weapon->OnEquipped();
+		}
+	}
 
 	// Animation is cosmetic, so a dedicated server doesn't need to tick it.
 	if (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer)

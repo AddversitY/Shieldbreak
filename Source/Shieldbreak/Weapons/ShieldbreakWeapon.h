@@ -86,6 +86,9 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
+	/** Attachment is cosmetic and decided per machine in OnEquipped (viewmodel for the local player, hand socket for
+	 * everyone else), so the server's attachment (to the hand socket of a pawn it sees as remote) must not override it. */
+	virtual void OnRep_AttachmentReplication() override {}
 
 	const FShieldbreakWeaponStats& GetStats() const { return Stats; }
 

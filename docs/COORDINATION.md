@@ -1,8 +1,39 @@
-# Working Together: Two Claude Sessions
+# Working Together: Shieldbreak sessions
 
-Two Claude sessions build Shieldbreak on the branch `claude/peaceful-hamilton-xcl6c8`. They can't share a
-chat, so this file is the shared to-do list and the rules of the road. Read it before starting work,
-and update it in the same commit as the work.
+## Handoff (2026-10-22): start here
+**Work branch: `claude/project-thread-iqwexu` (PR #2 into `main`).** It holds everything: `main` (PR #1) plus every
+commit from the old branch `claude/peaceful-hamilton-xcl6c8` (up to `887e99d`) plus the fixes below. Don't use the old
+branch any more. PR #2 is not merged; Vincent decides when.
+
+**State.** Competitive Halo-2-style FPS in UE 5.8 C++ (code-built greybox; Lyra art in `Content/` via Git LFS). Shields
+with recharge + Vent / Break Pulse; BR + Sidearm spawn kit; Sniper, Rockets, Rail Lance (charge), Aegis (frontal
+barrier), Active Camo, Overshield, frags; Power Jump, sprint/slide; Team Slayer, CTF, KOTH, Oddball with bots; five
+launch maps (Keel, Bastion, Sanctum, Creekbed, Spire) plus the Crucible test map, defined in
+`Design/maps/shieldbreak_maps.py` (generates `Game/ShieldbreakMapsData.cpp`). Design: `docs/DESIGN.md`, maps: `docs/MAPS.md`.
+
+**Last laptop results (2026-10-22, details under "Verified on the PC"):** clean build; self-test 83/83; CTF 13/13,
+KOTH 7/7, Oddball 9/9; map tour passes on Keel, Bastion, Sanctum, Creekbed, Keel CTF, Bastion KOTH; Spire 7/9;
+listen-server test clean (no net warnings, client viewmodel correct).
+
+**Next steps, in order:**
+1. Build `da83e64`+ and re-run the Spire map tour (base lifts 1-2: arc clearance fix, untested) and `Tools/ListenTest.bat`
+   (the merged viewmodel guard `97647c5` and the Sanctum plinth check `887e99d` came in after the last run).
+2. Bastion runs at ~8 FPS vs ~20 elsewhere: profile it (`stat unit`, `stat scenerendering`).
+3. Walls in shadow render nearly black (lighting; see `docs/playtests/`).
+4. Delete the SMG / Plasma Rifle classes (no longer referenced by tests; keep `UDamageType_Plasma`).
+5. Roadmap items 4-5 below: screenshots/FPS per map and mode; find licensed art for the art pass (Vincent approves picks).
+6. Backlog: proper anim BP for the mannequin, original art pass, per-map feedback from Vincent.
+
+**How to run things on the laptop** (Windows, UE at `%USERPROFILE%\Epic Games\UE_5.8`, repo at
+`C:\Users\vince\development\Shieldbreak`, 8 GB RAM so builds compile one file at a time): `Tools/SelfTest.bat`,
+`Tools/SelfTestModes.bat [modes]`, `Tools/MapTour.bat`, `Tools/ListenTest.bat`, `Tools/BuildEditor.bat`. Reports land in
+`Saved/Logs/SelfTest*.txt`. A cloud agent can't run Windows binaries; it can write a .bat and start it from File Explorer.
+
+---
+
+Shieldbreak was built by two Claude sessions: a cloud code session and a PC session on Vincent's laptop. They can't
+share a chat, so this file is the shared to-do list and the rules of the road. Read it before starting work, and
+update it in the same commit as the work.
 
 | Session | Can do | Can't do | Owns |
 |---|---|---|---|
@@ -104,7 +135,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 ## Bugs found by the PC session (code session to fix)
 - **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
   ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
-  1. (Fixed and verified 2026-10-22.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+  1. (Fixed and verified 2026-10-22 by `bb69ab9`; `97647c5` adds a second guard, untested yet.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
      across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
      (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
      or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
@@ -114,7 +145,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
      Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
      `SetNetAddressable()` on each piece (stable names), or make the pieces a non-replicated actor built on both sides.
      Relevant to the new map framework.
-  3. Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
+  3. *(Fixed in `97647c5`: re-attach once BodyAnimator sets the mesh.)* Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
      mannequin mesh is set on the client).
   - Noise, mine to clean up: Lyra's `FootstepEffectTagModifier` anim-modifier Blueprint fails to compile (needs Lyra C++);
     harmless, I'll remove it from `Content/`.

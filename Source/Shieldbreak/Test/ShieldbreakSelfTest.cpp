@@ -1571,6 +1571,97 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 			return true;
 		}, 5.f });
 
+	if (Arena->GetMapId() == FName(TEXT("Sanctum")))
+	{
+		// The rockets plinth (300x300, top z=280 at the center) should take a Power Jump, not a plain jump.
+		const FVector PlinthTop = ToWorld.TransformPosition(FVector(0.f, 0.f, 280.f));
+		const FVector Start = ToWorld.TransformPosition(FVector(-330.f, 0.f, 100.f));
+		Steps.Add({ TEXT("Sanctum: Power Jump onto the rockets plinth"),
+			[this]() { ClearDummies(); },
+			[this, PlinthTop, Start](float Elapsed)
+			{
+				auto FeetZ = [this]() { return A ? static_cast<float>(A->GetActorLocation().Z) - A->GetSimpleCollisionHalfHeight() : -1.f; };
+				auto OnTop = [this, PlinthTop, FeetZ]()
+				{
+					return A && A->GetShieldbreakMovement() && A->GetShieldbreakMovement()->IsMovingOnGround()
+						&& FMath::Abs(FeetZ() - PlinthTop.Z) < 25.f && FVector::Dist2D(A->GetActorLocation(), PlinthTop) < 160.f;
+				};
+				if (Phase == 0 || Phase == 10)
+				{
+					// Phase 0: plain jump run-up; Phase 10: crouched Power Jump.
+					const bool bPower = Phase == 10;
+					ClearDummies();
+					Phase = bPower ? 11 : 1;
+					A = SpawnDummy(Start, 0.f, true);
+					Mark = Now();
+				}
+				if (!A)
+				{
+					return false;
+				}
+				UShieldbreakMovementComponent* Move = A->GetShieldbreakMovement();
+				if (Phase == 1 && Now() - Mark > 0.8f)
+				{
+					Phase = 2;
+					Mark = Now();
+				}
+				if (Phase == 2)
+				{
+					A->AddMovementInput(FVector::ForwardVector, 1.f);
+					if (Now() - Mark > 0.15f)
+					{
+						A->Jump();
+						Phase = 3;
+					}
+				}
+				else if (Phase == 3)
+				{
+					A->AddMovementInput(FVector::ForwardVector, 1.f);
+					if (Now() - Mark > 2.2f)
+					{
+						A->StopJumping();
+						Lines.Add(FString::Printf(TEXT("INFO  Sanctum: a plain running jump %s the plinth (feet z %s)"),
+							OnTop() ? TEXT("reaches") : TEXT("does not reach"), *Num(FeetZ())));
+						Phase = 10;
+					}
+				}
+				else if (Phase == 11 && Now() - Mark > 0.8f)
+				{
+					A->StartCrouchOrSlide();
+					Phase = 12;
+					Mark = Now();
+				}
+				else if (Phase == 12 && Now() - Mark > 0.3f)
+				{
+					Move->SetChargingPowerJump(true);
+					Phase = 13;
+					Mark = Now();
+				}
+				else if (Phase == 13)
+				{
+					A->AddMovementInput(FVector::ForwardVector, 1.f); // creep forward at charge speed
+					if (Now() - Mark > 0.6f)
+					{
+						Move->SetChargingPowerJump(false);
+						Phase = 14;
+						Mark = Now();
+					}
+				}
+				else if (Phase == 14)
+				{
+					A->AddMovementInput(FVector::ForwardVector, 1.f);
+					if (Now() - Mark > 2.2f)
+					{
+						Check(TEXT("Sanctum: a crouched Power Jump reaches the rockets plinth (z=280)"), OnTop(),
+							FString::Printf(TEXT("feet (%s, %s, %s)"), *Num(A->GetActorLocation().X), *Num(A->GetActorLocation().Y), *Num(FeetZ())));
+						A->StopCrouchOrSlide();
+						return true;
+					}
+				}
+				return false;
+			}, 12.f });
+	}
+
 	if (Layout.Lifts.Num() == 0)
 	{
 		return;
