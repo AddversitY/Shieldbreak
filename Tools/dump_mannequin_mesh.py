@@ -29,16 +29,19 @@ lod.lod_type = unreal.GeometryScriptLODType.SOURCE_MODEL
 lod.lod_index = 0
 result = unreal.GeometryScript_AssetUtils.copy_mesh_from_skeletal_mesh(manny, mesh, options, lod)
 report("copy result %s" % (result,))
+
+
+def unpack_list(value):
+    """5.8 returns (target mesh, list, ...) from these queries; older versions return the list itself."""
+    if isinstance(value, tuple):
+        value = next(x for x in value if hasattr(x, "list"))
+    return list(value.list if hasattr(value, "list") else value)
+
+
 # Keep the dynamic mesh's vertex IDs (no gap skipping) so triangle indices line up; write only vertices that a
 # triangle uses (the copy leaves some unused ones behind).
-positions = unreal.GeometryScript_MeshQueries.get_all_vertex_positions(mesh, False)
-if isinstance(positions, tuple):
-    positions = positions[0]
-points = list(positions.list if hasattr(positions, "list") else positions)
-triangles = unreal.GeometryScript_MeshQueries.get_all_triangle_indices(mesh, True)
-if isinstance(triangles, tuple):
-    triangles = triangles[0]
-tris = list(triangles.list if hasattr(triangles, "list") else triangles)
+points = unpack_list(unreal.GeometryScript_MeshQueries.get_all_vertex_positions(mesh, False))
+tris = unpack_list(unreal.GeometryScript_MeshQueries.get_all_triangle_indices(mesh, True))
 used = sorted({i for t in tris for i in (t.x, t.y, t.z)})
 remap = {old: new for new, old in enumerate(used)}
 report("vertices %d (%d used), triangles %d" % (len(points), len(used), len(tris)))
