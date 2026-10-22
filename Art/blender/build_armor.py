@@ -246,7 +246,7 @@ def build(verts, j, jt):
             return "Gunmetal"
         if n.y > 0.5 and abs(c.x) < 3.0:
             return "Gunmetal"
-        if n.y < -0.6 and abs(c.x) < 7 and c.z < j["spine_05"].z + 6:
+        if n.y < -0.6 and abs(c.x) < 4.5 and c.z < j["spine_05"].z + 6:
             return "TeamGlow" if abs(c.x) < 2.5 else "Gunmetal"
         return "Team"
 
@@ -298,7 +298,7 @@ def build(verts, j, jt):
         hip, knee = j["thigh_" + s], j["calf_" + s]
         tdir = (knee - hip).normalized()
         thigh = [p for p in thigh if 8 < (p - hip).dot(tdir) < (knee - hip).length - 6]
-        pieces["thigh_" + s] = [plate("thigh_" + s, thigh, 1.8, lambda c, n: "Team" if n.y > -0.2 or abs(n.x) > 0.6 else "Undersuit",
+        pieces["thigh_" + s] = [plate("thigh_" + s, thigh, 1.8, lambda c, n: "Team" if n.y > -0.7 or abs(n.x) > 0.6 else "Undersuit",
                                       simplify=15)]
 
         # Knee + shin guards.
