@@ -1,6 +1,10 @@
 #include "Player/ShieldbreakSettings.h"
 
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
 #include "Misc/ConfigCacheIni.h"
+
+#define LOCTEXT_NAMESPACE "ShieldbreakSettings"
 
 namespace ShieldbreakSettingsPrivate
 {
@@ -76,3 +80,34 @@ void ShieldbreakSettings::SetInvertLook(bool bInvert)
 	ShieldbreakSettingsPrivate::Values().bInvertLook = bInvert;
 	ShieldbreakSettingsPrivate::Save();
 }
+
+int32 ShieldbreakSettings::GetGraphicsQuality()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	return Settings ? Settings->GetOverallScalabilityLevel() : -1;
+}
+
+void ShieldbreakSettings::SetGraphicsQuality(int32 Level)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings)
+	{
+		return;
+	}
+	Settings->SetOverallScalabilityLevel(FMath::Clamp(Level, 0, 3));
+	Settings->ApplySettings(false);
+}
+
+FText ShieldbreakSettings::GetGraphicsQualityName(int32 Level)
+{
+	switch (Level)
+	{
+	case 0: return LOCTEXT("QualityLow", "Low");
+	case 1: return LOCTEXT("QualityMedium", "Medium");
+	case 2: return LOCTEXT("QualityHigh", "High");
+	case 3: return LOCTEXT("QualityEpic", "Epic");
+	default: return LOCTEXT("QualityCustom", "Custom");
+	}
+}
+
+#undef LOCTEXT_NAMESPACE

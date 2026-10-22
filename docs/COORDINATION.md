@@ -75,7 +75,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Main menu and Esc menu** (commit "Main menu and in-game Esc menu"). A bare `-game` launch (or `PlayTest.bat` without
   `-SBAutoShot`) should open the menu: pick map/mode/bots/skill, PLAY starts the match, HOST LAN GAME starts it with
   `?listen`, JOIN connects to the typed IP. In a match, Esc opens Resume / Leave match / Quit; Leave match returns to the
-  menu. Both menus also have Sensitivity / Field of view / Invert look (try them in a match). The Crucible self-test
+  menu. Both menus also have Sensitivity / Field of view / Invert look (try them in a match) and Graphics
+  (Low/Medium/High/Epic, the engine's overall scalability, applied at once; check the menu still fits at 720p). The Crucible self-test
   gains "Main menu launch rules" (4 checks). Screenshot the menu once: `-game -SBMenuShot=6 -SBAutoQuit` saves
   `Saved/Screenshots/AutoShot/menu.png`.
 - **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
@@ -167,6 +168,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
+  **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
+  pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
+  - Lumen on vs off on Keel: **21.4 vs 20.0 FPS** (no gain), but without Lumen shaded walls are soft blue-grey instead of
+    black, so Lumen is now off by default (`r.DynamicGlobalIlluminationMethod=0`, SSR reflections).
 - 2026-10-22 `d0afb80` → `5a4a19a`, run by the code session through the laptop (`Saved/RunNext.bat`,
   `RunSanctum.bat`, `RunLighting.bat`). Clean builds.
   - Map tour: **Spire 9/9** (26.9 FPS; all four gravity lifts launch now), **Bastion 5/5** (23.6 FPS; the 7.9 was a

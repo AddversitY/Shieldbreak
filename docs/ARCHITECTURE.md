@@ -419,6 +419,7 @@ Scale everything by `Canvas->ClipY / 1080`. Fonts: `GEngine->GetSmallFont()/GetM
   GameUserSettings.ini `[Shieldbreak.Menu]`.
 - Both menus show the player settings (`Player/ShieldbreakSettings.h`): sensitivity 0.2-3.0 (multiplies look input),
   hip-fire field of view 70-110 (default 78; scopes keep their zoom FOV), invert look. Stored in GameUserSettings.ini
-  `[Shieldbreak.Settings]`, read by `AShieldbreakCharacter::Input_Look` and the camera FOV in Tick.
+  `[Shieldbreak.Settings]`, read by `AShieldbreakCharacter::Input_Look` and the camera FOV in Tick. Graphics
+  (Low-Epic) sets `UGameUserSettings` overall scalability and applies it at once.
 - In a match, Esc (`UShieldbreakInputSet::Pause`) opens `SShieldbreakPauseMenu` (Resume / Leave match / Quit) with UI-only
   input; the match keeps running. Leave match = `OpenLevel Entry?Menu`.
