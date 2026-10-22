@@ -243,6 +243,11 @@ void AShieldbreakCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	ApplyPlayerColor();
+	// IsPlayerControlled() needs the PlayerState, so the viewmodel choice can change once it arrives.
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->OnEquipped();
+	}
 }
 
 UShieldbreakMovementComponent* AShieldbreakCharacter::GetShieldbreakMovement() const
