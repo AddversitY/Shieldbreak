@@ -36,6 +36,8 @@ public:
 	// ---- Console commands ----
 	UFUNCTION(Exec) void SB_Bots(int32 Count);
 	UFUNCTION(Exec) void SB_Skill(int32 Skill);
+	/** Console: "SB_Map Keel" or "SB_Map Bastion KOTH". Maps: Keel, Bastion, Sanctum, Creekbed, Spire, Crucible. Modes: Slayer, CTF, KOTH, Oddball. */
+	UFUNCTION(Exec) void SB_Map(const FString& Map, const FString& Mode);
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,6 +48,7 @@ protected:
 private:
 	UFUNCTION(Server, Reliable) void ServerSetBots(int32 Count);
 	UFUNCTION(Server, Reliable) void ServerSetBotSkill(int32 Skill);
+	UFUNCTION(Server, Reliable) void ServerChangeMap(const FString& Map, const FString& Mode);
 
 	void AddInputContext();
 	void OnScoreboardStarted();

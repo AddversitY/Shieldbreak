@@ -7,6 +7,7 @@ Create a FPS in UnrealEngine 5 that mimics Halo2/3 simplicity but adds mechanics
 3. [docs/SHIELD_SYSTEM.md](docs/SHIELD_SYSTEM.md): wiring the C++ shield component into your character.
 4. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): code structure of the playable prototype.
 5. [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md): style guide and the asset import plan.
+6. [docs/MAPS.md](docs/MAPS.md): the launch maps with overview images, and how to switch maps.
 
 ## Testing
 - `Tools\SelfTest.bat` builds the editor target and runs a scripted gameplay self-test (`-SBSelfTest`):

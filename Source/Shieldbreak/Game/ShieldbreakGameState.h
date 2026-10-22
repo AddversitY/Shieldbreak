@@ -62,6 +62,8 @@ public:
 	void SetScoreLimit(int32 NewScoreLimit);
 	void SetTeamGame(bool bNewTeamGame);
 	void SetGameType(EShieldbreakGameType NewGameType);
+	/** Server: which map layout every machine builds. */
+	void SetMapId(FName NewMapId);
 	/** Adds (or with a negative delta, removes) team points. */
 	void AddTeamScore(uint8 Team, int32 Delta);
 
@@ -82,6 +84,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") bool IsTeamGame() const { return bTeamGame; }
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") EShieldbreakGameType GetGameType() const { return GameType; }
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") FName GetMapId() const { return MapId; }
 	UFUNCTION(BlueprintPure, Category = "Shieldbreak") int32 GetTeamScore(uint8 Team) const { return TeamScores.IsValidIndex(Team) ? TeamScores[Team] : 0; }
 
 	/** Non-spectator players by kills (desc), then deaths (asc), then join order. */
@@ -110,12 +113,17 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
 	EShieldbreakGameType GameType = EShieldbreakGameType::Slayer;
 
+	UPROPERTY(ReplicatedUsing = OnRep_MapId, BlueprintReadOnly, Category = "Shieldbreak")
+	FName MapId;
+
 	/** Indexed by ShieldbreakTeams::Red / Blue. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Shieldbreak")
 	TArray<int32> TeamScores;
 
 protected:
 	virtual void BeginPlay() override;
+
+	UFUNCTION() void OnRep_MapId();
 
 private:
 	float GetServerTimeNow() const;

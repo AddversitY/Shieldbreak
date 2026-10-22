@@ -780,7 +780,7 @@ void AShieldbreakHUD::DrawTopScores(AShieldbreakGameState* GameState)
 		case EShieldbreakGameType::Oddball: ModeName = TEXT("ODDBALL"); break;
 		default: break;
 		}
-		Text(FString::Printf(TEXT("%s  -  FIRST TO %d"), ModeName, GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
+		Text(FString::Printf(TEXT("%s  -  %s  -  FIRST TO %d"), *GameState->GetMapId().ToString().ToUpper(), ModeName, GameState->GetScoreLimit()), Right, Y, ShieldbreakHUDPrivate::Dim, Font, S, false, true);
 		Y += 26.f * S;
 
 		// Your team first, Halo-style.
@@ -911,6 +911,7 @@ void AShieldbreakHUD::DrawHelp()
 		TEXT("WASD move    Mouse look    Space jump    Shift sprint    Ctrl/C crouch"),
 		TEXT("LMB fire    RMB zoom    R reload / vent    Q swap    E pick up"),
 		TEXT("F melee    G grenade    Alt / Mouse4 use equipment (Aegis)    Tab scores"),
+		TEXT("Console (~):  SB_Map <Keel|Bastion|Sanctum|Creekbed|Spire> <Slayer|CTF|KOTH|Oddball>    SB_Bots <n>    SB_Skill <0-3>"),
 		TEXT(""),
 		TEXT("MASTERY"),
 		TEXT("Aegis Shield (map item, hold Alt): frontal barrier that stops bullets, not explosives or melee. No firing while up."),

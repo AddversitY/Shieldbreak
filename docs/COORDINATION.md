@@ -38,6 +38,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - PC session: objective-mode self-tests (`Tools/SelfTestModes.bat` runs CTF, KOTH, Oddball); running on the PC.
 
 ## Needs verification (code session → PC)
+- **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
+  - Maps are data (`Game/ShieldbreakMaps.h`, generated `Game/ShieldbreakMapsData.cpp` from `Design/maps/shieldbreak_maps.py`).
+    `AShieldbreakArena` builds whichever map the GameState's replicated `MapId` names (`?Map=Keel|Bastion|Sanctum|Creekbed|Spire|Crucible`;
+    default **Keel**). **When `-SBSelfTest` is on and there's no `?Map=`, the map is Crucible**, so the existing checks keep their layout.
+  - New: `AShieldbreakGravLift` (Spire's 4 lifts), built locally on every machine; it launches the character to a landing
+    spot (server + owning client).
+  - The bot waypoint graph is now generated for any map: a grid scan drops nodes on every walkable surface, with walk links,
+    one-way drop links off ledges, and one-way lift links. The log line "<Map> waypoint graph: N nodes, ..." shows the counts.
+  - Console `SB_Map <map> <mode>` server-travels to the same level with new options.
+  - Please: run each map in Slayer with bots for ~60 s (do bots move around without getting stuck? FPS?); take a few
+    screenshots per map; check Spire's lifts land you on the base / bridge; and run CTF on Keel and KOTH on Bastion.
+    Layout bugs (gaps, unreachable spots, z-fighting) go to me with coordinates; I fix them in the generator.
 - **Roadmap item 2: modes** (commit "Objective modes"). Launch with `?Mode=CTF`, `?Mode=KOTH` or `?Mode=Oddball` (default Slayer).
   Objective modes force teams; kills don't score the team there.
   - **CTF** (`AShieldbreakCarriable` Flag): flags on each base platform ((-3200,0,390) red, (3200,0,390) blue).

@@ -1,12 +1,12 @@
-// Greybox arena built entirely from engine cubes at construction time: floor, walls, two
-// elevated bases, a two-level central tower, two long downhill slide ramps (Momentum Carry
-// lanes) and cover. Also owns spawn points, the bot waypoint graph and the runtime sky/sun.
-// Not replicated: every machine builds the same deterministic copy.
+// Builds the match's map (see Game/ShieldbreakMaps.h) from engine cubes at construction time: geometry, gravity
+// lifts, spawn points, weapon/power-up placements, objective spots, the bot waypoint graph and the sky/sun.
+// Not replicated: every machine builds the same deterministic copy of the map id the GameState carries.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Game/ShieldbreakMaps.h"
 #include "ShieldbreakArena.generated.h"
 
 class UMaterialInterface;
@@ -24,8 +24,11 @@ public:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	static AShieldbreakArena* Find(const UWorld* World);
-	/** Spawns an arena at the origin on this machine if none exists. */
-	static AShieldbreakArena* EnsureLocal(UWorld* World);
+	/** Spawns the arena for MapId at the origin on this machine if none exists (or replaces one built for another map). */
+	static AShieldbreakArena* EnsureLocal(UWorld* World, FName MapId);
+
+	FName GetMapId() const { return MapId; }
+	const FShieldbreakMapLayout& GetLayout() const { return Layout; }
 
 	/** Feet-height spawn points, yaw facing the center. */
 	const TArray<FTransform>& GetSpawnTransforms() const { return SpawnTransforms; }
@@ -37,11 +40,11 @@ public:
 	/** A* over the waypoint graph. OutPath includes both ends. */
 	bool FindPath(int32 FromIndex, int32 ToIndex, TArray<int32>& OutPath) const;
 
-	/** Locations of the map's weapon pickups (for bots). */
 	/** Objective modes: flag home for a team (ShieldbreakTeams::Red/Blue), hill rotation, ball spawn. */
 	FVector GetFlagLocation(uint8 Team) const;
 	const TArray<FVector>& GetHillLocations() const { return HillLocations; }
 	FVector GetBallLocation() const { return BallLocation; }
+	/** Locations of the map's weapon pickups and power-ups (for bots). */
 	const TArray<FVector>& GetPickupLocations() const { return PickupLocations; }
 
 protected:
@@ -50,6 +53,7 @@ protected:
 private:
 	void BuildGeometry();
 	void BuildSpawnPoints();
+	void SpawnLifts();
 	void BuildWaypointGraph();
 	void SpawnLighting();
 	void SpawnPickups();
@@ -61,6 +65,9 @@ private:
 	UStaticMeshComponent* AddRamp(const FVector& Start, const FVector& End, float Width, float Thickness, const FLinearColor& Color);
 
 	bool IsLinkWalkable(const FVector& From, const FVector& To) const;
+	/** One-way: dropping off a ledge from From lands at To. */
+	bool IsDropLink(const FVector& From, const FVector& To) const;
+	void AddLink(int32 From, int32 To);
 
 	UPROPERTY(VisibleAnywhere, Category = "Arena")
 	TObjectPtr<USceneComponent> Root;
@@ -70,6 +77,12 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> BaseMaterial;
+
+	/** Which map to build; set before construction (SpawnActorDeferred). */
+	UPROPERTY()
+	FName MapId;
+
+	FShieldbreakMapLayout Layout;
 
 	TArray<FTransform> SpawnTransforms;
 	TArray<FVector> Waypoints;

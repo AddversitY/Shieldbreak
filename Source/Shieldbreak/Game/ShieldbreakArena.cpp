@@ -17,28 +17,17 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
+#include "Game/ShieldbreakGravLift.h"
 
 namespace ShieldbreakArenaPrivate
 {
-	// Region tints.
-	const FLinearColor FloorColor(0.2f, 0.21f, 0.23f);
-	const FLinearColor WallColor(0.16f, 0.17f, 0.19f);
-	const FLinearColor BaseAColor(0.55f, 0.16f, 0.13f);
-	const FLinearColor BaseBColor(0.13f, 0.24f, 0.55f);
-	const FLinearColor TowerColor(0.62f, 0.62f, 0.58f);
-	const FLinearColor RampColor(0.70f, 0.58f, 0.22f);
-	const FLinearColor SlideColor(0.85f, 0.40f, 0.08f);
-	const FLinearColor SkyColor(0.36f, 0.40f, 0.30f);
-	const FLinearColor CoverColor(0.25f, 0.38f, 0.28f);
-
-	constexpr float HalfX = 3500.f;
-	constexpr float HalfY = 2500.f;
-	constexpr float WallHeight = 900.f;
 	constexpr float WaypointLift = 50.f;
-	constexpr float MaxLinkDistance = 1400.f;
+	/** Grid spacing of the navigation scan, and the longest walk link (covers two grid steps and diagonals). */
+	constexpr float NavGridStep = 300.f;
+	constexpr float MaxLinkDistance = 650.f;
+	constexpr float MaxDropHeight = 700.f;
 
 	const TArray<int32> EmptyNeighbors;
 }
@@ -81,21 +70,31 @@ AShieldbreakArena* AShieldbreakArena::Find(const UWorld* World)
 	return nullptr;
 }
 
-AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World)
+AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 {
 	if (AShieldbreakArena* Existing = Find(World))
 	{
-		return Existing;
+		if (InMapId.IsNone() || Existing->GetMapId() == InMapId)
+		{
+			return Existing;
+		}
+		// Built for another map (e.g. a client that guessed before the map id replicated): rebuild.
+		Existing->Destroy();
 	}
 	if (!World)
 	{
 		return nullptr;
 	}
 
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Params.ObjectFlags |= RF_Transient;
-	return World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, Params);
+	// Deferred so MapId is set before OnConstruction builds the geometry.
+	AShieldbreakArena* Arena = World->SpawnActorDeferred<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity,
+		nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (Arena)
+	{
+		Arena->MapId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+		Arena->FinishSpawning(FTransform::Identity);
+	}
+	return Arena;
 }
 
 void AShieldbreakArena::OnConstruction(const FTransform& Transform)
@@ -105,14 +104,20 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 	if (!bGeometryBuilt)
 	{
 		bGeometryBuilt = true;
+		MapId = ShieldbreakMaps::Build(MapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : MapId, Layout);
 		BuildGeometry();
 		BuildSpawnPoints();
+		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
+			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
 	}
 }
 
 void AShieldbreakArena::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Lifts exist on every machine so the owning client can predict its launch.
+	SpawnLifts();
 
 	if (GetNetMode() != NM_DedicatedServer)
 	{
@@ -178,97 +183,70 @@ UStaticMeshComponent* AShieldbreakArena::AddRamp(const FVector& Start, const FVe
 	return AddBox(Center, FVector(Length, Width, Thickness), Color, Rotation);
 }
 
-// ---- Layout (rotationally symmetric under (x, y) -> (-x, -y)) ----
+// ---- Layout ----
 
 void AShieldbreakArena::BuildGeometry()
 {
-	using namespace ShieldbreakArenaPrivate;
-
-	// Floor and outer walls.
-	AddBlock(FVector(-HalfX - 100.f, -HalfY - 100.f, -100.f), FVector(HalfX + 100.f, HalfY + 100.f, 0.f), FloorColor);
-	AddBlock(FVector(-HalfX - 100.f, HalfY, 0.f), FVector(HalfX + 100.f, HalfY + 100.f, WallHeight), WallColor);
-	AddBlock(FVector(-HalfX - 100.f, -HalfY - 100.f, 0.f), FVector(HalfX + 100.f, -HalfY, WallHeight), WallColor);
-	AddBlock(FVector(HalfX, -HalfY, 0.f), FVector(HalfX + 100.f, HalfY, WallHeight), WallColor);
-	AddBlock(FVector(-HalfX - 100.f, -HalfY, 0.f), FVector(-HalfX, HalfY, WallHeight), WallColor);
-
-	// Everything below is placed for side A and mirrored for side B.
-	for (int32 Side = 0; Side < 2; ++Side)
+	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		const float S = Side == 0 ? 1.f : -1.f;
-		const FLinearColor BaseColor = Side == 0 ? BaseAColor : BaseBColor;
-		auto P = [S](float X, float Y, float Z) { return FVector(X * S, Y * S, Z); };
-		auto Block = [this, S](float X0, float Y0, float Z0, float X1, float Y1, float Z1, const FLinearColor& Color)
-		{
-			const FVector A(X0 * S, Y0 * S, Z0);
-			const FVector B(X1 * S, Y1 * S, Z1);
-			AddBlock(FVector(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y), Z0), FVector(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), Z1), Color);
-		};
-
-		// Base: raised platform (top 300) against the end wall.
-		Block(-3500.f, -700.f, 0.f, -2500.f, 700.f, 300.f, BaseColor);
-		// Base ramp down toward the middle.
-		AddRamp(P(-2500.f, 450.f, 300.f), P(-1800.f, 450.f, 0.f), 300.f, 40.f, RampColor);
-		// Low wall on the base lip: crouch cover.
-		Block(-2620.f, -500.f, 300.f, -2580.f, 100.f, 410.f, BaseColor * 0.7f);
-
-		// Ramp from the base up to the sky platform (top 450).
-		AddRamp(P(-3000.f, 700.f, 300.f), P(-3000.f, 1500.f, 450.f), 300.f, 40.f, RampColor);
-		// Sky platform: a floating slab, open underneath.
-		Block(-3500.f, 1500.f, 410.f, -1600.f, 2500.f, 450.f, SkyColor);
-		// Long downhill slide ramp: the Momentum Carry lane.
-		AddRamp(P(-1600.f, 1900.f, 450.f), P(1400.f, 1900.f, 0.f), 400.f, 40.f, SlideColor);
-
-		// Tower access ramp (to level 1, top 350).
-		AddRamp(P(300.f, 175.f, 350.f), P(1100.f, 175.f, 0.f), 250.f, 40.f, RampColor);
-
-		// Cover.
-		Block(1200.f, -900.f, 0.f, 1400.f, -700.f, 150.f, CoverColor);   // crate
-		Block(825.f, 1025.f, 0.f, 975.f, 1175.f, 150.f, CoverColor);     // small crate (jump ledge)
-		Block(1940.f, 940.f, 0.f, 2060.f, 1060.f, 600.f, WallColor);     // tall pillar
-		Block(1600.f, 200.f, 0.f, 1700.f, 300.f, 400.f, WallColor);      // pillar near base ramp
-		Block(-300.f, 1120.f, 0.f, 300.f, 1180.f, 110.f, CoverColor);    // low wall
+		AddBlock(Block.Min, Block.Max, Block.Color);
 	}
-
-	// Central tower: level 1 (top 350) and level 2 (top 500) with a short ramp; the east face
-	// of level 2 is a 150 uu ledge for jumps.
-	AddBlock(FVector(-300.f, -300.f, 0.f), FVector(300.f, 300.f, 350.f), TowerColor);
-	AddBlock(FVector(-300.f, 0.f, 350.f), FVector(0.f, 300.f, 500.f), TowerColor * 0.85f);
-	AddRamp(FVector(-150.f, -280.f, 350.f), FVector(-150.f, 0.f, 500.f), 200.f, 30.f, RampColor);
+	for (const FShieldbreakMapRamp& RampData : Layout.Ramps)
+	{
+		AddRamp(RampData.Start, RampData.End, RampData.Width, RampData.Thickness, RampData.Color);
+	}
 }
 
 void AShieldbreakArena::BuildSpawnPoints()
 {
-	// Objective layout (arena-local, then world): flags on each base platform (red at -X), hills rotating through
-	// mid, the sky platforms and the tower top, the ball on the open mid floor.
-	FlagLocations[0] = GetActorTransform().TransformPosition(FVector(-3200.f, 0.f, 390.f));
-	FlagLocations[1] = GetActorTransform().TransformPosition(FVector(3200.f, 0.f, 390.f));
-	HillLocations.Reset();
-	for (const FVector& Local : { FVector(0.f, -800.f, 220.f), FVector(-2400.f, 2000.f, 670.f), FVector(0.f, 800.f, 220.f), FVector(2400.f, -2000.f, 670.f) })
-	{
-		HillLocations.Add(GetActorTransform().TransformPosition(Local));
-	}
-	BallLocation = GetActorTransform().TransformPosition(FVector(0.f, 800.f, 90.f));
-
+	const FTransform& ToWorld = GetActorTransform();
 	SpawnTransforms.Reset();
-
-	const FVector Spots[] =
+	for (const FVector& Feet : Layout.Spawns)
 	{
-		FVector(-3000.f, 0.f, 300.f),
-		FVector(-3000.f, -1900.f, 0.f),
-		FVector(-2200.f, 2000.f, 450.f),
-		FVector(-600.f, 1400.f, 0.f),
-		FVector(-2200.f, -1000.f, 0.f),
-		FVector(-1100.f, -1500.f, 0.f),
-	};
+		// Face the middle of the map.
+		const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Feet.Y, -Feet.X));
+		SpawnTransforms.Add(FTransform(FRotator(0.f, Yaw, 0.f), ToWorld.TransformPosition(Feet)));
+	}
 
-	for (int32 Side = 0; Side < 2; ++Side)
+	FlagLocations[0] = ToWorld.TransformPosition(Layout.FlagLocations[0]);
+	FlagLocations[1] = ToWorld.TransformPosition(Layout.FlagLocations[1]);
+	HillLocations.Reset();
+	for (const FVector& Hill : Layout.HillLocations)
 	{
-		const float S = Side == 0 ? 1.f : -1.f;
-		for (const FVector& Spot : Spots)
+		HillLocations.Add(ToWorld.TransformPosition(Hill));
+	}
+	BallLocation = ToWorld.TransformPosition(Layout.BallLocation);
+
+	PickupLocations.Reset();
+	for (const FShieldbreakMapWeapon& Weapon : Layout.Weapons)
+	{
+		PickupLocations.Add(ToWorld.TransformPosition(Weapon.Location));
+	}
+	for (const FShieldbreakMapPowerup& Powerup : Layout.Powerups)
+	{
+		PickupLocations.Add(ToWorld.TransformPosition(Powerup.Location));
+	}
+}
+
+void AShieldbreakArena::SpawnLifts()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	for (const FShieldbreakMapLift& LiftData : Layout.Lifts)
+	{
+		const FVector Base = GetActorTransform().TransformPosition(LiftData.Base);
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Params.ObjectFlags |= RF_Transient;
+		Params.bDeferConstruction = true;
+		if (AShieldbreakGravLift* Lift = World->SpawnActor<AShieldbreakGravLift>(AShieldbreakGravLift::StaticClass(), Base + FVector(0.f, 0.f, 60.f), FRotator::ZeroRotator, Params))
 		{
-			const FVector Location(Spot.X * S, Spot.Y * S, Spot.Z);
-			const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Location.Y, -Location.X));
-			SpawnTransforms.Add(FTransform(FRotator(0.f, Yaw, 0.f), GetActorTransform().TransformPosition(Location)));
+			Lift->SetTarget(GetActorTransform().TransformPosition(LiftData.Target));
+			Lift->FinishSpawning(FTransform(FRotator::ZeroRotator, Base + FVector(0.f, 0.f, 60.f)));
 		}
 	}
 }
@@ -287,7 +265,7 @@ void AShieldbreakArena::SpawnLighting()
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
 
-	if (ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), FRotator(-48.f, 35.f, 0.f), Params))
+	if (ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), Layout.SunRotation, Params))
 	{
 		if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 		{
@@ -314,11 +292,11 @@ void AShieldbreakArena::SpawnLighting()
 		}
 	}
 
-	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.f, 0.f, -200.f), FRotator::ZeroRotator, Params))
+	if (AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.f, 0.f, Layout.FloorZ - 200.f), FRotator::ZeroRotator, Params))
 	{
 		if (UExponentialHeightFogComponent* FogComponent = Fog->GetComponent())
 		{
-			FogComponent->SetFogDensity(0.008f);
+			FogComponent->SetFogDensity(Layout.FogDensity);
 		}
 	}
 }
@@ -333,33 +311,13 @@ void AShieldbreakArena::SpawnPickups()
 		return;
 	}
 
-	// Power weapons sit on contested high ground with long timers: rockets on the tower top, one sniper at the
-	// far end of each sky platform, a Rail Lance on each floor lane.
-	struct FPickupSpot
-	{
-		FVector Location;
-		TSubclassOf<AShieldbreakWeapon> WeaponClass;
-		float RespawnTime;
-		int32 AmmoGrant;
-	};
-	const FPickupSpot Spots[] =
-	{
-		{ FVector(2600.f, 1900.f, 70.f), AWeapon_RailLance::StaticClass(), 60.f, 3 },
-		{ FVector(-2600.f, -1900.f, 70.f), AWeapon_RailLance::StaticClass(), 60.f, 3 },
-		{ FVector(-150.f, 150.f, 570.f), AWeapon_RocketLauncher::StaticClass(), 120.f, 2 },
-		{ FVector(-3300.f, 2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
-		{ FVector(3300.f, -2300.f, 520.f), AWeapon_SniperRifle::StaticClass(), 90.f, 4 },
-	};
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Params.ObjectFlags |= RF_Transient;
 
-	PickupLocations.Reset();
-	for (const FPickupSpot& Spot : Spots)
+	for (const FShieldbreakMapWeapon& Spot : Layout.Weapons)
 	{
 		const FVector Location = GetActorTransform().TransformPosition(Spot.Location);
-		PickupLocations.Add(Location);
-
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		Params.ObjectFlags |= RF_Transient;
 		if (AShieldbreakWeaponPickup* Pickup = World->SpawnActor<AShieldbreakWeaponPickup>(AShieldbreakWeaponPickup::StaticClass(), Location, FRotator::ZeroRotator, Params))
 		{
 			Pickup->SetWeaponClass(Spot.WeaponClass);
@@ -371,19 +329,14 @@ void AShieldbreakArena::SpawnPickups()
 		}
 	}
 
-	// Overshield on the tower's lower level, under the rockets.
-	FActorSpawnParameters PowerupParams;
-	PowerupParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	PowerupParams.ObjectFlags |= RF_Transient;
-	World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
-		GetActorTransform().TransformPosition(FVector(150.f, -150.f, 420.f)), FRotator::ZeroRotator, PowerupParams);
-
-	// Aegis on the open mid floor beside the tower: neutral, but exposed to fetch.
-	if (AShieldbreakPowerup* AegisPickup = World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(),
-		GetActorTransform().TransformPosition(FVector(0.f, -800.f, 70.f)), FRotator::ZeroRotator, PowerupParams))
+	for (const FShieldbreakMapPowerup& Spot : Layout.Powerups)
 	{
-		AegisPickup->SetType(EShieldbreakPowerupType::Aegis);
-		AegisPickup->RespawnTime = 45.f;
+		const FVector Location = GetActorTransform().TransformPosition(Spot.Location);
+		if (AShieldbreakPowerup* Powerup = World->SpawnActor<AShieldbreakPowerup>(AShieldbreakPowerup::StaticClass(), Location, FRotator::ZeroRotator, Params))
+		{
+			Powerup->SetType(Spot.Type);
+			Powerup->RespawnTime = Spot.RespawnTime;
+		}
 	}
 }
 
@@ -427,6 +380,31 @@ bool AShieldbreakArena::IsLinkWalkable(const FVector& From, const FVector& To) c
 	return true;
 }
 
+bool AShieldbreakArena::IsDropLink(const FVector& From, const FVector& To) const
+{
+	const UWorld* World = GetWorld();
+	const float Drop = static_cast<float>(From.Z - To.Z);
+	if (!World || Drop < 60.f || Drop > ShieldbreakArenaPrivate::MaxDropHeight || FVector::Dist2D(From, To) > 500.f)
+	{
+		return false;
+	}
+
+	// Walk off at chest height toward the spot above To, then fall straight down onto it.
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakWaypointDrop), false);
+	FHitResult Hit;
+	const FVector Above(To.X, To.Y, From.Z + 130.f);
+	if (World->LineTraceSingleByObjectType(Hit, From + FVector(0.f, 0.f, 130.f), Above, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+	{
+		return false;
+	}
+	return !World->LineTraceSingleByObjectType(Hit, Above, To + FVector(0.f, 0.f, 40.f), FCollisionObjectQueryParams(ECC_WorldStatic), Params);
+}
+
+void AShieldbreakArena::AddLink(int32 From, int32 To)
+{
+	WaypointLinks[From].AddUnique(To);
+}
+
 void AShieldbreakArena::BuildWaypointGraph()
 {
 	using namespace ShieldbreakArenaPrivate;
@@ -443,91 +421,105 @@ void AShieldbreakArena::BuildWaypointGraph()
 		return;
 	}
 
+	// Scan a grid over the map and drop a node on every walkable surface in each column (floor, platforms,
+	// bridges, ramps), as long as a standing capsule fits. Works for any layout without hand-placed nodes.
+	const FTransform& ToWorld = GetActorTransform();
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakWaypointGrid), false);
+	const FCollisionShape Capsule = FCollisionShape::MakeCapsule(38.f, 90.f);
 	TArray<FVector> Feet;
 
-	// Hand-placed nodes: ramp ends, platforms, tower levels (side A, mirrored for B).
-	const FVector Placed[] =
+	const float HalfX = static_cast<float>(Layout.HalfExtent.X) - 120.f;
+	const float HalfY = static_cast<float>(Layout.HalfExtent.Y) - 120.f;
+	for (float X = -HalfX; X <= HalfX; X += NavGridStep)
 	{
-		FVector(-3000.f, 0.f, 300.f), FVector(-2700.f, -450.f, 300.f),
-		FVector(-2560.f, 450.f, 300.f), FVector(-1740.f, 450.f, 0.f),      // base ramp
-		FVector(-3000.f, 640.f, 300.f), FVector(-3000.f, 1560.f, 450.f),   // sky ramp
-		FVector(-2600.f, 2000.f, 450.f),
-		FVector(-1660.f, 1900.f, 450.f), FVector(1460.f, 1900.f, 0.f),     // slide ramp
-		FVector(1160.f, 175.f, 0.f), FVector(240.f, 175.f, 350.f),         // tower ramp
-		FVector(200.f, -200.f, 350.f),
-	};
-	for (int32 Side = 0; Side < 2; ++Side)
-	{
-		const float S = Side == 0 ? 1.f : -1.f;
-		for (const FVector& Spot : Placed)
+		for (float Y = -HalfY; Y <= HalfY; Y += NavGridStep)
 		{
-			Feet.Add(FVector(Spot.X * S, Spot.Y * S, Spot.Z));
-		}
-	}
-	Feet.Add(FVector(-150.f, -290.f, 350.f));
-	Feet.Add(FVector(-150.f, 60.f, 500.f));
-	Feet.Add(FVector(-150.f, 200.f, 500.f));
+			float TopZ = Layout.MaxZ;
+			for (int32 Guard = 0; Guard < 200 && TopZ > Layout.FloorZ - 50.f; ++Guard)
+			{
+				FHitResult Hit;
+				const FVector Start = ToWorld.TransformPosition(FVector(X, Y, TopZ));
+				const FVector End = ToWorld.TransformPosition(FVector(X, Y, Layout.FloorZ - 60.f));
+				if (!World->LineTraceSingleByObjectType(Hit, Start, End, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+				{
+					break;
+				}
+				if (Hit.bStartPenetrating)
+				{
+					TopZ -= 20.f; // started inside a block: step down through it
+					continue;
+				}
 
-	// Floor grid wherever there is open floor with headroom.
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakWaypointGrid), false);
-	for (float X = -3200.f; X <= 3200.f; X += 400.f)
-	{
-		for (float Y = -2200.f; Y <= 2200.f; Y += 440.f)
-		{
-			FHitResult Hit;
-			const FVector Top(X, Y, 1500.f);
-			if (!World->LineTraceSingleByObjectType(Hit, Top, FVector(X, Y, -50.f), FCollisionObjectQueryParams(ECC_WorldStatic), Params))
-			{
-				continue;
+				const FVector Surface = Hit.ImpactPoint;
+				const bool bWalkable = Hit.ImpactNormal.Z >= 0.7f;
+				const bool bFits = !World->OverlapAnyTestByObjectType(Surface + FVector(0.f, 0.f, 97.f), FQuat::Identity,
+					FCollisionObjectQueryParams(ECC_WorldStatic), Capsule, Params);
+				if (bWalkable && bFits)
+				{
+					Feet.Add(Surface);
+				}
+				TopZ = static_cast<float>(ToWorld.InverseTransformPosition(Surface).Z) - 5.f;
 			}
-			// Floor spots, or floor under a high slab/ramp, as long as a standing capsule fits.
-			if (Hit.ImpactPoint.Z > 5.f && Hit.ImpactPoint.Z < 250.f)
-			{
-				continue;
-			}
-			const FCollisionShape Capsule = FCollisionShape::MakeCapsule(38.f, 90.f);
-			if (World->OverlapAnyTestByObjectType(FVector(X, Y, 100.f), FQuat::Identity, FCollisionObjectQueryParams(ECC_WorldStatic), Capsule, Params))
-			{
-				continue;
-			}
-			Feet.Add(FVector(X, Y, 0.f));
 		}
 	}
 
-	// Transform into world space.
+	// Lift pads and landings are nodes too, so lifts can be one-way links.
+	TArray<TPair<int32, int32>> LiftNodes;
+	for (const FShieldbreakMapLift& LiftData : Layout.Lifts)
+	{
+		const int32 BaseIndex = Feet.Add(ToWorld.TransformPosition(LiftData.Base));
+		const int32 TargetIndex = Feet.Add(ToWorld.TransformPosition(LiftData.Target));
+		LiftNodes.Add(TPair<int32, int32>(BaseIndex, TargetIndex));
+	}
+
 	Waypoints.Reset(Feet.Num());
 	for (const FVector& Foot : Feet)
 	{
-		Waypoints.Add(GetActorTransform().TransformPosition(Foot) + FVector(0.f, 0.f, WaypointLift));
+		Waypoints.Add(Foot + FVector(0.f, 0.f, WaypointLift));
 	}
 
+	WaypointLinks.Reset();
 	WaypointLinks.SetNum(Waypoints.Num());
-	int32 LinkCount = 0;
-	for (int32 A = 0; A < Waypoints.Num(); ++A)
+	int32 WalkLinks = 0;
+	int32 DropLinks = 0;
+	for (int32 A = 0; A < Feet.Num(); ++A)
 	{
-		for (int32 B = A + 1; B < Waypoints.Num(); ++B)
+		for (int32 B = A + 1; B < Feet.Num(); ++B)
 		{
-			const FVector FootA = Waypoints[A] - FVector(0.f, 0.f, WaypointLift);
-			const FVector FootB = Waypoints[B] - FVector(0.f, 0.f, WaypointLift);
-			if (FVector::Dist2D(FootA, FootB) > MaxLinkDistance)
+			const double Distance2D = FVector::Dist2D(Feet[A], Feet[B]);
+			if (Distance2D > MaxLinkDistance)
 			{
 				continue;
 			}
-			// Steeper than ~33 degrees on average is not a walkable straight line.
-			if (FMath::Abs(FootA.Z - FootB.Z) > 0.65f * FVector::Dist2D(FootA, FootB) + 20.f)
+			const double Rise = FMath::Abs(Feet[A].Z - Feet[B].Z);
+			// Walkable both ways: no steeper than ~33 degrees on average and clear all along.
+			if (Rise <= 0.65 * Distance2D + 20.0 && IsLinkWalkable(Feet[A], Feet[B]))
 			{
+				AddLink(A, B);
+				AddLink(B, A);
+				++WalkLinks;
 				continue;
 			}
-			if (IsLinkWalkable(FootA, FootB))
+			// Otherwise, possibly a one-way drop off a ledge.
+			if (IsDropLink(Feet[A], Feet[B]))
 			{
-				WaypointLinks[A].Add(B);
-				WaypointLinks[B].Add(A);
-				++LinkCount;
+				AddLink(A, B);
+				++DropLinks;
+			}
+			else if (IsDropLink(Feet[B], Feet[A]))
+			{
+				AddLink(B, A);
+				++DropLinks;
 			}
 		}
 	}
+	for (const TPair<int32, int32>& Lift : LiftNodes)
+	{
+		AddLink(Lift.Key, Lift.Value);
+	}
 
-	UE_LOG(LogShieldbreak, Log, TEXT("Arena waypoint graph: %d nodes, %d links."), Waypoints.Num(), LinkCount);
+	UE_LOG(LogShieldbreak, Log, TEXT("%s waypoint graph: %d nodes, %d walk links, %d drop links, %d lifts."),
+		*Layout.DisplayName, Waypoints.Num(), WalkLinks, DropLinks, LiftNodes.Num());
 }
 
 int32 AShieldbreakArena::FindNearestWaypoint(const FVector& Location, bool bRequireLineOfSight) const

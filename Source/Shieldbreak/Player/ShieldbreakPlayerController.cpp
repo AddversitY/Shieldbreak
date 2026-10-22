@@ -229,3 +229,16 @@ void AShieldbreakPlayerController::AutoDetectScalability()
 	UE_LOG(LogShieldbreak, Log, TEXT("Scalability auto-detected: overall level %d (CPU %.0f, GPU %.0f)."),
 		Settings->GetOverallScalabilityLevel(), Settings->GetLastCPUBenchmarkResult(), Settings->GetLastGPUBenchmarkResult());
 }
+
+void AShieldbreakPlayerController::SB_Map(const FString& Map, const FString& Mode)
+{
+	ServerChangeMap(Map, Mode);
+}
+
+void AShieldbreakPlayerController::ServerChangeMap_Implementation(const FString& Map, const FString& Mode)
+{
+	if (AShieldbreakGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AShieldbreakGameMode>() : nullptr)
+	{
+		GameMode->ChangeMap(Map, Mode);
+	}
+}

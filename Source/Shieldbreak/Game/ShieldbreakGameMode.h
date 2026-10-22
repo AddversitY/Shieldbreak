@@ -59,6 +59,10 @@ public:
 	float GetRespawnDelay() const { return RespawnDelay; }
 	bool IsTeamGame() const { return bTeamGame; }
 	EShieldbreakGameType GetGameType() const { return GameType; }
+	FName GetMapId() const { return MapId; }
+
+	/** Restart on another map and/or mode (keeps bot count and skill). Empty arguments keep the current one. */
+	void ChangeMap(const FString& NewMap, const FString& NewMode);
 
 	// ---- Objective modes (called by the objective actors) ----
 
@@ -89,6 +93,10 @@ protected:
 	/** Kills to win. URL option ?ScoreLimit=N. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match", meta = (ClampMin = "1"))
 	int32 ScoreLimit = 25;
+
+	/** Map to build: Keel, Bastion, Sanctum, Creekbed, Spire or Crucible (the test arena). URL option ?Map=Name. */
+	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")
+	FName MapId;
 
 	/** Slayer, CaptureTheFlag, KingOfTheHill or Oddball. URL option ?Mode=Slayer|CTF|KOTH|Oddball. Objective modes are team games. */
 	UPROPERTY(EditDefaultsOnly, Config, BlueprintReadOnly, Category = "Shieldbreak|Match")

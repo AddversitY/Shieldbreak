@@ -925,9 +925,9 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 		{
 			if (Carried == *It)
 			{
-				// Keep the ball away from the enemy: fall back toward our own half.
-				const float SideX = MyTeam == ShieldbreakTeams::Red ? -2600.f : 2600.f;
-				OutGoal = FVector(SideX, 0.f, Bot->GetActorLocation().Z);
+				// Keep the ball away from the enemy: fall back toward our own base.
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(World);
+				OutGoal = Arena ? Arena->GetFlagLocation(MyTeam) : Bot->GetActorLocation();
 				bOutUrgent = true;
 				return true;
 			}

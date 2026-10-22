@@ -3,6 +3,7 @@
 #include "Shieldbreak.h"
 #include "AI/ShieldbreakBotController.h"
 #include "Game/ShieldbreakTeams.h"
+#include "Game/ShieldbreakMaps.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -89,6 +90,26 @@ void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Optio
 	ScoreLimit = FMath::Max(1, UGameplayStatics::GetIntOption(Options, TEXT("ScoreLimit"), ScoreLimit));
 	bTeamGame = UGameplayStatics::GetIntOption(Options, TEXT("Teams"), bTeamGame ? 1 : 0) != 0;
 
+	// Map: ?Map=Name, else the configured one, else the default launch map. The self-test runs on Crucible,
+	// whose layout its checks were written against.
+	const FString MapOption = UGameplayStatics::ParseOption(Options, TEXT("Map"));
+	if (!MapOption.IsEmpty())
+	{
+		MapId = FName(*MapOption);
+	}
+	else if (AShieldbreakSelfTest::IsRequested())
+	{
+		MapId = FName(TEXT("Crucible"));
+	}
+	if (MapId.IsNone() || !ShieldbreakMaps::GetMapIds().Contains(MapId))
+	{
+		if (!MapId.IsNone())
+		{
+			UE_LOG(LogShieldbreak, Warning, TEXT("Unknown map '%s'; using %s."), *MapId.ToString(), *ShieldbreakMaps::GetDefaultMapId().ToString());
+		}
+		MapId = ShieldbreakMaps::GetDefaultMapId();
+	}
+
 	const FString ModeOption = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
 	if (ModeOption.Equals(TEXT("CTF"), ESearchCase::IgnoreCase))
 	{
@@ -129,6 +150,7 @@ void AShieldbreakGameMode::InitGameState()
 	{
 		SBGameState->SetTeamGame(bTeamGame);
 		SBGameState->SetGameType(GameType);
+		SBGameState->SetMapId(MapId);
 		SBGameState->SetScoreLimit(GetModeScoreLimit());
 	}
 }
@@ -208,31 +230,12 @@ void AShieldbreakGameMode::Tick(float DeltaSeconds)
 
 AShieldbreakArena* AShieldbreakGameMode::EnsureArena()
 {
-	if (IsValid(CachedArena.Get()))
+	if (IsValid(CachedArena.Get()) && CachedArena->GetMapId() == MapId)
 	{
 		return CachedArena.Get();
 	}
 
-	UWorld* const CurrentWorld = GetWorld();
-	if (!CurrentWorld)
-	{
-		return nullptr;
-	}
-
-	for (TActorIterator<AShieldbreakArena> It(CurrentWorld); It; ++It)
-	{
-		if (IsValid(*It))
-		{
-			CachedArena = *It;
-			return CachedArena.Get();
-		}
-	}
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.ObjectFlags |= RF_Transient;
-	CachedArena = CurrentWorld->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, SpawnParams);
-
+	CachedArena = AShieldbreakArena::EnsureLocal(GetWorld(), MapId);
 	if (!CachedArena)
 	{
 		UE_LOG(LogShieldbreak, Error, TEXT("Failed to spawn AShieldbreakArena."));
@@ -1124,4 +1127,30 @@ void AShieldbreakGameMode::AnnounceObjective(AShieldbreakCharacter* Who, const F
 	Entry.VictimName = Action;
 	Entry.VictimColor = FLinearColor::White;
 	SBGameState->AddKillFeedEntry(Entry);
+}
+
+void AShieldbreakGameMode::ChangeMap(const FString& NewMap, const FString& NewMode)
+{
+	UWorld* const CurrentWorld = GetWorld();
+	if (!CurrentWorld)
+	{
+		return;
+	}
+
+	FString ModeName;
+	switch (GameType)
+	{
+	case EShieldbreakGameType::CaptureTheFlag: ModeName = TEXT("CTF"); break;
+	case EShieldbreakGameType::KingOfTheHill: ModeName = TEXT("KOTH"); break;
+	case EShieldbreakGameType::Oddball: ModeName = TEXT("Oddball"); break;
+	default: ModeName = TEXT("Slayer"); break;
+	}
+
+	const FString TravelMap = NewMap.IsEmpty() ? MapId.ToString() : NewMap;
+	const FString TravelMode = NewMode.IsEmpty() ? ModeName : NewMode;
+	// Same engine level (the map is built from code), new options.
+	const FString URL = FString::Printf(TEXT("%s?Map=%s?Mode=%s?Bots=%d?Skill=%d?Teams=%d"), *UWorld::RemovePIEPrefix(CurrentWorld->GetOutermost()->GetName()),
+		*TravelMap, *TravelMode, NumBots, BotSkill, bTeamGame ? 1 : 0);
+	UE_LOG(LogShieldbreak, Log, TEXT("Changing map: %s"), *URL);
+	CurrentWorld->ServerTravel(URL);
 }

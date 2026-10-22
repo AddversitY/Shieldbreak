@@ -28,6 +28,7 @@ void AShieldbreakGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(AShieldbreakGameState, MatchRestartServerTime);
 	DOREPLIFETIME(AShieldbreakGameState, bTeamGame);
 	DOREPLIFETIME(AShieldbreakGameState, GameType);
+	DOREPLIFETIME(AShieldbreakGameState, MapId);
 	DOREPLIFETIME(AShieldbreakGameState, TeamScores);
 }
 
@@ -35,8 +36,26 @@ void AShieldbreakGameState::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// The arena is not replicated; every machine builds the same deterministic copy locally.
-	AShieldbreakArena::EnsureLocal(GetWorld());
+	// The arena is not replicated; every machine builds the same deterministic copy locally. On clients the
+	// replicated MapId has normally arrived by now; OnRep_MapId rebuilds if it changes later.
+	AShieldbreakArena::EnsureLocal(GetWorld(), MapId);
+}
+
+void AShieldbreakGameState::OnRep_MapId()
+{
+	if (HasActorBegunPlay())
+	{
+		AShieldbreakArena::EnsureLocal(GetWorld(), MapId);
+	}
+}
+
+void AShieldbreakGameState::SetMapId(FName NewMapId)
+{
+	if (HasAuthority())
+	{
+		MapId = NewMapId;
+		ForceNetUpdate();
+	}
 }
 
 void AShieldbreakGameState::AddKillFeedEntry(const FString& KillerName, const FString& VictimName, const FLinearColor& KillerColor, const FLinearColor& VictimColor)
