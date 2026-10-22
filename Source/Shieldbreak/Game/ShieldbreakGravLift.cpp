@@ -115,7 +115,10 @@ void AShieldbreakGravLift::TryLaunch(AActor* OtherActor, bool bRequireGround)
 	}
 
 	const FVector Feet = Character->GetActorLocation() - FVector(0.f, 0.f, Character->GetSimpleCollisionHalfHeight());
-	Character->LaunchCharacter(ComputeLaunchVelocity(Feet, Target, Movement->GetGravityZ()), true, true);
+	// A tall climb onto a ledge needs a high arc, or the flight clips the ledge's front face before it's above it
+	// (Spire's base lifts did with a fixed 150 clearance).
+	const float Clearance = FMath::Max(150.f, 0.6f * static_cast<float>(FMath::Abs(Target.Z - Feet.Z)));
+	Character->LaunchCharacter(ComputeLaunchVelocity(Feet, Target, Movement->GetGravityZ(), Clearance), true, true);
 	if (Character->IsLocallyControlled())
 	{
 		FShieldbreakSFX::PlayAt(this, EShieldbreakSound::AegisRaise, GetActorLocation(), 1.f, 0.7f);

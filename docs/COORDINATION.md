@@ -140,6 +140,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
     (a begin-overlap didn't fire for a character already inside the trigger; fixed in code: the lift also polls the
     pad every 0.1 s; needs a re-run). **Keel CTF 15/15** (21.0 FPS), **Bastion KOTH 9/9** (21.9 FPS). No bot stuck on
     any map in Slayer.
+  - Re-run after the fixes (`c5f9ca1`): **Oddball 9/9** (no bot stuck). **Spire 7/9**: lifts 3-4 (to the bridge) land
+    within 4 uu, but lifts 1-2 (base front to base top) clip the base's front face (landed 340 uu short, back on the
+    floor). Fixed in code: the arc's clearance scales with the climb (0.6x the height, min 150); needs one more Spire run.
   - **Listen test: fixed.** The server log has **0** `FNetGUIDCache ... NOT Supported` lines (was 56), the client has
     **0** `Hit limit of 96 saved moves` (was 5), and the client's Battle Rifle now sits correctly in first person
     (`docs/playtests/2026-10-22_listen_test_c_client.jpg`, on Keel).
