@@ -16,6 +16,8 @@
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
@@ -282,13 +284,22 @@ void AShieldbreakArena::SpawnLighting()
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
 
+	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
+	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
+	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
+	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
+
 	if (ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), Layout.SunRotation, Params))
 	{
 		if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 		{
 			SunLight->SetMobility(EComponentMobility::Movable);
-			SunLight->SetIntensity(8.f);
+			SunLight->SetIntensity(SunIntensity);
 			SunLight->SetAtmosphereSunLight(true);
+			SunLight->SetForwardShadingPriority(1); // the sun, not the fill, drives fog and translucency
 			SunLight->SetCastShadows(true);
 		}
 	}
@@ -301,7 +312,7 @@ void AShieldbreakArena::SpawnLighting()
 		if (UDirectionalLightComponent* FillLight = Cast<UDirectionalLightComponent>(Fill->GetLightComponent()))
 		{
 			FillLight->SetMobility(EComponentMobility::Movable);
-			FillLight->SetIntensity(1.5f);
+			FillLight->SetIntensity(FillIntensity);
 			FillLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
 			FillLight->SetAtmosphereSunLight(false);
 			FillLight->SetCastShadows(false);
@@ -319,7 +330,7 @@ void AShieldbreakArena::SpawnLighting()
 		{
 			SkyComponent->SetMobility(EComponentMobility::Movable);
 			SkyComponent->bRealTimeCapture = true;
-			SkyComponent->SetIntensity(1.5f);
+			SkyComponent->SetIntensity(SkyIntensity);
 			// The ground under the map is just as lit as the sky, so undersides and overhangs aren't black either.
 			SkyComponent->bLowerHemisphereIsBlack = false;
 			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));

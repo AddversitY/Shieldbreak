@@ -34,6 +34,7 @@ public:
 	UPROPERTY() TObjectPtr<UInputAction> CrouchSlide;
 	UPROPERTY() TObjectPtr<UInputAction> Scoreboard;
 	UPROPERTY() TObjectPtr<UInputAction> ToggleHelp;
+	UPROPERTY() TObjectPtr<UInputAction> Pause;
 
 	UPROPERTY() TObjectPtr<UInputMappingContext> Context;
 

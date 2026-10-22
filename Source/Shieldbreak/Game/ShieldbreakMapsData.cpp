@@ -167,7 +167,7 @@ namespace ShieldbreakMapsData
 		L.Blocks.Add({ FVector(1400.0f, -2600.0f, 0.0f), FVector(3800.0f, 2600.0f, 200.0f), FLinearColor(0.62f, 0.55f, 0.40f) });
 		L.Blocks.Add({ FVector(-1400.0f, 1000.0f, 0.0f), FVector(1400.0f, 2600.0f, 200.0f), FLinearColor(0.62f, 0.55f, 0.40f) });
 		L.Blocks.Add({ FVector(-1400.0f, -2600.0f, 0.0f), FVector(1400.0f, -1000.0f, 200.0f), FLinearColor(0.62f, 0.55f, 0.40f) });
-		L.Blocks.Add({ FVector(-150.0f, -150.0f, 0.0f), FVector(150.0f, 150.0f, 280.0f), FLinearColor(0.50f, 0.46f, 0.40f) });
+		L.Blocks.Add({ FVector(-150.0f, -150.0f, 0.0f), FVector(150.0f, 150.0f, 320.0f), FLinearColor(0.50f, 0.46f, 0.40f) });
 		L.Blocks.Add({ FVector(-900.0f, 600.0f, 0.0f), FVector(-750.0f, 850.0f, 160.0f), FLinearColor(0.33f, 0.30f, 0.27f) });
 		L.Blocks.Add({ FVector(750.0f, -850.0f, 0.0f), FVector(900.0f, -600.0f, 160.0f), FLinearColor(0.33f, 0.30f, 0.27f) });
 		L.Blocks.Add({ FVector(500.0f, 450.0f, 0.0f), FVector(750.0f, 520.0f, 120.0f), FLinearColor(0.33f, 0.30f, 0.27f) });
@@ -210,7 +210,7 @@ namespace ShieldbreakMapsData
 		L.Spawns.Add(FVector(1800.0f, 0.0f, 200.0f));
 		L.Spawns.Add(FVector(-1600.0f, 2250.0f, 450.0f));
 		L.Spawns.Add(FVector(1600.0f, -2250.0f, 450.0f));
-		L.Weapons.Add({ FVector(0.0f, 0.0f, 350.0f), AWeapon_RocketLauncher::StaticClass(), 120.0f, 2 });
+		L.Weapons.Add({ FVector(0.0f, 0.0f, 390.0f), AWeapon_RocketLauncher::StaticClass(), 120.0f, 2 });
 		L.Weapons.Add({ FVector(-3600.0f, 0.0f, 870.0f), AWeapon_SniperRifle::StaticClass(), 90.0f, 4 });
 		L.Weapons.Add({ FVector(3600.0f, 0.0f, 870.0f), AWeapon_SniperRifle::StaticClass(), 90.0f, 4 });
 		L.Weapons.Add({ FVector(-1400.0f, 2250.0f, 520.0f), AWeapon_RailLance::StaticClass(), 60.0f, 3 });
