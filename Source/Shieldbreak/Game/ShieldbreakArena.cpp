@@ -293,6 +293,21 @@ void AShieldbreakArena::SpawnLighting()
 		}
 	}
 
+	// Fill light from the opposite side, no shadows: on low scalability (the Iris Xe laptop) Lumen GI and the sky
+	// light's real-time capture contribute little, so faces turned away from the sun rendered nearly black.
+	const FRotator FillRotation(-25.f, Layout.SunRotation.Yaw + 180.f, 0.f);
+	if (ADirectionalLight* Fill = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), FillRotation, Params))
+	{
+		if (UDirectionalLightComponent* FillLight = Cast<UDirectionalLightComponent>(Fill->GetLightComponent()))
+		{
+			FillLight->SetMobility(EComponentMobility::Movable);
+			FillLight->SetIntensity(1.5f);
+			FillLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
+			FillLight->SetAtmosphereSunLight(false);
+			FillLight->SetCastShadows(false);
+		}
+	}
+
 	if (ASkyAtmosphere* Atmosphere = World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, Params))
 	{
 		(void)Atmosphere;
@@ -305,6 +320,9 @@ void AShieldbreakArena::SpawnLighting()
 			SkyComponent->SetMobility(EComponentMobility::Movable);
 			SkyComponent->bRealTimeCapture = true;
 			SkyComponent->SetIntensity(1.5f);
+			// The ground under the map is just as lit as the sky, so undersides and overhangs aren't black either.
+			SkyComponent->bLowerHemisphereIsBlack = false;
+			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));
 			SkyComponent->RecaptureSky();
 		}
 	}
