@@ -11,11 +11,46 @@ OUT = os.path.join(unreal.Paths.project_saved_dir(), "ArtExport")
 os.makedirs(OUT, exist_ok=True)
 lines = []
 
+MANNY = "/Game/Characters/Heroes/Mannequin/Meshes/SKM_Manny.SKM_Manny"
+SKELETON = "/Game/Characters/Heroes/Mannequin/Meshes/SK_Mannequin.SK_Mannequin"
+# The mannequin goes last: its FBX export needs the skinned render data, which can fail on a low-memory machine.
 ASSETS = [
-    ("/Game/Characters/Heroes/Mannequin/Meshes/SKM_Manny.SKM_Manny", "SKM_Manny.fbx", "skel"),
     ("/Game/Weapons/Rifle/Mesh/SM_Rifle.SM_Rifle", "SM_Rifle.fbx", "static"),
     ("/Game/Weapons/Pistol/Mesh/SM_Pistol.SM_Pistol", "SM_Pistol.fbx", "static"),
+    (MANNY, "SKM_Manny.fbx", "skel"),
 ]
+
+
+def write_report():
+    with open(os.path.join(OUT, "export_report.txt"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def dump_bones():
+    """Reference-pose bones in component space (from the skeleton asset; no render data needed) to bones.json."""
+    skeleton = unreal.load_asset(SKELETON)
+    if skeleton is None:
+        lines.append("MISSING " + SKELETON)
+        return
+    try:
+        pose = unreal.AnimPoseExtensions.get_reference_pose(skeleton)
+        names = unreal.AnimPoseExtensions.get_bone_names(pose)
+        bones = {}
+        for name in names:
+            t = unreal.AnimPoseExtensions.get_bone_pose(pose, name, unreal.AnimPoseSpaces.WORLD)
+            loc, rot = t.translation, t.rotation
+            bones[str(name)] = {"loc": [loc.x, loc.y, loc.z], "quat": [rot.x, rot.y, rot.z, rot.w],
+                                "parent": str(unreal.AnimPoseExtensions.get_parent_bone_name(pose, name))
+                                if hasattr(unreal.AnimPoseExtensions, "get_parent_bone_name") else ""}
+        with open(os.path.join(OUT, "bones.json"), "w") as f:
+            json.dump(bones, f, indent=1)
+        lines.append("OK bones.json (%d bones)" % len(bones))
+    except Exception as exc:
+        lines.append("bone dump failed: %s" % exc)
+    write_report()
+
+
+dump_bones()
 
 
 def make_exporter(kind):
@@ -49,27 +84,13 @@ for path, filename, kind in ASSETS:
     ok = unreal.Exporter.run_asset_export_task(task)
     size = os.path.getsize(task.filename) if os.path.exists(task.filename) else -1
     lines.append("%s %s -> %s (%d bytes)" % ("OK" if ok else "FAILED", path, filename, size))
+    write_report()
 
-# Bones in reference pose, as UE sees them (component space comes from the C++ side; here, names and parents).
-manny = unreal.load_asset(ASSETS[0][0])
-bones = []
-try:
-    skeleton = manny.get_editor_property("skeleton")
-    count = skeleton.get_reference_pose().get_num_bones() if hasattr(skeleton, "get_reference_pose") else 0
-    lines.append("skeleton %s, ref pose bones %d" % (skeleton.get_name(), count))
-except Exception as exc:
-    lines.append("skeleton query failed: %s" % exc)
-try:
-    bounds = manny.get_bounds()
-    lines.append("manny bounds origin=%s extent=%s" % (bounds.origin, bounds.box_extent))
-except Exception as exc:
-    lines.append("bounds failed: %s" % exc)
 for p in ["/Game/Weapons/Rifle/Mesh/SM_Rifle.SM_Rifle", "/Game/Weapons/Pistol/Mesh/SM_Pistol.SM_Pistol"]:
     a = unreal.load_asset(p)
     if a:
         b = a.get_bounding_box()
         lines.append("%s bounds min=%s max=%s" % (p, b.min, b.max))
 
-with open(os.path.join(OUT, "export_report.txt"), "w") as f:
-    f.write("\n".join(lines) + "\n")
+write_report()
 unreal.log("ArtExport: " + " | ".join(lines))
