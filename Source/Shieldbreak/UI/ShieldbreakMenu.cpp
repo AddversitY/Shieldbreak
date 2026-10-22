@@ -7,6 +7,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "UnrealClient.h"
 #include "UI/SShieldbreakMenus.h"
 #include "Widgets/SWeakWidget.h"
 
@@ -100,6 +103,28 @@ void AShieldbreakMenuController::BeginPlay()
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
 	UE_LOG(LogShieldbreak, Log, TEXT("Main menu open."));
+
+	float ShotDelay = 0.f;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SBMenuShot="), ShotDelay) && ShotDelay > 0.f)
+	{
+		GetWorldTimerManager().SetTimer(MenuShotTimerHandle, this, &AShieldbreakMenuController::TakeMenuShot, ShotDelay, false);
+	}
+}
+
+void AShieldbreakMenuController::TakeMenuShot()
+{
+	const FString File = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("AutoShot") / TEXT("menu.png");
+	FScreenshotRequest::RequestScreenshot(File, true, false);
+	UE_LOG(LogShieldbreak, Log, TEXT("Menu screenshot: %s"), *File);
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBAutoQuit")))
+	{
+		// Give the screenshot a couple of frames to be written.
+		FTimerHandle QuitHandle;
+		GetWorldTimerManager().SetTimer(QuitHandle, [this]()
+		{
+			UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+		}, 2.f, false);
+	}
 }
 
 void AShieldbreakMenuController::EndPlay(const EEndPlayReason::Type EndPlayReason)
