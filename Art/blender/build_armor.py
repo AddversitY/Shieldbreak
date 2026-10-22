@@ -136,6 +136,9 @@ def shell(name, points, inflate, simplify_angle=12.0, scale=(1.0, 1.0, 1.0), piv
     bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(simplify_angle), verts=bm.verts[:], edges=bm.edges[:])
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(simplify_angle * 0.6), verts=bm.verts[:], edges=bm.edges[:])
+    # Tiny edges left by the dissolves make the bevel throw spikes; weld them away.
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.4)
+    bmesh.ops.dissolve_degenerate(bm, dist=0.05, edges=bm.edges[:])
     bm.normal_update()
     center = sum((v.co for v in bm.verts), Vector()) / max(len(bm.verts), 1)
     pivot = Vector(pivot) if pivot is not None else center
@@ -317,7 +320,7 @@ def build(verts, j, jt):
         # Boots.
         foot = gather(verts, ["foot_" + s, "ball_" + s], 0.5)
         pieces["foot_" + s] = [plate("boot_" + s, foot, 1.6, lambda c, n, ankle=ankle: "Polymer" if c.z < 3 else "Gunmetal",
-                                     simplify=15)]
+                                     cuts=[((0, 0, -0.8), (0, 0, -1))], simplify=15)]
     return pieces
 
 
