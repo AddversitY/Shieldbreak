@@ -1,5 +1,5 @@
 source: proxy body
-SM_SB_Armor_head: 196 tris, 4 materials, bounds X -11.1..11.1 Y -13.4..15.5 Z 159.5..183.7
+SM_SB_Armor_head: 358 tris, 4 materials, bounds X -11.6..11.6 Y -10.4..15.7 Z 158.6..186.6
 SM_SB_Armor_spine_05: 236 tris, 2 materials, bounds X -24.7..24.7 Y -15.6..18.9 Z 117.4..156.8
 SM_SB_Armor_spine_03: 140 tris, 2 materials, bounds X -17.2..17.2 Y -8.7..16.1 Z 105.2..122.2
 SM_SB_Armor_pelvis: 228 tris, 3 materials, bounds X -19.1..19.1 Y -10.9..16.2 Z 85.2..102.0

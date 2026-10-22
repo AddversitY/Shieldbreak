@@ -23,7 +23,7 @@ PALETTE = {
     "GlowAmber": ((1.0, 0.55, 0.12), 0.0, 0.3, 5.0),
     "Lens": ((0.02, 0.08, 0.12), 0.6, 0.08, 0.6),
     # Armor: "Team" is tinted per team in Unreal (TeamColor parameter); the preview shows red.
-    "Team": ((0.55, 0.04, 0.03), 0.35, 0.42, 0.0),
+    "Team": ((0.55, 0.04, 0.03), 0.15, 0.5, 0.0),
     "Undersuit": ((0.03, 0.03, 0.032), 0.1, 0.7, 0.0),
     "Visor": ((0.9, 0.42, 0.06), 0.95, 0.06, 0.25),
     "TeamGlow": ((1.0, 0.18, 0.08), 0.0, 0.3, 4.0),

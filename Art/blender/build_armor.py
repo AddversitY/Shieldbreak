@@ -210,22 +210,28 @@ def build(verts, j, jt):
     pieces = {}
     side = {"l": 1.0, "r": -1.0}
 
-    # Helmet: hull of the head, roomy and slightly flattened on the sides, with a wide faceted visor.
-    head = gather(verts, ["head", "neck_02"], 0.5)
-    head_c = j["head"] + Vector((0, 2.0, 8.0))
-    visor_z = (head_c.z - 2.0, head_c.z + 4.5)
+    # Helmet: a designed faceted dome (an ellipsoid sampled 12 x 7, then hulled), sized to the head bone, with a wide
+    # one-piece visor, a darker jaw, and team-colored "ear" lights. It doesn't depend on the skin.
+    head_c = j["head"] + Vector((0, 2.0, 9.5))
+    dome = []
+    for lat in range(-3, 4):
+        phi = lat * math.pi / 7.0
+        for lon in range(12):
+            th = lon * 2 * math.pi / 12 + math.pi / 12
+            dome.append(head_c + Vector((math.cos(phi) * math.cos(th) * 12.0, math.cos(phi) * math.sin(th) * 13.5, math.sin(phi) * 14.0)))
+    dome.append(head_c + Vector((0, 0, 14.5)))
+    visor_z = (head_c.z - 4.0, head_c.z + 3.5)
 
     def helmet_rule(c, n):
-        if n.y > 0.45 and visor_z[0] < c.z < visor_z[1] and abs(c.x - head_c.x) < 8.5:
+        if n.y > 0.35 and visor_z[0] < c.z < visor_z[1] and abs(c.x - head_c.x) < 10.5:
             return "Visor"
         if c.z < head_c.z - 6.0:
             return "Gunmetal"
-        if abs(c.x - head_c.x) > 9.0 and abs(n.x) > 0.7 and abs(c.z - head_c.z) < 3:
+        if abs(n.x) > 0.8 and abs(c.z - head_c.z) < 3.5 and c.y < head_c.y + 2:
             return "TeamGlow"
         return "Team"
 
-    pieces["head"] = [plate("helmet", head, 3.2, helmet_rule, cuts=[(j["neck_01"] + Vector((0, 0, 3)), (0, 0, -1))],
-                            scale=(1.02, 1.08, 1.0), pivot=head_c, simplify=14)]
+    pieces["head"] = [plate("helmet", dome, 0.0, helmet_rule, cuts=[(head_c - Vector((0, 0, 13.5)), (0, 0, -1))], simplify=3.0)]
 
     # Chest and back: upper torso (spine_04/05 + clavicles), broad and squared off.
     chest = gather(verts, ["spine_05", "spine_04", "clavicle_l", "clavicle_r"], 0.55,
