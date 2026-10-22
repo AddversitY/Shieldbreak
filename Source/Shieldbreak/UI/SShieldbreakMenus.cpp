@@ -270,7 +270,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunct
 		[
 			SNew(SBox).WidthOverride(260.f).HAlign(HAlign_Center)
 			[
-				SNew(STextBlock).Text_Lambda(Value).Font(Font(24, "Bold")).ColorAndOpacity(FLinearColor::White)
+				SNew(STextBlock).Text_Lambda([Value]() { return Value(); }).Font(Font(24, "Bold")).ColorAndOpacity(FLinearColor::White)
 			]
 		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(4.f)
