@@ -12,19 +12,17 @@ launch maps (Keel, Bastion, Sanctum, Creekbed, Spire) plus the Crucible test map
 `Design/maps/shieldbreak_maps.py` (generates `Game/ShieldbreakMapsData.cpp`). Design: `docs/DESIGN.md`, maps: `docs/MAPS.md`.
 
 **Last laptop results (2026-10-22, details under "Verified on the PC"):** clean build; self-test 83/83; CTF 13/13,
-KOTH 7/7, Oddball 9/9; map tour passes on Keel, Bastion, Sanctum, Creekbed, Keel CTF, Bastion KOTH; Spire 7/9;
-listen-server test clean (no net warnings, client viewmodel correct).
+KOTH 7/7, Oddball 9/9; map tour passes on every map (Keel, Bastion, Sanctum 7/7, Creekbed, Spire 9/9, Keel CTF, Bastion
+KOTH); listen-server test clean (0 net warnings on server and client, client viewmodel correct).
 
 **Next steps, in order:**
-1. Build `da83e64`+ and re-run the Spire map tour (base lifts 1-2: arc clearance fix, untested) and `Tools/ListenTest.bat`
-   (the merged viewmodel guard `97647c5` and the Sanctum plinth check `887e99d` came in after the last run).
-2. Bastion ran at 7.9 FPS in its Slayer map tour but 21.9 FPS in the Bastion KOTH run right after, so it's probably a
-   one-off (shader compile / memory pressure), not the map. Re-run Bastion Slayer once to confirm.
-3. Walls in shadow rendered nearly black: the arena now adds a shadowless fill light opposite the sun and a lit lower
-   hemisphere on the sky light. Needs a look in screenshots (any map run's `Saved/Screenshots`).
-4. The SMG / Plasma Rifle classes are deleted (`UDamageType_Plasma` stays). Needs a build.
-5. Roadmap items 4-5 below: screenshots/FPS per map and mode; find licensed art for the art pass (Vincent approves picks).
-6. Backlog: proper anim BP for the mannequin, original art pass, per-map feedback from Vincent.
+1. Build `HEAD` and look at any map run's screenshots: the sky light is now 6 (was 1.5) and motion blur is off. Shaded
+   walls went from black to grey in the comparison (`docs/playtests/2026-10-22_lighting_sky1.5_vs_sky6.jpg`), but a few
+   faces were still dark. If they still look too dark, try `-SBSky=10` (and `-SBFill=0`) on the command line first.
+2. Roadmap items 4-5 below: screenshots/FPS per map and mode. Art is in progress in the "Weapon and character art"
+   thread (branch `claude/project-thread-o2y3iw`, based on this one): original guns and armor, scripted in Blender.
+3. Backlog: proper anim BP for the mannequin, the environment art kit once Vincent has playtested the map layouts,
+   per-map feedback from Vincent.
 
 **How to run things on the laptop** (Windows, UE at `%USERPROFILE%\Epic Games\UE_5.8`, repo at
 `C:\Users\vince\development\Shieldbreak`, 8 GB RAM so builds compile one file at a time): `Tools/SelfTest.bat`,
@@ -162,6 +160,16 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-22 `d0afb80` → `5a4a19a`, run by the code session through the laptop (`Saved/RunNext.bat`,
+  `RunSanctum.bat`, `RunLighting.bat`). Clean builds.
+  - Map tour: **Spire 9/9** (26.9 FPS; all four gravity lifts launch now), **Bastion 5/5** (23.6 FPS; the 7.9 was a
+    one-off), **Sanctum 7/7** (17.3 FPS) after two fixes: the plinth check's dummy walked off the far side after landing,
+    and a plain jump *did* reach the 280 plinth (feet z 282: falling characters step up ledges within MaxStepHeight 45).
+    The plinth is now 320, and the test checks both that a plain jump fails and that a Power Jump lands.
+  - `Tools/ListenTest.bat`: **0** "NOT Supported" warnings on server and client.
+  - Lighting comparison on Keel (sun/fill/sky): 8/1.5/1.5 shaded walls black; **8/1.5/6 readable grey (now the
+    default)**; 8/5/1.5 darker still (exposure adapts to the brighter faces); 4/3/4 still black. The fill light's
+    "Multiple directional lights are competing" on-screen warning is gone (the sun has forward-shading priority).
 - 2026-10-22 `bb69ab9` (PR #2: maps + arena networking fix + map tour + client viewmodel fix), run by the code session
   through the laptop (`Saved/RunPR2.bat`). **Compiled clean first time** (maps `dd66cf7` included).
   - Self-test (Crucible) **83/83**, incl. the new "Arena pieces are net addressable" (0 of 32 unstable) and the Power Jump
@@ -224,5 +232,4 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
 - **Multiplayer:** a client joins a listen server, weapons replicate, the arena pieces resolve over the network and
   the client's viewmodel is right (all verified 2026-10-22).
-- **Bastion FPS:** 7.9 FPS in the map tour vs ~20 on the other maps.
-- **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
+- **Lighting:** shaded walls were black; sky light 6 fixed most of it (2026-10-22), a few faces still look dark.

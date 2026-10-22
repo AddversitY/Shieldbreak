@@ -285,7 +285,9 @@ void AShieldbreakArena::SpawnLighting()
 	Params.ObjectFlags |= RF_Transient;
 
 	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
-	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 1.5f;
+	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
+	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
+	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
