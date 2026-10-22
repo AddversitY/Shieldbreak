@@ -88,17 +88,17 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 ## Bugs found by the PC session (code session to fix)
 - **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
   ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
-  1. **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+  1. *(Fixed in `97647c5`, verify with ListenTest: the server's hand-socket attachment replicated and overrode the client viewmodel.)* **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
      across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
      (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
      or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
-  2. **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
+  2. *(Fixed in `78b3f15`, verify with ListenTest.)* **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
      ...ShieldbreakArena_0.StaticMeshComponent_N NOT Supported`. Characters standing on arena pieces replicate their
      movement *base*, which the client can't resolve, so based movement corrections break (client log: 5x `CreateSavedMove:
      Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
      `SetNetAddressable()` on each piece (stable names), or make the pieces a non-replicated actor built on both sides.
      Relevant to the new map framework.
-  3. Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
+  3. *(Fixed in `97647c5`: re-attach once BodyAnimator sets the mesh.)* Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
      mannequin mesh is set on the client).
   - Noise, mine to clean up: Lyra's `FootstepEffectTagModifier` anim-modifier Blueprint fails to compile (needs Lyra C++);
     harmless, I'll remove it from `Content/`.
