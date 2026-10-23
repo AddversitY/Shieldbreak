@@ -204,10 +204,14 @@ def export_fbx(path, objects):
 
     Unreal converts an FBX scene to right-handed Z-up with -Y as the front, then flips Y into its left-handed space.
     Blender's coordinates go out unchanged with forward -Y / up Z, so we mirror Y on the way out (object scale -1,
-    which the importer bakes into the vertices, flipping the winding back) and the two flips cancel."""
+    which the importer bakes into the vertices) and the two flips cancel. The importer keeps the winding through that
+    mirror, though (in game the armor was inside out: its outer faces were culled and the skin showed through from
+    behind), so we reverse the faces too. Tools/CheckWinding.bat compares the imported meshes with the engine cube."""
     bpy.ops.object.select_all(action="DESELECT")
     for obj in objects:
         obj.scale.y = -obj.scale.y
+        if obj.type == "MESH":
+            obj.data.flip_normals()
         obj.select_set(True)
         for child in obj.children:
             child.select_set(True)
@@ -217,6 +221,8 @@ def export_fbx(path, objects):
                              use_tspace=False, add_leaf_bones=False, bake_anim=False, path_mode="STRIP")
     for obj in objects:
         obj.scale.y = -obj.scale.y
+        if obj.type == "MESH":
+            obj.data.flip_normals()
 
 
 def bounds(obj):
