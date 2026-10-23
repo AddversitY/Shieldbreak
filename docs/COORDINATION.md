@@ -75,8 +75,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Main menu and Esc menu** (commit "Main menu and in-game Esc menu"). A bare `-game` launch (or `PlayTest.bat` without
   `-SBAutoShot`) should open the menu: pick map/mode/bots/skill, PLAY starts the match, HOST LAN GAME starts it with
   `?listen`, JOIN connects to the typed IP. In a match, Esc opens Resume / Leave match / Quit; Leave match returns to the
-  menu. Both menus also have Sensitivity / Field of view / Invert look (try them in a match) and Graphics
-  (Low/Medium/High/Epic, the engine's overall scalability, applied at once; check the menu still fits at 720p). The Crucible self-test
+  menu. Both menus also have Sensitivity / Field of view / Invert look (try them in a match) Graphics
+  (Low/Medium/High/Epic, the engine's overall scalability, applied at once; fits at 720p, verified) and Resolution
+  (50-100% 3D resolution; check it still fits and that FPS rises at 50%). The Crucible self-test
   gains "Main menu launch rules" (4 checks). Screenshot the menu once: `-game -SBMenuShot=6 -SBAutoQuit` saves
   `Saved/Screenshots/AutoShot/menu.png`.
 - **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
@@ -168,6 +169,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- **2026-10-22, build f35070f/16d3efd (iqwexu + art 05a556c):** BuildEditor clean (AndroidFileServer plugin off; the
+  editor no longer rewrites DefaultEngine.ini), ImportArt OK, self-test 93/93, Keel tour 11/11 at 23.1 FPS, every
+  soldier logs "14 armor pieces" and wears the armor in screenshots. Menu fits at 720p with the Graphics row (~70 px
+  spare). Keel perf/look comparison (4 bots, 1280x720): Base 22.9 FPS, ScreenPercentage 50 39.0 FPS (GPU bound),
+  VSM off 21.0, DFAO off 21.8, Lumen on 21.1. Only VSM off made shaded walls readable, so VSM is now off in
+  DefaultEngine.ini and the menus gained a Resolution (50-100%) setting.
 - 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
   **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
   pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.

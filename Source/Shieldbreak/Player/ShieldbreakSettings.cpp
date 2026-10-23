@@ -110,4 +110,27 @@ FText ShieldbreakSettings::GetGraphicsQualityName(int32 Level)
 	}
 }
 
+float ShieldbreakSettings::GetResolutionScale()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings)
+	{
+		return MaxResolutionScale;
+	}
+	float Normalized = 1.f, Value = MaxResolutionScale, Min = 0.f, Max = 0.f;
+	Settings->GetResolutionScaleInformationEx(Normalized, Value, Min, Max);
+	return Value;
+}
+
+void ShieldbreakSettings::SetResolutionScale(float Percent)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings)
+	{
+		return;
+	}
+	Settings->SetResolutionScaleValueEx(FMath::Clamp(Percent, MinResolutionScale, MaxResolutionScale));
+	Settings->ApplySettings(false);
+}
+
 #undef LOCTEXT_NAMESPACE
