@@ -186,6 +186,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   1.5 s after spawning (`-SBRecreateAt=<s>`, `-SBNoSkyRecapture` to disable). **Verified on 1989eda:** the log line
   appears ~1.5 s in, Keel 11/11 at 21.2 FPS, shaded walls readable blue-grey in every shot (deep shade dark navy, not
   black), later-spawned bots lit properly; self-test 93/93. Fixed.
+- **Perf after the armor refit (art 9a34d94), Keel, 1280x720, menu default resolution 87%:** four back-to-back tours
+  gave 12.8-16.2 FPS; after a 3-minute cool-down Base was 26.3, shadows off 26.1, 50% resolution 41.0. So the dip was
+  laptop heat, shadows cost nothing, and the GPU is the limit. `stat unit`: Frame ~45 ms, GPU ~45, Game ~18, Draws
+  300-400, Prims 480-580K (each Manny is ~92K tris; the armor adds ~2.5K). Back-to-back perf runs need a cool-down.
 - 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
   **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
   pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
