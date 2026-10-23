@@ -692,9 +692,19 @@ void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
 	}
 }
 
+UStaticMesh* AShieldbreakWeapon::LoadArtMesh(const FShieldbreakWeaponStats& WeaponStats)
+{
+	UStaticMesh* Art = WeaponStats.ArtMesh.IsNull() ? nullptr : ShieldbreakArt::Load<UStaticMesh>(*WeaponStats.ArtMesh.ToString());
+	if (!Art && !WeaponStats.ArtMeshFallback.IsNull())
+	{
+		Art = ShieldbreakArt::Load<UStaticMesh>(*WeaponStats.ArtMeshFallback.ToString());
+	}
+	return Art;
+}
+
 void AShieldbreakWeapon::ApplyArt()
 {
-	UStaticMesh* Art = Stats.ArtMesh.IsNull() ? nullptr : ShieldbreakArt::Load<UStaticMesh>(*Stats.ArtMesh.ToString());
+	UStaticMesh* Art = LoadArtMesh(Stats);
 	if (!Art)
 	{
 		return;

@@ -50,6 +50,7 @@ public:
 	UShieldHealthComponent* GetShieldHealth() const { return ShieldHealth; }
 	UShieldbreakMovementComponent* GetShieldbreakMovement() const;
 	UStaticMeshComponent* GetHeadMesh() const { return HeadMesh; }
+	UShieldbreakBodyAnimator* GetBodyAnimator() const { return BodyAnimator; }
 	AShieldbreakWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
 	AShieldbreakWeapon* GetHolsteredWeapon() const;
 	int32 GetGrenadeCount() const { return GrenadeCount; }

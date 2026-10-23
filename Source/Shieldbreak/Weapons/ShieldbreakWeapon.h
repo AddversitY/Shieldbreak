@@ -13,6 +13,7 @@
 class AShieldbreakCharacter;
 class UDamageType;
 class UMaterialInstanceDynamic;
+class UStaticMesh;
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
@@ -70,6 +71,8 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 
 	// ---- Imported art (optional; anything missing falls back to the greybox / synthesized sound) ----
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMesh;
+	/** Tried when ArtMesh is missing (e.g. our own model before it is imported): the stand-in Lyra gun. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMeshFallback;
 	/** First-person length (cm) the art mesh is scaled to along its barrel. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") float ArtViewLength = 55.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath FireSound;
@@ -91,6 +94,8 @@ public:
 	virtual void OnRep_AttachmentReplication() override {}
 
 	const FShieldbreakWeaponStats& GetStats() const { return Stats; }
+	/** The weapon's art mesh (ArtMesh, else ArtMeshFallback), or null for the greybox. */
+	static UStaticMesh* LoadArtMesh(const FShieldbreakWeaponStats& WeaponStats);
 
 	AShieldbreakCharacter* GetOwningCharacter() const;
 	/** Server: sets Owner and Instigator. */

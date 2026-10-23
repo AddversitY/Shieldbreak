@@ -27,6 +27,8 @@
 #include "Player/ShieldbreakPlayerState.h"
 #include "Shield/ShieldHealthComponent.h"
 #include "Shield/ShieldTuningData.h"
+#include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Engine/StaticMesh.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakWeapon.h"
@@ -222,6 +224,31 @@ void AShieldbreakSelfTest::BuildSteps()
 
 	// ---- Settle: let the arena and the first characters finish BeginPlay. ----
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
+
+	// ---- Original art (Art/blender, imported by Tools/ImportArt.bat): every gun has its own model, soldiers wear armor. ----
+	Steps.Add({ TEXT("Original art is in place"),
+		[this]()
+		{
+			// A dummy of our own (high above the map, so it fits on any layout): the match may not have spawned anyone yet.
+			A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f), 0.f, false);
+		},
+		[this](float Elapsed)
+		{
+			if (Elapsed < 0.3f) return false;
+			const TSubclassOf<AShieldbreakWeapon> Weapons[] = { AWeapon_BattleRifle::StaticClass(), AWeapon_Sidearm::StaticClass(),
+				AWeapon_SniperRifle::StaticClass(), AWeapon_RocketLauncher::StaticClass(), AWeapon_RailLance::StaticClass() };
+			for (const TSubclassOf<AShieldbreakWeapon>& WeaponClass : Weapons)
+			{
+				const UStaticMesh* Art = AShieldbreakWeapon::LoadArtMesh(WeaponClass->GetDefaultObject<AShieldbreakWeapon>()->GetStats());
+				Check(FString::Printf(TEXT("%s uses its own model"), *WeaponClass->GetName()), Art && Art->GetName().StartsWith(TEXT("SM_SB_")),
+					Art ? Art->GetName() : TEXT("no art mesh"));
+			}
+			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
+			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
+			ClearDummies();
+			return true;
+		}, 5.f });
 
 	// Objective modes run only their own checks plus the bot match; Slayer runs the full mechanics suite.
 	const AShieldbreakGameMode* SBGameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
