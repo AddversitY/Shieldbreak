@@ -31,17 +31,29 @@ result = unreal.GeometryScript_AssetUtils.copy_mesh_from_skeletal_mesh(manny, me
 report("copy result %s" % (result,))
 
 
-def unpack_list(value):
-    """5.8 returns (target mesh, list, ...) from these queries; older versions return the list itself."""
-    if isinstance(value, tuple):
-        value = next(x for x in value if hasattr(x, "list"))
-    return list(value.list if hasattr(value, "list") else value)
+def unpack_list(value, what):
+    """5.8 returns a tuple (e.g. the list plus a has-gaps flag) from these queries; older versions return the list
+    itself, possibly wrapped in a struct with a .list member. Logs the shape so a failed run says what came back."""
+    items = value if isinstance(value, tuple) else (value,)
+    report("%s returned %s" % (what, [type(x).__name__ for x in items]))
+    for x in items:
+        if hasattr(x, "list"):
+            return list(x.list)
+        if isinstance(x, (list, unreal.Array)):
+            return list(x)
+    for x in items:
+        if not isinstance(x, (bool, int, float, str, unreal.DynamicMesh)):
+            try:
+                return list(x)
+            except TypeError:
+                pass
+    raise RuntimeError("no list in %s result" % what)
 
 
 # Keep the dynamic mesh's vertex IDs (no gap skipping) so triangle indices line up; write only vertices that a
 # triangle uses (the copy leaves some unused ones behind).
-points = unpack_list(unreal.GeometryScript_MeshQueries.get_all_vertex_positions(mesh, False))
-tris = unpack_list(unreal.GeometryScript_MeshQueries.get_all_triangle_indices(mesh, True))
+points = unpack_list(unreal.GeometryScript_MeshQueries.get_all_vertex_positions(mesh, False), "vertex positions")
+tris = unpack_list(unreal.GeometryScript_MeshQueries.get_all_triangle_indices(mesh, True), "triangle indices")
 used = sorted({i for t in tris for i in (t.x, t.y, t.z)})
 remap = {old: new for new, old in enumerate(used)}
 report("vertices %d (%d used), triangles %d" % (len(points), len(used), len(tris)))
