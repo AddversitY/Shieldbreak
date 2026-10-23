@@ -180,6 +180,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   (`-ExecCmds` runs ~28 s in), not from VSM itself. Likely cause: the sky light's first capture runs before the
   atmosphere renders. The arena now recaptures the sky 0.5/2/6 s after spawning (`-SBNoSkyRecapture` disables it) —
   needs a Keel A/B.
+- **Keel A/B on 583bb5b:** timed recaptures alone: still near-black (18.3 FPS); none: near-black (19.1); none plus a
+  mid-match `r.Shadow.Virtual.Enable 0` (same value): fully readable blue-grey (18.8). So the fix is the render-state
+  recreate that cvar's sink triggers. The arena now does `FGlobalComponentRecreateRenderStateContext` + `RecaptureSky`
+  1.5 s after spawning (`-SBRecreateAt=<s>`, `-SBNoSkyRecapture` to disable) — needs a Keel check.
 - 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
   **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
   pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.

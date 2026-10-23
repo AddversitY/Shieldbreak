@@ -1,6 +1,7 @@
 #include "Game/ShieldbreakArena.h"
 
 #include "Shieldbreak.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
@@ -337,24 +338,28 @@ void AShieldbreakArena::SpawnLighting()
 			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));
 			SkyComponent->RecaptureSky();
 
-			// PC finding (2026-10-22): shaded walls stayed near-black from startup, yet turned a readable blue-grey once a
-			// renderer cvar was toggled mid-match (which recaptures the sky). The first capture runs before the sky
-			// atmosphere has rendered, so it captures an unlit sky. Capture again once the scene is up.
-			// -SBNoSkyRecapture keeps the old behaviour for comparison.
+			// PC finding (2026-10-22): shaded walls stay near-black from startup, but turn a readable blue-grey as soon as
+			// any renderer cvar with a recreate-render-state sink is set mid-match (even to its current value); timed
+			// RecaptureSky() calls alone didn't help. So once the arena and the first players exist, recreate every
+			// component's render state the way that cvar does, then recapture the sky. A one-off hitch at load.
+			// -SBNoSkyRecapture keeps the old behaviour for comparison; -SBRecreateAt=<s> moves it (default 1.5 s).
 			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoSkyRecapture")))
 			{
+				float RecreateDelay = 1.5f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBRecreateAt="), RecreateDelay);
 				TWeakObjectPtr<USkyLightComponent> WeakSky = SkyComponent;
-				for (const float Delay : { 0.5f, 2.f, 6.f })
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle, [WeakSky]()
 				{
-					FTimerHandle Handle;
-					World->GetTimerManager().SetTimer(Handle, [WeakSky]()
 					{
-						if (USkyLightComponent* Component = WeakSky.Get())
-						{
-							Component->RecaptureSky();
-						}
-					}, Delay, false);
-				}
+						FGlobalComponentRecreateRenderStateContext Recreate;
+					}
+					if (USkyLightComponent* Component = WeakSky.Get())
+					{
+						Component->RecaptureSky();
+					}
+					UE_LOG(LogShieldbreak, Log, TEXT("Lighting: recreated render state and recaptured the sky."));
+				}, FMath::Max(RecreateDelay, 0.1f), false);
 			}
 		}
 	}
