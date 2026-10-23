@@ -183,7 +183,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Keel A/B on 583bb5b:** timed recaptures alone: still near-black (18.3 FPS); none: near-black (19.1); none plus a
   mid-match `r.Shadow.Virtual.Enable 0` (same value): fully readable blue-grey (18.8). So the fix is the render-state
   recreate that cvar's sink triggers. The arena now does `FGlobalComponentRecreateRenderStateContext` + `RecaptureSky`
-  1.5 s after spawning (`-SBRecreateAt=<s>`, `-SBNoSkyRecapture` to disable) — needs a Keel check.
+  1.5 s after spawning (`-SBRecreateAt=<s>`, `-SBNoSkyRecapture` to disable). **Verified on 1989eda:** the log line
+  appears ~1.5 s in, Keel 11/11 at 21.2 FPS, shaded walls readable blue-grey in every shot (deep shade dark navy, not
+  black), later-spawned bots lit properly; self-test 93/93. Fixed.
 - 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
   **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
   pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
@@ -261,4 +263,4 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
 - **Multiplayer:** a client joins a listen server, weapons replicate, the arena pieces resolve over the network and
   the client's viewmodel is right (all verified 2026-10-22).
-- **Lighting:** shaded walls were black; sky light 6 fixed most of it (2026-10-22), a few faces still look dark.
+- **Lighting:** fixed 2026-10-22 (render-state recreate after the arena spawns; see Verified on the PC).
