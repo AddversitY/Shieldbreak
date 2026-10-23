@@ -18,6 +18,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
@@ -335,6 +336,26 @@ void AShieldbreakArena::SpawnLighting()
 			SkyComponent->bLowerHemisphereIsBlack = false;
 			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));
 			SkyComponent->RecaptureSky();
+
+			// PC finding (2026-10-22): shaded walls stayed near-black from startup, yet turned a readable blue-grey once a
+			// renderer cvar was toggled mid-match (which recaptures the sky). The first capture runs before the sky
+			// atmosphere has rendered, so it captures an unlit sky. Capture again once the scene is up.
+			// -SBNoSkyRecapture keeps the old behaviour for comparison.
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoSkyRecapture")))
+			{
+				TWeakObjectPtr<USkyLightComponent> WeakSky = SkyComponent;
+				for (const float Delay : { 0.5f, 2.f, 6.f })
+				{
+					FTimerHandle Handle;
+					World->GetTimerManager().SetTimer(Handle, [WeakSky]()
+					{
+						if (USkyLightComponent* Component = WeakSky.Get())
+						{
+							Component->RecaptureSky();
+						}
+					}, Delay, false);
+				}
+			}
 		}
 	}
 
