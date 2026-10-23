@@ -175,6 +175,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   spare). Keel perf/look comparison (4 bots, 1280x720): Base 22.9 FPS, ScreenPercentage 50 39.0 FPS (GPU bound),
   VSM off 21.0, DFAO off 21.8, Lumen on 21.1. Only VSM off made shaded walls readable, so VSM is now off in
   DefaultEngine.ini and the menus gained a Resolution (50-100%) setting.
+- **Same day, build a2fa53f (VSM off in the ini):** self-test 93/93, Keel 11/11 (18.1 FPS), menu fits with the Resolution
+  row (~50 px spare). But shaded walls were near-black again: the readable look came from toggling a cvar mid-match
+  (`-ExecCmds` runs ~28 s in), not from VSM itself. Likely cause: the sky light's first capture runs before the
+  atmosphere renders. The arena now recaptures the sky 0.5/2/6 s after spawning (`-SBNoSkyRecapture` disables it) —
+  needs a Keel A/B.
 - 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
   **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
   pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
