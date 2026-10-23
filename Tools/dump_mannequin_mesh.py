@@ -36,6 +36,21 @@ def unpack_list(value, what):
     itself, possibly wrapped in a struct with a .list member. Logs the shape so a failed run says what came back."""
     items = value if isinstance(value, tuple) else (value,)
     report("%s returned %s" % (what, [type(x).__name__ for x in items]))
+    converters = {
+        "GeometryScriptVectorList": "convert_vector_list_to_array",
+        "GeometryScriptTriangleList": "convert_triangle_list_to_array",
+        "GeometryScriptIndexList": "convert_index_list_to_array",
+    }
+    for x in items:
+        # The script lists hold their data behind a TSharedPtr Python can't see: convert them to arrays.
+        convert = converters.get(type(x).__name__)
+        if convert:
+            out = getattr(unreal.GeometryScript_ListUtils, convert)(x)
+            outs = out if isinstance(out, tuple) else (out,)
+            report("  %s returned %s" % (convert, [type(o).__name__ for o in outs]))
+            for o in outs:
+                if isinstance(o, (list, unreal.Array)):
+                    return list(o)
     for x in items:
         if hasattr(x, "list"):
             return list(x.list)
