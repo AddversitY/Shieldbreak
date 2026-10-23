@@ -155,18 +155,40 @@ void AShieldbreakWeapon::SetOwningCharacter(AShieldbreakCharacter* NewOwner)
 	SetInstigator(NewOwner);
 }
 
-void AShieldbreakWeapon::OnEquipped()
+AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 {
-	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	if (!OwnerCharacter || !OwnerCharacter->GetFirstPersonCamera())
 	{
-		return;
+		return EEquippedLayout::None;
 	}
 
 	// Everyone else sees the imported gun in the mannequin's hand; the local player gets a camera viewmodel.
 	const bool bViewModel = OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
-	USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
+	const USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
 	if (bHasArt && !bViewModel && Body && Body->GetSkeletalMeshAsset())
+	{
+		return EEquippedLayout::Hand;
+	}
+	return bHasArt ? EEquippedLayout::CameraArt : EEquippedLayout::CameraPlain;
+}
+
+bool AShieldbreakWeapon::NeedsReattach() const
+{
+	return GetDesiredLayout() != EquippedLayout;
+}
+
+void AShieldbreakWeapon::OnEquipped()
+{
+	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	EquippedLayout = GetDesiredLayout();
+	if (EquippedLayout == EEquippedLayout::None)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
+	if (EquippedLayout == EEquippedLayout::Hand)
 	{
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
@@ -197,6 +219,7 @@ void AShieldbreakWeapon::OnEquipped()
 
 void AShieldbreakWeapon::OnUnequipped()
 {
+	EquippedLayout = EEquippedLayout::None;
 	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;

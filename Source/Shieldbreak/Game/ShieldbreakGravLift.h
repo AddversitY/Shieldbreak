@@ -26,6 +26,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	/** Also launches anyone standing on the pad who didn't get a begin-overlap (spawned or landed inside the trigger). */
+	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, Category = "Lift") TObjectPtr<UBoxComponent> Trigger;
 	UPROPERTY(VisibleAnywhere, Category = "Lift") TObjectPtr<UStaticMeshComponent> PadMesh;
@@ -34,6 +36,7 @@ protected:
 private:
 	UFUNCTION() void HandleOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 		int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void TryLaunch(AActor* OtherActor, bool bRequireGround);
 
 	FVector Target = FVector::ZeroVector;
 };

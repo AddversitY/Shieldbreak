@@ -1,8 +1,40 @@
-# Working Together: Two Claude Sessions
+# Working Together: Shieldbreak sessions
 
-Two Claude sessions build Shieldbreak on the branch `claude/peaceful-hamilton-xcl6c8`. They can't share a
-chat, so this file is the shared to-do list and the rules of the road. Read it before starting work,
-and update it in the same commit as the work.
+## Handoff (2026-10-22): start here
+**Work branch: `claude/project-thread-iqwexu` (PR #2 into `main`).** It holds everything: `main` (PR #1) plus every
+commit from the old branch `claude/peaceful-hamilton-xcl6c8` (up to `887e99d`) plus the fixes below. Don't use the old
+branch any more. PR #2 is not merged; Vincent decides when.
+
+**State.** Competitive Halo-2-style FPS in UE 5.8 C++ (code-built greybox; Lyra art in `Content/` via Git LFS). Shields
+with recharge + Vent / Break Pulse; BR + Sidearm spawn kit; Sniper, Rockets, Rail Lance (charge), Aegis (frontal
+barrier), Active Camo, Overshield, frags; Power Jump, sprint/slide; Team Slayer, CTF, KOTH, Oddball with bots; five
+launch maps (Keel, Bastion, Sanctum, Creekbed, Spire) plus the Crucible test map, defined in
+`Design/maps/shieldbreak_maps.py` (generates `Game/ShieldbreakMapsData.cpp`). Design: `docs/DESIGN.md`, maps: `docs/MAPS.md`.
+
+**Last laptop results (2026-10-22, details under "Verified on the PC"):** clean build; self-test 83/83; CTF 13/13,
+KOTH 7/7, Oddball 9/9; map tour passes on every map (Keel, Bastion, Sanctum 7/7, Creekbed, Spire 9/9, Keel CTF, Bastion
+KOTH); listen-server test clean (0 net warnings on server and client, client viewmodel correct).
+
+**Next steps, in order:**
+0. Build and check the new main menu and Esc menu (see "Needs verification").
+1. Build `HEAD` and look at any map run's screenshots: the sky light is now 6 (was 1.5) and motion blur is off. Shaded
+   walls went from black to grey in the comparison (`docs/playtests/2026-10-22_lighting_sky1.5_vs_sky6.jpg`), but a few
+   faces were still dark. If they still look too dark, try `-SBSky=10` (and `-SBFill=0`) on the command line first.
+2. Roadmap items 4-5 below: screenshots/FPS per map and mode. Art is in progress in the "Weapon and character art"
+   thread (branch `claude/project-thread-o2y3iw`, based on this one): original guns and armor, scripted in Blender.
+3. Backlog: proper anim BP for the mannequin, the environment art kit once Vincent has playtested the map layouts,
+   per-map feedback from Vincent.
+
+**How to run things on the laptop** (Windows, UE at `%USERPROFILE%\Epic Games\UE_5.8`, repo at
+`C:\Users\vince\development\Shieldbreak`, 8 GB RAM so builds compile one file at a time): `Tools/SelfTest.bat`,
+`Tools/SelfTestModes.bat [modes]`, `Tools/MapTour.bat`, `Tools/ListenTest.bat`, `Tools/BuildEditor.bat`. Reports land in
+`Saved/Logs/SelfTest*.txt`. A cloud agent can't run Windows binaries; it can write a .bat and start it from File Explorer.
+
+---
+
+Shieldbreak was built by two Claude sessions: a cloud code session and a PC session on Vincent's laptop. They can't
+share a chat, so this file is the shared to-do list and the rules of the road. Read it before starting work, and
+update it in the same commit as the work.
 
 | Session | Can do | Can't do | Owns |
 |---|---|---|---|
@@ -35,11 +67,33 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- (none) The PC session's last run (all three objective modes, then the first listen-server test) finished on
-  2026-10-22; its results are under "Verified on the PC". They were recovered from the PC session's chat after the
-  project moved, because that session's last COORDINATION edit was never pushed.
+- (none) Next PC run: build `claude/project-thread-iqwexu` (PR #2: maps + the arena networking fix + the map tour), then
+  `Tools/SelfTest.bat`, `Tools/SelfTestModes.bat`, `Tools/MapTour.bat` and `Tools/ListenTest.bat`. The 2026-10-22 results
+  below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- **Main menu and Esc menu** (commit "Main menu and in-game Esc menu"). A bare `-game` launch (or `PlayTest.bat` without
+  `-SBAutoShot`) should open the menu: pick map/mode/bots/skill, PLAY starts the match, HOST LAN GAME starts it with
+  `?listen`, JOIN connects to the typed IP. In a match, Esc opens Resume / Leave match / Quit; Leave match returns to the
+  menu. Both menus also have Sensitivity / Field of view / Invert look (try them in a match) Graphics
+  (Low/Medium/High/Epic, the engine's overall scalability, applied at once; fits at 720p, verified) and Resolution
+  (50-100% 3D resolution; check it still fits and that FPS rises at 50%). The Crucible self-test
+  gains "Main menu launch rules" (4 checks). Screenshot the menu once: `-game -SBMenuShot=6 -SBAutoQuit` saves
+  `Saved/Screenshots/AutoShot/menu.png`.
+- **Listen-server fix: arena pieces are net addressable** (commit "Arena: stable names for networking"). The arena now
+  spawns as `ShieldbreakArena_<MapId>` on every machine and its pieces are named `Piece_0..N` in layout order, all marked
+  net addressable (`SetNetAddressable`), so the floor a character stands on can travel as its movement base.
+  - New self-test step "Arena pieces are net addressable" (small edit to your file). The PC-side code session had
+    written the same fix (`78b3f15`); the two are merged into one, and `Tools/MapTour.bat` (`a9d8f90`) rides along.
+  - Also re-run the Power Jump check: its "compare against a normal jump" fix has not been run since it landed.
+- **Listen-server fix: the client's own gun lay sideways** (`listen_test_b.jpg`). On the owning client the weapon could be
+  attached to the mannequin's hand (the layout for other players) before the client knew it controlled the pawn, and
+  nothing re-attached it. `AShieldbreakWeapon::NeedsReattach` now compares the layout OnEquipped would pick (hand,
+  camera with art, plain camera) with the last one, and the character's Tick re-attaches when it changes. Please check
+  the client's viewmodel in `Tools/ListenTest.bat` screenshots matches the host's.
+  - Please re-run `Tools/ListenTest.bat`: the server log should no longer show
+    `FNetGUIDCache::SupportsObject: StaticMeshComponent ... ShieldbreakArena_0.StaticMeshComponent_0 NOT Supported`,
+    and the client should walk, jump and ride ramps without stutter. Also try it on Spire (`?Map=Spire`) for the lifts.
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
   - Maps are data (`Game/ShieldbreakMaps.h`, generated `Game/ShieldbreakMapsData.cpp` from `Design/maps/shieldbreak_maps.py`).
     `AShieldbreakArena` builds whichever map the GameState's replicated `MapId` names (`?Map=Keel|Bastion|Sanctum|Creekbed|Spire|Crucible`;
@@ -87,6 +141,24 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into
   a check: survives from full shield, and lands with 20-40 health.
 
+## Bugs found by the PC session (code session to fix)
+- **Multiplayer (first 2-client listen-server test, 2026-10-21, `Tools/ListenTest.bat`).** The client joins
+  ("Welcomed by server"), sees the arena, bots and the HUD, and plays. Found:
+  1. (Fixed and verified 2026-10-22 by `bb69ab9`; `97647c5` adds a second guard, untested yet.) **Client first-person weapon is mis-oriented**: on the client the held Battle Rifle viewmodel lies sideways/rotated
+     across the bottom of the screen (`Saved/Screenshots/AutoShot/client_01.png`); the host's viewmodel is correct
+     (`server_01.png`). Probably the viewmodel attach/art transform is applied before the replicated weapon's art exists,
+     or uses a server-only path (`OnRep_CurrentWeapon` / `RefreshEquippedVisuals` on a remote-owned pawn).
+  2. (Fixed and verified 2026-10-22.) **Arena components aren't net-addressable**: the server logs 56x `FNetGUIDCache::SupportsObject: StaticMeshComponent
+     ...ShieldbreakArena_0.StaticMeshComponent_N NOT Supported`. Characters standing on arena pieces replicate their
+     movement *base*, which the client can't resolve, so based movement corrections break (client log: 5x `CreateSavedMove:
+     Hit limit of 96 saved moves`). Fix: build the layout identically on server and client and call
+     `SetNetAddressable()` on each piece (stable names), or make the pieces a non-replicated actor built on both sides.
+     Relevant to the new map framework.
+  3. *(Fixed in `97647c5`: re-attach once BodyAnimator sets the mesh.)* Minor: client `GetSocketInfoByName(weapon_r): No SkeletalMesh for CharacterMesh0` (weapon attached before the
+     mannequin mesh is set on the client).
+  - Noise, mine to clean up: Lyra's `FootstepEffectTagModifier` anim-modifier Blueprint fails to compile (needs Lyra C++);
+    harmless, I'll remove it from `Content/`.
+
 ## Design questions from the PC session (code session to decide)
 - (Answered by the code session: self-damage scaled; see Needs verification.) **Rocket jumps kill you without an overshield.** A rocket at your own feet does the full 220 (shield 70 +
   health 45 = 115), so the rocket jump is only survivable with an overshield (then: 34.9 health left and a
@@ -97,20 +169,74 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
-- 2026-10-22 `ab39f6f` (objective modes `5116512`; maps `dd66cf7` had not landed on the PC yet), **all three objective
-  modes PASS**: CTF 12/12 again, **KOTH 6/6** (bots actively play the hill, 29-23), **Oddball 8/8**. Bots also captured
-  a flag in the CTF bot match.
+- **2026-10-22, build f35070f/16d3efd (iqwexu + art 05a556c):** BuildEditor clean (AndroidFileServer plugin off; the
+  editor no longer rewrites DefaultEngine.ini), ImportArt OK, self-test 93/93, Keel tour 11/11 at 23.1 FPS, every
+  soldier logs "14 armor pieces" and wears the armor in screenshots. Menu fits at 720p with the Graphics row (~70 px
+  spare). Keel perf/look comparison (4 bots, 1280x720): Base 22.9 FPS, ScreenPercentage 50 39.0 FPS (GPU bound),
+  VSM off 21.0, DFAO off 21.8, Lumen on 21.1. Only VSM off made shaded walls readable, so VSM is now off in
+  DefaultEngine.ini and the menus gained a Resolution (50-100%) setting.
+- **Same day, build a2fa53f (VSM off in the ini):** self-test 93/93, Keel 11/11 (18.1 FPS), menu fits with the Resolution
+  row (~50 px spare). But shaded walls were near-black again: the readable look came from toggling a cvar mid-match
+  (`-ExecCmds` runs ~28 s in), not from VSM itself. Likely cause: the sky light's first capture runs before the
+  atmosphere renders. The arena now recaptures the sky 0.5/2/6 s after spawning (`-SBNoSkyRecapture` disables it) —
+  needs a Keel A/B.
+- **Keel A/B on 583bb5b:** timed recaptures alone: still near-black (18.3 FPS); none: near-black (19.1); none plus a
+  mid-match `r.Shadow.Virtual.Enable 0` (same value): fully readable blue-grey (18.8). So the fix is the render-state
+  recreate that cvar's sink triggers. The arena now does `FGlobalComponentRecreateRenderStateContext` + `RecaptureSky`
+  1.5 s after spawning (`-SBRecreateAt=<s>`, `-SBNoSkyRecapture` to disable). **Verified on 1989eda:** the log line
+  appears ~1.5 s in, Keel 11/11 at 21.2 FPS, shaded walls readable blue-grey in every shot (deep shade dark navy, not
+  black), later-spawned bots lit properly; self-test 93/93. Fixed.
+- **Perf after the armor refit (art 9a34d94), Keel, 1280x720, menu default resolution 87%:** four back-to-back tours
+  gave 12.8-16.2 FPS; after a 3-minute cool-down Base was 26.3, shadows off 26.1, 50% resolution 41.0. So the dip was
+  laptop heat, shadows cost nothing, and the GPU is the limit. `stat unit`: Frame ~45 ms, GPU ~45, Game ~18, Draws
+  300-400, Prims 480-580K (each Manny is ~92K tris; the armor adds ~2.5K). Back-to-back perf runs need a cool-down.
+- 2026-10-22 `a29d7cf` (art branch with this branch merged), run through Remote Control. Clean build. Crucible self-test
+  **92/93**: the miss was the art thread's armor check (fixed in their `f8d78bc`). Menu launch rules and settings clamp
+  pass. Keel 10/11 (same armor check), 21.2 FPS. The main menu screenshot fits at 1280x720.
+  - Lumen on vs off on Keel: **21.4 vs 20.0 FPS** (no gain), but without Lumen shaded walls are soft blue-grey instead of
+    black, so Lumen is now off by default (`r.DynamicGlobalIlluminationMethod=0`, SSR reflections).
+- 2026-10-22 `d0afb80` → `5a4a19a`, run by the code session through the laptop (`Saved/RunNext.bat`,
+  `RunSanctum.bat`, `RunLighting.bat`). Clean builds.
+  - Map tour: **Spire 9/9** (26.9 FPS; all four gravity lifts launch now), **Bastion 5/5** (23.6 FPS; the 7.9 was a
+    one-off), **Sanctum 7/7** (17.3 FPS) after two fixes: the plinth check's dummy walked off the far side after landing,
+    and a plain jump *did* reach the 280 plinth (feet z 282: falling characters step up ledges within MaxStepHeight 45).
+    The plinth is now 320, and the test checks both that a plain jump fails and that a Power Jump lands.
+  - `Tools/ListenTest.bat`: **0** "NOT Supported" warnings on server and client.
+  - Lighting comparison on Keel (sun/fill/sky): 8/1.5/1.5 shaded walls black; **8/1.5/6 readable grey (now the
+    default)**; 8/5/1.5 darker still (exposure adapts to the brighter faces); 4/3/4 still black. The fill light's
+    "Multiple directional lights are competing" on-screen warning is gone (the sun has forward-shading priority).
+- 2026-10-22 `bb69ab9` (PR #2: maps + arena networking fix + map tour + client viewmodel fix), run by the code session
+  through the laptop (`Saved/RunPR2.bat`). **Compiled clean first time** (maps `dd66cf7` included).
+  - Self-test (Crucible) **83/83**, incl. the new "Arena pieces are net addressable" (0 of 32 unstable) and the Power Jump
+    check (now passes). CTF **13/13**, KOTH **7/7**, Oddball **8/9**: the stuck-bot check flagged the Oddball carrier
+    standing still at its base with both escorts on top of it (fixed in code: carrier moves around its base, escorts
+    spread out; needs a re-run).
+  - Map tour: **Keel 5/5** (16.5 FPS), **Bastion 5/5** (7.9 FPS, the slowest map: look at its draw cost), **Sanctum 5/5**
+    (21.8), **Creekbed 5/5** (22.1), **Spire 5/9** (19.2): all 4 gravity lifts failed, the test dummy stayed on the pad
+    (a begin-overlap didn't fire for a character already inside the trigger; fixed in code: the lift also polls the
+    pad every 0.1 s; needs a re-run). **Keel CTF 15/15** (21.0 FPS), **Bastion KOTH 9/9** (21.9 FPS). No bot stuck on
+    any map in Slayer.
+  - Re-run after the fixes (`c5f9ca1`): **Oddball 9/9** (no bot stuck). **Spire 7/9**: lifts 3-4 (to the bridge) land
+    within 4 uu, but lifts 1-2 (base front to base top) clip the base's front face (landed 340 uu short, back on the
+    floor). Fixed in code: the arc's clearance scales with the climb (0.6x the height, min 150); needs one more Spire run.
+  - **Listen test: fixed.** The server log has **0** `FNetGUIDCache ... NOT Supported` lines (was 56), the client has
+    **0** `Hit limit of 96 saved moves` (was 5), and the client's Battle Rifle now sits correctly in first person
+    (`docs/playtests/2026-10-22_listen_test_c_client.jpg`, on Keel).
+- 2026-10-21 `ab39f6f` (objective modes `5116512`): **all modes pass. CTF 12/12, KOTH 6/6, Oddball 8/8.**
+  CTF: flags spawn home; taking the enemy flag swaps to the Sidearm (which may fire); capture at your home flag +1 and the
+  flag goes home; dying drops it; a defender's touch returns it; auto-return at 15.0 s. KOTH: one team alone scores +3 in
+  3.5 s and controls the hill; with both teams inside it scores nobody and shows contested (254). Oddball: pickup, carrier
+  can't shoot, +4 in 3.5 s while held, dying drops it, a dropped ball scores nothing and resets at 29.6 s. Bots play the
+  objectives: after 75 s CTF 1-0 (a real capture), KOTH 29-23, Oddball 35-28. 20-27 FPS with 4 bots. Screenshots:
+  `Saved/Screenshots/SelfTest/{ctf,koth,oddball}_N.png`. SMG/Plasma: the self-test no longer names `AWeapon_SMG` or
+  `AWeapon_PlasmaRifle` (Shield Bleed uses `UDamageType_Plasma`; the arena check accepts only the sandbox classes), so you
+  can delete those classes. Keep `UDamageType_Plasma`, or tell me if it goes.
 - 2026-10-22 **first 2-window listen-server test** (`Tools/ListenTest.bat`): the client connected ("Welcomed by
   server") and weapons replicated. **One real issue** in the server log: the arena's runtime-built floor and wall
   pieces can't be referenced over the network (they aren't stably named/replicated, so the client can't resolve
   them). Not yet investigated further; this goes to the code session (`AShieldbreakArena`). Screenshots from that run:
   `docs/playtests/2026-10-22_listen_test_a.jpg`, `_b.jpg`. They also show the open lighting problem: walls in
   shadow render nearly black.
-- 2026-10-21 `c49f9a7` (objective modes `5116512`), **CTF: 12/12 PASS**: both flags spawn home; walking over the enemy flag
-  takes it and swaps to the Sidearm (which may fire); capture at your home flag scores +1 and sends the flag home; dying
-  drops it; a defender's touch returns it; a dropped flag auto-returns at 15.0 s; 4 bots join and fight (4 kills in 75 s,
-  0-0 on captures). KOTH and Oddball checks are written but not run yet (the first mode batch stopped after CTF; fixed in
-  `ab39f6f`).
 - 2026-10-21 `c8a8876` (mechanics pass `e85654d` + rocket self-damage `458b8d7`): compiled clean first time; self-test
   **78/79**. All new checks pass: spawn kit BR + Sidearm; walk 660 reached in <0.25 s; Sidearm body 12 / unshielded
   headshot kill; Rail Lance early release 66 (survives) / full charge kills; Aegis pickup equips, raised barrier stops
@@ -139,6 +265,6 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   would look much better (code session).
 - **Plasma Rifle:** still greybox; no imported plasma art.
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22), but runtime-built arena
-  pieces can't be referenced over the network (see "Verified on the PC").
-- **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
+- **Multiplayer:** a client joins a listen server, weapons replicate, the arena pieces resolve over the network and
+  the client's viewmodel is right (all verified 2026-10-22).
+- **Lighting:** fixed 2026-10-22 (render-state recreate after the arena spawns; see Verified on the PC).

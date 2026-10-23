@@ -1,6 +1,8 @@
 // Builds the match's map (see Game/ShieldbreakMaps.h) from engine cubes at construction time: geometry, gravity
 // lifts, spawn points, weapon/power-up placements, objective spots, the bot waypoint graph and the sky/sun.
 // Not replicated: every machine builds the same deterministic copy of the map id the GameState carries.
+// The arena and its pieces get the same names on every machine and are net addressable, so a piece can be a
+// character's replicated movement base.
 
 #pragma once
 
@@ -46,6 +48,8 @@ public:
 	FVector GetBallLocation() const { return BallLocation; }
 	/** Locations of the map's weapon pickups and power-ups (for bots). */
 	const TArray<FVector>& GetPickupLocations() const { return PickupLocations; }
+	/** The floor, wall and ramp pieces (net addressable; see EnsureLocal). */
+	const TArray<TObjectPtr<UStaticMeshComponent>>& GetPieces() const { return Pieces; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -78,7 +82,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> BaseMaterial;
 
-	/** Which map to build; set before construction (SpawnActorDeferred). */
+	/** Which map to build; set before construction (deferred spawn in EnsureLocal). */
 	UPROPERTY()
 	FName MapId;
 

@@ -86,6 +86,9 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
+	/** Attachment is cosmetic and decided per machine in OnEquipped (viewmodel for the local player, hand socket for
+	 * everyone else), so the server's attachment (to the hand socket of a pawn it sees as remote) must not override it. */
+	virtual void OnRep_AttachmentReplication() override {}
 
 	const FShieldbreakWeaponStats& GetStats() const { return Stats; }
 
@@ -96,6 +99,8 @@ public:
 	/** Every machine: attach to the owner's camera and show / hide. */
 	void OnEquipped();
 	void OnUnequipped();
+	/** True when the attachment OnEquipped would pick now (hand vs camera viewmodel, art or not) differs from the last one. */
+	bool NeedsReattach() const;
 
 	// ---- Local (owning client or server AI) ----
 	void StartFire();
@@ -174,6 +179,11 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Charging) bool bCharging = false;
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
+
+	enum class EEquippedLayout : uint8 { None, Hand, CameraArt, CameraPlain };
+	EEquippedLayout GetDesiredLayout() const;
+	/** What OnEquipped last attached as. */
+	EEquippedLayout EquippedLayout = EEquippedLayout::None;
 
 	// Imported art layout, derived from the mesh in ApplyArt().
 	bool bHasArt = false;

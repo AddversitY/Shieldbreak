@@ -925,16 +925,37 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 		{
 			if (Carried == *It)
 			{
-				// Keep the ball away from the enemy: fall back toward our own base.
+				// Keep the ball away from the enemy: fall back toward our own base, then keep moving around it (a
+				// carrier that stands still is an easy target). Every 4 s pick another waypoint near the base on
+				// roughly the same level.
 				const AShieldbreakArena* Arena = AShieldbreakArena::Find(World);
-				OutGoal = Arena ? Arena->GetFlagLocation(MyTeam) : Bot->GetActorLocation();
+				const FVector Home = Arena ? Arena->GetFlagLocation(MyTeam) : Bot->GetActorLocation();
+				OutGoal = Home;
+				if (Arena && FVector::Dist2D(Bot->GetActorLocation(), Home) < 900.f)
+				{
+					TArray<FVector, TInlineAllocator<16>> Nearby;
+					for (const FVector& Waypoint : Arena->GetWaypoints())
+					{
+						if (FVector::Dist2D(Waypoint, Home) < 900.f && FMath::Abs(Waypoint.Z - Home.Z) < 150.f)
+						{
+							Nearby.Add(Waypoint);
+						}
+					}
+					if (Nearby.Num() > 0)
+					{
+						const int32 Slot = FMath::FloorToInt32(World->GetTimeSeconds() / 4.f) + static_cast<int32>(GetUniqueID() % 7);
+						OutGoal = Nearby[Slot % Nearby.Num()];
+					}
+				}
 				bOutUrgent = true;
 				return true;
 			}
 			const AShieldbreakCharacter* Carrier = It->GetCarrier();
 			if (Carrier && ShieldbreakTeams::AreTeammates(Carrier, Bot))
 			{
-				OutGoal = Carrier->GetActorLocation();
+				// Escort from a spot beside the carrier (stable per bot) instead of piling onto it.
+				const float Angle = static_cast<float>(GetUniqueID() % 360);
+				OutGoal = Carrier->GetActorLocation() + FVector(FMath::Cos(Angle) * 350.f, FMath::Sin(Angle) * 350.f, 0.f);
 				return true;
 			}
 			OutGoal = Carrier ? Carrier->GetActorLocation() : It->GetActorLocation();

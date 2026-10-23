@@ -9,6 +9,10 @@
 #include "Game/ShieldbreakGameMode.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Player/ShieldbreakInputSet.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "UI/SShieldbreakMenus.h"
+#include "Widgets/SWeakWidget.h"
 #include "HAL/FileManager.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/CommandLine.h"
@@ -60,6 +64,7 @@ void AShieldbreakPlayerController::SetupInputComponent()
 		EnhancedInput->BindAction(Inputs->Scoreboard, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnScoreboardStarted);
 		EnhancedInput->BindAction(Inputs->Scoreboard, ETriggerEvent::Completed, this, &AShieldbreakPlayerController::OnScoreboardCompleted);
 		EnhancedInput->BindAction(Inputs->ToggleHelp, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnToggleHelp);
+		EnhancedInput->BindAction(Inputs->Pause, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnPause);
 	}
 	else
 	{
@@ -108,6 +113,53 @@ void AShieldbreakPlayerController::OnScoreboardCompleted()
 void AShieldbreakPlayerController::OnToggleHelp()
 {
 	HelpOverride = IsHelpVisible() ? 0 : 1;
+}
+
+void AShieldbreakPlayerController::OnPause()
+{
+	// While open the menu has focus and handles Esc itself; this only opens it.
+	OpenPauseMenu();
+}
+
+void AShieldbreakPlayerController::OpenPauseMenu()
+{
+	if (PauseMenu.IsValid() || !IsLocalController() || !GEngine || !GEngine->GameViewport)
+	{
+		return;
+	}
+	PauseMenu = SNew(SShieldbreakPauseMenu).Owner(this);
+	PauseMenuContainer = SNew(SWeakWidget).PossiblyNullContent(PauseMenu);
+	GEngine->GameViewport->AddViewportWidgetContent(PauseMenuContainer.ToSharedRef(), 20);
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(PauseMenu);
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(InputMode);
+	SetShowMouseCursor(true);
+	// Drop held inputs (fire, move) so the character doesn't keep shooting or running behind the menu.
+	FlushPressedKeys();
+}
+
+void AShieldbreakPlayerController::ClosePauseMenu()
+{
+	if (!PauseMenu.IsValid())
+	{
+		return;
+	}
+	if (GEngine && GEngine->GameViewport && PauseMenuContainer.IsValid())
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(PauseMenuContainer.ToSharedRef());
+	}
+	PauseMenu.Reset();
+	PauseMenuContainer.Reset();
+	SetInputMode(FInputModeGameOnly());
+	SetShowMouseCursor(false);
+}
+
+void AShieldbreakPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	ClosePauseMenu();
+	Super::EndPlay(EndPlayReason);
 }
 
 // ---- Feedback ----

@@ -8,6 +8,8 @@
 #include "TimerManager.h"
 #include "ShieldbreakPlayerController.generated.h"
 
+class SWidget;
+
 UCLASS()
 class SHIELDBREAK_API AShieldbreakPlayerController : public APlayerController
 {
@@ -19,6 +21,11 @@ public:
 	// ---- Local UI state ----
 	bool IsScoreboardVisible() const { return bScoreboardVisible; }
 	bool IsHelpVisible() const;
+
+	/** Esc menu (Resume / Leave match / Quit). The match keeps running underneath. */
+	void OpenPauseMenu();
+	void ClosePauseMenu();
+	bool IsPauseMenuOpen() const { return PauseMenu.IsValid(); }
 
 	// ---- Feedback (server -> owning client) ----
 	UFUNCTION(Client, Unreliable) void ClientHitConfirmed(bool bKill, bool bHeadshot);
@@ -41,6 +48,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
@@ -54,6 +62,7 @@ private:
 	void OnScoreboardStarted();
 	void OnScoreboardCompleted();
 	void OnToggleHelp();
+	void OnPause();
 
 	/** Play-test helper: -SBAutoShot=<seconds> saves screenshots to Saved/Screenshots/AutoShot; -SBAutoQuit exits after. */
 	void SetupAutoShots();
@@ -65,6 +74,9 @@ private:
 	int32 AutoShotCount = 0;
 	float AutoShotInterval = 4.f;
 	FTimerHandle AutoShotTimerHandle;
+
+	TSharedPtr<SWidget> PauseMenu;
+	TSharedPtr<SWidget> PauseMenuContainer;
 
 	bool bScoreboardVisible = false;
 	/** -1 = automatic (shown for the first seconds of play). */

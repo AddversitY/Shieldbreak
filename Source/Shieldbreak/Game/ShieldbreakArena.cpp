@@ -1,6 +1,7 @@
 #include "Game/ShieldbreakArena.h"
 
 #include "Shieldbreak.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
@@ -16,6 +17,9 @@
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
@@ -86,12 +90,27 @@ AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 		return nullptr;
 	}
 
+	const FName BuildId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+
+	// Characters stand on the arena's pieces, and replicated movement references its movement base by path, so
+	// the arena and its pieces must have the same names on every machine and be net-addressable.
+	FActorSpawnParameters Params;
+	Params.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *BuildId.ToString()));
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// Deferred so MapId is set before OnConstruction builds the geometry.
-	AShieldbreakArena* Arena = World->SpawnActorDeferred<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity,
-		nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	Params.bDeferConstruction = true;
+	if (UObject* NameHolder = StaticFindObjectFast(nullptr, World->PersistentLevel, Params.Name))
+	{
+		// A destroyed arena awaiting garbage collection still holds the name.
+		NameHolder->Rename(*MakeUniqueObjectName(World->PersistentLevel, NameHolder->GetClass()).ToString(), nullptr,
+			REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
+	}
+
+	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, Params);
 	if (Arena)
 	{
-		Arena->MapId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+		Arena->MapId = BuildId;
+		Arena->SetNetAddressable();
 		Arena->FinishSpawning(FTransform::Identity);
 	}
 	return Arena;
@@ -135,7 +154,7 @@ void AShieldbreakArena::BeginPlay()
 
 UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation)
 {
-	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, NAME_None, RF_Transient);
+	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, FName(TEXT("Piece"), Pieces.Num() + 1), RF_Transient);
 	if (!Piece)
 	{
 		return nullptr;
@@ -156,6 +175,8 @@ UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVe
 	Piece->SetupAttachment(Root);
 	Piece->SetRelativeLocationAndRotation(Center, Rotation);
 	Piece->SetRelativeScale3D(Size / 100.f);
+	// Same build order on every machine, so the same name: a movement base the server can reference.
+	Piece->SetNetAddressable();
 	Piece->RegisterComponent();
 	AddInstanceComponent(Piece);
 
@@ -265,14 +286,38 @@ void AShieldbreakArena::SpawnLighting()
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
 
+	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
+	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
+	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
+	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
+
 	if (ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), Layout.SunRotation, Params))
 	{
 		if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 		{
 			SunLight->SetMobility(EComponentMobility::Movable);
-			SunLight->SetIntensity(8.f);
+			SunLight->SetIntensity(SunIntensity);
 			SunLight->SetAtmosphereSunLight(true);
+			SunLight->SetForwardShadingPriority(1); // the sun, not the fill, drives fog and translucency
 			SunLight->SetCastShadows(true);
+		}
+	}
+
+	// Fill light from the opposite side, no shadows: on low scalability (the Iris Xe laptop) Lumen GI and the sky
+	// light's real-time capture contribute little, so faces turned away from the sun rendered nearly black.
+	const FRotator FillRotation(-25.f, Layout.SunRotation.Yaw + 180.f, 0.f);
+	if (ADirectionalLight* Fill = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), FillRotation, Params))
+	{
+		if (UDirectionalLightComponent* FillLight = Cast<UDirectionalLightComponent>(Fill->GetLightComponent()))
+		{
+			FillLight->SetMobility(EComponentMobility::Movable);
+			FillLight->SetIntensity(FillIntensity);
+			FillLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
+			FillLight->SetAtmosphereSunLight(false);
+			FillLight->SetCastShadows(false);
 		}
 	}
 
@@ -287,8 +332,35 @@ void AShieldbreakArena::SpawnLighting()
 		{
 			SkyComponent->SetMobility(EComponentMobility::Movable);
 			SkyComponent->bRealTimeCapture = true;
-			SkyComponent->SetIntensity(1.5f);
+			SkyComponent->SetIntensity(SkyIntensity);
+			// The ground under the map is just as lit as the sky, so undersides and overhangs aren't black either.
+			SkyComponent->bLowerHemisphereIsBlack = false;
+			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));
 			SkyComponent->RecaptureSky();
+
+			// PC finding (2026-10-22): shaded walls stay near-black from startup, but turn a readable blue-grey as soon as
+			// any renderer cvar with a recreate-render-state sink is set mid-match (even to its current value); timed
+			// RecaptureSky() calls alone didn't help. So once the arena and the first players exist, recreate every
+			// component's render state the way that cvar does, then recapture the sky. A one-off hitch at load.
+			// -SBNoSkyRecapture keeps the old behaviour for comparison; -SBRecreateAt=<s> moves it (default 1.5 s).
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoSkyRecapture")))
+			{
+				float RecreateDelay = 1.5f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBRecreateAt="), RecreateDelay);
+				TWeakObjectPtr<USkyLightComponent> WeakSky = SkyComponent;
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle, [WeakSky]()
+				{
+					{
+						FGlobalComponentRecreateRenderStateContext Recreate;
+					}
+					if (USkyLightComponent* Component = WeakSky.Get())
+					{
+						Component->RecaptureSky();
+					}
+					UE_LOG(LogShieldbreak, Log, TEXT("Lighting: recreated render state and recaptured the sky."));
+				}, FMath::Max(RecreateDelay, 0.1f), false);
+			}
 		}
 	}
 

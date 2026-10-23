@@ -78,6 +78,16 @@ AShieldbreakGameMode::AShieldbreakGameMode()
 	};
 }
 
+int32 AShieldbreakGameMode::GetMaxBots()
+{
+	return ShieldbreakGameModePrivate::MaxBots;
+}
+
+int32 AShieldbreakGameMode::GetMaxBotSkill()
+{
+	return ShieldbreakGameModePrivate::MaxBotSkill;
+}
+
 // ---- Game flow ----
 
 void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)

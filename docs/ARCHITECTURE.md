@@ -61,7 +61,7 @@ Source/Shieldbreak/
                ShieldbreakDamageTypes, ShieldbreakGrenade, ShieldbreakWeaponPickup, ShieldbreakTracer
   Game/        ShieldbreakGameMode, ShieldbreakGameState, ShieldbreakArena
   AI/          ShieldbreakBotController
-  UI/          ShieldbreakHUD
+  UI/          ShieldbreakHUD, ShieldbreakMenu (game instance, menu game mode/controller), SShieldbreakMenus (Slate)
 ```
 
 ---
@@ -223,7 +223,7 @@ void GiveWeapon(TSubclassOf<AShieldbreakWeapon> WeaponClass);  // fills an empty
 void EquipWeapon(AShieldbreakWeapon* Weapon);
 void AddGrenades(int32 Count);
 ```
-Defaults: `PrimaryWeaponClass = AWeapon_BattleRifle`, `SecondaryWeaponClass = AWeapon_SMG`,
+Defaults: `PrimaryWeaponClass = AWeapon_BattleRifle`, `SecondaryWeaponClass = AWeapon_Sidearm`,
 `GrenadeClass = AShieldbreakGrenade`, 2 grenades (max 4), melee damage 70, range 190, lunge range 320,
 cooldown 0.9 s, **melee from behind (target forward · attacker→target dir > 0.6) = 999 damage (assassination)**.
 Melee is a server sphere sweep on `ECC_Pawn` objects using `UDamageType_Melee`.
@@ -294,10 +294,7 @@ magazine. The cosmetic tracer is `AShieldbreakTracer::Spawn(World, Start, End, C
 - `AWeapon_BattleRifle`: Burst 3, BurstInterval 0.055, TimeBetweenShots 0.42 (between bursts; hold = repeat),
   Damage 6.5, precision, HeadshotMultiplier 10, spread 0.25→max 0.6, mag 36, reserve 108, reload 2.0, range 12000,
   ZoomFOV 40, Ballistic, recoil 0.35.
-- `AWeapon_SMG`: FullAuto, 0.066 s, Damage 4.0, spread 2.0 +0.35/shot max 6, recovery 12/s, mag 60, reserve 180,
-  reload 2.0, range 3500, BallisticLight, no zoom, recoil 0.15.
-- `AWeapon_PlasmaRifle`: FullAuto, 0.11 s, Damage 6.0, heat 0.075/shot, cooldown 0.55/s, lockout 2.5, spread 1.2 max 3.5,
-  range 4500, Plasma, cyan tracer. Pickup-only.
+- (The SMG and Plasma Rifle were removed on 2026-10-22; `UDamageType_Plasma` stays for the Shield Bleed tests.)
 
 ### `AShieldbreakGrenade` : AActor
 Replicated movement. Sphere collision (radius 9) blocks world, ignores `ECC_Weapon`. `UProjectileMovementComponent` with
@@ -411,3 +408,19 @@ and one in the tower top.
   with the winner and a restart countdown. Death: "RESPAWN IN N".
 - Help overlay listing all controls and the four mastery mechanics in one line each.
 Scale everything by `Canvas->ClipY / 1080`. Fonts: `GEngine->GetSmallFont()/GetMediumFont()/GetLargeFont()`.
+
+## UI — front end (`UI/ShieldbreakMenu.h`, `UI/SShieldbreakMenus.h`, Slate in code, no UMG assets)
+- `UShieldbreakGameInstance` (set as `GameInstanceClass` in DefaultEngine.ini) overrides `OverrideGameModeClass`: when
+  `ShieldbreakMenu::ShouldShowMainMenu` says so it swaps in `AShieldbreakMenuGameMode` (no arena, no pawns). Rule: `?Menu`
+  always opens the menu; any of `?Map ?Mode ?Bots ?listen`, a dedicated server, `-SBSelfTest`, `-SBAutoShot=` or
+  `-SBNoMenu` goes straight to a match. So a bare `-game` launch shows the menu and every test script is unaffected.
+- `SShieldbreakMainMenu`: map / mode / bots / bot-skill choosers, PLAY (`OpenLevel Entry?Map=..?Mode=..?Bots=..?Skill=..`),
+  HOST LAN GAME (same plus `?listen`), JOIN (address box, `ClientTravel`), QUIT. Choices persist in
+  GameUserSettings.ini `[Shieldbreak.Menu]`.
+- Both menus show the player settings (`Player/ShieldbreakSettings.h`): sensitivity 0.2-3.0 (multiplies look input),
+  hip-fire field of view 70-110 (default 78; scopes keep their zoom FOV), invert look. Stored in GameUserSettings.ini
+  `[Shieldbreak.Settings]`, read by `AShieldbreakCharacter::Input_Look` and the camera FOV in Tick. Graphics
+  (Low-Epic) sets `UGameUserSettings` overall scalability and Resolution (50-100%) its resolution scale, both applied
+  at once.
+- In a match, Esc (`UShieldbreakInputSet::Pause`) opens `SShieldbreakPauseMenu` (Resume / Leave match / Quit) with UI-only
+  input; the match keeps running. Leave match = `OpenLevel Entry?Menu`.
