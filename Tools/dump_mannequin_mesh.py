@@ -45,7 +45,7 @@ def unpack_list(value, what):
         # The script lists hold their data behind a TSharedPtr Python can't see: convert them to arrays.
         convert = converters.get(type(x).__name__)
         if convert:
-            out = getattr(unreal.GeometryScript_ListUtils, convert)(x)
+            out = getattr(getattr(unreal, "GeometryScript_List", None) or unreal.GeometryScript_ListUtils, convert)(x)
             outs = out if isinstance(out, tuple) else (out,)
             report("  %s returned %s" % (convert, [type(o).__name__ for o in outs]))
             for o in outs:
