@@ -121,6 +121,17 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 					const int32 Next = Current < 0 ? (Delta > 0 ? 0 : 3) : (Current + Delta + 4) % 4;
 					ShieldbreakSettings::SetGraphicsQuality(Next);
 				})
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("ResolutionScale", "Resolution"),
+				[]() { return FText::Format(LOCTEXT("Percent", "{0}%"), FText::AsNumber(FMath::RoundToInt(ShieldbreakSettings::GetResolutionScale()))); },
+				[](int32 Delta)
+				{
+					// Snap to steps of 10 (the graphics presets can leave values like 71 or 87).
+					const float Current = FMath::RoundToFloat(ShieldbreakSettings::GetResolutionScale() / 10.f) * 10.f;
+					ShieldbreakSettings::SetResolutionScale(Current + 10.f * Delta);
+				})
 		];
 }
 

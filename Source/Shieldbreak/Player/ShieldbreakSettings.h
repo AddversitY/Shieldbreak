@@ -27,4 +27,10 @@ namespace ShieldbreakSettings
 	SHIELDBREAK_API int32 GetGraphicsQuality();
 	SHIELDBREAK_API void SetGraphicsQuality(int32 Level);
 	SHIELDBREAK_API FText GetGraphicsQualityName(int32 Level);
+
+	/** 3D render resolution in percent of the window (UI stays sharp). The laptop is GPU bound: 50% nearly doubles FPS. */
+	constexpr float MinResolutionScale = 50.f;
+	constexpr float MaxResolutionScale = 100.f;
+	SHIELDBREAK_API float GetResolutionScale();
+	SHIELDBREAK_API void SetResolutionScale(float Percent);
 }
