@@ -470,6 +470,11 @@ void AShieldbreakCharacter::TintMesh(UStaticMeshComponent* MeshComponent, const 
 
 void AShieldbreakCharacter::ApplyPlayerColor()
 {
+	// A dead body is unpossessed and loses its PlayerState: keep the team color it died in rather than going grey.
+	if (!GetPlayerState() && AppliedColor.A >= 0.f)
+	{
+		return;
+	}
 	const FLinearColor Color = GetPlayerColor();
 	if (Color.Equals(AppliedColor))
 	{

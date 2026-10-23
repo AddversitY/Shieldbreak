@@ -9,6 +9,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/ShieldbreakCharacter.h"
 #include "Visuals/ShieldbreakArt.h"
@@ -203,6 +204,10 @@ namespace ShieldbreakBodyAnimatorPrivate
 		TEXT("upperarm_l"), TEXT("upperarm_r"), TEXT("lowerarm_l"), TEXT("lowerarm_r"),
 		TEXT("thigh_l"), TEXT("thigh_r"), TEXT("calf_l"), TEXT("calf_r"), TEXT("foot_l"), TEXT("foot_r"),
 	};
+	/** For performance A/B runs: sb.Armor 0 spawns soldiers without armor, sb.ArmorShadows 0 keeps it from casting. */
+	TAutoConsoleVariable<int32> CVarArmor(TEXT("sb.Armor"), 1, TEXT("1: soldiers wear the armor set (applies to new spawns)."));
+	TAutoConsoleVariable<int32> CVarArmorShadows(TEXT("sb.ArmorShadows"), 1, TEXT("1: armor pieces cast shadows (new spawns)."));
+
 	/** Plates are a little darker than the HUD's team color so they don't wash out in sunlight. */
 	constexpr float PlateBrightness = 0.55f;
 	constexpr float GlowBrightness = 1.6f;
@@ -224,7 +229,8 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
 	const USkeletalMesh* Asset = Body ? Body->GetSkeletalMeshAsset() : nullptr;
-	if (!Asset || ArmorPieces.Num() > 0 || (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
+	if (!Asset || ArmorPieces.Num() > 0 || CVarArmor.GetValueOnGameThread() == 0
+		|| (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
 	{
 		return;
 	}
@@ -248,6 +254,7 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
 		Piece->SetCanEverAffectNavigation(false);
 		Piece->SetOwnerNoSee(true);
 		Piece->bCastHiddenShadow = true;
+		Piece->SetCastShadow(CVarArmorShadows.GetValueOnGameThread() != 0);
 		Piece->SetupAttachment(Body, Bone);
 		// The piece is modeled where it sits on the reference pose, so undo the bone's reference transform.
 		Piece->SetRelativeTransform(RefPoseComponentSpace(RefSkeleton, BoneIndex).Inverse());
