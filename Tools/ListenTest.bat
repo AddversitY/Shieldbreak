@@ -17,7 +17,7 @@ if not "%ERRORLEVEL%"=="0" goto :done
 echo === Server (Mode=%MODE%) === >> "%LOG%"
 start "Shieldbreak server" "%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" /Engine/Maps/Entry?listen?Mode=%MODE%?Bots=2 -game -windowed -ResX=960 -ResY=540 -WinX=0 -WinY=40 -log -abslog="%LOGS%\ListenServer.log" -SBAutoShot=90 -SBAutoShotCount=4 -SBAutoShotInterval=10 -SBAutoShotPrefix=server -SBAutoQuit
 rem Give the server time to load (shader/texture builds on a cold start take a while).
-"%SystemRoot%System32	imeout.exe" /t 60 /nobreak > nul
+"%SystemRoot%\System32\timeout.exe" /t 60 /nobreak > nul
 echo === Client === >> "%LOG%"
 "%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" 127.0.0.1 -game -windowed -ResX=960 -ResY=540 -WinX=960 -WinY=40 -log -abslog="%LOGS%\ListenClient.log" -SBAutoShot=45 -SBAutoShotCount=4 -SBAutoShotInterval=10 -SBAutoShotPrefix=client -SBAutoQuit
 echo CLIENTCODE=%ERRORLEVEL% >> "%LOG%"
