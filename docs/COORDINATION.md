@@ -72,6 +72,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 **Throw readability** (commit "Throw: tip up"). From your sweep: `sb.FPThrowDip` default is now -35, the
+  toss plays at 0.9 (was 1.4) in both views, and the rig holds the tilt from 15% to 60% of the throw instead of easing
+  straight back. Please take throw frames at 0.1/0.2/0.3/0.4/0.5 s and check the forearm swing reads, and that the
+  third-person throw (a bot or the listen client) doesn't look sluggish at the slower rate.
 - 2026-10-25 morning **Fixes for the overnight report** (commit "Swap lowers the arms"). (1) Weapon swap: the
   first-person arms now drop 45 cm out of view the moment the equip animation starts and stay down until they are
   re-placed for the new gun's idle, then rise over 0.25 s (the red shoulder plate came from the equip pose plus the

@@ -375,7 +375,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
 	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 34.f, TEXT("First-person gun hand: cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), 35.f, TEXT("First-person grenade throw: degrees the arms pitch down so the overhead arm swing comes into view."));
+	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), -35.f, TEXT("First-person grenade throw: degrees the arm rig pitches during the throw (negative tips it up so the left arm's swing crosses the screen; tuned on the PC)."));
 	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 13.f, TEXT("First-person gun hand: cm right of the eye."));
 	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 15.f, TEXT("First-person gun hand: cm below the eye."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
@@ -392,7 +392,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	{
 		switch (Action)
 		{
-		case EShieldbreakAction::GrenadeThrow: return { 0.1f, 1.4f };
+		case EShieldbreakAction::GrenadeThrow: return { 0.1f, 0.9f };
 		case EShieldbreakAction::Melee: return { 0.f, 1.5f };
 		case EShieldbreakAction::Equip: return { 0.f, 1.4f };
 		default: return { 0.f, 1.f };
@@ -620,8 +620,8 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	if (CalibratedIdle && Now < FirstPersonThrowEnd && FirstPersonThrowDuration > 0.f)
 	{
 		const float T = 1.f - (FirstPersonThrowEnd - Now) / FirstPersonThrowDuration;
-		// Quick in (first quarter), slow out.
-		Dip = FMath::SmoothStep(0.f, 1.f, T < 0.25f ? T / 0.25f : 1.f - (T - 0.25f) / 0.75f);
+		// Quick in (first 15%), held while the arm swings, then out over the last 40%.
+		Dip = FMath::SmoothStep(0.f, 1.f, T < 0.15f ? T / 0.15f : T < 0.6f ? 1.f : 1.f - (T - 0.6f) / 0.4f);
 	}
 	const bool bSwapping = Now < FirstPersonEquipEnd || (CalibratedIdle && CalibratedIdle != Idle);
 	SwapLower = bSwapping ? 1.f : FMath::Max(0.f, SwapLower - World->GetDeltaSeconds() / 0.25f);
