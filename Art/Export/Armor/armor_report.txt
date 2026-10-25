@@ -1,0 +1,15 @@
+source: SKM_Manny.obj
+SM_SB_Armor_head: 358 tris, 4 materials, bounds X -11.6..11.6 Y -10.4..15.7 Z 158.6..186.6
+SM_SB_Armor_spine_05: 476 tris, 3 materials, bounds X -24.1..29.2 Y -18.8..20.8 Z 117.7..156.8
+SM_SB_Armor_spine_03: 304 tris, 2 materials, bounds X -15.8..15.8 Y -8.8..16.9 Z 104.7..123.1
+SM_SB_Armor_pelvis: 208 tris, 3 materials, bounds X -10.2..10.2 Y -13.8..16.3 Z 82.3..103.3
+SM_SB_Armor_upperarm_l: 318 tris, 2 materials, bounds X 13.0..33.9 Y -16.5..13.9 Z 125.4..158.7
+SM_SB_Armor_lowerarm_l: 296 tris, 2 materials, bounds X 31.4..51.4 Y -3.6..18.8 Z 102.2..122.7
+SM_SB_Armor_thigh_l: 288 tris, 2 materials, bounds X 0.7..21.1 Y -8.4..14.6 Z 54.8..87.2
+SM_SB_Armor_calf_l: 282 tris, 4 materials, bounds X 5.1..21.9 Y -11.4..10.4 Z 13.0..52.2
+SM_SB_Armor_foot_l: 454 tris, 2 materials, bounds X 8.9..23.2 Y -7.8..23.0 Z -0.8..12.5
+SM_SB_Armor_upperarm_r: 316 tris, 2 materials, bounds X -33.9..-13.0 Y -16.5..13.9 Z 125.4..158.7
+SM_SB_Armor_lowerarm_r: 296 tris, 2 materials, bounds X -51.4..-31.4 Y -3.6..18.8 Z 102.2..122.7
+SM_SB_Armor_thigh_r: 288 tris, 2 materials, bounds X -21.1..-0.7 Y -8.4..14.6 Z 54.8..87.2
+SM_SB_Armor_calf_r: 282 tris, 4 materials, bounds X -21.9..-5.1 Y -11.4..10.4 Z 13.0..52.2
+SM_SB_Armor_foot_r: 390 tris, 2 materials, bounds X -23.2..-8.9 Y -6.3..23.0 Z -0.8..12.5
