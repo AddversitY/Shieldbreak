@@ -315,6 +315,38 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25 night, packaging (Tools/Package.bat, first standalone build).** `Tools/Package.bat` runs RunUAT
+  BuildCookRun (Win64 Development, build/cook/stage/pak/archive) to `Saved/Packaged/Windows/Shieldbreak.exe` (1.2 GB),
+  logging to `Saved/Logs/Package.log`, with every cook error line copied to `Saved/Logs/PackageErrors.txt`.
+  - Run 1 (DirectoriesToAlwaysCook = all of /Game/Characters, /Game/Weapons, /Game/Effects, /Game/Audio):
+    **exit 25 Error_UnknownCookFailure** after 23 min. All 2434 packages cooked; the failure came from Lyra
+    Blueprints that need Lyra's C++, e.g.
+    `LogBlueprint: Error: [AssetLog] ...\Content\Characters\Heroes\Abilities\AN_Melee.uasset: [Compiler] Could not find a function named "SendGameplayEventToActor" in 'AN_Melee'.`
+    Assets: ABP_ItemAnimLayersBase (469 lines), FootstepEffectTagModifier (167), AN_PlayWeaponMontage (28),
+    B_Weapon (19), AN_Reload (11), AN_Melee (11), B_WeaponImpacts (3), B_FootStep (3).
+  - Run 2: always-cook narrowed to the folders the code loads by path (Mannequin Meshes, Animations/Actions,
+    Locomotion/Rifle, Locomotion/Pistol, Weapons/{Rifle,Pistol,Shotgun,Grenade}/Mesh,
+    Effects/Particles/{Weapons,Impacts,Explosion}, Audio/Sounds/{Weapons,Explosions}, /Game/Shieldbreak) plus
+    NeverCook on Heroes/Abilities and Animations/AnimNotifies: exit 25 again, with 117x
+    `LogCook: Error: Content is missing from cook. Source package referenced an object in target package but the target package was marked NeverCook or is not cookable for the target platform.`
+    (the pivot anims reference AnimNotifies/TransitionToLocomotion; the AM_*_Melee montages reference AN_Melee).
+  - Run 3 (committed): the narrowed list, no NeverCook, and `-IgnoreCookErrors`: **BUILD SUCCESSFUL, 3 m 44 s, 1539
+    packages.** The only cook errors left (261 lines) are three unused Lyra Blueprints that come along by reference:
+    ABP_ItemAnimLayersBase (171, via Lyra's ABP_*AnimLayers in Locomotion/Rifle and Locomotion/Pistol),
+    FootstepEffectTagModifier (53, the anims' editor-only modifier) and AN_Melee (7, via Lyra's melee montages).
+    None of them run in our game. Any other asset showing up in PackageErrors.txt needs a look.
+  - **Packaged game check:** `Shieldbreak.exe -windowed` opens the main menu (credits footer and v0.2.0 shown).
+    `?Map=Keel?Mode=Slayer?Bots=4` starts a match with bots playing (scores change). The art loads: textured world
+    materials, the imported mountain ring, first-person arms holding the BR model, the armor set, HUD and motion
+    tracker. No greybox fallback, and the only "Failed to load" lines are Windows profiler DLLs.
+    Bugs: (1) on the first packaged launch the menu shows **Graphics "Custom" and Resolution "0%"** (the game itself
+    renders at full resolution); the menu probably reads the settings before the first-run scalability auto-detect
+    or before r.ScreenPercentage is set. (2) The mountain ring renders **almost black with a pale rim** from Keel's
+    spawn. Is the mountain material missing its texture/lighting in the cooked build, or is that the v2 look?
+- **2026-10-25 night, map look v2 (77ad283) import + build:** ImportArt OK ("built .../M_SB_World (44 expressions)",
+  `SM_SB_Mountains` 8064 tris, 80 000 x 80 000 x 7569). The build is clean, and `bEnableFirstPersonFieldOfView` /
+  `FirstPersonPrimitiveType` compile on 5.8. Self-test, VisualShots and the exposure comparison are still to do
+  (after the key-rebinding build).
 - **2026-10-25, Bastion KOTH stuck bots (fixed in `AI/ShieldbreakBotController.cpp`).** Two causes. (1) The library
   hill at (-2200, 2150, 520) sits halfway between the library floor's waypoints (z 350) and the roof's (z 690). The
   goal's nearest waypoint was picked without line of sight, so ties went to the roof node, which has no walkable link
