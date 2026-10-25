@@ -229,6 +229,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeVideoAudioRows()
 					const float Current = FMath::RoundToFloat(ShieldbreakSettings::GetResolutionScale() / 10.f) * 10.f;
 					ShieldbreakSettings::SetResolutionScale(Current + 10.f * Delta);
 				})
+		]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
 			MakeChooser(LOCTEXT("Display", "Display"),
