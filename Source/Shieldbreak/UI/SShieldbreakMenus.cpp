@@ -102,21 +102,50 @@ namespace ShieldbreakMenuPrivate
 		return SlateSound;
 	}
 
-	/** Content/Splash/Emblem.png (Art/branding/make_branding.py) as a brush, or null when the file is missing. */
-	const FSlateBrush* EmblemBrush()
+	/** A Content/Splash image (Art/branding/make_branding.py; staged as a loose file) as a brush, or null if missing. */
+	const FSlateBrush* SplashBrush(const TCHAR* FileName, const FVector2D& Size)
 	{
-		static TSharedPtr<FSlateDynamicImageBrush> Brush;
-		static bool bTried = false;
-		if (!bTried)
+		static TMap<FString, TSharedPtr<FSlateDynamicImageBrush>> Brushes;
+		if (const TSharedPtr<FSlateDynamicImageBrush>* Found = Brushes.Find(FileName))
 		{
-			bTried = true;
-			const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Splash/Emblem.png"));
-			if (FPaths::FileExists(File))
-			{
-				Brush = MakeShared<FSlateDynamicImageBrush>(FName(*File), FVector2D(96.f, 96.f));
-			}
+			return Found->Get();
 		}
+		TSharedPtr<FSlateDynamicImageBrush> Brush;
+		const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Splash") / FileName);
+		if (FPaths::FileExists(File))
+		{
+			Brush = MakeShared<FSlateDynamicImageBrush>(FName(*File), Size);
+		}
+		Brushes.Add(FileName, Brush);
 		return Brush.Get();
+	}
+
+	/** A soft edge: Steps strips fading from Color to clear, left to right (or top to bottom). */
+	TSharedRef<SWidget> Fade(const FLinearColor& Color, bool bHorizontal, float Length, int32 Steps = 12)
+	{
+		const float Strip = Length / Steps;
+		if (bHorizontal)
+		{
+			TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox).Visibility(EVisibility::HitTestInvisible);
+			for (int32 Index = 0; Index < Steps; ++Index)
+			{
+				const float Alpha = Color.A * (1.f - (Index + 0.5f) / Steps);
+				Box->AddSlot().AutoWidth()[ SNew(SBox).WidthOverride(Strip)[ SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(Color.CopyWithNewOpacity(Alpha)) ] ];
+			}
+			return Box;
+		}
+		TSharedRef<SVerticalBox> Box = SNew(SVerticalBox).Visibility(EVisibility::HitTestInvisible);
+		for (int32 Index = 0; Index < Steps; ++Index)
+		{
+			const float Alpha = Color.A * ((Index + 0.5f) / Steps);
+			Box->AddSlot().AutoHeight()[ SNew(SBox).HeightOverride(Strip)[ SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(Color.CopyWithNewOpacity(Alpha)) ] ];
+		}
+		return Box;
+	}
+
+	TSharedRef<SWidget> SectionLabel(const FText& Text)
+	{
+		return SNew(STextBlock).Text(Text).Font(Font(12, "Bold")).ColorAndOpacity(Accent);
 	}
 
 	/** Settings and Controls open above both menus (Z 30) and take keyboard/gamepad focus. */
@@ -288,148 +317,245 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 	Owner = InArgs._Owner;
 	Maps = ShieldbreakMaps::GetMapIds();
 	LoadChoices();
+	OpenTime = FSlateApplication::Get().GetCurrentTime();
+	ShowSelectedMap();
 
 	const TArray<FString>& Modes = ShieldbreakMenu::GetModes();
+	const FLinearColor Panel(0.01f, 0.015f, 0.025f, 0.86f);
+	auto MakeLogo = [this]() -> TSharedRef<SWidget>
+	{
+		const FSlateBrush* Logo = SplashBrush(TEXT("Logo.png"), FVector2D(440.f, 165.f));
+		if (!Logo)
+		{
+			return SNew(STextBlock).Text(LOCTEXT("Title", "SHIELDBREAK")).Font(Font(56, "Bold")).ColorAndOpacity(FLinearColor::White);
+		}
+		return SNew(SImage)
+			.Image(Logo)
+			// A slow breathing glow.
+			.ColorAndOpacity_Lambda([this]()
+			{
+				const float Pulse = 0.92f + 0.08f * FMath::Sin(static_cast<float>(FSlateApplication::Get().GetCurrentTime() - OpenTime) * 1.6f);
+				return FSlateColor(FLinearColor(Pulse, Pulse, Pulse, 1.f));
+			});
+	};
+	constexpr float PanelWidth = 560.f;
 
+	// Layout: the selected map turns slowly behind everything (AShieldbreakMenuController); a dark panel on the
+	// left holds the logo and the menu; the map's name and details sit bottom right.
 	ChildSlot
 	[
 		SNew(SOverlay)
+		// Shown until (or if) the 3D backdrop can't be built.
 		+ SOverlay::Slot()
 		[
-			Backdrop_Image(Backdrop)
+			SNew(SImage)
+			.Image(FCoreStyle::Get().GetBrush("WhiteBrush"))
+			.ColorAndOpacity_Lambda([this]() { return FSlateColor(HasBackdrop() ? FLinearColor::Transparent : Backdrop); })
+			.Visibility(EVisibility::HitTestInvisible)
 		]
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
+		+ SOverlay::Slot().HAlign(HAlign_Left)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			SNew(SHorizontalBox).Visibility(EVisibility::HitTestInvisible)
+			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 14.f, 0.f)
+				SNew(SBox).WidthOverride(PanelWidth)
 				[
-					SNew(SImage)
-					.Image(EmblemBrush())
-					.Visibility(EmblemBrush() ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
-				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).Text(LOCTEXT("Title", "SHIELDBREAK")).Font(Font(64, "Bold")).ColorAndOpacity(FLinearColor::White)
+					SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(Panel)
 				]
 			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 28.f)
+			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(STextBlock).Text(LOCTEXT("Subtitle", "Arena shooter. Shields up.")).Font(Font(16)).ColorAndOpacity(Accent)
+				Fade(Panel, true, 260.f)
 			]
-			+ SVerticalBox::Slot().AutoHeight()
+		]
+		+ SOverlay::Slot().VAlign(VAlign_Bottom)
+		[
+			Fade(FLinearColor(0.f, 0.f, 0.f, 0.7f), false, 220.f)
+		]
+		// Menu column.
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Center).Padding(FMargin(64.f, 24.f, 0.f, 24.f))
+		[
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+			.Padding(0.f)
+			// Fade and slide in when the menu opens.
+			.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, IntroAlpha(0.f)); })
+			.RenderTransform_Lambda([this]() -> TOptional<FSlateRenderTransform> { return FSlateRenderTransform(FVector2f((1.f - IntroAlpha(0.f)) * -40.f, 0.f)); })
 			[
-				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Map", "Map"),
-					[this]() { return Maps.IsValidIndex(MapIndex) ? FText::FromName(Maps[MapIndex]) : FText::GetEmpty(); },
-					[this](int32 Delta) { MapIndex = Maps.Num() > 0 ? (MapIndex + Delta + Maps.Num()) % Maps.Num() : 0; })
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 8.f)
-			[
-				SNew(STextBlock).Text(this, &SShieldbreakMainMenu::GetMapDetails).Font(Font(13)).ColorAndOpacity(Muted)
-			]
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Mode", "Mode"),
-					[this, &Modes]() { return FText::FromString(Modes[ModeIndex]); },
-					[this, &Modes](int32 Delta) { ModeIndex = (ModeIndex + Delta + Modes.Num()) % Modes.Num(); })
-			]
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Bots", "Bots"),
-					[this]() { return FText::AsNumber(Bots); },
-					[this](int32 Delta) { Bots = FMath::Clamp(Bots + Delta, 0, AShieldbreakGameMode::GetMaxBots()); })
-			]
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Skill", "Bot skill"),
-					[this]() { return FText::FromString(SkillName(Skill)); },
-					[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); })
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 22.f, 0.f, 0.f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth()
+				SNew(SBox).WidthOverride(PanelWidth - 96.f)
 				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Play", "PLAY"), [this]() { StartMatch(false); })
-				]
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Host", "HOST LAN GAME"), [this]() { StartMatch(true); })
-				]
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 8.f, 0.f, 0.f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(6.f)
-				[
-					SNew(SBox)
-					.WidthOverride(320.f)
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0.f, 0.f, 0.f, 4.f)
 					[
-						SAssignNew(AddressBox, SEditableTextBox)
-						.Text(FText::FromString(Address))
-						.HintText(LOCTEXT("AddressHint", "Host IP address"))
-						.Font(Font(18))
-						.OnTextChanged_Lambda([this](const FText& NewText) { Address = NewText.ToString().TrimStartAndEnd(); })
-						.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type CommitType)
-						{
-							if (CommitType == ETextCommit::OnEnter)
+						MakeLogo()
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(8.f, 0.f, 0.f, 26.f)
+					[
+						SNew(STextBlock).Text(LOCTEXT("Subtitle", "BREAK THE SHIELD. WIN THE FIGHT.")).Font(Font(14, "Bold")).ColorAndOpacity(Accent)
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(8.f, 0.f, 0.f, 6.f)
+					[
+						SectionLabel(LOCTEXT("MatchHeading", "MATCH"))
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Map", "Map"),
+							[this]() { return Maps.IsValidIndex(MapIndex) ? FText::FromName(Maps[MapIndex]) : FText::GetEmpty(); },
+							[this](int32 Delta)
 							{
-								Join();
-							}
-						})
+								MapIndex = Maps.Num() > 0 ? (MapIndex + Delta + Maps.Num()) % Maps.Num() : 0;
+								ShowSelectedMap();
+							})
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Mode", "Mode"),
+							[this, &Modes]() { return FText::FromString(Modes[ModeIndex]); },
+							[this, &Modes](int32 Delta) { ModeIndex = (ModeIndex + Delta + Modes.Num()) % Modes.Num(); })
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Bots", "Bots"),
+							[this]() { return FText::AsNumber(Bots); },
+							[this](int32 Delta) { Bots = FMath::Clamp(Bots + Delta, 0, AShieldbreakGameMode::GetMaxBots()); })
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Skill", "Bot skill"),
+							[this]() { return FText::FromString(SkillName(Skill)); },
+							[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); })
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0.f, 18.f, 0.f, 0.f)
+					[
+						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Play", "PLAY"), [this]() { StartMatch(false); }, 440.f)
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
+					[
+						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Host", "HOST LAN GAME"), [this]() { StartMatch(true); }, 440.f)
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(6.f)
+						[
+							SNew(SBox)
+							.WidthOverride(268.f)
+							[
+								SAssignNew(AddressBox, SEditableTextBox)
+								.Text(FText::FromString(Address))
+								.HintText(LOCTEXT("AddressHint", "Host IP address"))
+								.Font(Font(18))
+								.OnTextChanged_Lambda([this](const FText& NewText) { Address = NewText.ToString().TrimStartAndEnd(); })
+								.OnTextCommitted_Lambda([this](const FText&, ETextCommit::Type CommitType)
+								{
+									if (CommitType == ETextCommit::OnEnter)
+									{
+										Join();
+									}
+								})
+							]
+						]
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Join", "JOIN"), [this]() { Join(); }, 160.f)
+						]
+					]
+					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0.f, 10.f, 0.f, 0.f)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 160.f)
+						]
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 160.f)
+						]
+						+ SHorizontalBox::Slot().AutoWidth()
+						[
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Quit", "QUIT"), [this]()
+							{
+								if (APlayerController* PC = Owner.Get())
+								{
+									UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
+								}
+							}, 120.f)
+						]
 					]
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Join", "JOIN"), [this]() { Join(); })
-				]
 			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 8.f, 0.f, 0.f)
+		]
+		// The selected map, bottom right.
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(FMargin(0.f, 0.f, 56.f, 48.f))
+		[
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+			.ColorAndOpacity_Lambda([this]() { return FLinearColor(1.f, 1.f, 1.f, IntroAlpha(0.35f)); })
+			.Visibility(EVisibility::HitTestInvisible)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth()
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 214.f)
+					SectionLabel(LOCTEXT("NowShowing", "MAP"))
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 214.f)
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return Maps.IsValidIndex(MapIndex) ? FText::FromString(Maps[MapIndex].ToString().ToUpper()) : FText::GetEmpty(); })
+					.Font(Font(48, "Bold"))
+					.ColorAndOpacity(FLinearColor::White)
 				]
-				+ SHorizontalBox::Slot().AutoWidth()
+				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Quit", "QUIT"), [this]()
-					{
-						if (APlayerController* PC = Owner.Get())
-						{
-							UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
-						}
-					}, 214.f)
+					SNew(STextBlock).Text(this, &SShieldbreakMainMenu::GetMapDetails).Font(Font(14)).ColorAndOpacity(FLinearColor(0.85f, 0.9f, 0.95f, 1.f)).Justification(ETextJustify::Right)
 				]
 			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 24.f, 0.f, 0.f)
+		]
+		// Hints and credits, bottom left. The Unreal Engine EULA asks for the engine notice in a game's credits, and the
+		// Lyra content (Fab Standard License, UE-only) is Epic's. See docs/ASSET_CREDITS.md and docs/RELEASE.md.
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(64.f, 0.f, 0.f, 18.f))
+		[
+			SNew(SVerticalBox).Visibility(EVisibility::HitTestInvisible)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 6.f)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hints", "In a match: F1 controls, Tab scoreboard, Esc menu"))
-				.Font(Font(12))
+				.Font(Font(11))
 				.ColorAndOpacity(Muted)
 			]
-			// Credits: the Unreal Engine EULA asks for the engine notice in a game's credits, and the Lyra content
-			// (Fab Standard License, UE-only) is Epic's. See docs/ASSET_CREDITS.md and docs/RELEASE.md.
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 18.f, 0.f, 0.f)
+			+ SVerticalBox::Slot().AutoHeight()
 			[
 				SNew(STextBlock)
 				.Text(FText::Format(LOCTEXT("Credits", "Shieldbreak {0}  -  Original maps, weapons, armor and music by the Shieldbreak team\nMannequin, animations, effects and sounds from Lyra Starter Game by Epic Games\nUnreal Engine, Copyright 1998-2026, Epic Games, Inc. All rights reserved."),
 					FText::FromString(ShieldbreakMenuPrivate::GameVersion())))
-				.Font(Font(10))
-				.Justification(ETextJustify::Center)
+				.Font(Font(9))
 				.ColorAndOpacity(Muted)
 			]
 		]
 	];
+}
+
+float SShieldbreakMainMenu::IntroAlpha(float Delay) const
+{
+	const float T = static_cast<float>(FSlateApplication::Get().GetCurrentTime() - OpenTime) - Delay;
+	return FMath::InterpEaseOut(0.f, 1.f, FMath::Clamp(T / 0.7f, 0.f, 1.f), 3.f);
+}
+
+void SShieldbreakMainMenu::ShowSelectedMap()
+{
+	if (AShieldbreakMenuController* Controller = Cast<AShieldbreakMenuController>(Owner.Get()))
+	{
+		if (Maps.IsValidIndex(MapIndex))
+		{
+			Controller->ShowBackdrop(Maps[MapIndex]);
+		}
+	}
+}
+
+bool SShieldbreakMainMenu::HasBackdrop() const
+{
+	const AShieldbreakMenuController* Controller = Cast<AShieldbreakMenuController>(Owner.Get());
+	return Controller && Controller->HasBackdrop();
 }
 
 TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step)

@@ -27,6 +27,7 @@ public:
 	AShieldbreakArena();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	static AShieldbreakArena* Find(const UWorld* World);
 	/** Spawns the arena for MapId at the origin on this machine if none exists (or replaces one built for another map). */

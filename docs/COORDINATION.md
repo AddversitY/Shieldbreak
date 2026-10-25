@@ -72,6 +72,16 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 **Main menu redesign** (commit "Menu redesign"). The main menu now shows the selected map behind it: the
+  menu controller builds that map's arena in the menu world (no pickups or bots: `AShieldbreakArena` only spawns those
+  under `AShieldbreakGameMode`) and circles a camera over it; changing the Map row rebuilds it after 0.45 s. The arena
+  now owns its lights/fog/post actors and destroys them in EndPlay so swaps don't stack suns. Layout: dark panel on
+  the left with the logo (`Content/Splash/Logo.png`, new), MATCH choosers, PLAY / HOST, join row, Settings / Controls /
+  Quit; map name and details bottom right; credits bottom left; fade/slide-in on open; the logo breathes slowly.
+  `-SBMenuNoBackdrop` turns the 3D backdrop off (plain dark background). Please build, then `-SBMenuShot=6` for
+  screenshots on two or three maps (change the saved map in GameUserSettings `[Shieldbreak.Menu] Map=`), check the
+  layout at 720p and 1080p, the FPS in the menu, and that a match still starts cleanly from it (no leftover lights:
+  the match is a new level, but check). Also the packaged build: Logo.png must be staged with Content/Splash.
 - 2026-10-25 **Throw readability** (commit "Throw: tip up"). From your sweep: `sb.FPThrowDip` default is now -35, the
   toss plays at 0.9 (was 1.4) in both views, and the rig holds the tilt from 15% to 60% of the throw instead of easing
   straight back. Please take throw frames at 0.1/0.2/0.3/0.4/0.5 s and check the forearm swing reads, and that the

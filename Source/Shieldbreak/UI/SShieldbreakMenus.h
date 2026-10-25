@@ -26,6 +26,12 @@ private:
 	FReply Join();
 	void LoadChoices();
 	void SaveChoices() const;
+	/** Asks the menu controller to show the selected map behind the menu. */
+	void ShowSelectedMap();
+	bool HasBackdrop() const;
+	/** 0 to 1 over the first moments after the menu opens (Delay seconds later for later elements). */
+	float IntroAlpha(float Delay) const;
+	double OpenTime = 0.0;
 
 	TWeakObjectPtr<APlayerController> Owner;
 	TArray<FName> Maps;

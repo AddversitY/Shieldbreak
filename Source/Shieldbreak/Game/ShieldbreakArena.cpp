@@ -17,6 +17,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/ShieldbreakGameMode.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
@@ -197,11 +198,27 @@ void AShieldbreakArena::BeginPlay()
 		BuildBackdrop();
 	}
 
-	if (HasAuthority() && GetNetMode() != NM_Client)
+	// Bots and pickups only in a match (the main menu shows an arena as its backdrop).
+	if (HasAuthority() && GetNetMode() != NM_Client && GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
 	{
 		BuildWaypointGraph();
 		SpawnPickups();
 	}
+}
+
+void AShieldbreakArena::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (EndPlayReason == EEndPlayReason::Destroyed && GetWorld())
+	{
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		{
+			if (It->GetOwner() == this)
+			{
+				It->Destroy();
+			}
+		}
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 // ---- Geometry helpers ----
@@ -559,6 +576,8 @@ void AShieldbreakArena::SpawnLighting()
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
+	// Owned by the arena so EndPlay can take them down when the menu backdrop swaps maps.
+	Params.Owner = this;
 
 	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
 	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made

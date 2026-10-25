@@ -1,6 +1,10 @@
 #include "UI/ShieldbreakMenu.h"
 
 #include "Audio/ShieldbreakMusic.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "Game/ShieldbreakArena.h"
+#include "Game/ShieldbreakMaps.h"
 #include "Player/ShieldbreakSettings.h"
 #include "Shieldbreak.h"
 #include "Engine/Engine.h"
@@ -85,6 +89,78 @@ AShieldbreakMenuGameMode::AShieldbreakMenuGameMode()
 	DefaultPawnClass = nullptr;
 	HUDClass = AHUD::StaticClass();
 	bStartPlayersAsSpectators = true;
+}
+
+AShieldbreakMenuController::AShieldbreakMenuController()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bTickEvenWhenPaused = true;
+}
+
+void AShieldbreakMenuController::ShowBackdrop(FName MapId)
+{
+	if (MapId == BackdropMapId || !IsLocalController())
+	{
+		return;
+	}
+	BackdropMapId = MapId;
+	// The first map goes up at once; changes wait until the player stops flicking through the list.
+	const float Delay = bBackdropBuilt ? 0.45f : 0.01f;
+	GetWorldTimerManager().SetTimer(BackdropTimerHandle, this, &AShieldbreakMenuController::BuildBackdrop, Delay, false);
+}
+
+void AShieldbreakMenuController::BuildBackdrop()
+{
+	UWorld* World = GetWorld();
+	if (!World || BackdropMapId.IsNone() || FParse::Param(FCommandLine::Get(), TEXT("SBMenuNoBackdrop")))
+	{
+		return;
+	}
+	const AShieldbreakArena* Arena = AShieldbreakArena::EnsureLocal(World, BackdropMapId);
+	if (!Arena)
+	{
+		return;
+	}
+	const FShieldbreakMapLayout& Layout = Arena->GetLayout();
+	const float Reach = static_cast<float>(FMath::Max(Layout.HalfExtent.X, Layout.HalfExtent.Y));
+	OrbitCenter = FVector(0.f, 0.f, Layout.FloorZ + 300.f);
+	OrbitRadius = Reach * 1.35f;
+	OrbitHeight = FMath::Max(1600.f, Reach * 0.45f);
+
+	if (!BackdropCamera)
+	{
+		FActorSpawnParameters Params;
+		Params.ObjectFlags |= RF_Transient;
+		BackdropCamera = World->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, Params);
+		if (BackdropCamera)
+		{
+			BackdropCamera->GetCameraComponent()->SetFieldOfView(60.f);
+			BackdropCamera->GetCameraComponent()->bConstrainAspectRatio = false;
+		}
+	}
+	if (BackdropCamera)
+	{
+		SetViewTarget(BackdropCamera);
+	}
+	bBackdropBuilt = true;
+	Tick(0.f);
+}
+
+void AShieldbreakMenuController::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (!BackdropCamera)
+	{
+		return;
+	}
+	// A slow circle, looking past the middle of the map with the sky above the far side.
+	OrbitYaw = FMath::Fmod(OrbitYaw + DeltaSeconds * 2.5f, 360.f);
+	const float Radians = FMath::DegreesToRadians(OrbitYaw);
+	const FVector Eye = OrbitCenter + FVector(FMath::Cos(Radians) * OrbitRadius, FMath::Sin(Radians) * OrbitRadius, OrbitHeight);
+	// Aim a little to the right of the centre so the map sits in the open part of the screen, not behind the panel.
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, (OrbitCenter - Eye).GetSafeNormal2D());
+	const FVector Target = OrbitCenter - Right * OrbitRadius * 0.18f;
+	BackdropCamera->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
 }
 
 void AShieldbreakMenuController::BeginPlay()

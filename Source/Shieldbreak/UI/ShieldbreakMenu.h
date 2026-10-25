@@ -53,11 +53,32 @@ class SHIELDBREAK_API AShieldbreakMenuController : public APlayerController
 {
 	GENERATED_BODY()
 
+public:
+	AShieldbreakMenuController();
+	virtual void Tick(float DeltaSeconds) override;
+
+	/** Builds MapId's arena behind the menu (after a short pause, so flicking through maps doesn't rebuild each one)
+	 *  and circles a camera over it. */
+	void ShowBackdrop(FName MapId);
+	bool HasBackdrop() const { return BackdropCamera != nullptr && bBackdropBuilt; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void BuildBackdrop();
+
+	FName BackdropMapId;
+	FTimerHandle BackdropTimerHandle;
+	bool bBackdropBuilt = false;
+	float OrbitYaw = 0.f;
+	FVector OrbitCenter = FVector::ZeroVector;
+	float OrbitRadius = 6000.f;
+	float OrbitHeight = 2200.f;
+	UPROPERTY(Transient)
+	TObjectPtr<class ACameraActor> BackdropCamera;
+
 	/** Play-test helper: -SBMenuShot=<seconds> saves Saved/Screenshots/AutoShot/menu.png; -SBAutoQuit exits after. */
 	void TakeMenuShot();
 
