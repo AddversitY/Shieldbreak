@@ -345,6 +345,17 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25 night, listen-server test at 0c93520 (`Tools/ListenTest.bat`, Keel Slayer, 2 bots).** The client
+  joins ("Welcomed by server", server "Join succeeded: Player 2"). Both windows show the first-person arms holding the
+  BR on textured Keel (`Saved/Screenshots/AutoShot/{server,client}_0*.png`). Net warnings: **server 1x**
+  `LogNetPackageMap: Warning: FNetGUIDCache::SupportsObject: SkeletalMeshComponent /Engine/Maps/Entry.Entry:PersistentLevel.ShieldbreakCharacter_0.FirstPersonArms NOT Supported`.
+  The host's weapon actor is attached to its local, runtime-created FirstPersonArms, and that attachment
+  replicates to clients, who can't resolve it. Every machine attaches the gun itself in `OnEquipped`, so the weapon
+  probably shouldn't replicate its attachment (code session: `Weapons/ShieldbreakWeapon`). The shots never show
+  the host from the client, so the visible effect isn't confirmed. Client: 1x "Took too long to receive packets
+  15.76 s" (load hitch; the bat's 60 s server wait was skipped because Git Bash's `timeout` shadowed Windows' one; the
+  bat now calls `%SystemRoot%\System32\timeout.exe`). Both: "Art asset missing, using greybox fallback:
+  .../MM_Pistol_GrenadeToss" (expected, Lyra has none; the rifle fallback works, but the warning is noisy).
 - **2026-10-25 night, the overnight batch (map look v2, first-person fixes, aim assist, key rebinding, menu sounds and
   tips, music, first-launch graphics, mountain self-light, branding, Settings screen), built at ff393dc.**
   - Two compile fixes in `UI/SShieldbreakMenus.cpp` (the code session's file): 5.8 has no
