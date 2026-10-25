@@ -345,6 +345,37 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25 night, the overnight batch (map look v2, first-person fixes, aim assist, key rebinding, menu sounds and
+  tips, music, first-launch graphics, mountain self-light, branding, Settings screen), built at ff393dc.**
+  - Two compile fixes in `UI/SShieldbreakMenus.cpp` (the code session's file): 5.8 has no
+    `FSlateSound::FromResourceObject` (now `SetResourceObject`), and a missing `]` after the Resolution row (C2678
+    `binary '+'` at line 224). `UInputMappingContext::UnmapAll` / `GetMappings`, `bEnableFirstPersonFieldOfView` and
+    `FirstPersonPrimitiveType` all compile on 5.8.
+  - ImportArt: "built .../M_SB_World (54 expressions)", "MUS_SB_Menu: 48.0 s, looping", SM_SB_Mountains. Committed
+    M_SB_World, MI_SB_World_*, SM_SB_Mountains and Art/Audio.
+  - **Self-test 102/102**, including "Rebinding a key moves the control and swaps a taken key" (moved 1, swapped 1) and
+    "Controller aim assist tracks a nearby enemy" (yaw error 2.29 -> 0.00 deg).
+  - **Packaging:** cook list gains `/Game/Audio/Sounds/UI` (menu clicks); `/Game/Shieldbreak` already covers the music.
+    `Content/Splash` is staged as loose files (`DirectoriesToAlwaysStageAsNonUFS`), because the emblem is read from
+    disk by absolute path. Package OK, same three known Lyra Blueprint errors only.
+  - **First launch (packaged, its Saved folder deleted): fixed.** The benchmark runs in the menu, and
+    GameUserSettings.ini gets every sg.* = 2 (High) and sg.ResolutionQuality=100. The menu shows the emblem, SETTINGS /
+    CONTROLS / QUIT and the credits. New: the first launch picks windowed fullscreen (FullscreenMode=1, the desktop's
+    1440x960) even with `-windowed -ResX=1280 -ResY=720`. Probably fine for players, but the command-line
+    window size is ignored on a first run.
+  - **Not checked tonight:** the Settings and Controls screens, a tip in a match, hearing the music and
+    clicks, and rebinding by hand. Two Windows Firewall prompts (UnrealPak and the packaged Shieldbreak.exe) appeared
+    over the game. Answering them is Vincent's call, so the clicked screenshots wait for him. The in-editor
+    shots below cover the look.
+  - **Map look v2 shots** (`docs/playtests/2026-10-25_map_look_v2/`, same fixed views as the visual pass, "before" =
+    flat + no grade): the mountain ring is lit (no longer black), and the ground and grass are stretched (no small
+    repeat). The detail is calmer and the trims show. Exposure (`keel_exposure_0_-0.4_-0.8.jpg`): **-0.4 (the default) looks
+    best**; 0 is a little washed out on the floor tiles, -0.8 makes the shaded walls muddy.
+  - **First person v2** (`contact_sheet_first_person.jpg`): melee has no white puff any more. The grenade throw still
+    doesn't show an arm: at 0.08 s the whole viewmodel dips (sb.FPThrowDip) and by 0.2 s it's back at idle, with no
+    left-arm swing in any frame. Maybe hold the dip longer, or play the toss from later in the clip. New: on the
+    first frame of the swap to the Sidearm (and back) a **large red shoulder-armor piece fills the right quarter of
+    the screen**. The upper-arm armor probably needs hiding on the first-person arms during Equip.
 - **2026-10-25 night, packaging (Tools/Package.bat, first standalone build).** `Tools/Package.bat` runs RunUAT
   BuildCookRun (Win64 Development, build/cook/stage/pak/archive) to `Saved/Packaged/Windows/Shieldbreak.exe` (1.2 GB),
   logging to `Saved/Logs/Package.log`, with every cook error line copied to `Saved/Logs/PackageErrors.txt`.
