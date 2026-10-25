@@ -6,6 +6,7 @@ slightly out of line, with a glowing cyan rim. The wordmark uses Inter (SIL Open
 Writes:
 - Build/Windows/Application.ico          the game exe's icon (16-256 px), picked up by Unreal's build
 - Content/Splash/Splash.bmp              the startup splash Unreal shows while the game loads
+- Content/Splash/Emblem.png              the emblem for the main menu title
 - Art/Export/Branding/emblem_1024.png    emblem alone, transparent
 - Art/Export/Branding/logo_1600x600.png  emblem + wordmark, transparent
 - Art/Export/Branding/capsule_920x430.png and header_460x215.png   store-style banners
@@ -206,6 +207,8 @@ def main():
     splash_dir = os.path.join(ROOT, "Content", "Splash")
     os.makedirs(splash_dir, exist_ok=True)
     splash().save(os.path.join(splash_dir, "Splash.bmp"))
+    # The main menu shows the emblem beside the title (loaded from this file at runtime).
+    emblem(256).save(os.path.join(splash_dir, "Emblem.png"))
     print("wrote branding to", OUT, "plus Build/Windows/Application.ico and Content/Splash/Splash.bmp")
 
 

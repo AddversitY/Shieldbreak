@@ -12,6 +12,8 @@
 #include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Brushes/SlateDynamicImageBrush.h"
+#include "Misc/Paths.h"
 #include "Sound/SlateSound.h"
 #include "Sound/SoundBase.h"
 #include "Styling/CoreStyle.h"
@@ -93,6 +95,23 @@ namespace ShieldbreakMenuPrivate
 		}
 		USoundBase* Sound = bClick ? Click : Hover;
 		return Sound ? FSlateSound::FromResourceObject(Sound) : FSlateSound();
+	}
+
+	/** Content/Splash/Emblem.png (Art/branding/make_branding.py) as a brush, or null when the file is missing. */
+	const FSlateBrush* EmblemBrush()
+	{
+		static TSharedPtr<FSlateDynamicImageBrush> Brush;
+		static bool bTried = false;
+		if (!bTried)
+		{
+			bTried = true;
+			const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Splash/Emblem.png"));
+			if (FPaths::FileExists(File))
+			{
+				Brush = MakeShared<FSlateDynamicImageBrush>(FName(*File), FVector2D(96.f, 96.f));
+			}
+		}
+		return Brush.Get();
 	}
 
 	TSharedRef<SWidget> Backdrop_Image(const FLinearColor& Color)
@@ -212,7 +231,17 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
-				SNew(STextBlock).Text(LOCTEXT("Title", "SHIELDBREAK")).Font(Font(64, "Bold")).ColorAndOpacity(FLinearColor::White)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 14.f, 0.f)
+				[
+					SNew(SImage)
+					.Image(EmblemBrush())
+					.Visibility(EmblemBrush() ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).Text(LOCTEXT("Title", "SHIELDBREAK")).Font(Font(64, "Bold")).ColorAndOpacity(FLinearColor::White)
+				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 28.f)
 			[

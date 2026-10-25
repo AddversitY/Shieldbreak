@@ -12,3 +12,6 @@
 
 # Scripted art exports are small and regenerated from Art/blender; keep them in plain git so the cloud can push them
 Art/Export/** -filter -diff -merge -text
+
+# Small runtime images read from disk (not .uasset): plain git
+Content/Splash/*.png -filter -diff -merge -text
