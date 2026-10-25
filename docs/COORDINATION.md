@@ -368,6 +368,10 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, menu v2 (1133076).** Build clean. `docs/playtests/2026-10-25_menu/v2_*.jpg`: the three 720p layout
+  problems are fixed (SETTINGS / CONTROLS / QUIT fit, every Settings label is whole, the arrows sit inside the
+  panel), and the camera is higher and outside the walls on Keel, Bastion and Spire. Still small: the footer text
+  (controls hint, credits) is very small at 720p, and on Keel the left third of the map sits behind the panel.
 - **2026-10-25, menu redesign (cecb5de).** Build clean, no fixes needed. Shots in `docs/playtests/2026-10-25_menu/`
   (Keel, Bastion, Spire at 6 s and 10 s; the 10 s shots carry `stat fps`). **Menu FPS ~35** (34.9 / 35.0 / 35.2,
   editor -game at 1280x720 on the Iris Xe). The camera orbits (the 6 s and 10 s views differ) and the map card
