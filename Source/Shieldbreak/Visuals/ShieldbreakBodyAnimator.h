@@ -1,5 +1,6 @@
-// Puts the imported mannequin on the owning ACharacter's mesh and drives it without an Animation Blueprint:
-// it picks a locomotion sequence from the movement state and plays it in single-node mode. Death switches the
+// Puts the imported mannequin on the owning ACharacter's mesh and drives it without an Animation Blueprint asset:
+// it picks a locomotion sequence from the movement state and hands it to UShieldbreakBodyAnimInstance, which
+// cross-fades between sequences and bends the spine to the aim pitch. Death switches the
 // mesh to a ragdoll. If the art is missing, nothing changes and the greybox body stays.
 // It also dresses the mannequin in Shieldbreak's armor: one static mesh per bone (SM_SB_Armor_<bone>, modeled in the
 // mannequin's mesh space by Art/blender/build_armor.py), attached so it follows the animation and the ragdoll.
@@ -37,6 +38,11 @@ public:
 
 	/** True once the mannequin mesh is on the character (the owner then hides its greybox). */
 	bool HasBodyArt() const { return bHasBodyArt; }
+
+	/** True when the body plays through UShieldbreakBodyAnimInstance (cross-fades and aim pitch) and has a pose. */
+	bool IsBlendedAnimation() const;
+	/** The aim pitch the body last bent to (degrees, up positive). */
+	float GetAimPitch() const;
 
 	/** Every machine, on death: ragdoll the body with an initial velocity change. */
 	void StartRagdoll(const FVector& Impulse);

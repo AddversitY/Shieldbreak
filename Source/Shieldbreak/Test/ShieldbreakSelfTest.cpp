@@ -246,6 +246,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
 			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
 			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
+			Check(TEXT("Soldier bodies blend their animation (native anim instance)"), Animator && Animator->IsBlendedAnimation(),
+				Animator ? FString::Printf(TEXT("aim pitch %.1f"), Animator->GetAimPitch()) : TEXT("no animator"));
 			ClearDummies();
 			return true;
 		}, 5.f });

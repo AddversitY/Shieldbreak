@@ -13,6 +13,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/ShieldbreakCharacter.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Visuals/ShieldbreakBodyAnimInstance.h"
 #include "Weapons/ShieldbreakWeapon.h"
 
 UShieldbreakBodyAnimator::UShieldbreakBodyAnimator()
@@ -39,7 +40,9 @@ void UShieldbreakBodyAnimator::BeginPlay()
 	}
 
 	Body->SetSkeletalMeshAsset(Manny);
-	Body->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	// Our native anim instance cross-fades between the sequences ChoosePose picks and bends the spine to the aim.
+	Body->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	Body->SetAnimInstanceClass(UShieldbreakBodyAnimInstance::StaticClass());
 	// The local player never sees their own body, but it still casts their shadow.
 	Body->SetOwnerNoSee(true);
 	Body->bCastHiddenShadow = true;
@@ -77,17 +80,54 @@ void UShieldbreakBodyAnimator::TickComponent(float DeltaTime, ELevelTick TickTyp
 	const EShieldbreakBodyPose Pose = ChoosePose(PlayRate);
 	const float Now = World->GetTimeSeconds();
 
+	UShieldbreakBodyAnimInstance* AnimInstance = Cast<UShieldbreakBodyAnimInstance>(Body->GetAnimInstance());
 	if (Pose != CurrentPose && Now - LastPoseChangeTime >= MinPoseTime)
 	{
 		if (UAnimSequenceBase* Animation = GetPoseAnimation(Pose))
 		{
 			const bool bLoop = Pose != EShieldbreakBodyPose::Apex;
-			Body->PlayAnimation(Animation, bLoop);
+			if (AnimInstance)
+			{
+				AnimInstance->PlayPose(Animation, bLoop);
+			}
+			else
+			{
+				// No anim instance (shouldn't happen): fall back to single-node playback, no blending.
+				Body->PlayAnimation(Animation, bLoop);
+			}
 			CurrentPose = Pose;
 			LastPoseChangeTime = Now;
 		}
 	}
-	Body->SetPlayRate(PlayRate);
+	if (!AnimInstance)
+	{
+		Body->SetPlayRate(PlayRate);
+		return;
+	}
+	AnimInstance->SetPosePlayRate(PlayRate);
+
+	// Aim pitch: the replicated view pitch for remote players and bots. The local player never sees their own body,
+	// but their shadow and other players' view of them use the same path.
+	if (const APawn* Pawn = Cast<APawn>(GetOwner()))
+	{
+		const float Pitch = FRotator::NormalizeAxis(Pawn->GetBaseAimRotation().Pitch);
+		const FVector RightInComponent = Body->GetComponentTransform().InverseTransformVectorNoScale(Pawn->GetActorRightVector());
+		AnimInstance->SetAim(Pitch, RightInComponent);
+	}
+}
+
+float UShieldbreakBodyAnimator::GetAimPitch() const
+{
+	const USkeletalMeshComponent* Body = GetBodyMesh();
+	const UShieldbreakBodyAnimInstance* AnimInstance = Body ? Cast<UShieldbreakBodyAnimInstance>(Body->GetAnimInstance()) : nullptr;
+	return AnimInstance ? AnimInstance->GetAimPitch() : 0.f;
+}
+
+bool UShieldbreakBodyAnimator::IsBlendedAnimation() const
+{
+	const USkeletalMeshComponent* Body = GetBodyMesh();
+	const UShieldbreakBodyAnimInstance* AnimInstance = Body ? Cast<UShieldbreakBodyAnimInstance>(Body->GetAnimInstance()) : nullptr;
+	return AnimInstance && AnimInstance->GetPoseAnimation() != nullptr;
 }
 
 EShieldbreakBodyPose UShieldbreakBodyAnimator::ChoosePose(float& OutPlayRate) const
