@@ -1,6 +1,24 @@
 # Working Together: Shieldbreak sessions
 
 ## Handoff (2026-10-22): start here
+**Laptop (PC session) handoff, 2026-10-25 13:30.** Everything from the laptop is pushed on this branch; the laptop
+checkout matches `origin/claude/project-thread-iqwexu` exactly. Latest PC verification: self-test 102/102 (three
+clean runs), map tour all maps pass, Bastion KOTH 19/19, listen test clean, package OK (`Tools/Package.bat` ->
+`Saved/Packaged/Windows/Shieldbreak.exe`), menu v3 + emblem A (Vincent's pick) verified. Open items for whoever runs
+the laptop next:
+- Two Windows Firewall prompts (UnrealPak, packaged Shieldbreak.exe) may still be on screen: Vincent's call.
+- Not yet checked by hand: music audibly loops, a rebound key survives a restart, third-person bot grenade toss speed,
+  controller feel, 1080p menu (needs a monitor bigger than the laptop's 1440x960 desktop).
+- Uncommitted on purpose: armor/weapon/texture/palette .uasset files that `Tools/ImportArt.bat` re-saves with no real
+  change (don't commit them; they only cost LFS storage). Old stashes `stash@{0..1}` hold pre-today laptop config edits.
+- Laptop tools: `Tools/VisualShots.bat` (fixed-camera before/after + first-person shots, `SBTAG`/`SBEXTRA` env vars),
+  `Tools/shots_to_jpg.ps1` (PNG->JPG + before/after sheet), `Tools/contact_sheet.ps1`, `Tools/drive_window.ps1`
+  (timed clicks/screenshots for menus), `Tools/ListLyraActions.bat`, `Tools/Package.bat`. Menu shots:
+  `-SBMenuShot=6 -SBAutoQuit` with `[Shieldbreak.Menu] Map=` in `Saved/Config/WindowsEditor/GameUserSettings.ini`.
+- Gotchas: Git Bash shadows Windows `timeout` (use `ping -n N 127.0.0.1` in .bat files run from Bash); sed in Git Bash
+  eats backslashes and CRLF (fix with unix2dos); one Unreal process at a time (8 GB RAM); never commit the
+  AndroidFileServer block in Config/DefaultEngine.ini.
+
 **Work branch: `claude/project-thread-iqwexu` (PR #2 into `main`).** It holds everything: `main` (PR #1) plus every
 commit from the old branch `claude/peaceful-hamilton-xcl6c8` (up to `887e99d`) plus the fixes below. Don't use the old
 branch any more. PR #2 is not merged; Vincent decides when.
