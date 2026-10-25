@@ -27,7 +27,7 @@ Legend: **done**, **in progress**, **todo**, **decide** (Vincent's call).
 | Item | Status | Notes |
 |---|---|---|
 | Where to release | decide | **itch.io**: free to list, good for a first public test. **Steam**: US$100 per game, Steamworks review takes a few days, store page needs to be up 2+ weeks before launch. |
-| Store page assets | todo | Capsule art, 5+ screenshots, a short trailer, description, tags. Screenshots once the art pass lands. |
+| Store page assets | in progress | Text draft, tags and requirements in `docs/STORE_PAGE.md`; capsule/header banners made. Screenshots and a trailer once the art pass lands. |
 | Age rating | todo | Steam uses the IARC questionnaire (free). Expect a teen-type rating for sci-fi shooting without gore. |
 
 ## 4. The game itself
