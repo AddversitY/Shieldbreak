@@ -101,6 +101,10 @@ public:
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
 
+	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
+	void NotifyGamepadLook();
+	float GetAimAssistStrength() const { return AimAssistStrength; }
+
 	// ---- Action animations (cosmetic) ----
 
 	/** This machine: plays a grenade throw, melee, reload or equip on the body and first-person arms. */
@@ -209,6 +213,9 @@ private:
 	// ---- Input handlers ----
 	void Input_Move(const FInputActionValue& Value);
 	void Input_Look(const FInputActionValue& Value);
+	void Input_LookGamepad(const FInputActionValue& Value);
+	/** Controller aim assist (local player only): slows the stick over an enemy and gently tracks them. */
+	void UpdateAimAssist(float DeltaSeconds);
 	void Input_JumpStarted();
 	void Input_JumpCompleted();
 	void Input_FireStarted();
@@ -300,6 +307,10 @@ private:
 	TWeakObjectPtr<AShieldbreakWeapon> VisualEquippedWeapon;
 	FLinearColor AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
 	float LastLocalMeleeTime = -100.f;
+	/** Last time the right stick moved the view; aim assist only helps controller players. */
+	float LastGamepadLookTime = -100.f;
+	/** 0..1: how close the crosshair is to an enemy (aim assist friction). */
+	float AimAssistStrength = 0.f;
 	float LastServerMeleeTime = -100.f;
 	float LastShieldValue = -1.f;
 	bool bZoomed = false;

@@ -21,6 +21,8 @@ public:
 
 	UPROPERTY() TObjectPtr<UInputAction> Move;
 	UPROPERTY() TObjectPtr<UInputAction> Look;
+	/** Right stick look, separate from the mouse so controller players get aim assist. */
+	UPROPERTY() TObjectPtr<UInputAction> LookGamepad;
 	UPROPERTY() TObjectPtr<UInputAction> Jump;
 	UPROPERTY() TObjectPtr<UInputAction> Fire;
 	UPROPERTY() TObjectPtr<UInputAction> Zoom;

@@ -46,6 +46,7 @@ void UShieldbreakInputSet::Build()
 
 	Move = MakeAction(TEXT("IA_Move"), true);
 	Look = MakeAction(TEXT("IA_Look"), true);
+	LookGamepad = MakeAction(TEXT("IA_LookGamepad"), true);
 	Jump = MakeAction(TEXT("IA_Jump"), false);
 	Fire = MakeAction(TEXT("IA_Fire"), false);
 	Zoom = MakeAction(TEXT("IA_Zoom"), false);
@@ -86,7 +87,7 @@ void UShieldbreakInputSet::Build()
 	{
 		Context->MapKey(Look, EKeys::Mouse2D);
 
-		FEnhancedActionKeyMapping& Stick = Context->MapKey(Look, EKeys::Gamepad_Right2D);
+		FEnhancedActionKeyMapping& Stick = Context->MapKey(LookGamepad, EKeys::Gamepad_Right2D);
 		AddModifier<UInputModifierDeadZone>(Stick, Context);
 		UInputModifierScalar* Scalar = AddModifier<UInputModifierScalar>(Stick, Context);
 		// ~300 x 200 deg/s at full deflection after the PlayerController's legacy 2.5x input scale.
@@ -114,6 +115,6 @@ void UShieldbreakInputSet::Build()
 	MapPair(Sprint, { EKeys::LeftShift, EKeys::Gamepad_LeftThumbstick });
 	MapPair(CrouchSlide, { EKeys::LeftControl, EKeys::C, EKeys::Gamepad_FaceButton_Right });
 	MapPair(Scoreboard, { EKeys::Tab, EKeys::Gamepad_Special_Left });
-	MapPair(ToggleHelp, { EKeys::F1, EKeys::Gamepad_Special_Right });
-	MapPair(Pause, { EKeys::Escape });
+	MapPair(ToggleHelp, { EKeys::F1, EKeys::Gamepad_DPad_Down });
+	MapPair(Pause, { EKeys::Escape, EKeys::Gamepad_Special_Right });
 }

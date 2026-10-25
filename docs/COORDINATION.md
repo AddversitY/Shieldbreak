@@ -72,6 +72,13 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Controller aim assist + credits footer** (commit "Controller aim assist"). The right stick now has
+  its own action (`IA_LookGamepad`); with it in use (last 2 s), the stick slows to 45% over an enemy (friction) and the
+  view eases toward an enemy inside a ~90 cm cone at up to 9 deg/s while the player moves or aims (magnetism). Mouse
+  players get nothing. `sb.AimAssist 0` turns it off. Start = pause, D-pad down = controls help. New self-test check
+  "Controller aim assist tracks a nearby enemy". The main menu now has a credits footer (Unreal Engine EULA notice,
+  Lyra credit, version from DefaultGame.ini, now 0.2.0). If you have an Xbox/PlayStation controller handy, a quick
+  feel check is welcome but not required.
 - 2026-10-25 night **Map look v2 + first-person fixes** (d427b36 and the commit after it). Pull, run
   `Tools/ImportArt.bat` (new: `Art/Export/Environment/SM_SB_Mountains.fbx`, a faceted mountain ring from
   `Art/blender/build_environment.py`; `M_SB_World` gains a `DetailStrength` parameter and the instances get bigger tiles),

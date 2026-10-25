@@ -296,6 +296,49 @@ void AShieldbreakSelfTest::BuildSteps()
 			return true;
 		}, 5.f });
 
+	// ---- Controller aim assist: with the stick in use, the view eases onto an enemy just off the crosshair. ----
+	{
+		TSharedRef<float> StartError = MakeShared<float>(0.f);
+		Steps.Add({ TEXT("Controller aim assist tracks a nearby enemy"),
+			[this]()
+			{
+				A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f)));
+				// An enemy 10 m ahead, 40 cm to the side: inside the assist cone, not on the crosshair.
+				B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(1000.f, 40.f, 1500.f), 180.f, false);
+			},
+			[this, StartError](float Elapsed)
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+				if (!Player || !B)
+				{
+					Check(TEXT("Controller aim assist tracks a nearby enemy"), false, TEXT("no local pawn"));
+					ClearDummies();
+					return true;
+				}
+				auto YawError = [Player, this]()
+				{
+					const FVector To = B->GetActorLocation() + FVector(0.f, 0.f, 30.f) - Player->GetAimOrigin();
+					return FMath::Abs(FRotator::NormalizeAxis(To.Rotation().Yaw - Player->GetControlRotation().Yaw));
+				};
+				if (Elapsed < 0.5f)
+				{
+					Player->GetController()->SetControlRotation(FRotator::ZeroRotator);
+					*StartError = YawError();
+					return false;
+				}
+				Player->NotifyGamepadLook(); // as if the stick were in use
+				if (Elapsed < 1.5f)
+				{
+					return false;
+				}
+				Check(TEXT("Controller aim assist tracks a nearby enemy"), YawError() < *StartError * 0.5f && Player->GetAimAssistStrength() > 0.5f,
+					FString::Printf(TEXT("yaw error %.2f -> %.2f deg, strength %.2f"), *StartError, YawError(), Player->GetAimAssistStrength()));
+				ClearDummies();
+				return true;
+			}, 5.f });
+	}
+
 	// ---- Aim pitch: a soldier aiming up bends its upper body, so the gun hand rises (remote players and bots). ----
 	{
 		TSharedRef<float> LevelHandZ = MakeShared<float>(0.f);

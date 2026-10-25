@@ -15,6 +15,8 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
@@ -48,6 +50,17 @@ namespace ShieldbreakCharacterPrivate
 	/** Death camera: pulled back behind the body and raised, looking down at it. */
 	constexpr float DeathCameraBack = 280.f;
 	constexpr float DeathCameraUp = 140.f;
+
+	// Controller aim assist, Halo-style: friction slows the stick near an enemy; magnetism eases the view along.
+	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: controller players get aim assist (friction and gentle tracking)."));
+	/** Assist cone half-width at the target (cm): about a body's width either side of the chest. */
+	constexpr float AimAssistRadius = 90.f;
+	constexpr float AimAssistMaxRange = 6000.f;
+	/** Stick speed multiplier with the crosshair dead on an enemy. */
+	constexpr float AimAssistFriction = 0.45f;
+	constexpr float AimAssistPullDegreesPerSecond = 9.f;
+	/** Seconds after the last stick input that a player still counts as on a controller. */
+	constexpr float AimAssistMemory = 2.f;
 }
 
 AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectInitializer)
@@ -558,6 +571,10 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	}
 
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
+	if (bLocalPlayerView)
+	{
+		UpdateAimAssist(DeltaSeconds);
+	}
 	if (!bLocalPlayerView && FirstPersonCamera && !bDeathHandled)
 	{
 		// Remote characters and bots: pitch the camera (and the weapon attached to it) to the aim.
@@ -609,6 +626,7 @@ void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 	EnhancedInput->BindAction(Inputs->Move, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_Move);
 	EnhancedInput->BindAction(Inputs->Look, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_Look);
+	EnhancedInput->BindAction(Inputs->LookGamepad, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_LookGamepad);
 	EnhancedInput->BindAction(Inputs->Jump, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_JumpStarted);
 	EnhancedInput->BindAction(Inputs->Jump, ETriggerEvent::Completed, this, &AShieldbreakCharacter::Input_JumpCompleted);
 	EnhancedInput->BindAction(Inputs->Fire, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_FireStarted);
@@ -646,6 +664,96 @@ void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
 	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
+}
+
+void AShieldbreakCharacter::Input_LookGamepad(const FInputActionValue& Value)
+{
+	NotifyGamepadLook();
+	// Aim assist friction: the stick turns slower while the crosshair is on or near an enemy.
+	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, ShieldbreakCharacterPrivate::AimAssistFriction, AimAssistStrength);
+	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
+	AddControllerYawInput(Axis.X * Scale);
+	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
+}
+
+void AShieldbreakCharacter::NotifyGamepadLook()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastGamepadLookTime = World->GetTimeSeconds();
+	}
+}
+
+void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
+{
+	using namespace ShieldbreakCharacterPrivate;
+	AimAssistStrength = 0.f;
+	UWorld* World = GetWorld();
+	if (!World || !Controller || !IsAlive() || CVarAimAssist.GetValueOnGameThread() == 0
+		|| World->GetTimeSeconds() - LastGamepadLookTime > AimAssistMemory)
+	{
+		return;
+	}
+
+	// The enemy closest to the crosshair, measured as an angle against a cone about a body's width wide at their range.
+	const FVector Eye = GetAimOrigin();
+	const FRotator View = Controller->GetControlRotation();
+	const FVector Forward = View.Vector();
+	const float MaxRange = CurrentWeapon ? FMath::Min(CurrentWeapon->GetStats().Range, AimAssistMaxRange) : AimAssistMaxRange;
+	const AShieldbreakCharacter* Best = nullptr;
+	FVector BestPoint = FVector::ZeroVector;
+	float BestScore = 1.f;
+	for (TActorIterator<AShieldbreakCharacter> It(World); It; ++It)
+	{
+		const AShieldbreakCharacter* Other = *It;
+		if (Other == this || !Other->IsAlive() || Other->IsHidden() || ShieldbreakTeams::AreTeammates(this, Other))
+		{
+			continue;
+		}
+		const FVector Chest = Other->GetActorLocation() + FVector(0.f, 0.f, 30.f);
+		const FVector ToTarget = Chest - Eye;
+		const float Distance = static_cast<float>(ToTarget.Size());
+		if (Distance < 1.f || Distance > MaxRange)
+		{
+			continue;
+		}
+		const float Angle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(FVector::DotProduct(ToTarget / Distance, Forward)), -1.f, 1.f)));
+		const float Cone = FMath::RadiansToDegrees(FMath::Atan2(AimAssistRadius, Distance));
+		const float Score = Angle / Cone; // < 1 inside the cone
+		if (Score >= BestScore)
+		{
+			continue;
+		}
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakAimAssist), false, this);
+		Params.AddIgnoredActor(Other);
+		if (World->LineTraceSingleByChannel(Hit, Eye, Chest, ECC_Visibility, Params))
+		{
+			continue;
+		}
+		Best = Other;
+		BestPoint = Chest;
+		BestScore = Score;
+	}
+	if (!Best)
+	{
+		return;
+	}
+	AimAssistStrength = 1.f - BestScore;
+
+	// Magnetism: ease the view toward the target, gently, and only while the player is aiming or moving (it helps
+	// track a strafing enemy; it never snaps or aims for a player who isn't touching the controls).
+	const bool bActive = GetLastMovementInputVector().SizeSquared() > 0.01f || World->GetTimeSeconds() - LastGamepadLookTime < 0.1f;
+	if (bActive)
+	{
+		const FRotator ToTarget = (BestPoint - Eye).Rotation();
+		const FRotator Delta = (ToTarget - View).GetNormalized();
+		const float Step = AimAssistPullDegreesPerSecond * AimAssistStrength * DeltaSeconds;
+		FRotator NewView = View;
+		NewView.Yaw += FMath::Clamp(Delta.Yaw, -Step, Step);
+		NewView.Pitch += FMath::Clamp(Delta.Pitch, -Step, Step);
+		Controller->SetControlRotation(NewView);
+	}
 }
 
 void AShieldbreakCharacter::Input_JumpStarted()
