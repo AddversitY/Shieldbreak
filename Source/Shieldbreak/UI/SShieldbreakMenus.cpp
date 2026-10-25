@@ -35,6 +35,15 @@ namespace ShieldbreakMenuPrivate
 		return FCoreStyle::GetDefaultFontStyle(Weight, Size);
 	}
 
+	/** ProjectVersion from DefaultGame.ini, e.g. "0.2.0". */
+	FString GameVersion()
+	{
+		FString Version;
+		GConfig->GetString(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectVersion"), Version, GGameIni);
+		Version.RemoveFromEnd(TEXT(".0"));
+		return Version.IsEmpty() ? FString(TEXT("dev")) : TEXT("v") + Version;
+	}
+
 	const TCHAR* SkillName(int32 Skill)
 	{
 		static const TCHAR* const Names[] = { TEXT("Easy"), TEXT("Normal"), TEXT("Heroic"), TEXT("Legendary") };
@@ -252,6 +261,17 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hints", "In a match: F1 controls, Tab scoreboard, Esc menu"))
 				.Font(Font(12))
+				.ColorAndOpacity(Muted)
+			]
+			// Credits: the Unreal Engine EULA asks for the engine notice in a game's credits, and the Lyra content
+			// (Fab Standard License, UE-only) is Epic's. See docs/ASSET_CREDITS.md and docs/RELEASE.md.
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 18.f, 0.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::Format(LOCTEXT("Credits", "Shieldbreak {0}  -  Original maps, weapons and armor by the Shieldbreak team\nMannequin, animations, effects and sounds from Lyra Starter Game by Epic Games\nUnreal Engine, Copyright 1998-2026, Epic Games, Inc. All rights reserved."),
+					FText::FromString(ShieldbreakMenuPrivate::GameVersion())))
+				.Font(Font(10))
+				.Justification(ETextJustify::Center)
 				.ColorAndOpacity(Muted)
 			]
 		]
