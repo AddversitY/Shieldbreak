@@ -860,6 +860,7 @@ void AShieldbreakHUD::DrawScoreboard(AShieldbreakGameState* GameState)
 
 	Box(X, Y0, W, H, FLinearColor(0.f, 0.f, 0.f, 0.7f));
 	Text(TEXT("PLAYER"), X + 60.f * S, Y0 + 10.f * S, Dim, Font, S);
+	Text(TEXT("MEDALS"), X + W - 330.f * S, Y0 + 10.f * S, Dim, Font, S, false, true);
 	Text(TEXT("KILLS"), X + W - 200.f * S, Y0 + 10.f * S, Dim, Font, S, false, true);
 	Text(TEXT("DEATHS"), X + W - 70.f * S, Y0 + 10.f * S, Dim, Font, S, false, true);
 
@@ -877,6 +878,7 @@ void AShieldbreakHUD::DrawScoreboard(AShieldbreakGameState* GameState)
 		}
 		Box(X + 24.f * S, Y + 4.f * S, 18.f * S, 18.f * S, Entry->GetPlayerColor());
 		Text(FString::Printf(TEXT("%d  %s"), Index + 1, *Entry->GetPlayerName()), X + 60.f * S, Y, White, Font, S);
+		Text(FString::FromInt(Entry->GetMedalCount()), X + W - 330.f * S, Y, Dim, Font, S, false, true);
 		Text(FString::FromInt(Entry->GetKills()), X + W - 200.f * S, Y, White, Font, S, false, true);
 		Text(FString::FromInt(Entry->GetDeaths()), X + W - 70.f * S, Y, White, Font, S, false, true);
 		Y += RowH;
