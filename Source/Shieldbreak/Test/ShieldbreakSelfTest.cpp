@@ -350,6 +350,11 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				// Uncontrolled, so GetBaseAimRotation uses the replicated RemoteViewPitch, as for a remote player.
 				A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f), 0.f, false);
+				// It's off-screen up here; an unrendered mesh may skip its pose, which froze the hand (12.5 -> 12.5).
+				if (A && A->GetMesh())
+				{
+					A->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+				}
 			},
 			[this, LevelHandZ](float Elapsed)
 			{
@@ -2496,5 +2501,25 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
 			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });
 		Shot(TEXT("fp_5_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
+		// Third person: a soldier 4 m in front, seen from its right side, throws a grenade (does the toss read, is it quick?).
+		Shot(TEXT("tp_6_grenade"),
+			[this, Reset, Player]()
+			{
+				Reset();
+				const AShieldbreakCharacter* P = Player();
+				if (!P)
+				{
+					return;
+				}
+				const FVector Eye = P->GetActorLocation();
+				const FVector Forward = P->GetActorForwardVector();
+				// No controller, so it doesn't shoot back; side-on to the camera.
+				B = SpawnDummy(Eye + Forward * 400.f, P->GetActorRotation().Yaw + 90.f, false);
+				if (B)
+				{
+					B->AddGrenades(1);
+					B->ThrowGrenade();
+				}
+			}, { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f }, 1.5f);
 	}
 }

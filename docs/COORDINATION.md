@@ -358,6 +358,22 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, throw readability (685b211).** First-person throw frames
+  (`docs/playtests/2026-10-25_fp_throw_dip/throw_685b211_fp_and_tp.jpg`): at 0.08 s the rig tips up and the BR plus
+  the armored right arm sweep across the top of the view; at 0.2 s the armored left forearm and glove fill the
+  lower left; by 0.35 s it's back at idle. **It reads now.** Third person: inconclusive. A soldier 4 m away
+  (a test dummy with no controller, given a grenade) shows no visible toss in 0.1-0.4 s frames and no grenade in the air,
+  so the dummy may not throw without a controller. The camera player was also shot (red tracer from off-screen) by
+  0.5 s although bots were set to 0. Needs a check with a real bot in play.
+  **Self-test flake runs** (exact lines, five runs on HEAD):
+  - `FAIL  Aim pitch raises the gun hand  -- aim pitch 45.0, hand 12.5 -> 12.5`: 3 of 3 runs before my fix. Cause: my
+    first-person arms check runs just before and possesses/destroys a soldier, after which the camera no longer
+    renders the aim-pitch dummy 1500 up, and an unrendered mesh skips its pose. **Fixed test-side** (the dummy now
+    uses `AlwaysTickPoseAndRefreshBones`): passed 2 of 2 since.
+  - `FAIL  Vent in the sweet spot refills the shield  -- shield 3.47, marker was 0.71` (+ `FAIL  ...and grants
+    overshield  -- overshield 0.00`): 3 of 5 runs (other values: shield 4.40 marker 0.72; shield 3.38 marker 0.70;
+    earlier shield 3.37 marker 0.72). The marker is always ~0.70-0.72. Code session: please make this robust.
+  - `FAIL  A burst into a shielded head does normal damage  -- lost 39.00, alive 1`: 1 of 5 runs (new).
 - **2026-10-25 morning, fixes for the overnight report (33af445).** Build clean. Self-test: the first run was
   99/102 (FAIL "Aim pitch raises the gun hand", hand 12.5 -> 12.5; FAIL "Vent in the sweet spot refills the shield",
   shield 3.37, marker 0.72; FAIL "...and grants overshield"). The rerun was **102/102**, so these look flaky; both
