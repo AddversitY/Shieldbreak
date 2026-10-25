@@ -41,7 +41,17 @@ set, and what comes next. The other docs go deeper: `ARCHITECTURE.md` (code), `D
   shield (A)**. He likes the music.
 
 ## What's next
-1. **Map and character art. Decision: "Hybrid (free Fab + ours)"** (Vincent, 2026-10-25). Use free or permissively
+1. **Map and character art. Latest decision: AI 3D generation** (Vincent, 2026-10-25, later the same day; it
+   replaces the hybrid plan below, which stays as background). Recommended tool: **Meshy Pro ($20/mo)**. It has a
+   private commercial license, an API and an Unreal bridge. Avoid free tiers: Meshy's free output is CC BY 4.0 and
+   Tripo's is non-commercial. Plan: generate helmets, armor, weapons and map pieces from prompts or Vincent's
+   references, clean up and retexture in Blender, fit armor onto the Lyra mannequin (AI output isn't rigged), import
+   with `Tools/ImportArt.bat`, then show in-game shots. **Blocked on Vincent:** he creates the Meshy account and API
+   key himself. For the cloud to call the API, the project needs a custom cloud environment with env var
+   `MESHY_API_KEY` and `api.meshy.ai` in Allowed domains (the default environment blocks it). Never ask for the key
+   in chat.
+
+   Earlier decision, **"Hybrid (free Fab + ours)"** (Vincent, 2026-10-25). Use free or permissively
    licensed packs for the bulk of the environment kit and character base, and keep making our own (Blender scripts)
    for the signature pieces: weapons, armor and trims. Steps:
    - Build the shortlist and **send it to Vincent before downloading**. Candidates found so far:
