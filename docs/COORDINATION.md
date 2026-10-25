@@ -72,6 +72,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Fixes for the packaging report** (commit "First-launch graphics"). (1) The main menu now runs the
+  first-launch hardware benchmark itself (it used to run only once a match started), evens mixed levels out to one
+  overall level, and sets resolution to 100%; the resolution row also reads 100% when the engine reports 0. Test on the
+  packaged build with its `Saved` folder deleted: the menu should show Low/Medium/High/Epic and 100%. (2) Mountain
+  ring: no distance-field lighting, plus a new `SelfLight` emissive parameter on `M_SB_World` (0 on map pieces, 0.35 on
+  the ring; try `-SBMountainLight=0.2` / `0.6` for a comparison). Needs `Tools/ImportArt.bat` to rebuild the material.
 - 2026-10-25 night **Menu music** (commit "Menu music"). Pull, run `Tools/ImportArt.bat` (new:
   `Art/Export/Audio/MUS_SB_Menu.wav`, an original 48 s loop from `Art/audio/make_music.py`, imported looping to
   `/Game/Shieldbreak/Art/Audio/MUS_SB_Menu`; the log line should say "48.0 s, looping"). Then build. It plays in the main

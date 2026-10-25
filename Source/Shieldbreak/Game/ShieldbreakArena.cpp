@@ -72,6 +72,14 @@ namespace ShieldbreakArenaPrivate
 	const FLinearColor TrimCyan(0.25f, 0.8f, 1.f);
 	const FLinearColor TrimRed(1.f, 0.22f, 0.12f);
 	const FLinearColor TrimBlue(0.2f, 0.45f, 1.f);
+
+	/** Emissive share of the mountain ring's colour; -SBMountainLight=<x> overrides it for comparisons. */
+	float MountainSelfLight()
+	{
+		float Value = 0.35f;
+		FParse::Value(FCommandLine::Get(), TEXT("SBMountainLight="), Value);
+		return FMath::Max(0.f, Value);
+	}
 }
 
 AShieldbreakArena::AShieldbreakArena()
@@ -451,7 +459,13 @@ void AShieldbreakArena::BuildBackdrop()
 		Mountains->SetRelativeScale3D(FVector(Spread, Spread, Random.FRandRange(0.8f, 1.25f)));
 		Mountains->RegisterComponent();
 		AddInstanceComponent(Mountains);
-		ApplySurface(Mountains, TEXT("rock"), RockColor, 4.f);
+		// Far past Lumen's range and the shadow distance, the ring came out near black on the PC (only a fog-pale rim):
+		// keep it out of distance-field lighting and let it glow faintly in its own colour so the skyline reads.
+		Mountains->bAffectDistanceFieldLighting = false;
+		if (UMaterialInstanceDynamic* Rock = ApplySurface(Mountains, TEXT("rock"), RockColor, 4.f))
+		{
+			Rock->SetScalarParameterValue(TEXT("SelfLight"), ShieldbreakArenaPrivate::MountainSelfLight());
+		}
 		return;
 	}
 	// Without the imported ring: the old engine cones.

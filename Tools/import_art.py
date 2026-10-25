@@ -235,7 +235,14 @@ def world_material(default_texture):
     link(tint2, "", base, "B")
     metallic = node(unreal.MaterialExpressionScalarParameter, -200, 0, parameter_name="Metallic", default_value=0.0)
     roughness = node(unreal.MaterialExpressionScalarParameter, -200, 100, parameter_name="Roughness", default_value=0.7)
+    # SelfLight: a little of the surface colour as emissive, for far scenery that Lumen and shadows leave near black
+    # (the mountain ring). 0 on map pieces.
+    self_light = node(unreal.MaterialExpressionScalarParameter, -200, -150, parameter_name="SelfLight", default_value=0.0)
+    emissive = node(unreal.MaterialExpressionMultiply, -100, -200)
+    link(base, "", emissive, "A")
+    link(self_light, "", emissive, "B")
     mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     mel.connect_material_property(metallic, "", unreal.MaterialProperty.MP_METALLIC)
     mel.connect_material_property(roughness, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.recompile_material(mat)

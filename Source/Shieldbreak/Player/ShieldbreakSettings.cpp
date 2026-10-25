@@ -129,6 +129,44 @@ void ShieldbreakSettings::SetGraphicsQuality(int32 Level)
 	Settings->ApplySettings(false);
 }
 
+void ShieldbreakSettings::AutoDetectGraphics()
+{
+	// In the editor this would also change the editor viewport's settings.
+	if (GIsEditor || !GEngine)
+	{
+		return;
+	}
+	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+	if (!Settings || Settings->GetLastGPUBenchmarkResult() >= 0.f)
+	{
+		return; // Already benchmarked on this machine (or the player picked settings).
+	}
+
+	// Lumen and virtual shadow maps at Epic settings run at a few FPS on integrated GPUs.
+	Settings->RunHardwareBenchmark();
+	Settings->ApplyHardwareBenchmarkResults();
+	if (Settings->GetOverallScalabilityLevel() < 0)
+	{
+		const int32 Levels[] =
+		{
+			Settings->GetViewDistanceQuality(), Settings->GetAntiAliasingQuality(), Settings->GetShadowQuality(),
+			Settings->GetGlobalIlluminationQuality(), Settings->GetReflectionQuality(), Settings->GetPostProcessingQuality(),
+			Settings->GetTextureQuality(), Settings->GetVisualEffectQuality(), Settings->GetFoliageQuality(), Settings->GetShadingQuality(),
+		};
+		int32 Sum = 0;
+		for (const int32 Level : Levels)
+		{
+			Sum += FMath::Clamp(Level, 0, 3);
+		}
+		Settings->SetOverallScalabilityLevel(Sum / static_cast<int32>(UE_ARRAY_COUNT(Levels)));
+	}
+	// The resolution slider handles performance separately; start sharp.
+	Settings->SetResolutionScaleValueEx(MaxResolutionScale);
+	Settings->ApplySettings(false);
+	UE_LOG(LogTemp, Log, TEXT("Shieldbreak: graphics auto-detected: overall level %d (CPU %.0f, GPU %.0f)."),
+		Settings->GetOverallScalabilityLevel(), Settings->GetLastCPUBenchmarkResult(), Settings->GetLastGPUBenchmarkResult());
+}
+
 FText ShieldbreakSettings::GetGraphicsQualityName(int32 Level)
 {
 	switch (Level)
@@ -150,7 +188,8 @@ float ShieldbreakSettings::GetResolutionScale()
 	}
 	float Normalized = 1.f, Value = MaxResolutionScale, Min = 0.f, Max = 0.f;
 	Settings->GetResolutionScaleInformationEx(Normalized, Value, Min, Max);
-	return Value;
+	// An unset scale reads as 0 (seen on a packaged build's first launch); that renders at full resolution.
+	return Value < MinResolutionScale ? MaxResolutionScale : FMath::Min(Value, MaxResolutionScale);
 }
 
 void ShieldbreakSettings::SetResolutionScale(float Percent)

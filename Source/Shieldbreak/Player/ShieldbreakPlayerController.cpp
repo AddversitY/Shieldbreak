@@ -1,6 +1,7 @@
 #include "Player/ShieldbreakPlayerController.h"
 
 #include "Audio/ShieldbreakSFX.h"
+#include "Player/ShieldbreakSettings.h"
 #include "Shieldbreak.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -262,24 +263,7 @@ void AShieldbreakPlayerController::TakeAutoShot()
 
 void AShieldbreakPlayerController::AutoDetectScalability()
 {
-	// Standalone game only: in the editor this would also change the editor viewport's settings.
-	if (GIsEditor || !GEngine)
-	{
-		return;
-	}
-
-	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	if (!Settings || Settings->GetLastGPUBenchmarkResult() >= 0.f)
-	{
-		return; // Already benchmarked on this machine (or the player picked settings).
-	}
-
-	// Lumen and virtual shadow maps at Epic settings run at a few FPS on integrated GPUs;
-	// let Unreal's hardware benchmark pick the scalability level once, then remember it.
-	Settings->RunHardwareBenchmark();
-	Settings->ApplyHardwareBenchmarkResults();
-	UE_LOG(LogShieldbreak, Log, TEXT("Scalability auto-detected: overall level %d (CPU %.0f, GPU %.0f)."),
-		Settings->GetOverallScalabilityLevel(), Settings->GetLastCPUBenchmarkResult(), Settings->GetLastGPUBenchmarkResult());
+	ShieldbreakSettings::AutoDetectGraphics();
 }
 
 void AShieldbreakPlayerController::SB_Map(const FString& Map, const FString& Mode)

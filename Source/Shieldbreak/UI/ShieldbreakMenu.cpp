@@ -1,6 +1,7 @@
 #include "UI/ShieldbreakMenu.h"
 
 #include "Audio/ShieldbreakMusic.h"
+#include "Player/ShieldbreakSettings.h"
 #include "Shieldbreak.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -105,6 +106,8 @@ void AShieldbreakMenuController::BeginPlay()
 	SetShowMouseCursor(true);
 	UE_LOG(LogShieldbreak, Log, TEXT("Main menu open."));
 	ShieldbreakMusic::PlayMenuMusic(this);
+	// First launch: pick graphics levels before the player sees the settings rows.
+	ShieldbreakSettings::AutoDetectGraphics();
 
 	float ShotDelay = 0.f;
 	if (FParse::Value(FCommandLine::Get(), TEXT("SBMenuShot="), ShotDelay) && ShotDelay > 0.f)

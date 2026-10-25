@@ -33,6 +33,10 @@ namespace ShieldbreakSettings
 	SHIELDBREAK_API int32 GetGraphicsQuality();
 	SHIELDBREAK_API void SetGraphicsQuality(int32 Level);
 	SHIELDBREAK_API FText GetGraphicsQualityName(int32 Level);
+	/** First run on a machine (standalone only): Unreal's hardware benchmark picks the levels, then they are evened
+	 *  out to one overall level (the benchmark can mix them, which reads as "Custom") at 100% resolution. Called by the
+	 *  main menu and by match player controllers; does nothing once a benchmark result is saved. */
+	SHIELDBREAK_API void AutoDetectGraphics();
 
 	/** 3D render resolution in percent of the window (UI stays sharp). The laptop is GPU bound: 50% nearly doubles FPS. */
 	constexpr float MinResolutionScale = 50.f;
