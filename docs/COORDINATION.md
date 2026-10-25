@@ -354,6 +354,22 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25 morning, fixes for the overnight report (33af445).** Build clean. Self-test: the first run was
+  99/102 (FAIL "Aim pitch raises the gun hand", hand 12.5 -> 12.5; FAIL "Vent in the sweet spot refills the shield",
+  shield 3.37, marker 0.72; FAIL "...and grants overshield"). The rerun was **102/102**, so these look flaky; both
+  have passed many times before. Watch for a repeat.
+  - **Swap:** fixed. The arms drop out of view on the swap (no armor piece on screen), and the Sidearm comes up with
+    the hand by 2 s (`docs/playtests/2026-10-25_fp_throw_dip/swap_frames.jpg`).
+  - **Listen test:** the `FirstPersonArms NOT Supported` warning is gone. Server and client logs have only the
+    end-of-test disconnect (server quits first) and one client "Took too long to receive packets 15.56 s" (load
+    hitch). Guns in other players' hands after swaps: not confirmed, because the auto-shots never catch another
+    soldier up close. `ListenTest.bat`: Windows' timeout.exe refuses to run without a console ("Input redirection
+    is not supported"), so the 60 s server wait is now `ping -n 61 127.0.0.1`.
+  - **sb.FPThrowDip sweep** (`throw_dip_35_60_-35_-60.jpg`, frames at 0.08/0.2/0.35/0.5 s): positive dips (35, 60)
+    push the whole viewmodel out the bottom, and no arm shows. **Negative dips show the swing:** at -35 the armored
+    left forearm and glove come up across the left third with the BR raised; -60 is the same but fills too much of
+    the screen. **Recommend -35.** In every case the view is back at idle by 0.2 s, so the swing lasts under 0.2 s;
+    a slower throw play rate (now 1.4) or a later start would let it read.
 - **2026-10-25 night, listen-server test at 0c93520 (`Tools/ListenTest.bat`, Keel Slayer, 2 bots).** The client
   joins ("Welcomed by server", server "Join succeeded: Player 2"). Both windows show the first-person arms holding the
   BR on textured Keel (`Saved/Screenshots/AutoShot/{server,client}_0*.png`). Net warnings: **server 1x**
