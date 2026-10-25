@@ -17,6 +17,7 @@
 #include "Game/ShieldbreakGameState.h"
 #include "GameFramework/PlayerState.h"
 #include "Player/ShieldbreakCharacter.h"
+#include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakPlayerState.h"
@@ -257,7 +258,7 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 		Box(SweetX, BarY - 6.f * S, SweetW, BarH + 12.f * S, FLinearColor(0.3f, 1.f, 0.4f, 0.35f));
 		const float MarkerX = BarX + BarW * Marker;
 		Box(MarkerX - 2.f * S, BarY - 9.f * S, 4.f * S, BarH + 18.f * S, White);
-		Text(TEXT("[R] VENT"), SweetX + SweetW * 0.5f, BarY + BarH + 10.f * S, Green, GEngine->GetSmallFont(), S, true);
+		Text(FString::Printf(TEXT("[%s] VENT"), *UShieldbreakInputSet::Get()->GetKeyName(TEXT("ReloadVent"))), SweetX + SweetW * 0.5f, BarY + BarH + 10.f * S, Green, GEngine->GetSmallFont(), S, true);
 	}
 
 	if (Now - VentResultTime < 1.f)
@@ -319,7 +320,7 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 	if (BreakTime >= 0.f && Now - BreakTime <= Window + 0.25f)
 	{
 		const float Alpha = 1.f - (Now - BreakTime) / (Window + 0.25f);
-		Text(TEXT("PULSE [F]"), CX, CY + 60.f * S, FLinearColor(0.4f, 0.75f, 1.f, Alpha), GEngine->GetLargeFont(), S, true);
+		Text(FString::Printf(TEXT("PULSE [%s]"), *UShieldbreakInputSet::Get()->GetKeyName(TEXT("Melee"))), CX, CY + 60.f * S, FLinearColor(0.4f, 0.75f, 1.f, Alpha), GEngine->GetLargeFont(), S, true);
 	}
 }
 
@@ -458,7 +459,7 @@ void AShieldbreakHUD::DrawWeaponInfo(AShieldbreakCharacter* Character)
 
 	if (const AShieldbreakWeapon* Holstered = Character->GetHolsteredWeapon())
 	{
-		Text(FString::Printf(TEXT("[Q] %s"), *Holstered->GetStats().DisplayName.ToString()), Right, Bottom - 40.f * S, Dim, Small, S, false, true);
+		Text(FString::Printf(TEXT("[%s] %s"), *UShieldbreakInputSet::Get()->GetKeyName(TEXT("SwapWeapon")), *Holstered->GetStats().DisplayName.ToString()), Right, Bottom - 40.f * S, Dim, Small, S, false, true);
 	}
 
 	Text(FString::Printf(TEXT("GRENADES  %d"), Character->GetGrenadeCount()), Right - 290.f * S, Bottom - 40.f * S, Gold, Small, S);
@@ -904,22 +905,29 @@ void AShieldbreakHUD::DrawHelp()
 {
 	using namespace ShieldbreakHUDPrivate;
 
-	static const TCHAR* const Lines[] =
+	const UShieldbreakInputSet* Inputs = UShieldbreakInputSet::Get();
+	auto K = [Inputs](const TCHAR* Id) { return Inputs->GetKeyName(Id); };
+	const FString Move = K(TEXT("MoveForward")) + K(TEXT("MoveLeft")) + K(TEXT("MoveBack")) + K(TEXT("MoveRight"));
+
+	const TArray<FString> Lines =
 	{
-		TEXT("SHIELDBREAK  -  CONTROLS   (F1 to toggle)"),
+		FString::Printf(TEXT("SHIELDBREAK  -  CONTROLS   (%s to toggle, rebind in Esc > Controls)"), *K(TEXT("ToggleHelp"))),
 		TEXT(""),
-		TEXT("WASD move    Mouse look    Space jump    Shift sprint    Ctrl/C crouch"),
-		TEXT("LMB fire    RMB zoom    R reload / vent    Q swap    E pick up"),
-		TEXT("F melee    G grenade    Alt / Mouse4 use equipment (Aegis)    Tab scores    Esc menu"),
+		FString::Printf(TEXT("%s move    Mouse look    %s jump    %s sprint    %s crouch"),
+			*Move, *K(TEXT("Jump")), *K(TEXT("Sprint")), *K(TEXT("CrouchSlide"))),
+		FString::Printf(TEXT("%s fire    %s zoom    %s reload / vent    %s swap    %s pick up"),
+			*K(TEXT("Fire")), *K(TEXT("Zoom")), *K(TEXT("ReloadVent")), *K(TEXT("SwapWeapon")), *K(TEXT("Interact"))),
+		FString::Printf(TEXT("%s melee    %s grenade    %s use equipment (Aegis)    %s scores    Esc menu"),
+			*K(TEXT("Melee")), *K(TEXT("Grenade")), *K(TEXT("Equipment")), *K(TEXT("Scoreboard"))),
 		TEXT("Console (~):  SB_Map <Keel|Bastion|Sanctum|Creekbed|Spire> <Slayer|CTF|KOTH|Oddball>    SB_Bots <n>    SB_Skill <0-3>"),
 		TEXT(""),
 		TEXT("MASTERY"),
-		TEXT("Aegis Shield (map item, hold Alt): frontal barrier that stops bullets, not explosives or melee. No firing while up."),
+		FString::Printf(TEXT("Aegis Shield (map item, hold %s): frontal barrier that stops bullets, not explosives or melee. No firing while up."), *K(TEXT("Equipment"))),
 		TEXT("Rail Lance (map weapon): hold fire to charge, release at full charge (gold ring) for a one-shot kill."),
-		TEXT("Overcharge Vent (R while recharging): tap in the green window for an instant refill + overshield. Miss = restart."),
-		TEXT("Break Pulse (F the instant your shield pops): shockwave that knocks back and strips nearby shields."),
+		FString::Printf(TEXT("Overcharge Vent (%s while recharging): tap in the green window for an instant refill + overshield. Miss = restart."), *K(TEXT("ReloadVent"))),
+		FString::Printf(TEXT("Break Pulse (%s the instant your shield pops): shockwave that knocks back and strips nearby shields."), *K(TEXT("Melee"))),
 		TEXT("Momentum Carry (sprint > crouch to slide > jump): keep slide speed in the air. Downhill slides go faster."),
-		TEXT("Power Jump: crouch, hold Space, release: up to 1.5x height. Slow while charging."),
+		FString::Printf(TEXT("Power Jump: crouch, hold %s, release: up to 1.5x height. Slow while charging."), *K(TEXT("Jump"))),
 		TEXT("Motion Tracker (bottom left): enemies within 25 m show when they move fast. Crouch-walk to stay hidden."),
 		TEXT(""),
 		TEXT("Console: SB_Bots N    SB_Skill 0-3"),
@@ -928,15 +936,15 @@ void AShieldbreakHUD::DrawHelp()
 	UFont* Font = GEngine->GetSmallFont();
 	const float W = 900.f * S;
 	const float LineH = 22.f * S;
-	const float H = UE_ARRAY_COUNT(Lines) * LineH + 30.f * S;
+	const float H = Lines.Num() * LineH + 30.f * S;
 	const float X = (Canvas->ClipX - W) * 0.5f;
 	const float Y0 = Canvas->ClipY - H - 190.f * S;
 
 	Box(X, Y0, W, H, FLinearColor(0.f, 0.f, 0.f, 0.6f));
 	float Y = Y0 + 15.f * S;
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Lines); ++Index)
+	for (int32 Index = 0; Index < Lines.Num(); ++Index)
 	{
-		const bool bHeader = Index == 0 || FCString::Strcmp(Lines[Index], TEXT("MASTERY")) == 0;
+		const bool bHeader = Index == 0 || Lines[Index] == TEXT("MASTERY");
 		Text(Lines[Index], X + 20.f * S, Y, bHeader ? Gold : White, Font, S);
 		Y += LineH;
 	}

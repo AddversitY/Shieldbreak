@@ -6,6 +6,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakSettings.h"
 #include "Styling/CoreStyle.h"
@@ -248,13 +252,21 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 8.f, 0.f, 0.f)
 			[
-				ShieldbreakMenuStyle::MakeButton(LOCTEXT("Quit", "QUIT"), [this]()
-				{
-					if (APlayerController* PC = Owner.Get())
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); })
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Quit", "QUIT"), [this]()
 					{
-						UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
-					}
-				})
+						if (APlayerController* PC = Owner.Get())
+						{
+							UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
+						}
+					})
+				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 24.f, 0.f, 0.f)
 			[
@@ -434,6 +446,10 @@ void SShieldbreakPauseMenu::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
+				ShieldbreakMenuStyle::MakeButton(LOCTEXT("PauseControls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); })
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
 				ShieldbreakMenuStyle::MakeButton(LOCTEXT("Leave", "LEAVE MATCH"), [this]()
 				{
 					if (AShieldbreakPlayerController* PC = Owner.Get())
@@ -474,6 +490,196 @@ FReply SShieldbreakPauseMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 		return FReply::Handled();
 	}
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+// ---- Controls (key rebinding) ----
+
+void SShieldbreakControlsMenu::Open(const TSharedPtr<SWidget>& ReturnFocus)
+{
+	if (!GEngine || !GEngine->GameViewport)
+	{
+		return;
+	}
+	TSharedRef<SShieldbreakControlsMenu> Menu = SNew(SShieldbreakControlsMenu);
+	Menu->ReturnFocus = ReturnFocus;
+	GEngine->GameViewport->AddViewportWidgetContent(Menu, 30);
+	FSlateApplication::Get().SetAllUserFocus(Menu, EFocusCause::SetDirectly);
+}
+
+void SShieldbreakControlsMenu::Construct(const FArguments& InArgs)
+{
+	using namespace ShieldbreakMenuPrivate;
+
+	const int32 Count = UShieldbreakInputSet::Get()->GetBindings().Num();
+	const int32 Half = (Count + 1) / 2;
+	TSharedRef<SVerticalBox> Left = SNew(SVerticalBox);
+	TSharedRef<SVerticalBox> Right = SNew(SVerticalBox);
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		(Index < Half ? Left : Right)->AddSlot().AutoHeight()[ MakeRow(Index) ];
+	}
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			Backdrop_Image(FLinearColor(0.f, 0.f, 0.f, 0.85f))
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 6.f)
+			[
+				SNew(STextBlock).Text(LOCTEXT("ControlsTitle", "CONTROLS")).Font(Font(36, "Bold")).ColorAndOpacity(FLinearColor::White)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 14.f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ControlsHint", "Click a control, then press the new key or mouse button. Esc cancels. Controller buttons are fixed."))
+				.Font(Font(12))
+				.ColorAndOpacity(Muted)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8.f, 0.f)[ Left ]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(8.f, 0.f)[ Right ]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 16.f, 0.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("ResetKeys", "RESET DEFAULTS"), [this]()
+					{
+						Capturing = INDEX_NONE;
+						UShieldbreakInputSet::Get()->ResetToDefaults();
+					})
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("ControlsBack", "BACK"), [this]() { Close(); })
+				]
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SShieldbreakControlsMenu::MakeRow(int32 Index)
+{
+	using namespace ShieldbreakMenuPrivate;
+	const FShieldbreakKeyBinding& Binding = UShieldbreakInputSet::Get()->GetBindings()[Index];
+
+	return SNew(SBox)
+		.WidthOverride(400.f)
+		.Padding(FMargin(0.f, 2.f))
+		[
+			SNew(SButton)
+			.ContentPadding(FMargin(12.f, 5.f))
+			.OnClicked_Lambda([this, Index]()
+			{
+				Capturing = Index;
+				return FReply::Handled();
+			})
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).Text(Binding.Label).Font(Font(15))
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(Font(15, "Bold"))
+					.Text_Lambda([this, Index]()
+					{
+						if (Capturing == Index)
+						{
+							return LOCTEXT("PressKey", "Press a key...");
+						}
+						return FText::FromString(UShieldbreakInputSet::Get()->GetKeyName(UShieldbreakInputSet::Get()->GetBindings()[Index].Id));
+					})
+					.ColorAndOpacity_Lambda([this, Index]() { return FSlateColor(Capturing == Index ? FLinearColor(1.f, 0.8f, 0.3f) : Accent); })
+				]
+			]
+		];
+}
+
+FReply SShieldbreakControlsMenu::Capture(const FKey& Key)
+{
+	const int32 Index = Capturing;
+	Capturing = INDEX_NONE;
+	if (UShieldbreakInputSet::CanBind(Key))
+	{
+		UShieldbreakInputSet::Get()->Rebind(Index, Key);
+	}
+	return FReply::Handled();
+}
+
+FReply SShieldbreakControlsMenu::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (Capturing == INDEX_NONE)
+	{
+		return FReply::Unhandled();
+	}
+	const FKey Key = InKeyEvent.GetKey();
+	if (Key == EKeys::Escape || Key == EKeys::Gamepad_FaceButton_Right)
+	{
+		Capturing = INDEX_NONE;
+		return FReply::Handled();
+	}
+	if (Key.IsGamepadKey())
+	{
+		// Controller buttons are fixed; keep waiting for a keyboard key.
+		return FReply::Handled();
+	}
+	return Capture(Key);
+}
+
+FReply SShieldbreakControlsMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Escape || InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Right)
+	{
+		Close();
+		return FReply::Handled();
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+FReply SShieldbreakControlsMenu::OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return Capturing == INDEX_NONE ? FReply::Unhandled() : Capture(MouseEvent.GetEffectingButton());
+}
+
+FReply SShieldbreakControlsMenu::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// Swallow clicks on the backdrop so the menu underneath doesn't get them.
+	return FReply::Handled();
+}
+
+FReply SShieldbreakControlsMenu::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (Capturing == INDEX_NONE || MouseEvent.GetWheelDelta() == 0.f)
+	{
+		return FReply::Unhandled();
+	}
+	return Capture(MouseEvent.GetWheelDelta() > 0.f ? EKeys::MouseScrollUp : EKeys::MouseScrollDown);
+}
+
+void SShieldbreakControlsMenu::Close()
+{
+	const TSharedRef<SWidget> Self = AsShared();
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(Self);
+	}
+	if (TSharedPtr<SWidget> Focus = ReturnFocus.Pin())
+	{
+		FSlateApplication::Get().SetAllUserFocus(Focus, EFocusCause::SetDirectly);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

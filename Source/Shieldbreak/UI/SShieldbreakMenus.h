@@ -53,6 +53,34 @@ private:
 	TWeakObjectPtr<AShieldbreakPlayerController> Owner;
 };
 
+/** Key rebinding (UShieldbreakInputSet): click a control, press a key. Opens over either menu. */
+class SShieldbreakControlsMenu : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SShieldbreakControlsMenu) {}
+	SLATE_END_ARGS()
+
+	/** Adds the menu to the game viewport above the other menus; focus returns to ReturnFocus on close. */
+	static void Open(const TSharedPtr<SWidget>& ReturnFocus);
+
+	void Construct(const FArguments& InArgs);
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+private:
+	TSharedRef<SWidget> MakeRow(int32 Index);
+	FReply Capture(const FKey& Key);
+	void Close();
+
+	/** The control waiting for a key, or INDEX_NONE. */
+	int32 Capturing = INDEX_NONE;
+	TWeakPtr<SWidget> ReturnFocus;
+};
+
 namespace ShieldbreakMenuStyle
 {
 	/** Big menu button with a fixed width, shared by both menus. */

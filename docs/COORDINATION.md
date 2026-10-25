@@ -72,6 +72,14 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Key rebinding** (commit "Key rebinding"). New CONTROLS button in the main menu (beside Quit)
+  and the Esc menu (above Leave match). Click a control, press a key or mouse button (wheel works too); Esc cancels.
+  A key already in use swaps over. Overrides save to GameUserSettings.ini `[Shieldbreak.Keys]`; RESET DEFAULTS clears
+  them. Movement (WASD) is rebindable too, for AZERTY players. Controller buttons are fixed. The F1 help and the
+  [R] vent / [Q] swap / PULSE [F] prompts show the current keys. New self-test check "Rebinding a key moves the control
+  and swaps a taken key" (puts your own keys back afterwards). Please check: the menu opens over both menus, Esc/Back
+  return focus to the menu underneath, a rebound key works in a match and survives a restart, and WASD still moves.
+  `UInputMappingContext::UnmapAll` / `GetMappings` are the 5.x APIs I used; fix the names if 5.8 renamed them.
 - 2026-10-25 night **Controller aim assist + credits footer** (commit "Controller aim assist"). The right stick now has
   its own action (`IA_LookGamepad`); with it in use (last 2 s), the stick slows to 45% over an enemy (friction) and the
   view eases toward an enemy inside a ~90 cm cone at up to 9 deg/s while the player moves or aims (magnetism). Mouse

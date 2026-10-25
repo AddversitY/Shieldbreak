@@ -41,6 +41,9 @@
 #include "Weapons/ShieldbreakRocket.h"
 #include "UI/ShieldbreakMenu.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Player/ShieldbreakInputSet.h"
+#include "EnhancedActionKeyMapping.h"
+#include "InputMappingContext.h"
 
 namespace ShieldbreakSelfTestPrivate
 {
@@ -445,6 +448,28 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("Sensitivity and field of view clamp to their ranges"),
 				FMath::IsNearlyEqual(ClampedSensitivity, ShieldbreakSettings::MaxSensitivity) && FMath::IsNearlyEqual(ClampedFov, ShieldbreakSettings::MinFieldOfView),
 				FString::Printf(TEXT("sensitivity %.2f, fov %.0f"), ClampedSensitivity, ClampedFov));
+
+			// Key rebinding: the mapping follows the new key, a taken key swaps, and the player's keys come back.
+			UShieldbreakInputSet* Inputs = UShieldbreakInputSet::Get();
+			TArray<FKey> SavedKeys;
+			for (const FShieldbreakKeyBinding& Binding : Inputs->GetBindings())
+			{
+				SavedKeys.Add(Binding.Key);
+			}
+			const int32 MeleeIndex = Inputs->GetBindings().IndexOfByPredicate([](const FShieldbreakKeyBinding& B) { return B.Id == TEXT("Melee"); });
+			auto IsMapped = [Inputs](const UInputAction* Action, const FKey& Key)
+			{
+				return Inputs->Context->GetMappings().ContainsByPredicate([Action, &Key](const FEnhancedActionKeyMapping& M) { return M.Action == Action && M.Key == Key; });
+			};
+			Inputs->ResetToDefaults();
+			Inputs->Rebind(MeleeIndex, EKeys::K);
+			const bool bMoved = Inputs->GetKey(TEXT("Melee")) == EKeys::K && IsMapped(Inputs->Melee, EKeys::K) && !IsMapped(Inputs->Melee, EKeys::F)
+				&& IsMapped(Inputs->Melee, EKeys::Gamepad_RightShoulder);
+			Inputs->Rebind(MeleeIndex, EKeys::G);
+			const bool bSwapped = Inputs->GetKey(TEXT("Melee")) == EKeys::G && Inputs->GetKey(TEXT("Grenade")) == EKeys::K && IsMapped(Inputs->Grenade, EKeys::K);
+			Inputs->SetAllKeys(SavedKeys);
+			Check(TEXT("Rebinding a key moves the control and swaps a taken key"), bMoved && bSwapped,
+				FString::Printf(TEXT("moved %d, swapped %d"), bMoved ? 1 : 0, bSwapped ? 1 : 0));
 			return true;
 		}, 2.f });
 

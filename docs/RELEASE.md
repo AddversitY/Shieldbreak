@@ -38,8 +38,8 @@ Legend: **done**, **in progress**, **todo**, **decide** (Vincent's call).
 | Art pass: characters, weapons, maps | in progress | Vincent picks the direction on the art direction page; maps got textured materials, glow trims and mountains. |
 | Online play over the internet | decide | Today: LAN and join-by-IP. For internet play: Steam networking (Steam only) or Epic Online Services (free, any store) for lobbies and NAT traversal. Listen servers are fine for small matches. |
 | Audio: music and more sound variety | todo | Lyra sounds cover guns and explosions. Menu music and match music are missing. |
-| Controller support | todo | Enhanced Input makes this mostly bindings plus aim assist tuning. Expected for a Halo-style game. |
-| Settings | done | Sensitivity, FOV, invert, graphics quality, resolution scale. Key rebinding is still todo. |
+| Controller support | in progress | Full controller bindings plus aim assist (friction and gentle tracking); feel check on a real pad pending. |
+| Settings | done | Sensitivity, FOV, invert, graphics quality, resolution scale, keyboard/mouse rebinding (Controls menu; pending a PC check). |
 | Tutorial or how-to-play | todo | F1 shows controls; a short training map would help new players. |
 | Crash reporting | todo | Turn on the crash reporter in packaged builds and collect logs from testers. |
 
