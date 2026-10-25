@@ -18,6 +18,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakInputSet.h"
+#include "Player/ShieldbreakSettings.h"
+#include "Misc/CommandLine.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakPlayerState.h"
@@ -197,6 +199,10 @@ void AShieldbreakHUD::DrawHUD()
 	if (PC && PC->IsHelpVisible())
 	{
 		DrawHelp();
+	}
+	else
+	{
+		DrawTips(Character);
 	}
 }
 
@@ -899,6 +905,62 @@ void AShieldbreakHUD::DrawRespawn(AShieldbreakPlayerController* PC, AShieldbreak
 	const int32 Seconds = FMath::Max(0, FMath::CeilToInt(PC->GetRespawnServerTime() - ServerTime()));
 	Text(FString::Printf(TEXT("RESPAWN IN %d"), Seconds), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.62f,
 		ShieldbreakHUDPrivate::White, GEngine->GetLargeFont(), S * 1.4f, true);
+}
+
+void AShieldbreakHUD::DrawTips(const AShieldbreakCharacter* Character)
+{
+	using namespace ShieldbreakHUDPrivate;
+
+	// Once per launch; tests and automated runs skip them so screenshots stay clean.
+	static bool bShownThisLaunch = false;
+	static const bool bAutomated = FParse::Param(FCommandLine::Get(), TEXT("SBSelfTest")) || FParse::Param(FCommandLine::Get(), TEXT("SBNoMenu"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBAutoShot"));
+	const UWorld* World = GetWorld();
+	if (bAutomated || !World || !ShieldbreakSettings::GetShowTips())
+	{
+		return;
+	}
+	if (TipsStartTime < 0.f)
+	{
+		if (bShownThisLaunch || !Character || !Character->IsAlive())
+		{
+			return;
+		}
+		bShownThisLaunch = true;
+		// A short beat after the first spawn so the player gets their bearings.
+		TipsStartTime = World->GetTimeSeconds() + 3.f;
+	}
+
+	const UShieldbreakInputSet* Inputs = UShieldbreakInputSet::Get();
+	auto K = [Inputs](const TCHAR* Id) { return Inputs->GetKeyName(Id); };
+	const TArray<FString> Tips =
+	{
+		FString::Printf(TEXT("Your shield soaks damage and recharges when you stop getting hit. Break it, then finish with a headshot or melee [%s]."), *K(TEXT("Melee"))),
+		FString::Printf(TEXT("[%s] throws a grenade. They bounce: bank them off walls and around corners."), *K(TEXT("Grenade"))),
+		FString::Printf(TEXT("Shield recharging? Tap [%s] in the green window to vent for an instant refill. Miss and it restarts."), *K(TEXT("ReloadVent"))),
+		FString::Printf(TEXT("Sprint [%s], then crouch [%s] to slide. Jump out of a slide to keep the speed."), *K(TEXT("Sprint")), *K(TEXT("CrouchSlide"))),
+		FString::Printf(TEXT("[%s] picks up weapons on the map. [%s] swaps between your two guns."), *K(TEXT("Interact")), *K(TEXT("SwapWeapon"))),
+		FString::Printf(TEXT("Power weapons respawn on a timer: control them to win. [%s] lists every control; tips can be turned off in the Esc menu."), *K(TEXT("ToggleHelp"))),
+	};
+
+	constexpr float TipSeconds = 7.f;
+	const float Elapsed = World->GetTimeSeconds() - TipsStartTime;
+	const int32 Index = FMath::FloorToInt(Elapsed / TipSeconds);
+	if (Elapsed < 0.f || !Tips.IsValidIndex(Index))
+	{
+		return;
+	}
+	const float Local = Elapsed - Index * TipSeconds;
+	const float Alpha = FMath::Clamp(FMath::Min(Local / 0.4f, (TipSeconds - Local) / 0.6f), 0.f, 1.f);
+
+	UFont* Font = GEngine->GetSmallFont();
+	const float W = 1000.f * S;
+	const float H = 58.f * S;
+	const float X = (Canvas->ClipX - W) * 0.5f;
+	const float Y = Canvas->ClipY * 0.17f;
+	Box(X, Y, W, H, FLinearColor(0.f, 0.f, 0.f, 0.55f * Alpha));
+	Text(FString::Printf(TEXT("TIP %d/%d"), Index + 1, Tips.Num()), Canvas->ClipX * 0.5f, Y + 6.f * S, Gold.CopyWithNewOpacity(Alpha), Font, S, true);
+	Text(Tips[Index], Canvas->ClipX * 0.5f, Y + 28.f * S, White.CopyWithNewOpacity(Alpha), Font, S, true);
 }
 
 void AShieldbreakHUD::DrawHelp()

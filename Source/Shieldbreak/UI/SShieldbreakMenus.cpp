@@ -12,6 +12,8 @@
 #include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Sound/SlateSound.h"
+#include "Sound/SoundBase.h"
 #include "Styling/CoreStyle.h"
 #include "UI/ShieldbreakMenu.h"
 #include "Widgets/Images/SImage.h"
@@ -70,6 +72,29 @@ namespace ShieldbreakMenuPrivate
 		return Found ? *Found : FString();
 	}
 
+	/** Lyra's menu click and hover sounds, loaded once and rooted; silent if the assets are missing. */
+	FSlateSound MenuSound(bool bClick)
+	{
+		static USoundBase* Click = nullptr;
+		static USoundBase* Hover = nullptr;
+		static bool bLoaded = false;
+		if (!bLoaded)
+		{
+			bLoaded = true;
+			Click = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/Sounds/UI/ButtonClick.ButtonClick"));
+			Hover = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/Sounds/UI/ButtonHover.ButtonHover"));
+			for (USoundBase* Sound : { Click, Hover })
+			{
+				if (Sound)
+				{
+					Sound->AddToRoot();
+				}
+			}
+		}
+		USoundBase* Sound = bClick ? Click : Hover;
+		return Sound ? FSlateSound::FromResourceObject(Sound) : FSlateSound();
+	}
+
 	TSharedRef<SWidget> Backdrop_Image(const FLinearColor& Color)
 	{
 		return SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(Color);
@@ -87,6 +112,8 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFuncti
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.ContentPadding(FMargin(12.f, 10.f))
+			.PressedSoundOverride(MenuSound(true))
+			.HoveredSoundOverride(MenuSound(false))
 			.OnClicked_Lambda([OnClick]()
 			{
 				OnClick();
@@ -122,6 +149,12 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 			MakeChooser(LOCTEXT("InvertLook", "Invert look"),
 				[]() { return ShieldbreakSettings::GetInvertLook() ? LOCTEXT("On", "On") : LOCTEXT("Off", "Off"); },
 				[](int32) { ShieldbreakSettings::SetInvertLook(!ShieldbreakSettings::GetInvertLook()); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("Tips", "New-player tips"),
+				[]() { return ShieldbreakSettings::GetShowTips() ? LOCTEXT("TipsOn", "On") : LOCTEXT("TipsOff", "Off"); },
+				[](int32) { ShieldbreakSettings::SetShowTips(!ShieldbreakSettings::GetShowTips()); })
 		]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
@@ -299,6 +332,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunct
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.ContentPadding(FMargin(14.f, 4.f))
+			.PressedSoundOverride(MenuSound(true))
 			.OnClicked_Lambda([Step, Delta]()
 			{
 				Step(Delta);
@@ -579,6 +613,8 @@ TSharedRef<SWidget> SShieldbreakControlsMenu::MakeRow(int32 Index)
 		[
 			SNew(SButton)
 			.ContentPadding(FMargin(12.f, 5.f))
+			.PressedSoundOverride(MenuSound(true))
+			.HoveredSoundOverride(MenuSound(false))
 			.OnClicked_Lambda([this, Index]()
 			{
 				Capturing = Index;

@@ -21,6 +21,9 @@ namespace ShieldbreakSettings
 	SHIELDBREAK_API void SetFieldOfView(float Value);
 	SHIELDBREAK_API bool GetInvertLook();
 	SHIELDBREAK_API void SetInvertLook(bool bInvert);
+	/** New-player tips at the start of the first match of each launch (on by default). */
+	SHIELDBREAK_API bool GetShowTips();
+	SHIELDBREAK_API void SetShowTips(bool bShow);
 
 	/** Overall engine scalability, 0 (Low) to 3 (Epic); -1 when individual groups were set by hand. Stored by
 	 *  UGameUserSettings (GameUserSettings.ini [ScalabilityGroups]), applied at once. */

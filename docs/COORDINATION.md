@@ -72,6 +72,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Menu sounds + new-player tips** (commit "Menu sounds"). Menu buttons play Lyra's
+  `/Game/Audio/Sounds/UI/ButtonClick` and `ButtonHover` (silent if they fail to load; please make sure the packaging
+  cook list includes them). First match of each launch: six tips, 7 s each, near the top of the screen, using the
+  current keys; skipped with -SBSelfTest, -SBNoMenu, -SBShots or -SBAutoShot. New "New-player tips" On/Off row in the
+  settings (both menus). Please check the main menu and the Esc menu still fit at 720p with the extra row and the
+  CONTROLS button; if not, tell me and I'll make them scroll or move to two columns.
 - 2026-10-25 night **Key rebinding** (commit "Key rebinding"). New CONTROLS button in the main menu (beside Quit)
   and the Esc menu (above Leave match). Click a control, press a key or mouse button (wheel works too); Esc cancels.
   A key already in use swaps over. Overrides save to GameUserSettings.ini `[Shieldbreak.Keys]`; RESET DEFAULTS clears

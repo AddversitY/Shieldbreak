@@ -15,6 +15,7 @@ namespace ShieldbreakSettingsPrivate
 		float Sensitivity = 1.f;
 		float FieldOfView = ShieldbreakSettings::DefaultFieldOfView;
 		bool bInvertLook = false;
+		bool bShowTips = true;
 	};
 
 	/** Loaded from the ini on first use, then kept in memory (look input reads it every frame). */
@@ -28,6 +29,7 @@ namespace ShieldbreakSettingsPrivate
 			GConfig->GetFloat(Section, TEXT("Sensitivity"), Cached.Sensitivity, GGameUserSettingsIni);
 			GConfig->GetFloat(Section, TEXT("FieldOfView"), Cached.FieldOfView, GGameUserSettingsIni);
 			GConfig->GetBool(Section, TEXT("InvertLook"), Cached.bInvertLook, GGameUserSettingsIni);
+			GConfig->GetBool(Section, TEXT("ShowTips"), Cached.bShowTips, GGameUserSettingsIni);
 			Cached.Sensitivity = FMath::Clamp(Cached.Sensitivity, ShieldbreakSettings::MinSensitivity, ShieldbreakSettings::MaxSensitivity);
 			Cached.FieldOfView = FMath::Clamp(Cached.FieldOfView, ShieldbreakSettings::MinFieldOfView, ShieldbreakSettings::MaxFieldOfView);
 		}
@@ -44,6 +46,7 @@ namespace ShieldbreakSettingsPrivate
 		GConfig->SetFloat(Section, TEXT("Sensitivity"), V.Sensitivity, GGameUserSettingsIni);
 		GConfig->SetFloat(Section, TEXT("FieldOfView"), V.FieldOfView, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("InvertLook"), V.bInvertLook, GGameUserSettingsIni);
+		GConfig->SetBool(Section, TEXT("ShowTips"), V.bShowTips, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 }
@@ -78,6 +81,17 @@ bool ShieldbreakSettings::GetInvertLook()
 void ShieldbreakSettings::SetInvertLook(bool bInvert)
 {
 	ShieldbreakSettingsPrivate::Values().bInvertLook = bInvert;
+	ShieldbreakSettingsPrivate::Save();
+}
+
+bool ShieldbreakSettings::GetShowTips()
+{
+	return ShieldbreakSettingsPrivate::Values().bShowTips;
+}
+
+void ShieldbreakSettings::SetShowTips(bool bShow)
+{
+	ShieldbreakSettingsPrivate::Values().bShowTips = bShow;
 	ShieldbreakSettingsPrivate::Save();
 }
 

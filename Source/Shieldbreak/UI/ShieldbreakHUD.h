@@ -47,6 +47,8 @@ private:
 	void DrawMatchOver(AShieldbreakGameState* GameState);
 	void DrawRespawn(AShieldbreakPlayerController* PC, AShieldbreakGameState* GameState);
 	void DrawHelp();
+	/** A few new-player tips, one every few seconds, in the first match of each launch (ShieldbreakSettings). */
+	void DrawTips(const class AShieldbreakCharacter* Character);
 
 	// Primitives (all coordinates in pixels).
 	void Text(const FString& Str, float X, float Y, const FLinearColor& Color, UFont* Font, float TextScale = 1.f, bool bCenter = false, bool bRight = false);
@@ -67,4 +69,6 @@ private:
 
 	/** Pixel scale relative to 1080p. */
 	float S = 1.f;
+	/** World time the tips started, or a negative value before the first spawn. */
+	float TipsStartTime = -1.f;
 };
