@@ -94,7 +94,12 @@ namespace ShieldbreakMenuPrivate
 			}
 		}
 		USoundBase* Sound = bClick ? Click : Hover;
-		return Sound ? FSlateSound::FromResourceObject(Sound) : FSlateSound();
+		FSlateSound SlateSound; // 5.8 has no FSlateSound::FromResourceObject
+		if (Sound)
+		{
+			SlateSound.SetResourceObject(Sound);
+		}
+		return SlateSound;
 	}
 
 	/** Content/Splash/Emblem.png (Art/branding/make_branding.py) as a brush, or null when the file is missing. */
