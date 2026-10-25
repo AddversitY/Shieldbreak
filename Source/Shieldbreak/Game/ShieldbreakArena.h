@@ -11,7 +11,9 @@
 #include "Game/ShieldbreakMaps.h"
 #include "ShieldbreakArena.generated.h"
 
+class UInstancedStaticMeshComponent;
 class UMaterialInterface;
+class UMeshComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -61,12 +63,24 @@ private:
 	void BuildWaypointGraph();
 	void SpawnLighting();
 	void SpawnPickups();
+	/** Glowing trim lines along the top (and foot, on tall ones) of the structures' walls. Visual only. */
+	void BuildTrim();
+	/** Ground and mountains outside the walls. Visual only. */
+	void BuildBackdrop();
 
-	UStaticMeshComponent* AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation = FRotator::ZeroRotator);
+	/** Loads the world materials made by Tools/import_art.py (missing ones fall back to the flat palette colour). */
+	void LoadSurfaceMaterials();
+	/** Gives Mesh its surface for a palette style: a tinted world material, the glow, or the flat colour. */
+	void ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color) const;
+
+	UStaticMeshComponent* AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, FName Style, const FRotator& Rotation = FRotator::ZeroRotator);
 	/** Box spanning Min..Max (axis aligned). */
-	UStaticMeshComponent* AddBlock(const FVector& Min, const FVector& Max, const FLinearColor& Color);
+	UStaticMeshComponent* AddBlock(const FVector& Min, const FVector& Max, const FLinearColor& Color, FName Style);
 	/** Slab whose top surface runs along the centerline from Start to End. */
-	UStaticMeshComponent* AddRamp(const FVector& Start, const FVector& End, float Width, float Thickness, const FLinearColor& Color);
+	UStaticMeshComponent* AddRamp(const FVector& Start, const FVector& End, float Width, float Thickness, const FLinearColor& Color, FName Style);
+	/** A visual-only component (no collision, not net addressable). */
+	template <typename T>
+	T* AddDecoration(const TCHAR* BaseName, UStaticMesh* Mesh);
 
 	bool IsLinkWalkable(const FVector& From, const FVector& To) const;
 	/** One-way: dropping off a ledge from From lands at To. */
@@ -81,6 +95,11 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> BaseMaterial;
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> ConeMesh;
+	/** World materials by surface kind (Panel, Tile, Stone, Grass), and the emissive surface for glow. */
+	UPROPERTY(Transient) TMap<FName, TObjectPtr<UMaterialInterface>> SurfaceMaterials;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> GlowMaterial;
+	UPROPERTY(Transient) TArray<TObjectPtr<UPrimitiveComponent>> Decorations;
 
 	/** Which map to build; set before construction (deferred spawn in EnsureLocal). */
 	UPROPERTY()

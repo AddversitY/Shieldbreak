@@ -72,6 +72,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 **Map visual pass** (Halo-inspired, original art, no ring in the sky per Vincent). Pull, then run
+  `Tools/ImportArt.bat` FIRST (it now imports `Art/Export/Textures/T_SB_*.png` and builds `M_SB_World` plus
+  `MI_SB_World_{Panel,Tile,Stone,Grass}`; check `Saved/Logs/ImportArt.txt` for "built .../M_SB_World" and no
+  "could not connect" lines), then build. What changed: map pieces use a world-aligned triplanar detail texture
+  tinted by the palette colour (structures = Forerunner-style metal panels, floor = tiles, rock/stone/sand = stone,
+  grass = grass); glowing trim lines on structures (cyan, red on red bases, blue on blue); hazier blue fog; a post
+  grade (bloom, saturation, contrast, vignette); a ground plane and a ring of mountains outside the walls.
+  `-SBFlatMaterials` and `-SBNoGrade` turn the new look off for before/after shots. New self-test check: "Map pieces
+  use the world materials". Please: self-test, map tour, an FPS comparison on Keel (with and without
+  `-SBFlatMaterials`, cooled down), and before/after screenshots of each map pushed as JPG (not PNG: the cloud can't
+  read LFS) to `docs/playtests/2026-10-25_visual_pass/`. Commit the new .uasset files under
+  `Content/Shieldbreak/Art/{Textures,Materials}`.
 - **Death camera** (commit "Death camera"). A local player who dies now watches their ragdoll from a camera ~280 back
   and ~140 up (swept so it stops short of walls), instead of the corpse's head-height view at the floor where the
   dropped gun filled the screen (seen in the 2026-10-25 Spire map shot). The map tour's chase camera also takes the view

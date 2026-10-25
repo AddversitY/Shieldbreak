@@ -15,6 +15,8 @@ struct FShieldbreakMapBlock
 	FVector Min;
 	FVector Max;
 	FLinearColor Color;
+	/** Palette name (floor, wall, tower, stone, grass, glow...): picks the surface material. */
+	FName Style;
 };
 
 struct FShieldbreakMapRamp
@@ -25,6 +27,7 @@ struct FShieldbreakMapRamp
 	float Width;
 	float Thickness;
 	FLinearColor Color;
+	FName Style;
 };
 
 struct FShieldbreakMapLift

@@ -30,6 +30,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakWeapon.h"
@@ -808,6 +809,27 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("The arena's name is stable for networking"), Arena->IsFullNameStableForNetworking(), Arena->GetName());
 			Check(TEXT("...and so is every floor/wall piece"), Arena->GetPieces().Num() > 0 && Unstable == 0,
 				FString::Printf(TEXT("%d of %d not stable"), Unstable, Arena->GetPieces().Num()));
+			return true;
+		}, 3.f });
+
+	// The visual pass: map pieces use the textured world materials (Tools/ImportArt.bat makes them), not flat colours.
+	Steps.Add({ TEXT("Map pieces use the world materials"),
+		nullptr,
+		[this](float Elapsed)
+		{
+			const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+			if (!Arena)
+			{
+				return true;
+			}
+			int32 Textured = 0;
+			for (const UStaticMeshComponent* Piece : Arena->GetPieces())
+			{
+				const UMaterialInterface* Material = Piece ? Piece->GetMaterial(0) : nullptr;
+				Textured += Material && Material->GetBaseMaterial() && Material->GetBaseMaterial()->GetName() == TEXT("M_SB_World") ? 1 : 0;
+			}
+			Check(TEXT("Most map pieces use M_SB_World"), Textured * 2 > Arena->GetPieces().Num(),
+				FString::Printf(TEXT("%d of %d"), Textured, Arena->GetPieces().Num()));
 			return true;
 		}, 3.f });
 
