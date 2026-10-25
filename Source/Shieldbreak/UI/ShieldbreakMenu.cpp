@@ -160,7 +160,7 @@ void AShieldbreakMenuController::Tick(float DeltaSeconds)
 	const FVector Eye = OrbitCenter + FVector(FMath::Cos(Radians) * OrbitRadius, FMath::Sin(Radians) * OrbitRadius, OrbitHeight);
 	// Aim a little to the right of the centre so the map sits in the open part of the screen, not behind the panel.
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, (OrbitCenter - Eye).GetSafeNormal2D());
-	const FVector Target = OrbitCenter - Right * OrbitRadius * 0.18f;
+	const FVector Target = OrbitCenter - Right * OrbitRadius * 0.24f;
 	BackdropCamera->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
 }
 

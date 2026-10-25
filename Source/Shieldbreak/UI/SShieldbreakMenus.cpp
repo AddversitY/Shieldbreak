@@ -520,7 +520,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Hints", "In a match: F1 controls, Tab scoreboard, Esc menu"))
-				.Font(Font(11))
+				.Font(Font(13))
 				.ColorAndOpacity(Muted)
 			]
 			+ SVerticalBox::Slot().AutoHeight()
@@ -528,7 +528,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 				SNew(STextBlock)
 				.Text(FText::Format(LOCTEXT("Credits", "Shieldbreak {0}  -  Original maps, weapons, armor and music by the Shieldbreak team\nMannequin, animations, effects and sounds from Lyra Starter Game by Epic Games\nUnreal Engine, Copyright 1998-2026, Epic Games, Inc. All rights reserved."),
 					FText::FromString(ShieldbreakMenuPrivate::GameVersion())))
-				.Font(Font(9))
+				.Font(Font(10))
 				.ColorAndOpacity(Muted)
 			]
 		]
