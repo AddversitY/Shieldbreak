@@ -1554,6 +1554,19 @@ void AShieldbreakSelfTest::BuildSteps()
 				}
 				++Phase;
 			}
+			// A subject killed before the shot would leave the camera on a ragdoll: switch to a live bot and wait again.
+			if (ShotDue > 0.f && ChaseSubject.IsValid() && !ChaseSubject->IsAlive())
+			{
+				for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+				{
+					if (It->IsAlive() && It->GetController() && !It->GetController()->IsPlayerController())
+					{
+						ChaseSubject = *It;
+						ShotDue = Now() + 1.f;
+						break;
+					}
+				}
+			}
 			if (ChaseCamera && ChaseSubject.IsValid())
 			{
 				// The viewing player's own death switches the view to its body; take it back for the shot.

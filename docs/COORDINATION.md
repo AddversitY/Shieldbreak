@@ -75,9 +75,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Death camera** (commit "Death camera"). A local player who dies now watches their ragdoll from a camera ~280 back
   and ~140 up (swept so it stops short of walls), instead of the corpse's head-height view at the floor where the
   dropped gun filled the screen (seen in the 2026-10-25 Spire map shot). The map tour's chase camera also takes the view
-  back after the viewing player dies. Check: die in a match and look; map-tour shots no longer show "RESPAWN IN" views.
-- **Rocket-jump check flake?** 2026-10-25 on 875bc6b the overshield pass logged "peak up-velocity 0.00" once (it had
-  passed in every earlier run). Re-run the self-test to see whether it repeats.
+  back after the viewing player dies. **Verified 2026-10-25 (2907e27):** build clean, self-test 95/95 (the rocket-jump
+  overshield check passed again: 1294 up, so the earlier 0.00 was a one-off), Spire 17/17; the death camera shows the
+  ragdoll from behind/above. Two Spire shots were of a chase subject that had just died, so the tour now switches to
+  a live bot when the subject dies before the shot (the "RESPAWN IN" text is the viewing player's own HUD).
 - **Blended body animation and aim pitch** (`Visuals/ShieldbreakBodyAnimInstance`). The mannequin now plays through a
   native anim instance instead of single-node mode: pose changes cross-fade over 0.18 s (no pops when a bot changes
   direction or lands), and spine_02..05 bend to the aim pitch so bots and remote players look and point the gun up or
