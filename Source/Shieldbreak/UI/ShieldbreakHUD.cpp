@@ -852,7 +852,7 @@ void AShieldbreakHUD::DrawScoreboard(AShieldbreakGameState* GameState)
 	const APlayerState* Mine = PlayerOwner ? PlayerOwner->PlayerState.Get() : nullptr;
 	UFont* Font = GEngine->GetMediumFont();
 
-	const float W = 640.f * S;
+	const float W = 720.f * S;
 	const float RowH = 30.f * S;
 	const float H = (Sorted.Num() + 2) * RowH + 20.f * S;
 	const float X = (Canvas->ClipX - W) * 0.5f;
