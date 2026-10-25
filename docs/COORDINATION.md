@@ -84,6 +84,25 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   third-person view (new multicast). New self-test checks: "The melee plays a swing animation", "The local player has
   first-person arms", "...and the gun is in their hand". Please send first-person screenshots: idle with the BR, with
   the Sidearm, and mid-throw, mid-melee, mid-reload (JPG).
+  **Verified 2026-10-25 (91e9cc2 + PC test changes):** build clean; self-test 99/99. The arms checks used to skip
+  ("no local player pawn": the human never spawns during a self-test), so the test now possesses a soldier of its own.
+  Results: "The local player has first-person arms" PASS, "...and the gun is in their hand" PASS (FirstPersonArms;
+  the re-attach takes a few frames, so the check waits up to 3 s), "The melee plays a swing animation" PASS
+  (MM_Rifle_Melee). Animation names: all correct except `MM_Pistol_GrenadeToss`, which Lyra doesn't have (the rifle
+  fallback covers it); see "Lyra action animations" below. Screenshots (new `Tools/VisualShots.bat FP`, i.e.
+  `-SBFPShots`): `docs/playtests/2026-10-25_visual_pass/keel_fp_fp_*.jpg` (defaults) and `keel_fp_tuned_fp_*.jpg`, with
+  both side by side in `contact_sheet_first_person.jpg`. Findings:
+  1. **Tuning: use sb.FPGripForward 34, sb.FPGripRight 13, sb.FPGripDown 15 (aim pitch/yaw unchanged at 1.5/-3).** At the
+     defaults (24/11/18) the BR fills the lower right with no hands in view, and the Sidearm is mostly below the screen.
+     At 34/13/15 the BR sits like a normal FPS viewmodel, the left armored forearm and glove show on the left, and the
+     Sidearm shows with the gloved hand. 42/15/13 (with yaw -1.5) pushes the left arm across the middle of the screen.
+  2. **The grenade throw doesn't read in first person.** Frames at 0.08/0.2/0.35/0.5 s show only a small move of the
+     left forearm, and the grenade appears downrange. The overhead arm swing stays off-screen above the view. It may
+     need the arms pitched or pulled down during the throw, or a camera-relative offset for the action.
+  3. **Melee frame 0 (0.08 s after F): a big soft white sphere fills the centre of the view** (every run; see
+     `keel_fp_fp_4_melee_0.jpg`). It's either the melee effect spawned at the camera or the hidden head showing during
+     the swing (neck_01 is hidden on the arms). By 0.2 s it's gone and the swing reads well.
+  4. Reload reads well (the gun tilts up across the right side, the left hand reaches in). The swap animation is visible.
 - 2026-10-25 **Map visual pass** (Halo-inspired, original art, no ring in the sky per Vincent). Pull, then run
   `Tools/ImportArt.bat` FIRST (it now imports `Art/Export/Textures/T_SB_*.png` and builds `M_SB_World` plus
   `MI_SB_World_{Panel,Tile,Stone,Grass}`; check `Saved/Logs/ImportArt.txt` for "built .../M_SB_World" and no
@@ -96,6 +115,26 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   `-SBFlatMaterials`, cooled down), and before/after screenshots of each map pushed as JPG (not PNG: the cloud can't
   read LFS) to `docs/playtests/2026-10-25_visual_pass/`. Commit the new .uasset files under
   `Content/Shieldbreak/Art/{Textures,Materials}`.
+  **Verified 2026-10-25 (de7e99b, then again on 91e9cc2):** ImportArt OK ("built /Game/Shieldbreak/Art/Materials/M_SB_World
+  (28 expressions)", the four MI_SB_World_* instances, 4 textures, no "could not connect" or FAILED lines). The
+  re-import also re-saved the old armor/weapon meshes and palette instances with no real change, so I left those
+  out of the commit. Build: one compile error in the new self-test check (`GetBaseMaterial()` on a const
+  `UMaterialInterface*`), fixed in `Test/`. Self-test 96/96 on de7e99b and 99/99 on HEAD, including "Most map pieces
+  use M_SB_World" 32 of 32. Map tour: Keel 14/14 (20.6 FPS with 4 bots), Bastion 14/14, Sanctum 16/16, Creekbed
+  14/14, Spire 18/18, Keel CTF 24/24, but **Bastion KOTH 17/18**: 3 bots stuck 20 s at (-1160, 1080, 199),
+  (-2196, 2050, 394) and (-1160, 1160, 94).
+  **Before/after shots** (new `Tools/VisualShots.bat`, i.e. `-SBShots`: no bots, 4 fixed cameras per map: two high
+  corners, a top view and eye height at spawn 0; "before" = `-SBFlatMaterials -SBNoGrade`):
+  `docs/playtests/2026-10-25_visual_pass/<map>_{before,after}_<view>.jpg` and `contact_sheet_before_after.jpg`. The
+  textured look reads clearly better: panelled walls, tiled floors, stone and grass, mountains outside. Notes: the
+  glowing trim lines are barely visible at these distances; the wall-panel tiling repeats noticeably on long walls;
+  the mountains are plain cones with the stone texture; "RESPAWN IN n" shows mid-screen because the human has no pawn
+  during these runs (that's the test, not the game).
+  **FPS (1280x720, fixed spawn view, no bots, 20 s).** Keel textured vs `-SBFlatMaterials` (grade on in both),
+  alternating runs: textured 32.1 / 30.6, flat 32.4 / 31.6, so about 2% slower, within noise. The planned 5-minute
+  cooldown didn't happen (Git Bash's `timeout` ran instead of Windows'), so these ran back to back; the alternating
+  order keeps the comparison fair. Full after vs before (materials + grade) per map: Keel 35.8 vs 36.8, Bastion 34.1
+  vs 34.3, Sanctum 33.5 vs 35.0, Creekbed 33.2 vs 32.3, Spire 32.9 vs 33.7. The visual pass costs at most ~4%.
 - **Death camera** (commit "Death camera"). A local player who dies now watches their ragdoll from a camera ~280 back
   and ~140 up (swept so it stops short of walls), instead of the corpse's head-height view at the floor where the
   dropped gun filled the screen (seen in the 2026-10-25 Spire map shot). The map tour's chase camera also takes the view
@@ -204,6 +243,43 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   shooter. Self-test currently checks the overshield case and logs the plain case as INFO.
 - **Test harness note:** `AAIController::UpdateControlRotation` zeroes pitch unless focused on a pawn. Bots override
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
+
+## Lyra action animations
+Read on the PC 2026-10-25 with `Tools/ListLyraActions.bat` (`Tools/list_lyra_actions.py`, output `Saved/Logs/LyraActions.txt`).
+All are under `/Game/Characters/Heroes/Mannequin/Animations/` and use the skeleton
+`/Game/Characters/Heroes/Mannequin/Meshes/SK_Mannequin`. "Motion" is the largest change across the clip in local bone space.
+Every action sequence moves the pelvis (3-8 cm, up to 168 deg on the rifle melee) and turns the feet 7-26 deg, so these are
+**full-body clips**. Lyra plays them only above the waist, through its `UpperBody` slot, and layers the matching
+`_Additive` clip (local-space additive, `AAT_LocalSpaceBase`) on top in `UpperBodyAdditive`. Our spine_01-up blend is the same idea.
+
+| Asset (Actions/ unless noted) | Length | Type |
+|---|---|---|
+| `MM_Rifle_GrenadeToss` | 0.967 s | full body |
+| `MM_Rifle_GrenadeToss_Additive` | 0.967 s | additive (local space) |
+| `AM_MM_Rifle_GrenadeToss` (montage) | 0.867 s | plays GrenadeToss 0.10-0.97 in `UpperBody` + the additive in `UpperBodyAdditive`; blend in 0.15 / out 0.20 |
+| `MM_Pistol_GrenadeToss` | **does not exist** | (the code falls back to the rifle one: fine) |
+| `MM_Rifle_Melee` / `_Additive` | 1.167 s | full body / additive |
+| `AM_MM_Rifle_Melee` (montage) | 1.067 s | 0.10-1.17, `UpperBody` + `UpperBodyAdditive`; blend in 0.067 / out 0.40 |
+| `MM_Pistol_Melee` / `_Additive` | 1.533 s | full body / additive |
+| `AM_MM_Pistol_Melee` (montage) | 1.150 s | 0.10-1.25, `UpperBody` + `UpperBodyAdditive`; blend in 0.067 / out 0.40 |
+| `MM_Rifle_Reload` / `_Additive` | 2.200 s | full body / additive (no montage) |
+| `MM_Pistol_Reload` / `_Additive` | 2.000 s | full body / additive (no montage) |
+| `MM_Rifle_Equip` / `_Additive` | 1.667 s | full body / additive (no montage) |
+| `MM_Pistol_Equip` / `_Additive` | 1.400 s | full body / additive |
+| `AM_MM_Generic_Unequip` (montage) | 0.500 s | MM_Pistol_Equip 0.10-0.60 (+ additive); blend in 0.20 / out 0.30 |
+| `MM_Rifle_Fire` | 0.533 s | additive, mesh-space rotation offset (base: own frame) |
+| `MM_Pistol_Fire` | 0.667 s | additive, mesh-space rotation offset (base: own frame) |
+| `MM_Rifle_DryFire` / `_Additive`, `MM_Pistol_DryFire` / `_Additive` | 0.800 s each | full body (hands only really move) / additive |
+| `Locomotion/Rifle/MM_Rifle_Idle_Hipfire` | 8.333 s | full body idle loop |
+| `Locomotion/Rifle/MM_Rifle_Idle_ADS` | 3.400 s | full body idle loop |
+| `Locomotion/Rifle/MM_Rifle_Hipfire_OverridePose` | 0.033 s | 1-frame pose |
+| `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` | 6.367 s | full body idle loop |
+| `Locomotion/Pistol/MM_Pistol_Idle_ADS` | 5.000 s | full body idle loop |
+| `Locomotion/Pistol/MF_Pistol_Hipfire_OverridePose` | 0.033 s | 1-frame pose (only an MF_ version exists; no MM_Pistol_Hipfire_OverridePose) |
+
+Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in), `AM_MM_Shotgun_Melee`, dashes, deaths and hit reacts.
+**Names in 91e9cc2 checked:** `Actions/MM_Rifle_{GrenadeToss,Melee,Reload,Equip}`, `Actions/MM_Pistol_{Melee,Reload,Equip}` and
+`Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
 - **2026-10-22, build f35070f/16d3efd (iqwexu + art 05a556c):** BuildEditor clean (AndroidFileServer plugin off; the

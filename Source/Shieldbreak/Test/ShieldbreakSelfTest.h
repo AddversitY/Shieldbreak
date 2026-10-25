@@ -77,6 +77,11 @@ private:
 
 	/** Map tour (any map but Crucible): every gravity lift lands where the layout says. */
 	void BuildMapSteps(const class AShieldbreakArena* Arena);
+	/** -SBShots: fixed-camera map views + FPS; -SBFPShots: first-person idle/throw/melee/reload. -SBShotTag=<name> names the files. */
+	void BuildShotSteps();
+	void TakeShot(const FString& Name, bool bShowUI);
+	/** Spawns a soldier and gives it to the local player controller (the human has no pawn during a self-test). */
+	AShieldbreakCharacter* PossessLocalDummy(const FTransform& Where);
 
 	// Bot-match stuck detection.
 	struct FBotSample

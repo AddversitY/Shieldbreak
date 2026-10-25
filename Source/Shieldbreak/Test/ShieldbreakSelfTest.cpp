@@ -228,6 +228,13 @@ void AShieldbreakSelfTest::BuildSteps()
 	// ---- Settle: let the arena and the first characters finish BeginPlay. ----
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
 
+	// -SBShots / -SBFPShots: only take comparison screenshots (and a fixed-view FPS figure), no checks.
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")))
+	{
+		BuildShotSteps();
+		return;
+	}
+
 	// ---- Original art (Art/blender, imported by Tools/ImportArt.bat): every gun has its own model, soldiers wear armor. ----
 	Steps.Add({ TEXT("Original art is in place"),
 		[this]()
@@ -257,7 +264,11 @@ void AShieldbreakSelfTest::BuildSteps()
 
 	// ---- First person: the local player sees arms holding the gun (Lyra's mannequin on the camera). ----
 	Steps.Add({ TEXT("First-person arms hold the gun"),
-		nullptr,
+		[this]()
+		{
+			// The human only watches a self-test (no pawn), so possess a soldier of our own for this check.
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f)));
+		},
 		[this](float Elapsed)
 		{
 			const APlayerController* PC = GetWorld()->GetFirstPlayerController();
@@ -269,13 +280,19 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			if (!Player)
 			{
-				Check(TEXT("First-person arms hold the gun"), true, TEXT("skipped: no local player pawn"));
+				Check(TEXT("First-person arms hold the gun"), false, TEXT("could not possess a local pawn"));
+				ClearDummies();
 				return true;
 			}
 			const AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
 			const USceneComponent* Holder = Weapon ? Weapon->GetRootComponent()->GetAttachParent() : nullptr;
+			if (Elapsed < 3.f && !(Animator && Holder && Holder == Animator->GetFirstPersonArms()))
+			{
+				return false; // give the arms a moment to take the gun
+			}
 			Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
 			Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
+			ClearDummies();
 			return true;
 		}, 5.f });
 
@@ -853,8 +870,9 @@ void AShieldbreakSelfTest::BuildSteps()
 			int32 Textured = 0;
 			for (const UStaticMeshComponent* Piece : Arena->GetPieces())
 			{
-				const UMaterialInterface* Material = Piece ? Piece->GetMaterial(0) : nullptr;
-				Textured += Material && Material->GetBaseMaterial() && Material->GetBaseMaterial()->GetName() == TEXT("M_SB_World") ? 1 : 0;
+				UMaterialInterface* Material = Piece ? Piece->GetMaterial(0) : nullptr;
+				const UMaterial* Base = Material ? Material->GetBaseMaterial() : nullptr;
+				Textured += Base && Base->GetName() == TEXT("M_SB_World") ? 1 : 0;
 			}
 			Check(TEXT("Most map pieces use M_SB_World"), Textured * 2 > Arena->GetPieces().Num(),
 				FString::Printf(TEXT("%d of %d"), Textured, Arena->GetPieces().Num()));
@@ -2220,5 +2238,166 @@ void AShieldbreakSelfTest::BuildModeSteps(EShieldbreakGameType Mode)
 				}
 				return false;
 			}, 40.f });
+	}
+}
+
+AShieldbreakCharacter* AShieldbreakSelfTest::PossessLocalDummy(const FTransform& Where)
+{
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	AShieldbreakCharacter* Dummy = SpawnDummy(Where.GetLocation(), Where.Rotator().Yaw, false);
+	if (PC && Dummy)
+	{
+		PC->Possess(Dummy);
+		PC->SetControlRotation(FRotator(0.f, Where.Rotator().Yaw, 0.f));
+	}
+	return Dummy;
+}
+
+void AShieldbreakSelfTest::TakeShot(const FString& Name, bool bShowUI)
+{
+	FString Tag = TEXT("shot");
+	FParse::Value(FCommandLine::Get(), TEXT("SBShotTag="), Tag);
+	const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+	const FString Map = Arena ? Arena->GetMapId().ToString().ToLower() : TEXT("map");
+	const FString Dir = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("Shots");
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	FScreenshotRequest::RequestScreenshot(Dir / FString::Printf(TEXT("%s_%s_%s.png"), *Map, *Tag, *Name), bShowUI, false);
+	Lines.Add(FString::Printf(TEXT("INFO  screenshot %s_%s_%s"), *Map, *Tag, *Name));
+}
+
+void AShieldbreakSelfTest::BuildShotSteps()
+{
+	ModeTag = TEXT("Shots");
+	Steps.Add({ TEXT("No bots"),
+		[this]()
+		{
+			if (AShieldbreakGameMode* GameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
+			{
+				GameMode->SetBotCount(0);
+			}
+		},
+		[](float Elapsed) { return Elapsed > 9.f; }, 12.f }); // also waits out the controls overlay
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")))
+	{
+		// Fixed views from the arena's piece bounds and its first spawn, so before/after runs line up exactly.
+		const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+		FBox Box(ForceInit);
+		if (Arena)
+		{
+			for (const UStaticMeshComponent* Piece : Arena->GetPieces())
+			{
+				if (Piece)
+				{
+					Box += Piece->Bounds.GetBox();
+				}
+			}
+		}
+		const FVector Center = Box.IsValid ? Box.GetCenter() : FVector::ZeroVector;
+		const FVector Extent = Box.IsValid ? Box.GetExtent() : FVector(3000.f);
+		const float Floor = Box.IsValid ? Box.Min.Z : 0.f;
+		const float Span = FMath::Max(Extent.X, Extent.Y);
+		TArray<TPair<FString, FTransform>> Views;
+		auto AddView = [&Views, Center](const TCHAR* Name, const FVector& From, const FVector& LookAt)
+		{
+			Views.Add({ Name, FTransform((LookAt - From).Rotation(), From) });
+		};
+		// Above the tallest piece (Bastion's walls), so the corner cameras never sit inside a wall.
+		const float CornerHeight = FMath::Max(Span * 0.45f, (Box.IsValid ? Box.Max.Z - Floor : 0.f) + 400.f);
+		AddView(TEXT("0_corner"), Center + FVector(-Extent.X, -Extent.Y, 0.f) * 1.05f + FVector(0.f, 0.f, Floor - Center.Z + CornerHeight), FVector(Center.X, Center.Y, Floor));
+		AddView(TEXT("1_corner"), Center + FVector(Extent.X, Extent.Y, 0.f) * 1.05f + FVector(0.f, 0.f, Floor - Center.Z + CornerHeight), FVector(Center.X, Center.Y, Floor));
+		AddView(TEXT("2_top"), FVector(Center.X - Extent.X * 0.3f, Center.Y, Floor + Span * 1.6f), FVector(Center.X, Center.Y, Floor));
+		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
+		{
+			const FTransform& Spawn = Arena->GetSpawnTransforms()[0];
+			const FVector Eye = Spawn.GetLocation() + FVector(0.f, 0.f, 90.f);
+			Views.Add({ TEXT("3_spawn"), FTransform(FRotator(-5.f, Spawn.Rotator().Yaw, 0.f), Eye) });
+		}
+		for (const TPair<FString, FTransform>& View : Views)
+		{
+			Steps.Add({ FString::Printf(TEXT("View %s"), *View.Key),
+				[this, View]()
+				{
+					if (!ChaseCamera)
+					{
+						FActorSpawnParameters CameraParams;
+						CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						ChaseCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+					}
+					ChaseCamera->SetActorTransform(View.Value);
+					if (APlayerController* Viewer = GetWorld()->GetFirstPlayerController())
+					{
+						Viewer->SetViewTarget(ChaseCamera);
+					}
+					Phase = 0;
+				},
+				[this, View](float Elapsed)
+				{
+					if (Phase == 0 && Elapsed > 2.5f) // let streaming, exposure and the sky settle
+					{
+						TakeShot(View.Key, false);
+						Phase = 1;
+					}
+					return Elapsed > 3.5f;
+				}, 8.f });
+		}
+		// Frame rate from the last (spawn) view: no bots, no movement, so only the materials/post change between runs.
+		Steps.Add({ TEXT("Fixed-view FPS (20 s)"),
+			[this]()
+			{
+				Value0 = static_cast<float>(GFrameCounter);
+				Value1 = static_cast<float>(FPlatformTime::Seconds());
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 20.f)
+				{
+					return false;
+				}
+				const double Seconds = FPlatformTime::Seconds() - Value1;
+				Lines.Add(FString::Printf(TEXT("INFO  fixed-view FPS %.1f over %.1f s"), (GFrameCounter - Value0) / Seconds, Seconds));
+				return true;
+			}, 25.f });
+	}
+	else
+	{
+		// First person: idle with each gun, then mid grenade throw, mid melee and mid reload (HUD on, to judge the crosshair).
+		auto Player = [this]() -> AShieldbreakCharacter*
+		{
+			const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			return PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+		};
+		// Takes one screenshot per time in ShotTimes (seconds after Begin), named <Name>_<index>.
+		auto Shot = [this](const TCHAR* Name, TFunction<void()> Begin, TArray<float> ShotTimes, float Length)
+		{
+			Steps.Add({ Name, Begin,
+				[this, Name, ShotTimes, Length](float Elapsed)
+				{
+					const int32 Next = FMath::Max(0, static_cast<int32>(Mark));
+					if (ShotTimes.IsValidIndex(Next) && Elapsed >= ShotTimes[Next])
+					{
+						TakeShot(FString::Printf(TEXT("%s_%d"), Name, Next), true);
+						Mark = static_cast<float>(Next + 1);
+					}
+					return Elapsed >= Length;
+				}, Length + 5.f });
+		};
+		auto Reset = [this]() { Mark = 0.f; };
+		Steps.Add({ TEXT("Possess a soldier at the first spawn"),
+			[this]()
+			{
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+				const FTransform Where = Arena && Arena->GetSpawnTransforms().Num() > 0 ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
+				A = PossessLocalDummy(Where);
+			},
+			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // also waits out the controls overlay
+		Shot(TEXT("fp_0_idle_br"), [Reset]() { Reset(); }, { 0.5f }, 1.f);
+		Shot(TEXT("fp_1_idle_sidearm"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f, 2.f }, 2.5f);
+		Shot(TEXT("fp_2_back_to_br"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f }, 2.f);
+		Shot(TEXT("fp_3_grenade"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.08f, 0.2f, 0.35f, 0.5f }, 2.f);
+		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
+		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
+			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });
+		Shot(TEXT("fp_5_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
 	}
 }
