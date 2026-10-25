@@ -363,8 +363,10 @@ void AShieldbreakBotController::FollowPathTo(const FVector& Goal, float DeltaSec
 		Path.Reset();
 		PathIndex = 0;
 
+		// The goal's node needs line of sight too: a goal between two floors (a hill inside Bastion's library) would
+		// otherwise snap to the floor above it, which the bot may have no walkable path to.
 		const int32 From = Arena->FindNearestWaypoint(BotLocation, true);
-		const int32 To = Arena->FindNearestWaypoint(Goal, false);
+		const int32 To = Arena->FindNearestWaypoint(Goal, true);
 		if (!Arena->FindPath(From, To, Path))
 		{
 			Path.Reset();

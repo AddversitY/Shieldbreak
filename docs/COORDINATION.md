@@ -301,6 +301,14 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, Bastion KOTH stuck bots (fixed in `AI/ShieldbreakBotController.cpp`).** Two causes. (1) The library
+  hill at (-2200, 2150, 520) sits halfway between the library floor's waypoints (z 350) and the roof's (z 690). The
+  goal's nearest waypoint was picked without line of sight, so ties went to the roof node, which has no walkable link
+  (roof = crouch-jump only). FindPath failed, so the bot walked straight at the hill and stuck in the pit's NW corner
+  at (-1160, 1080-1160). Fix: the goal node now needs line of sight too (falls back to any node if none), like the
+  bot's own node. (2) The third "stuck" spot (-2196, 2050, 394) is inside that hill's zone: a bot holding the hill.
+  The map tour's stuck detector now ignores bots standing in a KOTH hill. No map generator change needed. Result:
+  Bastion KOTH 19/19 twice (0 stuck; red 27 / blue 11 and 39 / 12).
 - **2026-10-22, build f35070f/16d3efd (iqwexu + art 05a556c):** BuildEditor clean (AndroidFileServer plugin off; the
   editor no longer rewrites DefaultEngine.ini), ImportArt OK, self-test 93/93, Keel tour 11/11 at 23.1 FPS, every
   soldier logs "14 armor pieces" and wears the armor in screenshots. Menu fits at 720p with the Graphics row (~70 px

@@ -1714,7 +1714,18 @@ void AShieldbreakSelfTest::BuildSteps()
 					}
 					FBotSample& Sample = BotSamples.FindOrAdd(BotController);
 					const FVector Location = BotPawn->GetActorLocation();
-					if (Sample.Pawn.Get() == BotPawn && FVector::Dist(Sample.Location, Location) < 150.f)
+					// A KOTH bot standing in the hill is holding it, not stuck.
+					bool bInHill = false;
+					for (TActorIterator<AShieldbreakHill> Hill(GetWorld()); Hill; ++Hill)
+					{
+						const FVector Offset = Location - Hill->GetActorLocation();
+						bInHill |= FMath::Abs(Offset.X) <= Hill->Extent.X && FMath::Abs(Offset.Y) <= Hill->Extent.Y && FMath::Abs(Offset.Z) <= Hill->Extent.Z;
+					}
+					if (bInHill)
+					{
+						Sample.StillSamples = 0;
+					}
+					else if (Sample.Pawn.Get() == BotPawn && FVector::Dist(Sample.Location, Location) < 150.f)
 					{
 						if (++Sample.StillSamples == 4)
 						{
