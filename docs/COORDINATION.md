@@ -358,6 +358,9 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, 1838ea2 (robust Vent and burst checks):** build clean; **self-test 102/102 three runs in a row**.
+  The third-person bot throw at rate 0.9 wasn't checked: the map tour's chase shots (25/45/65 s) don't catch tosses,
+  and a throw-triggered shot hook was more than a few minutes' work.
 - **2026-10-25, throw readability (685b211).** First-person throw frames
   (`docs/playtests/2026-10-25_fp_throw_dip/throw_685b211_fp_and_tp.jpg`): at 0.08 s the rig tips up and the BR plus
   the armored right arm sweep across the top of the view; at 0.2 s the armored left forearm and glove fill the
