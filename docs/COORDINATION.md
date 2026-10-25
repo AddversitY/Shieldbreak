@@ -368,6 +368,16 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, menu redesign (cecb5de).** Build clean, no fixes needed. Shots in `docs/playtests/2026-10-25_menu/`
+  (Keel, Bastion, Spire at 6 s and 10 s; the 10 s shots carry `stat fps`). **Menu FPS ~35** (34.9 / 35.0 / 35.2,
+  editor -game at 1280x720 on the Iris Xe). The camera orbits (the 6 s and 10 s views differ) and the map card
+  bottom right updates per map. **1080p not tested:** a 1920x1080 window doesn't fit this laptop's 1440x960 desktop,
+  so those runs came out at 1280x720. **Starting a match from the menu works** (PLAY -> Keel match with bots; the
+  first tip "TIP 1/6" shows at the top). SETTINGS and CONTROLS open over the menu and Esc returns to it.
+  **Layout problems at 720p:** the bottom row of the left panel truncates **"SETTINC"** and **"CONTRO"** (three
+  buttons don't fit the panel width), and the Settings screen truncates its labels: **"New-player t"**, **"Master
+  volur"**, **"Music volum"** (label column too narrow). The ">" arrows of the match rows sit just past the panel's
+  dark backing, over the map.
 - **2026-10-25, 1838ea2 (robust Vent and burst checks):** build clean; **self-test 102/102 three runs in a row**.
   The third-person bot throw at rate 0.9 wasn't checked: the map tour's chase shots (25/45/65 s) don't catch tosses,
   and a throw-triggered shot hook was more than a few minutes' work.
