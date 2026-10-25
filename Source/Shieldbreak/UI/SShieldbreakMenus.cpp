@@ -465,11 +465,11 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 166.f, 16)
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 176.f, 16)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 166.f, 16)
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 176.f, 16)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
@@ -479,7 +479,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 								{
 									UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
 								}
-							}, 132.f, 16)
+							}, 112.f, 16)
 						]
 					]
 				]
