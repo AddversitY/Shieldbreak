@@ -2,6 +2,7 @@
 
 #include "Audio/ShieldbreakSFX.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Game/ShieldbreakMedals.h"
 #include "Shieldbreak.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -175,6 +176,24 @@ void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(bool bKill,
 	bLastHitKill = bKill;
 	bLastHitHeadshot = bHeadshot;
 	FShieldbreakSFX::Play2D(this, bKill ? EShieldbreakSound::KillMarker : EShieldbreakSound::HitMarker);
+}
+
+void AShieldbreakPlayerController::ClientMedal_Implementation(uint8 Medal)
+{
+	const UWorld* World = GetWorld();
+	if (!World || Medal >= static_cast<uint8>(EShieldbreakMedal::Count))
+	{
+		return;
+	}
+	const float Now = World->GetTimeSeconds();
+	MedalPopups.RemoveAll([Now](const FMedalPopup& Popup) { return Now - Popup.Time > 3.f; });
+	if (MedalPopups.Num() >= 4)
+	{
+		MedalPopups.RemoveAt(0);
+	}
+	MedalPopups.Add({ Medal, Now });
+	const bool bBig = ShieldbreakMedals::IsBig(static_cast<EShieldbreakMedal>(Medal));
+	FShieldbreakSFX::Play2D(this, EShieldbreakSound::VentSuccess, bBig ? 0.9f : 0.6f, bBig ? 1.25f : 1.5f);
 }
 
 void AShieldbreakPlayerController::ClientDamagedFrom_Implementation(FVector_NetQuantize SourceLocation)

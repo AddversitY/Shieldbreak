@@ -4,6 +4,9 @@
 #include "AI/ShieldbreakBotController.h"
 #include "Game/ShieldbreakTeams.h"
 #include "Game/ShieldbreakMaps.h"
+#include "Game/ShieldbreakMedals.h"
+#include "Shield/ShieldHealthComponent.h"
+#include "Weapons/ShieldbreakDamageTypes.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -425,6 +428,7 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 	AShieldbreakPlayerState* KillerState = Killer ? Killer->GetPlayerState<AShieldbreakPlayerState>() : nullptr;
 
 	const bool bSuicide = !Killer || Killer == VictimController || (KillerState && KillerState == VictimState);
+	const int32 VictimSpree = VictimState ? VictimState->GetSpreeKills() : 0;
 
 	if (VictimState)
 	{
@@ -437,6 +441,11 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 	if (!bSuicide && KillerState)
 	{
 		KillerState->AddKill();
+		const bool bBetrayal = bTeamGame && VictimState && KillerState->GetTeamId() == VictimState->GetTeamId();
+		if (!bBetrayal)
+		{
+			AwardKillMedals(Killer, KillerState, VictimState, VictimPawn, VictimSpree);
+		}
 	}
 
 	const FString VictimName = VictimState ? VictimState->GetPlayerName() : FString(TEXT("Unknown"));
@@ -493,6 +502,78 @@ void AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim
 	{
 		FinishMatch(KillerState->GetPlayerName());
 	}
+}
+
+void AShieldbreakGameMode::AwardKillMedals(AController* Killer, AShieldbreakPlayerState* KillerState, AShieldbreakPlayerState* VictimState,
+	const AShieldbreakCharacter* VictimPawn, int32 VictimSpree)
+{
+	auto Award = [this, Killer, KillerState](EShieldbreakMedal Medal) { AwardMedal(Killer, KillerState, static_cast<uint8>(Medal)); };
+
+	if (!bFirstBloodAwarded)
+	{
+		bFirstBloodAwarded = true;
+		Award(EShieldbreakMedal::FirstBlood);
+	}
+
+	KillerState->NoteKillForMedals(GetServerTimeSeconds());
+	switch (FMath::Min(KillerState->GetChainKills(), 5))
+	{
+	case 2: Award(EShieldbreakMedal::DoubleKill); break;
+	case 3: Award(EShieldbreakMedal::TripleKill); break;
+	case 4: Award(EShieldbreakMedal::QuadKill); break;
+	case 5: Award(EShieldbreakMedal::Rampage); break;
+	default: break;
+	}
+	switch (KillerState->GetSpreeKills())
+	{
+	case 5: Award(EShieldbreakMedal::KillingSpree); break;
+	case 10: Award(EShieldbreakMedal::Unstoppable); break;
+	case 15: Award(EShieldbreakMedal::Untouchable); break;
+	default: break;
+	}
+
+	const UShieldHealthComponent* VictimShield = VictimPawn ? VictimPawn->GetShieldHealth() : nullptr;
+	const UDamageType* KillingBlow = VictimShield ? VictimShield->GetKillingDamageType() : nullptr;
+	if (VictimShield && VictimShield->WasKilledByHeadshot())
+	{
+		Award(EShieldbreakMedal::Headshot);
+	}
+	else if (KillingBlow && KillingBlow->IsA<UDamageType_Melee>())
+	{
+		Award(EShieldbreakMedal::Knockout);
+	}
+	else if (KillingBlow && KillingBlow->IsA<UDamageType_Explosive>())
+	{
+		Award(EShieldbreakMedal::Blast);
+	}
+
+	if (VictimState && KillerState->GetLastKilledBy() == VictimState)
+	{
+		Award(EShieldbreakMedal::Revenge);
+		KillerState->SetLastKilledBy(nullptr);
+	}
+	if (VictimSpree >= 5)
+	{
+		Award(EShieldbreakMedal::SpreeBreaker);
+	}
+	if (VictimState)
+	{
+		VictimState->SetLastKilledBy(KillerState);
+	}
+}
+
+void AShieldbreakGameMode::AwardMedal(AController* Player, AShieldbreakPlayerState* State, uint8 Medal)
+{
+	if (State)
+	{
+		State->AddMedal();
+	}
+	if (AShieldbreakPlayerController* PC = Cast<AShieldbreakPlayerController>(Player))
+	{
+		PC->ClientMedal(Medal);
+	}
+	UE_LOG(LogShieldbreak, Verbose, TEXT("Medal %s for %s"), ShieldbreakMedals::GetName(static_cast<EShieldbreakMedal>(Medal)),
+		State ? *State->GetPlayerName() : TEXT("?"));
 }
 
 // ---- Bots ----
@@ -919,6 +1000,7 @@ void AShieldbreakGameMode::PerformMatchReset()
 
 	GetWorldTimerManager().ClearTimer(MatchResetTimerHandle);
 	bMatchOver = false;
+	bFirstBloodAwarded = false;
 	MatchRestartServerTime = -1.f;
 	PendingRespawns.Reset();
 	StrandedCheckCountdown = ShieldbreakGameModePrivate::StrandedCheckInterval;

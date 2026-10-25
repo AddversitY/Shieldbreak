@@ -210,5 +210,11 @@ private:
 
 	float MatchRestartServerTime = -1.f;
 	bool bMatchOver = false;
+	/** First Blood is given once per match. */
+	bool bFirstBloodAwarded = false;
+	/** Medals for an enemy kill (ShieldbreakMedals.h). VictimSpree is the victim's kill streak before this death. */
+	void AwardKillMedals(AController* Killer, class AShieldbreakPlayerState* KillerState, class AShieldbreakPlayerState* VictimState,
+		const AShieldbreakCharacter* VictimPawn, int32 VictimSpree);
+	void AwardMedal(AController* Player, class AShieldbreakPlayerState* State, uint8 Medal);
 	bool bBotsStarted = false;
 };

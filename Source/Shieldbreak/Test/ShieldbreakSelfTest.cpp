@@ -470,6 +470,24 @@ void AShieldbreakSelfTest::BuildSteps()
 			Inputs->SetAllKeys(SavedKeys);
 			Check(TEXT("Rebinding a key moves the control and swaps a taken key"), bMoved && bSwapped,
 				FString::Printf(TEXT("moved %d, swapped %d"), bMoved ? 1 : 0, bSwapped ? 1 : 0));
+
+			// Medals: kills 2 s apart chain (double, triple), a slow kill restarts the chain, a death ends the spree.
+			if (AShieldbreakPlayerState* Medals = GetWorld()->SpawnActor<AShieldbreakPlayerState>())
+			{
+				Medals->NoteKillForMedals(100.f);
+				Medals->NoteKillForMedals(102.f);
+				Medals->NoteKillForMedals(104.f);
+				const int32 Chain = Medals->GetChainKills();
+				Medals->NoteKillForMedals(120.f);
+				const int32 ChainAfterPause = Medals->GetChainKills();
+				const int32 Spree = Medals->GetSpreeKills();
+				Medals->AddDeath();
+				const int32 SpreeAfterDeath = Medals->GetSpreeKills();
+				Medals->Destroy();
+				Check(TEXT("Medal streaks: chains within the window, sprees end on death"),
+					Chain == 3 && ChainAfterPause == 1 && Spree == 4 && SpreeAfterDeath == 0,
+					FString::Printf(TEXT("chain %d, after pause %d, spree %d, after death %d"), Chain, ChainAfterPause, Spree, SpreeAfterDeath));
+			}
 			return true;
 		}, 2.f });
 

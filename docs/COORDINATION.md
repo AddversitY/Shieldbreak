@@ -72,6 +72,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Medals** (commit "Medals"). Enemy kills award medals, shown above the weapon area with a chime:
+  First Blood, Double/Triple/Quad Kill and Rampage (kills within 4.5 s), Killing Spree / Unstoppable / Untouchable
+  (5/10/15 without dying), Headshot, Knockout (melee), Blast (explosive), Revenge (kill your last killer), Spree
+  Breaker (end a 5+ spree). No medals for betrayals or suicides. Server side in `AShieldbreakGameMode::AwardKillMedals`;
+  the shield component now records the killing blow's damage type and headshot flag. New self-test check "Medal
+  streaks". Please play a bot match and grab a screenshot with a medal on screen.
 - 2026-10-25 night **Settings screen** (commit "Settings screen"). The settings rows moved out of the main and Esc
   menus into a SETTINGS screen (button beside CONTROLS; two columns: Gameplay, Video and audio). New rows: Display
   (Fullscreen / Borderless / Windowed, ignored in the editor), VSync, Frame limit (30/60/120/144/None), Master volume

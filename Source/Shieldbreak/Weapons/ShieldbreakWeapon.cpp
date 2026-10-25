@@ -660,6 +660,10 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 		AController* InstigatorController = OwnerCharacter->GetController();
 		TSubclassOf<UDamageType> DamageClass = Stats.DamageType ? Stats.DamageType : TSubclassOf<UDamageType>(UDamageType_Ballistic::StaticClass());
+		if (Victim && Victim->GetShieldHealth())
+		{
+			Victim->GetShieldHealth()->NoteHeadshot(bHeadshot);
+		}
 		UGameplayStatics::ApplyPointDamage(HitActor, DamageAmount, ShotDir, Hit, InstigatorController, this, DamageClass);
 
 		if (bVictimWasAlive)

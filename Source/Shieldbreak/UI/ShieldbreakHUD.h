@@ -47,6 +47,8 @@ private:
 	void DrawMatchOver(AShieldbreakGameState* GameState);
 	void DrawRespawn(AShieldbreakPlayerController* PC, AShieldbreakGameState* GameState);
 	void DrawHelp();
+	/** Medal popups (ShieldbreakMedals.h) stacked above the weapon area, newest at the bottom. */
+	void DrawMedals(const class AShieldbreakPlayerController* PC);
 	/** A few new-player tips, one every few seconds, in the first match of each launch (ShieldbreakSettings). */
 	void DrawTips(const class AShieldbreakCharacter* Character);
 

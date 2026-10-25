@@ -20,6 +20,7 @@
 #include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakSettings.h"
 #include "Audio/ShieldbreakMusic.h"
+#include "Game/ShieldbreakMedals.h"
 #include "Misc/CommandLine.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerController.h"
@@ -188,6 +189,7 @@ void AShieldbreakHUD::DrawHUD()
 	}
 
 	DrawRespawn(PC, GameState);
+	DrawMedals(PC);
 
 	if (GameState && GameState->IsMatchOver())
 	{
@@ -909,6 +911,36 @@ void AShieldbreakHUD::DrawRespawn(AShieldbreakPlayerController* PC, AShieldbreak
 	const int32 Seconds = FMath::Max(0, FMath::CeilToInt(PC->GetRespawnServerTime() - ServerTime()));
 	Text(FString::Printf(TEXT("RESPAWN IN %d"), Seconds), Canvas->ClipX * 0.5f, Canvas->ClipY * 0.62f,
 		ShieldbreakHUDPrivate::White, GEngine->GetLargeFont(), S * 1.4f, true);
+}
+
+void AShieldbreakHUD::DrawMedals(const AShieldbreakPlayerController* PC)
+{
+	using namespace ShieldbreakHUDPrivate;
+	const UWorld* World = GetWorld();
+	if (!PC || !World)
+	{
+		return;
+	}
+	constexpr float Lifetime = 3.f;
+	const float Now = World->GetTimeSeconds();
+	const TArray<AShieldbreakPlayerController::FMedalPopup>& Popups = PC->GetMedalPopups();
+	float Y = Canvas->ClipY * 0.66f;
+	for (int32 Index = Popups.Num() - 1; Index >= 0; --Index)
+	{
+		const float Age = Now - Popups[Index].Time;
+		if (Age < 0.f || Age > Lifetime)
+		{
+			continue;
+		}
+		const EShieldbreakMedal Medal = static_cast<EShieldbreakMedal>(Popups[Index].Medal);
+		const bool bBig = ShieldbreakMedals::IsBig(Medal);
+		// Pop in (overshoot), hold, fade out.
+		const float Pop = Age < 0.15f ? FMath::Lerp(1.6f, 1.f, Age / 0.15f) : 1.f;
+		const float Alpha = FMath::Clamp((Lifetime - Age) / 0.5f, 0.f, 1.f);
+		const FLinearColor Color = (bBig ? Gold : White).CopyWithNewOpacity(Alpha);
+		Text(ShieldbreakMedals::GetName(Medal), Canvas->ClipX * 0.5f, Y, Color, GEngine->GetLargeFont(), S * (bBig ? 1.3f : 0.95f) * Pop, true);
+		Y -= (bBig ? 44.f : 34.f) * S;
+	}
 }
 
 void AShieldbreakHUD::DrawTips(const AShieldbreakCharacter* Character)

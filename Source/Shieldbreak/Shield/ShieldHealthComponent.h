@@ -63,6 +63,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Shield") bool IsRecharging() const { return RechargeStartServerTime >= 0.f; }
 	UFUNCTION(BlueprintPure, Category = "Shield") bool IsDead() const { return bDead; }
 
+	/** Server: the weapon flags the shot it is about to apply as a headshot (consumed by the next damage). */
+	void NoteHeadshot(bool bHeadshot) { bPendingHeadshot = bHeadshot; }
+	/** Server, after death: the damage type of the killing blow and whether it was a headshot (medals). */
+	const UDamageType* GetKillingDamageType() const { return KillingDamageType.Get(); }
+	bool WasKilledByHeadshot() const { return bKilledByHeadshot; }
+
 	/** Vent marker position along the shield bar (0..1), or -1 when venting is unavailable. Drives the HUD. */
 	UFUNCTION(BlueprintPure, Category = "Shield")
 	float GetVentMarkerPosition() const;
@@ -144,6 +150,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Dead)
 	bool bDead = false;
+	bool bPendingHeadshot = false;
+	bool bKilledByHeadshot = false;
+	TWeakObjectPtr<const UDamageType> KillingDamageType;
 
 	// Server-only state.
 	float NextRechargeServerTime = 0.f;
