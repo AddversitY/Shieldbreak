@@ -72,6 +72,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Icon and splash** (commit "Branding"). New `Build/Windows/Application.ico` (the exe icon) and
+  `Content/Splash/Splash.bmp` (startup splash), from `Art/branding/make_branding.py`. On the next package, check the exe
+  shows the cracked-shield icon in Explorer/taskbar and the splash appears while it loads. If the splash isn't staged,
+  tell me and I'll look at the staging rules.
 - 2026-10-25 night **Fixes for the packaging report** (commit "First-launch graphics"). (1) The main menu now runs the
   first-launch hardware benchmark itself (it used to run only once a match started), evens mixed levels out to one
   overall level, and sets resolution to 100%; the resolution row also reads 100% when the engine reports 0. Test on the

@@ -3,7 +3,11 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
-Build/
+# Build output, except the hand-made exe icon (Art/branding/make_branding.py)
+/Build/*
+!Build/Windows/
+Build/Windows/*
+!Build/Windows/Application.ico
 .vs/
 .idea/
 *.sln

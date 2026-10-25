@@ -6,10 +6,10 @@ Legend: **done**, **in progress**, **todo**, **decide** (Vincent's call).
 ## 1. A build people can run
 | Item | Status | Notes |
 |---|---|---|
-| Standalone Windows build (no editor) | in progress | `Tools/Package.bat` (RunUAT BuildCookRun). Our art and Lyra's are loaded by path, so their folders are in `DirectoriesToAlwaysCook` (Config/DefaultGame.ini). |
+| Standalone Windows build (no editor) | done | `Tools/Package.bat` (RunUAT BuildCookRun Win64 Development): 1.2 GB, menu and a full match work in the packaged exe (2026-10-25). Only the folders the code loads by path are always-cooked. |
 | Shipping configuration | todo | Package Development first; switch to Shipping (no console, smaller, faster) once the Development build is clean. |
 | Window title, version, company, copyright | done | `GeneralProjectSettings` in Config/DefaultGame.ini (v0.2.0). |
-| Game icon and splash screen | todo | Needs a logo: an art task. |
+| Game icon and splash screen | done (first pass) | Original cracked-shield emblem and wordmark from `Art/branding/make_branding.py`: `Build/Windows/Application.ico`, `Content/Splash/Splash.bmp`, store banners in `Art/Export/Branding/`. Vincent may want a different look. |
 | First-launch shader compile | todo | Development builds compile shaders on first run (the laptop took minutes). Ship a PSO cache or show a "preparing shaders" screen. |
 | Minimum spec | todo | Measured: Iris Xe laptop 20-30 FPS at 720p with 4 bots. Pick a target (e.g. GTX 1060 or better at 60 FPS) and test on it. |
 
