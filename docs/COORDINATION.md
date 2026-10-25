@@ -368,6 +368,10 @@ Also in Actions: `MM_{Rifle,Pistol}_Spawn*` and `AM_MM_Pistol_Spawn` (spawn-in),
 `Locomotion/Pistol/MM_Pistol_Idle_Hipfire` are all correct. `MM_Pistol_GrenadeToss` doesn't exist; the fallback to the rifle toss covers it.
 
 ## Verified on the PC
+- **2026-10-25, menu v3 (04237c6).** Build clean. `docs/playtests/2026-10-25_menu/v3_menu_keel.jpg` (1280x720):
+  the footer hint and credits are readable now and don't overlap the buttons (~60 px clear below QUIT). Nearly all of
+  Keel clears the left panel; only the west wall meets the panel's fade. Nit: "CONTROLS" just fits its button (the S
+  touches the edge).
 - **2026-10-25, menu v2 (1133076).** Build clean. `docs/playtests/2026-10-25_menu/v2_*.jpg`: the three 720p layout
   problems are fixed (SETTINGS / CONTROLS / QUIT fit, every Settings label is whole, the arrows sit inside the
   panel), and the camera is higher and outside the walls on Keel, Bastion and Spire. Still small: the footer text
