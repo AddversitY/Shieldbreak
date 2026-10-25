@@ -45,6 +45,9 @@ namespace ShieldbreakCharacterPrivate
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
+	/** Death camera: pulled back behind the body and raised, looking down at it. */
+	constexpr float DeathCameraBack = 280.f;
+	constexpr float DeathCameraUp = 140.f;
 }
 
 AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectInitializer)
@@ -524,7 +527,7 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	}
 
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
-	if (!bLocalPlayerView && FirstPersonCamera)
+	if (!bLocalPlayerView && FirstPersonCamera && !bDeathHandled)
 	{
 		// Remote characters and bots: pitch the camera (and the weapon attached to it) to the aim.
 		FRotator Relative = FirstPersonCamera->GetRelativeRotation();
@@ -1037,6 +1040,29 @@ void AShieldbreakCharacter::HandleBreakPulse()
 	AShieldbreakTracer::SpawnBurst(GetWorld(), GetActorLocation(), 40.f, Radius, 0.35f, FLinearColor(0.3f, 0.6f, 1.f));
 }
 
+void AShieldbreakCharacter::StartDeathCamera()
+{
+	if (!FirstPersonCamera)
+	{
+		return;
+	}
+	using namespace ShieldbreakCharacterPrivate;
+	const FRotator Facing(0.f, GetControlRotation().Yaw, 0.f);
+	const FVector Head = FirstPersonCamera->GetComponentLocation();
+	FVector Desired = Head + Facing.RotateVector(FVector(-DeathCameraBack, 0.f, DeathCameraUp));
+
+	// Don't put the camera inside a wall: stop short of whatever is in the way.
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
+	if (GetWorld() && GetWorld()->SweepSingleByChannel(Hit, Head, Desired, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(12.f), Params))
+	{
+		Desired = Hit.Location;
+	}
+
+	FirstPersonCamera->bUsePawnControlRotation = false;
+	FirstPersonCamera->SetWorldLocationAndRotation(Desired, (GetActorLocation() - Desired).Rotation());
+}
+
 void AShieldbreakCharacter::HandleDeath(AController* Killer)
 {
 	if (bDeathHandled)
@@ -1096,11 +1122,13 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 		Movement->DisableMovement();
 	}
 
-	// A local player keeps watching their body.
+	// A local player keeps watching their body, from a camera pulled back behind and above it (the first-person view
+	// from the corpse's head stared at the floor, with the dropped gun filling the screen).
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		if (PC->IsLocalController())
 		{
+			StartDeathCamera();
 			PC->SetViewTarget(this);
 		}
 	}

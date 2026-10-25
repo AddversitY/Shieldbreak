@@ -242,6 +242,8 @@ private:
 	void RefreshEquippedVisuals();
 
 	UFUNCTION() void HandleDeath(AController* Killer);
+	/** Local player only: moves the camera behind and above the body so they watch the ragdoll. */
+	void StartDeathCamera();
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();
 

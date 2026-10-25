@@ -72,6 +72,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- **Death camera** (commit "Death camera"). A local player who dies now watches their ragdoll from a camera ~280 back
+  and ~140 up (swept so it stops short of walls), instead of the corpse's head-height view at the floor where the
+  dropped gun filled the screen (seen in the 2026-10-25 Spire map shot). The map tour's chase camera also takes the view
+  back after the viewing player dies. Check: die in a match and look; map-tour shots no longer show "RESPAWN IN" views.
+- **Rocket-jump check flake?** 2026-10-25 on 875bc6b the overshield pass logged "peak up-velocity 0.00" once (it had
+  passed in every earlier run). Re-run the self-test to see whether it repeats.
 - **Blended body animation and aim pitch** (`Visuals/ShieldbreakBodyAnimInstance`). The mannequin now plays through a
   native anim instance instead of single-node mode: pose changes cross-fade over 0.18 s (no pops when a bot changes
   direction or lands), and spine_02..05 bend to the aim pitch so bots and remote players look and point the gun up or

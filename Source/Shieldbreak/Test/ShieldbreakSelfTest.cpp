@@ -1556,6 +1556,12 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			if (ChaseCamera && ChaseSubject.IsValid())
 			{
+				// The viewing player's own death switches the view to its body; take it back for the shot.
+				APlayerController* Viewer = GetWorld()->GetFirstPlayerController();
+				if (Viewer && Viewer->GetViewTarget() != ChaseCamera)
+				{
+					Viewer->SetViewTarget(ChaseCamera);
+				}
 				const FVector Back = ChaseSubject->GetActorForwardVector() * -320.f + ChaseSubject->GetActorRightVector() * 90.f + FVector(0.f, 0.f, 110.f);
 				const FVector CameraLocation = ChaseSubject->GetActorLocation() + Back;
 				ChaseCamera->SetActorLocationAndRotation(CameraLocation, (ChaseSubject->GetActorLocation() + FVector(0.f, 0.f, 40.f) - CameraLocation).Rotation());
