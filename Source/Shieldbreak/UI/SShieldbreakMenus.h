@@ -81,12 +81,34 @@ private:
 	TWeakPtr<SWidget> ReturnFocus;
 };
 
+/** Gameplay, video and audio settings in two columns. Opens over either menu. */
+class SShieldbreakSettingsMenu : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SShieldbreakSettingsMenu) {}
+	SLATE_END_ARGS()
+
+	static void Open(const TSharedPtr<SWidget>& ReturnFocus);
+
+	void Construct(const FArguments& InArgs);
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+private:
+	void Close();
+
+	TWeakPtr<SWidget> ReturnFocus;
+};
+
 namespace ShieldbreakMenuStyle
 {
 	/** Big menu button with a fixed width, shared by both menus. */
 	TSharedRef<SWidget> MakeButton(const FText& Label, TFunction<void()> OnClick, float Width = 320.f);
 	/** "Label   <  value  >" row; Step gets -1 or +1. */
 	TSharedRef<SWidget> MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step);
-	/** Sensitivity, field of view and invert look choosers (ShieldbreakSettings), shared by both menus. */
-	TSharedRef<SWidget> MakeSettingsRows();
+	/** Sensitivity, field of view, invert look and tips (ShieldbreakSettings). */
+	TSharedRef<SWidget> MakeGameplayRows();
+	/** Graphics, resolution, display mode, VSync, frame limit, master and music volume. */
+	TSharedRef<SWidget> MakeVideoAudioRows();
 }

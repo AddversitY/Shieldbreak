@@ -1,6 +1,7 @@
 #include "Player/ShieldbreakSettings.h"
 
 #include "Audio/ShieldbreakMusic.h"
+#include "AudioDevice.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Misc/ConfigCacheIni.h"
@@ -18,6 +19,7 @@ namespace ShieldbreakSettingsPrivate
 		bool bInvertLook = false;
 		bool bShowTips = true;
 		float MusicVolume = 0.6f;
+		float MasterVolume = 1.f;
 	};
 
 	/** Loaded from the ini on first use, then kept in memory (look input reads it every frame). */
@@ -34,6 +36,8 @@ namespace ShieldbreakSettingsPrivate
 			GConfig->GetBool(Section, TEXT("ShowTips"), Cached.bShowTips, GGameUserSettingsIni);
 			GConfig->GetFloat(Section, TEXT("MusicVolume"), Cached.MusicVolume, GGameUserSettingsIni);
 			Cached.MusicVolume = FMath::Clamp(Cached.MusicVolume, 0.f, 1.f);
+			GConfig->GetFloat(Section, TEXT("MasterVolume"), Cached.MasterVolume, GGameUserSettingsIni);
+			Cached.MasterVolume = FMath::Clamp(Cached.MasterVolume, 0.f, 1.f);
 			Cached.Sensitivity = FMath::Clamp(Cached.Sensitivity, ShieldbreakSettings::MinSensitivity, ShieldbreakSettings::MaxSensitivity);
 			Cached.FieldOfView = FMath::Clamp(Cached.FieldOfView, ShieldbreakSettings::MinFieldOfView, ShieldbreakSettings::MaxFieldOfView);
 		}
@@ -52,6 +56,7 @@ namespace ShieldbreakSettingsPrivate
 		GConfig->SetBool(Section, TEXT("InvertLook"), V.bInvertLook, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("ShowTips"), V.bShowTips, GGameUserSettingsIni);
 		GConfig->SetFloat(Section, TEXT("MusicVolume"), V.MusicVolume, GGameUserSettingsIni);
+		GConfig->SetFloat(Section, TEXT("MasterVolume"), V.MasterVolume, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 }
@@ -201,6 +206,107 @@ void ShieldbreakSettings::SetResolutionScale(float Percent)
 	}
 	Settings->SetResolutionScaleValueEx(FMath::Clamp(Percent, MinResolutionScale, MaxResolutionScale));
 	Settings->ApplySettings(false);
+}
+
+int32 ShieldbreakSettings::GetWindowMode()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings)
+	{
+		return 0;
+	}
+	switch (Settings->GetFullscreenMode())
+	{
+	case EWindowMode::Fullscreen: return 0;
+	case EWindowMode::WindowedFullscreen: return 1;
+	default: return 2;
+	}
+}
+
+void ShieldbreakSettings::SetWindowMode(int32 Mode)
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings || GIsEditor)
+	{
+		return;
+	}
+	Mode = (Mode % 3 + 3) % 3;
+	const FIntPoint Desktop = Settings->GetDesktopResolution();
+	if (Mode == 2)
+	{
+		// A window that fits on screen with its title bar.
+		const FIntPoint Current = Settings->GetScreenResolution();
+		if (Current.X >= Desktop.X || Current.Y >= Desktop.Y)
+		{
+			Settings->SetScreenResolution(Desktop.X > 1920 ? FIntPoint(1920, 1080) : FIntPoint(1280, 720));
+		}
+	}
+	else
+	{
+		Settings->SetScreenResolution(Desktop);
+	}
+	Settings->SetFullscreenMode(Mode == 0 ? EWindowMode::Fullscreen : Mode == 1 ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed);
+	Settings->ApplySettings(false);
+}
+
+FText ShieldbreakSettings::GetWindowModeName(int32 Mode)
+{
+	switch (Mode)
+	{
+	case 0: return LOCTEXT("Fullscreen", "Fullscreen");
+	case 1: return LOCTEXT("Borderless", "Borderless");
+	default: return LOCTEXT("Windowed", "Windowed");
+	}
+}
+
+bool ShieldbreakSettings::GetVSync()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	return Settings && Settings->IsVSyncEnabled();
+}
+
+void ShieldbreakSettings::SetVSync(bool bEnabled)
+{
+	if (UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		Settings->SetVSyncEnabled(bEnabled);
+		Settings->ApplySettings(false);
+	}
+}
+
+float ShieldbreakSettings::GetFrameRateLimit()
+{
+	const UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	return Settings ? Settings->GetFrameRateLimit() : 0.f;
+}
+
+void ShieldbreakSettings::SetFrameRateLimit(float Fps)
+{
+	if (UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		Settings->SetFrameRateLimit(FMath::Max(0.f, Fps));
+		Settings->ApplySettings(false);
+	}
+}
+
+float ShieldbreakSettings::GetMasterVolume()
+{
+	return ShieldbreakSettingsPrivate::Values().MasterVolume;
+}
+
+void ShieldbreakSettings::SetMasterVolume(float Volume)
+{
+	ShieldbreakSettingsPrivate::Values().MasterVolume = FMath::Clamp(Volume, 0.f, 1.f);
+	ShieldbreakSettingsPrivate::Save();
+	ApplyAudio();
+}
+
+void ShieldbreakSettings::ApplyAudio()
+{
+	if (FAudioDeviceHandle Device = GEngine ? GEngine->GetMainAudioDevice() : FAudioDeviceHandle())
+	{
+		Device->SetTransientPrimaryVolume(GetMasterVolume());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

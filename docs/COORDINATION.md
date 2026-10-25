@@ -72,6 +72,14 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Settings screen** (commit "Settings screen"). The settings rows moved out of the main and Esc
+  menus into a SETTINGS screen (button beside CONTROLS; two columns: Gameplay, Video and audio). New rows: Display
+  (Fullscreen / Borderless / Windowed, ignored in the editor), VSync, Frame limit (30/60/120/144/None), Master volume
+  (audio device transient volume, applied on BeginPlay of the menu and match controllers). This also solves the 720p
+  fit question from the earlier entries. Please check in the packaged build: switching display modes works and
+  survives a restart, master volume changes the sound at once, Esc/B/Back return to the menu underneath. Also the
+  main menu shows the emblem beside the title (`Content/Splash/Emblem.png`, read from disk: please stage
+  `Content/Splash` in packaging if it isn't, e.g. `+DirectoriesToAlwaysStageAsNonUFS=(Path="Splash")`).
 - 2026-10-25 night **Icon and splash** (commit "Branding"). New `Build/Windows/Application.ico` (the exe icon) and
   `Content/Splash/Splash.bmp` (startup splash), from `Art/branding/make_branding.py`. On the next package, check the exe
   shows the cracked-shield icon in Explorer/taskbar and the splash appears while it loads. If the splash isn't staged,

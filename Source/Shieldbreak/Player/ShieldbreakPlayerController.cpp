@@ -39,6 +39,7 @@ void AShieldbreakPlayerController::BeginPlay()
 			HelpAutoHideTime = World->GetTimeSeconds() + 12.f;
 		}
 		SetupAutoShots();
+		ShieldbreakSettings::ApplyAudio();
 		AutoDetectScalability();
 	}
 }

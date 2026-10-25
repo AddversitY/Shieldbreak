@@ -105,6 +105,7 @@ void AShieldbreakMenuController::BeginPlay()
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
 	UE_LOG(LogShieldbreak, Log, TEXT("Main menu open."));
+	ShieldbreakSettings::ApplyAudio();
 	ShieldbreakMusic::PlayMenuMusic(this);
 	// First launch: pick graphics levels before the player sees the settings rows.
 	ShieldbreakSettings::AutoDetectGraphics();

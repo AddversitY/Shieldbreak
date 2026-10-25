@@ -43,4 +43,20 @@ namespace ShieldbreakSettings
 	constexpr float MaxResolutionScale = 100.f;
 	SHIELDBREAK_API float GetResolutionScale();
 	SHIELDBREAK_API void SetResolutionScale(float Percent);
+
+	/** 0 fullscreen, 1 borderless window, 2 window. Ignored in the editor. */
+	SHIELDBREAK_API int32 GetWindowMode();
+	SHIELDBREAK_API void SetWindowMode(int32 Mode);
+	SHIELDBREAK_API FText GetWindowModeName(int32 Mode);
+	SHIELDBREAK_API bool GetVSync();
+	SHIELDBREAK_API void SetVSync(bool bEnabled);
+	/** Frame rate cap in FPS, 0 for none. */
+	SHIELDBREAK_API float GetFrameRateLimit();
+	SHIELDBREAK_API void SetFrameRateLimit(float Fps);
+
+	/** Overall volume, 0 to 1 (default 1). Stored with the other settings, applied to the audio device. */
+	SHIELDBREAK_API float GetMasterVolume();
+	SHIELDBREAK_API void SetMasterVolume(float Volume);
+	/** Pushes the saved master volume to the audio device; the menu and match controllers call it on BeginPlay. */
+	SHIELDBREAK_API void ApplyAudio();
 }

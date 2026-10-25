@@ -39,7 +39,7 @@ Legend: **done**, **in progress**, **todo**, **decide** (Vincent's call).
 | Online play over the internet | decide | Today: LAN and join-by-IP. For internet play: Steam networking (Steam only) or Epic Online Services (free, any store) for lobbies and NAT traversal. Listen servers are fine for small matches. |
 | Audio: music and more sound variety | in progress | Original synthesized menu theme (48 s loop, `Art/audio/make_music.py`) in the menu and on the results screen, music volume setting, menu click sounds. In-match music is deliberately absent for now. |
 | Controller support | in progress | Full controller bindings plus aim assist (friction and gentle tracking); feel check on a real pad pending. |
-| Settings | done | Sensitivity, FOV, invert, graphics quality, resolution scale, keyboard/mouse rebinding (Controls menu; pending a PC check). |
+| Settings | done | Settings screen: sensitivity, FOV, invert, tips, graphics quality, resolution scale, display mode, VSync, frame limit, master and music volume. Controls screen: keyboard/mouse rebinding. Pending a PC check. |
 | Tutorial or how-to-play | in progress | Six new-player tips in the first match of each launch (can be turned off); F1 shows every control. A short training map would still help. |
 | Crash reporting | todo | Turn on the crash reporter in packaged builds and collect logs from testers. |
 

@@ -114,6 +114,28 @@ namespace ShieldbreakMenuPrivate
 		return Brush.Get();
 	}
 
+	/** Settings and Controls open above both menus (Z 30) and take keyboard/gamepad focus. */
+	void OpenOverlay(const TSharedRef<SWidget>& Overlay)
+	{
+		if (GEngine && GEngine->GameViewport)
+		{
+			GEngine->GameViewport->AddViewportWidgetContent(Overlay, 30);
+			FSlateApplication::Get().SetAllUserFocus(Overlay, EFocusCause::SetDirectly);
+		}
+	}
+
+	void CloseOverlay(const TSharedRef<SWidget>& Overlay, const TWeakPtr<SWidget>& ReturnFocus)
+	{
+		if (GEngine && GEngine->GameViewport)
+		{
+			GEngine->GameViewport->RemoveViewportWidgetContent(Overlay);
+		}
+		if (TSharedPtr<SWidget> Focus = ReturnFocus.Pin())
+		{
+			FSlateApplication::Get().SetAllUserFocus(Focus, EFocusCause::SetDirectly);
+		}
+	}
+
 	TSharedRef<SWidget> Backdrop_Image(const FLinearColor& Color)
 	{
 		return SNew(SImage).Image(FCoreStyle::Get().GetBrush("WhiteBrush")).ColorAndOpacity(Color);
@@ -144,7 +166,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFuncti
 		];
 }
 
-TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeGameplayRows()
 {
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight()
@@ -171,16 +193,15 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 		]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
-			MakeChooser(LOCTEXT("Music", "Music volume"),
-				[]() { return FText::AsPercent(ShieldbreakSettings::GetMusicVolume()); },
-				[](int32 Delta) { ShieldbreakSettings::SetMusicVolume(FMath::RoundToFloat((ShieldbreakSettings::GetMusicVolume() + 0.1f * Delta) * 10.f) / 10.f); })
-		]
-		+ SVerticalBox::Slot().AutoHeight()
-		[
 			MakeChooser(LOCTEXT("Tips", "New-player tips"),
 				[]() { return ShieldbreakSettings::GetShowTips() ? LOCTEXT("TipsOn", "On") : LOCTEXT("TipsOff", "Off"); },
 				[](int32) { ShieldbreakSettings::SetShowTips(!ShieldbreakSettings::GetShowTips()); })
-		]
+		];
+}
+
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeVideoAudioRows()
+{
+	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight()
 		[
 			MakeChooser(LOCTEXT("Graphics", "Graphics"),
@@ -203,6 +224,53 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 					const float Current = FMath::RoundToFloat(ShieldbreakSettings::GetResolutionScale() / 10.f) * 10.f;
 					ShieldbreakSettings::SetResolutionScale(Current + 10.f * Delta);
 				})
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("Display", "Display"),
+				[]() { return ShieldbreakSettings::GetWindowModeName(ShieldbreakSettings::GetWindowMode()); },
+				[](int32 Delta) { ShieldbreakSettings::SetWindowMode(ShieldbreakSettings::GetWindowMode() + Delta); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("VSync", "VSync"),
+				[]() { return ShieldbreakSettings::GetVSync() ? LOCTEXT("VSyncOn", "On") : LOCTEXT("VSyncOff", "Off"); },
+				[](int32) { ShieldbreakSettings::SetVSync(!ShieldbreakSettings::GetVSync()); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("FrameLimit", "Frame limit"),
+				[]()
+				{
+					const int32 Fps = FMath::RoundToInt(ShieldbreakSettings::GetFrameRateLimit());
+					return Fps <= 0 ? LOCTEXT("Unlimited", "None") : FText::AsNumber(Fps);
+				},
+				[](int32 Delta)
+				{
+					static const float Steps[] = { 30.f, 60.f, 120.f, 144.f, 0.f };
+					constexpr int32 Count = UE_ARRAY_COUNT(Steps);
+					const float Current = ShieldbreakSettings::GetFrameRateLimit();
+					int32 Index = Count - 1;
+					for (int32 Step = 0; Step < Count; ++Step)
+					{
+						if (FMath::IsNearlyEqual(Steps[Step], Current, 0.5f))
+						{
+							Index = Step;
+						}
+					}
+					ShieldbreakSettings::SetFrameRateLimit(Steps[(Index + Delta + Count) % Count]);
+				})
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("MasterVolume", "Master volume"),
+				[]() { return FText::AsPercent(ShieldbreakSettings::GetMasterVolume()); },
+				[](int32 Delta) { ShieldbreakSettings::SetMasterVolume(FMath::RoundToFloat((ShieldbreakSettings::GetMasterVolume() + 0.1f * Delta) * 10.f) / 10.f); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			MakeChooser(LOCTEXT("Music", "Music volume"),
+				[]() { return FText::AsPercent(ShieldbreakSettings::GetMusicVolume()); },
+				[](int32 Delta) { ShieldbreakSettings::SetMusicVolume(FMath::RoundToFloat((ShieldbreakSettings::GetMusicVolume() + 0.1f * Delta) * 10.f) / 10.f); })
 		];
 }
 
@@ -275,10 +343,6 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 					[this]() { return FText::FromString(SkillName(Skill)); },
 					[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); })
 			]
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 14.f, 0.f, 0.f)
-			[
-				ShieldbreakMenuStyle::MakeSettingsRows()
-			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 22.f, 0.f, 0.f)
 			[
 				SNew(SHorizontalBox)
@@ -323,7 +387,11 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth()
 				[
-					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); })
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 214.f)
+				]
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 214.f)
 				]
 				+ SHorizontalBox::Slot().AutoWidth()
 				[
@@ -333,7 +401,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 						{
 							UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
 						}
-					})
+					}, 214.f)
 				]
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 24.f, 0.f, 0.f)
@@ -499,10 +567,6 @@ void SShieldbreakPauseMenu::Construct(const FArguments& InArgs)
 			[
 				SNew(STextBlock).Text(LOCTEXT("Paused", "MENU")).Font(Font(40, "Bold")).ColorAndOpacity(FLinearColor::White)
 			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 12.f)
-			[
-				ShieldbreakMenuStyle::MakeSettingsRows()
-			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
 				ShieldbreakMenuStyle::MakeButton(LOCTEXT("Resume", "RESUME"), [this]()
@@ -512,6 +576,10 @@ void SShieldbreakPauseMenu::Construct(const FArguments& InArgs)
 						PC->ClosePauseMenu();
 					}
 				})
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				ShieldbreakMenuStyle::MakeButton(LOCTEXT("PauseSettings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); })
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
@@ -565,14 +633,9 @@ FReply SShieldbreakPauseMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 
 void SShieldbreakControlsMenu::Open(const TSharedPtr<SWidget>& ReturnFocus)
 {
-	if (!GEngine || !GEngine->GameViewport)
-	{
-		return;
-	}
 	TSharedRef<SShieldbreakControlsMenu> Menu = SNew(SShieldbreakControlsMenu);
 	Menu->ReturnFocus = ReturnFocus;
-	GEngine->GameViewport->AddViewportWidgetContent(Menu, 30);
-	FSlateApplication::Get().SetAllUserFocus(Menu, EFocusCause::SetDirectly);
+	ShieldbreakMenuPrivate::OpenOverlay(Menu);
 }
 
 void SShieldbreakControlsMenu::Construct(const FArguments& InArgs)
@@ -742,15 +805,90 @@ FReply SShieldbreakControlsMenu::OnMouseWheel(const FGeometry& MyGeometry, const
 
 void SShieldbreakControlsMenu::Close()
 {
-	const TSharedRef<SWidget> Self = AsShared();
-	if (GEngine && GEngine->GameViewport)
+	ShieldbreakMenuPrivate::CloseOverlay(AsShared(), ReturnFocus);
+}
+
+// ---- Settings ----
+
+void SShieldbreakSettingsMenu::Open(const TSharedPtr<SWidget>& ReturnFocus)
+{
+	TSharedRef<SShieldbreakSettingsMenu> Menu = SNew(SShieldbreakSettingsMenu);
+	Menu->ReturnFocus = ReturnFocus;
+	ShieldbreakMenuPrivate::OpenOverlay(Menu);
+}
+
+void SShieldbreakSettingsMenu::Construct(const FArguments& InArgs)
+{
+	using namespace ShieldbreakMenuPrivate;
+
+	auto Column = [](const FText& Heading, const TSharedRef<SWidget>& Rows) -> TSharedRef<SWidget>
 	{
-		GEngine->GameViewport->RemoveViewportWidgetContent(Self);
-	}
-	if (TSharedPtr<SWidget> Focus = ReturnFocus.Pin())
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 8.f)
+			[
+				SNew(STextBlock).Text(Heading).Font(Font(16, "Bold")).ColorAndOpacity(Accent)
+			]
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				Rows
+			];
+	};
+
+	ChildSlot
+	[
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			Backdrop_Image(FLinearColor(0.f, 0.f, 0.f, 0.85f))
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 0.f, 0.f, 16.f)
+			[
+				SNew(STextBlock).Text(LOCTEXT("SettingsTitle", "SETTINGS")).Font(Font(36, "Bold")).ColorAndOpacity(FLinearColor::White)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(16.f, 0.f)
+				[
+					Column(LOCTEXT("GameplayHeading", "GAMEPLAY"), ShieldbreakMenuStyle::MakeGameplayRows())
+				]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(16.f, 0.f)
+				[
+					Column(LOCTEXT("VideoAudioHeading", "VIDEO AND AUDIO"), ShieldbreakMenuStyle::MakeVideoAudioRows())
+				]
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 20.f, 0.f, 0.f)
+			[
+				ShieldbreakMenuStyle::MakeButton(LOCTEXT("SettingsBack", "BACK"), [this]() { Close(); })
+			]
+		]
+	];
+}
+
+FReply SShieldbreakSettingsMenu::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Escape || InKeyEvent.GetKey() == EKeys::Gamepad_FaceButton_Right)
 	{
-		FSlateApplication::Get().SetAllUserFocus(Focus, EFocusCause::SetDirectly);
+		Close();
+		return FReply::Handled();
 	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+FReply SShieldbreakSettingsMenu::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// Swallow clicks on the backdrop so the menu underneath doesn't get them.
+	return FReply::Handled();
+}
+
+void SShieldbreakSettingsMenu::Close()
+{
+	ShieldbreakMenuPrivate::CloseOverlay(AsShared(), ReturnFocus);
 }
 
 #undef LOCTEXT_NAMESPACE
