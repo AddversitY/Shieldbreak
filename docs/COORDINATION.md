@@ -72,6 +72,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Menu music** (commit "Menu music"). Pull, run `Tools/ImportArt.bat` (new:
+  `Art/Export/Audio/MUS_SB_Menu.wav`, an original 48 s loop from `Art/audio/make_music.py`, imported looping to
+  `/Game/Shieldbreak/Art/Audio/MUS_SB_Menu`; the log line should say "48.0 s, looping"). Then build. It plays in the main
+  menu (fades in) and at 70% on the match-over screen; "Music volume" row in the settings (default 60%). Silent under
+  -SBSelfTest. Please check it plays, loops without a click, and stops when a match starts. Make sure
+  `/Game/Shieldbreak/Art/Audio` is cooked by Tools/Package.bat.
 - 2026-10-25 night **Menu sounds + new-player tips** (commit "Menu sounds"). Menu buttons play Lyra's
   `/Game/Audio/Sounds/UI/ButtonClick` and `ButtonHover` (silent if they fail to load; please make sure the packaging
   cook list includes them). First match of each launch: six tips, 7 s each, near the top of the screen, using the

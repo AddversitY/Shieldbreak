@@ -152,6 +152,12 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeSettingsRows()
 		]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
+			MakeChooser(LOCTEXT("Music", "Music volume"),
+				[]() { return FText::AsPercent(ShieldbreakSettings::GetMusicVolume()); },
+				[](int32 Delta) { ShieldbreakSettings::SetMusicVolume(FMath::RoundToFloat((ShieldbreakSettings::GetMusicVolume() + 0.1f * Delta) * 10.f) / 10.f); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
 			MakeChooser(LOCTEXT("Tips", "New-player tips"),
 				[]() { return ShieldbreakSettings::GetShowTips() ? LOCTEXT("TipsOn", "On") : LOCTEXT("TipsOff", "Off"); },
 				[](int32) { ShieldbreakSettings::SetShowTips(!ShieldbreakSettings::GetShowTips()); })
@@ -313,7 +319,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0.f, 18.f, 0.f, 0.f)
 			[
 				SNew(STextBlock)
-				.Text(FText::Format(LOCTEXT("Credits", "Shieldbreak {0}  -  Original maps, weapons and armor by the Shieldbreak team\nMannequin, animations, effects and sounds from Lyra Starter Game by Epic Games\nUnreal Engine, Copyright 1998-2026, Epic Games, Inc. All rights reserved."),
+				.Text(FText::Format(LOCTEXT("Credits", "Shieldbreak {0}  -  Original maps, weapons, armor and music by the Shieldbreak team\nMannequin, animations, effects and sounds from Lyra Starter Game by Epic Games\nUnreal Engine, Copyright 1998-2026, Epic Games, Inc. All rights reserved."),
 					FText::FromString(ShieldbreakMenuPrivate::GameVersion())))
 				.Font(Font(10))
 				.Justification(ETextJustify::Center)

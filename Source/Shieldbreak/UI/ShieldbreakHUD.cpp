@@ -19,6 +19,7 @@
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakInputSet.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Audio/ShieldbreakMusic.h"
 #include "Misc/CommandLine.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerController.h"
@@ -882,6 +883,9 @@ void AShieldbreakHUD::DrawScoreboard(AShieldbreakGameState* GameState)
 
 void AShieldbreakHUD::DrawMatchOver(AShieldbreakGameState* GameState)
 {
+	// The menu theme, a little quieter, over the results (starts once per match world).
+	ShieldbreakMusic::PlayMenuMusic(this, 0.7f, 3.f);
+
 	const float CX = Canvas->ClipX * 0.5f;
 	const float Y = Canvas->ClipY * 0.28f;
 	Box(0.f, Y - 20.f * S, Canvas->ClipX, 130.f * S, FLinearColor(0.f, 0.f, 0.f, 0.6f));

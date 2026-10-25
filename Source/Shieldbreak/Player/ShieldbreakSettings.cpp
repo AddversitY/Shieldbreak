@@ -1,5 +1,6 @@
 #include "Player/ShieldbreakSettings.h"
 
+#include "Audio/ShieldbreakMusic.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Misc/ConfigCacheIni.h"
@@ -16,6 +17,7 @@ namespace ShieldbreakSettingsPrivate
 		float FieldOfView = ShieldbreakSettings::DefaultFieldOfView;
 		bool bInvertLook = false;
 		bool bShowTips = true;
+		float MusicVolume = 0.6f;
 	};
 
 	/** Loaded from the ini on first use, then kept in memory (look input reads it every frame). */
@@ -30,6 +32,8 @@ namespace ShieldbreakSettingsPrivate
 			GConfig->GetFloat(Section, TEXT("FieldOfView"), Cached.FieldOfView, GGameUserSettingsIni);
 			GConfig->GetBool(Section, TEXT("InvertLook"), Cached.bInvertLook, GGameUserSettingsIni);
 			GConfig->GetBool(Section, TEXT("ShowTips"), Cached.bShowTips, GGameUserSettingsIni);
+			GConfig->GetFloat(Section, TEXT("MusicVolume"), Cached.MusicVolume, GGameUserSettingsIni);
+			Cached.MusicVolume = FMath::Clamp(Cached.MusicVolume, 0.f, 1.f);
 			Cached.Sensitivity = FMath::Clamp(Cached.Sensitivity, ShieldbreakSettings::MinSensitivity, ShieldbreakSettings::MaxSensitivity);
 			Cached.FieldOfView = FMath::Clamp(Cached.FieldOfView, ShieldbreakSettings::MinFieldOfView, ShieldbreakSettings::MaxFieldOfView);
 		}
@@ -47,6 +51,7 @@ namespace ShieldbreakSettingsPrivate
 		GConfig->SetFloat(Section, TEXT("FieldOfView"), V.FieldOfView, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("InvertLook"), V.bInvertLook, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("ShowTips"), V.bShowTips, GGameUserSettingsIni);
+		GConfig->SetFloat(Section, TEXT("MusicVolume"), V.MusicVolume, GGameUserSettingsIni);
 		GConfig->Flush(false, GGameUserSettingsIni);
 	}
 }
@@ -93,6 +98,18 @@ void ShieldbreakSettings::SetShowTips(bool bShow)
 {
 	ShieldbreakSettingsPrivate::Values().bShowTips = bShow;
 	ShieldbreakSettingsPrivate::Save();
+}
+
+float ShieldbreakSettings::GetMusicVolume()
+{
+	return ShieldbreakSettingsPrivate::Values().MusicVolume;
+}
+
+void ShieldbreakSettings::SetMusicVolume(float Volume)
+{
+	ShieldbreakSettingsPrivate::Values().MusicVolume = FMath::Clamp(Volume, 0.f, 1.f);
+	ShieldbreakSettingsPrivate::Save();
+	ShieldbreakMusic::RefreshVolume();
 }
 
 int32 ShieldbreakSettings::GetGraphicsQuality()

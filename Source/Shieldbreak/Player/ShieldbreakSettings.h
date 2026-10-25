@@ -24,6 +24,9 @@ namespace ShieldbreakSettings
 	/** New-player tips at the start of the first match of each launch (on by default). */
 	SHIELDBREAK_API bool GetShowTips();
 	SHIELDBREAK_API void SetShowTips(bool bShow);
+	/** Music volume, 0 to 1 (default 0.6). */
+	SHIELDBREAK_API float GetMusicVolume();
+	SHIELDBREAK_API void SetMusicVolume(float Volume);
 
 	/** Overall engine scalability, 0 (Low) to 3 (Epic); -1 when individual groups were set by hand. Stored by
 	 *  UGameUserSettings (GameUserSettings.ini [ScalabilityGroups]), applied at once. */

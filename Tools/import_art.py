@@ -7,6 +7,7 @@
 - Art/Export/Textures/*.png (made by Art/textures/make_textures.py) become textures in /Game/Shieldbreak/Art/Textures, and
   the world material M_SB_World (world-aligned triplanar detail texture tinted by the map palette; AShieldbreakArena
   sets "Tint" per piece) gets one instance per surface kind (MI_SB_World_<Kind>, see WORLD_STYLES).
+- Art/Export/Audio/*.wav (made by Art/audio/make_music.py) become sound waves in /Game/Shieldbreak/Art/Audio; MUS_* loop.
 - Writes Saved/Logs/ImportArt.txt with each mesh's triangles, bounds and sockets, so the cloud can check the axes.
 
 Run with Tools/ImportArt.bat.
@@ -22,6 +23,7 @@ EXPORT = os.path.join(PROJECT, "Art", "Export")
 ROOT = "/Game/Shieldbreak/Art"
 MATERIALS = ROOT + "/Materials"
 TEXTURES = ROOT + "/Textures"
+AUDIO = ROOT + "/Audio"
 # Surface kinds for the map pieces: (detail texture, tile size in cm, metallic, roughness, detail strength).
 # Detail strength fades the texture toward flat grey (0 = flat palette colour, 1 = full pattern).
 WORLD_STYLES = {
@@ -122,6 +124,31 @@ def import_textures():
             log("FAILED " + png)
     log("%d textures" % len(textures))
     return textures
+
+
+def import_audio():
+    count = 0
+    for wav in sorted(glob.glob(os.path.join(EXPORT, "Audio", "*.wav"))):
+        name = os.path.splitext(os.path.basename(wav))[0]
+        task = unreal.AssetImportTask()
+        task.filename = wav
+        task.destination_path = AUDIO
+        task.destination_name = name
+        task.automated = True
+        task.replace_existing = True
+        task.save = False
+        tools.import_asset_tasks([task])
+        path = "%s/%s" % (AUDIO, name)
+        sound = unreal.load_asset(path)
+        if not sound:
+            log("FAILED " + wav)
+            continue
+        if name.startswith("MUS_"):
+            sound.set_editor_property("looping", True)
+        eal.save_asset(path)
+        log("%s: %.1f s%s" % (path, sound.get_editor_property("duration"), ", looping" if name.startswith("MUS_") else ""))
+        count += 1
+    log("%d sounds" % count)
 
 
 def world_material(default_texture):
@@ -286,6 +313,7 @@ def main():
     if textures:
         world = world_material(textures.get("T_SB_Panel") or next(iter(textures.values())))
         world_instances(world, textures)
+    import_audio()
     for fbx in sorted(glob.glob(os.path.join(EXPORT, "*", "*.fbx"))):
         folder = os.path.basename(os.path.dirname(fbx))
         mesh, path = import_fbx(fbx, "%s/%s" % (ROOT, folder))

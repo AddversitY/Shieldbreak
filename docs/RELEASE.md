@@ -37,10 +37,10 @@ Legend: **done**, **in progress**, **todo**, **decide** (Vincent's call).
 | First-person arms, throw, melee, reload, swap animations | in progress | Placement tuned on the PC; throw readability fix pending verification. |
 | Art pass: characters, weapons, maps | in progress | Vincent picks the direction on the art direction page; maps got textured materials, glow trims and mountains. |
 | Online play over the internet | decide | Today: LAN and join-by-IP. For internet play: Steam networking (Steam only) or Epic Online Services (free, any store) for lobbies and NAT traversal. Listen servers are fine for small matches. |
-| Audio: music and more sound variety | todo | Lyra sounds cover guns and explosions. Menu music and match music are missing. |
+| Audio: music and more sound variety | in progress | Original synthesized menu theme (48 s loop, `Art/audio/make_music.py`) in the menu and on the results screen, music volume setting, menu click sounds. In-match music is deliberately absent for now. |
 | Controller support | in progress | Full controller bindings plus aim assist (friction and gentle tracking); feel check on a real pad pending. |
 | Settings | done | Sensitivity, FOV, invert, graphics quality, resolution scale, keyboard/mouse rebinding (Controls menu; pending a PC check). |
-| Tutorial or how-to-play | todo | F1 shows controls; a short training map would help new players. |
+| Tutorial or how-to-play | in progress | Six new-player tips in the first match of each launch (can be turned off); F1 shows every control. A short training map would still help. |
 | Crash reporting | todo | Turn on the crash reporter in packaged builds and collect logs from testers. |
 
 ## 5. Testing before launch

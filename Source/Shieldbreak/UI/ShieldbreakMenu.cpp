@@ -1,5 +1,6 @@
 #include "UI/ShieldbreakMenu.h"
 
+#include "Audio/ShieldbreakMusic.h"
 #include "Shieldbreak.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -103,6 +104,7 @@ void AShieldbreakMenuController::BeginPlay()
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);
 	UE_LOG(LogShieldbreak, Log, TEXT("Main menu open."));
+	ShieldbreakMusic::PlayMenuMusic(this);
 
 	float ShotDelay = 0.f;
 	if (FParse::Value(FCommandLine::Get(), TEXT("SBMenuShot="), ShotDelay) && ShotDelay > 0.f)
@@ -135,5 +137,6 @@ void AShieldbreakMenuController::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	}
 	ViewportWidget.Reset();
 	MenuWidget.Reset();
+	ShieldbreakMusic::Stop(0.5f);
 	Super::EndPlay(EndPlayReason);
 }
