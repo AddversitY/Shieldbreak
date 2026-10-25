@@ -418,8 +418,10 @@ UAnimSequenceBase* UShieldbreakBodyAnimator::GetActionAnimation(EShieldbreakActi
 	case EShieldbreakAction::Reload: Name = TEXT("Reload"); break;
 	case EShieldbreakAction::Equip: Name = TEXT("Equip"); break;
 	}
-	// Pistol version first when holding the sidearm, else (or if it doesn't exist) the rifle one.
-	for (const TCHAR* Set : { UsesPistolAnimations() ? TEXT("Pistol") : TEXT("Rifle"), TEXT("Rifle") })
+	// Pistol version first when holding the sidearm, else (or if it doesn't exist) the rifle one. Lyra has no pistol
+	// grenade toss, so that one always uses the rifle's (and doesn't log a missing asset on every throw).
+	const bool bPistol = UsesPistolAnimations() && Action != EShieldbreakAction::GrenadeThrow;
+	for (const TCHAR* Set : { bPistol ? TEXT("Pistol") : TEXT("Rifle"), TEXT("Rifle") })
 	{
 		const FString Asset = FString::Printf(TEXT("MM_%s_%s"), Set, Name);
 		const FString Path = FString(ActionsFolder) + Asset + TEXT(".") + Asset;
@@ -465,6 +467,16 @@ void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Durat
 		FirstPersonThrowDuration = (Animation->GetPlayLength() - Timing.StartTime) / FMath::Max(0.05f, Timing.PlayRate);
 		FirstPersonThrowEnd = GetWorld()->GetTimeSeconds() + FirstPersonThrowDuration;
 	}
+	if (Action == EShieldbreakAction::Equip && GetWorld())
+	{
+		FirstPersonEquipEnd = GetWorld()->GetTimeSeconds() + (Animation->GetPlayLength() - Timing.StartTime) / FMath::Max(0.05f, Timing.PlayRate);
+		// Drop the arms at once, before the equip pose reaches the screen.
+		SwapLower = 1.f;
+		if (FirstPersonArms && CalibratedIdle)
+		{
+			ApplyFirstPersonArmsTransform(AppliedThrowDip);
+		}
+	}
 	for (USkeletalMeshComponent* Mesh : { GetBodyMesh(), FirstPersonArms.Get() })
 	{
 		if (UShieldbreakBodyAnimInstance* Instance = Mesh ? Cast<UShieldbreakBodyAnimInstance>(Mesh->GetAnimInstance()) : nullptr)
@@ -472,6 +484,18 @@ void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Durat
 			Instance->PlayAction(Animation, Timing.StartTime, Timing.PlayRate);
 		}
 	}
+}
+
+void UShieldbreakBodyAnimator::ApplyFirstPersonArmsTransform(float Dip)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const float Pitch = CVarThrowDip.GetValueOnGameThread() * Dip;
+	// Eased so the rise at the end of a swap starts quickly and settles softly.
+	const float Lower = FMath::InterpEaseOut(0.f, 1.f, SwapLower, 2.f) * 45.f;
+	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f))
+		* FTransform(FVector(0.f, 0.f, -Lower)));
+	AppliedThrowDip = Dip;
+	AppliedSwapLower = SwapLower;
 }
 
 UAnimSequenceBase* UShieldbreakBodyAnimator::GetPlayingAction() const
@@ -599,11 +623,11 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		// Quick in (first quarter), slow out.
 		Dip = FMath::SmoothStep(0.f, 1.f, T < 0.25f ? T / 0.25f : 1.f - (T - 0.25f) / 0.75f);
 	}
-	if (CalibratedIdle && (Dip > 0.f || AppliedThrowDip > 0.f))
+	const bool bSwapping = Now < FirstPersonEquipEnd || (CalibratedIdle && CalibratedIdle != Idle);
+	SwapLower = bSwapping ? 1.f : FMath::Max(0.f, SwapLower - World->GetDeltaSeconds() / 0.25f);
+	if (CalibratedIdle && (Dip > 0.f || AppliedThrowDip > 0.f || SwapLower > 0.f || AppliedSwapLower > 0.f))
 	{
-		const float Pitch = CVarThrowDip.GetValueOnGameThread() * Dip;
-		FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f)));
-		AppliedThrowDip = Dip;
+		ApplyFirstPersonArmsTransform(Dip);
 	}
 }
 

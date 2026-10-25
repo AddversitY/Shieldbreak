@@ -72,6 +72,15 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 morning **Fixes for the overnight report** (commit "Swap lowers the arms"). (1) Weapon swap: the
+  first-person arms now drop 45 cm out of view the moment the equip animation starts and stay down until they are
+  re-placed for the new gun's idle, then rise over 0.25 s (the red shoulder plate came from the equip pose plus the
+  old placement). (2) The weapon no longer replicates its attachment (`DISABLE_REPLICATED_PRIVATE_PROPERTY(AActor,
+  AttachmentReplication)`): every machine attaches it in OnEquipped. The listen test should lose the
+  `FirstPersonArms NOT Supported` warning; check the client still sees other players holding their guns, also after
+  swaps. (3) No more MM_Pistol_GrenadeToss lookup. (4) Grenade throw swing: please sweep `sb.FPThrowDip` at
+  35 (current), 60, -35 and -60 with throw frames and tell me which shows the arm; if none does I'll animate the
+  throw procedurally instead of using Lyra's toss.
 - 2026-10-25 night **Medals** (commit "Medals"). Enemy kills award medals, shown above the weapon area with a chime:
   First Blood, Double/Triple/Quad Kill and Rampage (kills within 4.5 s), Killing Spree / Unstoppable / Untouchable
   (5/10/15 without dying), Headshot, Knockout (melee), Blast (explosive), Revenge (kill your last killer), Spree

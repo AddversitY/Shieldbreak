@@ -102,6 +102,9 @@ void AShieldbreakWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bOverheated, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bReloading, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bCharging, COND_SkipOwner);
+	// Every machine attaches the gun itself in OnEquipped (to the body, or to the owner's local first-person arms,
+	// which other machines don't have), so the server's attachment must not replicate.
+	DISABLE_REPLICATED_PRIVATE_PROPERTY(AActor, AttachmentReplication);
 }
 
 void AShieldbreakWeapon::BeginPlay()

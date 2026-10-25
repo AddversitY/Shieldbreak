@@ -133,6 +133,12 @@ private:
 	float FirstPersonThrowEnd = -1.f;
 	float FirstPersonThrowDuration = 0.f;
 	float AppliedThrowDip = 0.f;
+	/** Weapon swap: the arms drop out of view while the equip animation plays and until they are re-placed for the
+	 *  new gun's idle (the equip pose and the old placement put a shoulder plate across the screen), then rise. */
+	float FirstPersonEquipEnd = -1.f;
+	float SwapLower = 0.f;
+	float AppliedSwapLower = 0.f;
+	void ApplyFirstPersonArmsTransform(float Dip);
 	/** Dynamic instances of the armor's team-colored slots (plates and glow strips). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorTeamMIDs;
