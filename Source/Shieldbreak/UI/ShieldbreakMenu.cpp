@@ -123,9 +123,10 @@ void AShieldbreakMenuController::BuildBackdrop()
 	}
 	const FShieldbreakMapLayout& Layout = Arena->GetLayout();
 	const float Reach = static_cast<float>(FMath::Max(Layout.HalfExtent.X, Layout.HalfExtent.Y));
-	OrbitCenter = FVector(0.f, 0.f, Layout.FloorZ + 300.f);
-	OrbitRadius = Reach * 1.35f;
-	OrbitHeight = FMath::Max(1600.f, Reach * 0.45f);
+	// Outside the walls and high enough to look down into the whole map (the first version sat behind the wall).
+	OrbitCenter = FVector(0.f, 0.f, Layout.FloorZ + 200.f);
+	OrbitRadius = Reach * 1.55f;
+	OrbitHeight = FMath::Max(2500.f, Reach * 0.9f);
 
 	if (!BackdropCamera)
 	{

@@ -176,7 +176,7 @@ namespace ShieldbreakMenuPrivate
 	}
 }
 
-TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFunction<void()> OnClick, float Width)
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFunction<void()> OnClick, float Width, int32 FontSize)
 {
 	using namespace ShieldbreakMenuPrivate;
 	return SNew(SBox)
@@ -195,7 +195,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFuncti
 				return FReply::Handled();
 			})
 			[
-				SNew(STextBlock).Text(Label).Font(Font(20, "Bold"))
+				SNew(STextBlock).Text(Label).Font(Font(FontSize, "Bold"))
 			]
 		];
 }
@@ -405,33 +405,33 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 							{
 								MapIndex = Maps.Num() > 0 ? (MapIndex + Delta + Maps.Num()) % Maps.Num() : 0;
 								ShowSelectedMap();
-							})
+							}, 120.f, 180.f)
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Mode", "Mode"),
 							[this, &Modes]() { return FText::FromString(Modes[ModeIndex]); },
-							[this, &Modes](int32 Delta) { ModeIndex = (ModeIndex + Delta + Modes.Num()) % Modes.Num(); })
+							[this, &Modes](int32 Delta) { ModeIndex = (ModeIndex + Delta + Modes.Num()) % Modes.Num(); }, 120.f, 180.f)
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Bots", "Bots"),
 							[this]() { return FText::AsNumber(Bots); },
-							[this](int32 Delta) { Bots = FMath::Clamp(Bots + Delta, 0, AShieldbreakGameMode::GetMaxBots()); })
+							[this](int32 Delta) { Bots = FMath::Clamp(Bots + Delta, 0, AShieldbreakGameMode::GetMaxBots()); }, 120.f, 180.f)
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
 						ShieldbreakMenuStyle::MakeChooser(LOCTEXT("Skill", "Bot skill"),
 							[this]() { return FText::FromString(SkillName(Skill)); },
-							[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); })
+							[this](int32 Delta) { Skill = FMath::Clamp(Skill + Delta, 0, AShieldbreakGameMode::GetMaxBotSkill()); }, 120.f, 180.f)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0.f, 18.f, 0.f, 0.f)
 					[
-						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Play", "PLAY"), [this]() { StartMatch(false); }, 440.f)
+						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Play", "PLAY"), [this]() { StartMatch(false); }, 464.f, 24)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
 					[
-						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Host", "HOST LAN GAME"), [this]() { StartMatch(true); }, 440.f)
+						ShieldbreakMenuStyle::MakeButton(LOCTEXT("Host", "HOST LAN GAME"), [this]() { StartMatch(true); }, 464.f, 18)
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left)
 					[
@@ -439,7 +439,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(6.f)
 						[
 							SNew(SBox)
-							.WidthOverride(268.f)
+							.WidthOverride(280.f)
 							[
 								SAssignNew(AddressBox, SEditableTextBox)
 								.Text(FText::FromString(Address))
@@ -457,7 +457,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Join", "JOIN"), [this]() { Join(); }, 160.f)
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Join", "JOIN"), [this]() { Join(); }, 172.f, 18)
 						]
 					]
 					+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Left).Padding(0.f, 10.f, 0.f, 0.f)
@@ -465,11 +465,11 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 160.f)
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Settings", "SETTINGS"), [this]() { SShieldbreakSettingsMenu::Open(AsShared()); }, 166.f, 16)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 160.f)
+							ShieldbreakMenuStyle::MakeButton(LOCTEXT("Controls", "CONTROLS"), [this]() { SShieldbreakControlsMenu::Open(AsShared()); }, 166.f, 16)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
@@ -479,7 +479,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 								{
 									UKismetSystemLibrary::QuitGame(PC, PC, EQuitPreference::Quit, false);
 								}
-							}, 120.f)
+							}, 132.f, 16)
 						]
 					]
 				]
@@ -558,7 +558,7 @@ bool SShieldbreakMainMenu::HasBackdrop() const
 	return Controller && Controller->HasBackdrop();
 }
 
-TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step)
+TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step, float LabelWidth, float ValueWidth)
 {
 	using namespace ShieldbreakMenuPrivate;
 	auto Arrow = [Step](const FText& Glyph, int32 Delta) -> TSharedRef<SWidget>
@@ -581,7 +581,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunct
 	return SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 		[
-			SNew(SBox).WidthOverride(150.f)
+			SNew(SBox).WidthOverride(LabelWidth)
 			[
 				SNew(STextBlock).Text(Label).Font(Font(20)).ColorAndOpacity(Muted)
 			]
@@ -592,7 +592,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunct
 		]
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 		[
-			SNew(SBox).WidthOverride(260.f).HAlign(HAlign_Center)
+			SNew(SBox).WidthOverride(ValueWidth).HAlign(HAlign_Center)
 			[
 				SNew(STextBlock).Text_Lambda([Value]() { return Value(); }).Font(Font(24, "Bold")).ColorAndOpacity(FLinearColor::White)
 			]

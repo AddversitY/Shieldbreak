@@ -110,9 +110,9 @@ private:
 namespace ShieldbreakMenuStyle
 {
 	/** Big menu button with a fixed width, shared by both menus. */
-	TSharedRef<SWidget> MakeButton(const FText& Label, TFunction<void()> OnClick, float Width = 320.f);
+	TSharedRef<SWidget> MakeButton(const FText& Label, TFunction<void()> OnClick, float Width = 320.f, int32 FontSize = 20);
 	/** "Label   <  value  >" row; Step gets -1 or +1. */
-	TSharedRef<SWidget> MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step);
+	TSharedRef<SWidget> MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step, float LabelWidth = 200.f, float ValueWidth = 190.f);
 	/** Sensitivity, field of view, invert look and tips (ShieldbreakSettings). */
 	TSharedRef<SWidget> MakeGameplayRows();
 	/** Graphics, resolution, display mode, VSync, frame limit, master and music volume. */
