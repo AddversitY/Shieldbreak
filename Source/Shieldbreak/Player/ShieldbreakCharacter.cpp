@@ -69,6 +69,12 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->SetFieldOfView(DefaultFOV);
+	// First-person arms and guns render at the default FOV whatever the player's FOV or scope zoom, and scaled toward
+	// the eye so they don't clip into walls (UShieldbreakBodyAnimator marks them FirstPerson primitives).
+	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
+	FirstPersonCamera->FirstPersonFieldOfView = ShieldbreakSettings::DefaultFieldOfView;
+	FirstPersonCamera->bEnableFirstPersonScale = true;
+	FirstPersonCamera->FirstPersonScale = 0.6f;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -878,7 +884,7 @@ void AShieldbreakCharacter::DoMelee()
 
 	if (!Best)
 	{
-		MulticastMeleeFX(GetAimOrigin() + GetAimRotation().Vector() * MeleeRange * 0.6f, false);
+		// A miss shows nothing: a puff in the air filled the swinger's view (the white sphere in the first-person shots).
 		return;
 	}
 

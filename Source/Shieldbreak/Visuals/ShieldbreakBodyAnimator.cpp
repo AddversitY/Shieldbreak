@@ -311,6 +311,7 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 		{
 			Piece->SetOnlyOwnerSee(true);
 			Piece->SetCastShadow(false);
+			Piece->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 		}
 		else
 		{
@@ -373,9 +374,10 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
-	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 24.f, TEXT("First-person gun hand: cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 11.f, TEXT("First-person gun hand: cm right of the eye."));
-	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 18.f, TEXT("First-person gun hand: cm below the eye."));
+	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 34.f, TEXT("First-person gun hand: cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), 35.f, TEXT("First-person grenade throw: degrees the arms pitch down so the overhead arm swing comes into view."));
+	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 13.f, TEXT("First-person gun hand: cm right of the eye."));
+	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 15.f, TEXT("First-person gun hand: cm below the eye."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
 
@@ -458,6 +460,11 @@ void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Durat
 	{
 		Timing.PlayRate = (Animation->GetPlayLength() - Timing.StartTime) / Duration;
 	}
+	if (Action == EShieldbreakAction::GrenadeThrow && GetWorld())
+	{
+		FirstPersonThrowDuration = (Animation->GetPlayLength() - Timing.StartTime) / FMath::Max(0.05f, Timing.PlayRate);
+		FirstPersonThrowEnd = GetWorld()->GetTimeSeconds() + FirstPersonThrowDuration;
+	}
 	for (USkeletalMeshComponent* Mesh : { GetBodyMesh(), FirstPersonArms.Get() })
 	{
 		if (UShieldbreakBodyAnimInstance* Instance = Mesh ? Cast<UShieldbreakBodyAnimInstance>(Mesh->GetAnimInstance()) : nullptr)
@@ -527,6 +534,9 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		FirstPersonArms->SetCanEverAffectNavigation(false);
 		FirstPersonArms->SetOnlyOwnerSee(true);
 		FirstPersonArms->SetCastShadow(false);
+		// Drawn with a fixed field of view and pulled toward the eye (the camera's first-person settings), so the
+		// arms keep their size when the player changes FOV or zooms, and don't poke through walls.
+		FirstPersonArms->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
 		FirstPersonArms->RegisterComponent();
@@ -578,6 +588,23 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		CalibratedAim = Aim;
 		CalibrateFirstPersonArms();
 	}
+
+	// Grenade throw: Lyra's toss swings the left arm up over the head, above a first-person view. Pitch the whole rig
+	// down around the eye for the throw so that swing comes through the top of the screen and the gun dips away.
+	float Dip = 0.f;
+	const float Now = World->GetTimeSeconds();
+	if (CalibratedIdle && Now < FirstPersonThrowEnd && FirstPersonThrowDuration > 0.f)
+	{
+		const float T = 1.f - (FirstPersonThrowEnd - Now) / FirstPersonThrowDuration;
+		// Quick in (first quarter), slow out.
+		Dip = FMath::SmoothStep(0.f, 1.f, T < 0.25f ? T / 0.25f : 1.f - (T - 0.25f) / 0.75f);
+	}
+	if (CalibratedIdle && (Dip > 0.f || AppliedThrowDip > 0.f))
+	{
+		const float Pitch = CVarThrowDip.GetValueOnGameThread() * Dip;
+		FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f)));
+		AppliedThrowDip = Dip;
+	}
 }
 
 void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
@@ -594,7 +621,8 @@ void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
 	const FQuat Rotation = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
 	const FVector GripCamera(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
 	const FVector Location = GripCamera - Rotation.RotateVector(SocketComponent.GetLocation());
-	FirstPersonArms->SetRelativeTransform(FTransform(Rotation, Location));
+	CalibratedArmsTransform = FTransform(Rotation, Location);
+	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform);
 	UE_LOG(LogShieldbreak, Log, TEXT("First-person arms placed for %s: offset %s, rotation %s."),
 		*GetNameSafe(CalibratedIdle), *Location.ToCompactString(), *Rotation.Rotator().ToCompactString());
 }

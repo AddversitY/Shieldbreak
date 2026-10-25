@@ -128,6 +128,11 @@ private:
 	FVector3f CalibratedGrip = FVector3f::ZeroVector;
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
 	float FirstPersonIdleSince = -1.f;
+	FTransform CalibratedArmsTransform = FTransform::Identity;
+	/** The grenade throw's first-person dip (see UpdateFirstPersonArms). */
+	float FirstPersonThrowEnd = -1.f;
+	float FirstPersonThrowDuration = 0.f;
+	float AppliedThrowDip = 0.f;
 	/** Dynamic instances of the armor's team-colored slots (plates and glow strips). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorTeamMIDs;

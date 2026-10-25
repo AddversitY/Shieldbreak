@@ -24,6 +24,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "NiagaraComponent.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -221,6 +222,17 @@ void AShieldbreakWeapon::OnEquipped()
 			SetActorRelativeRotation(ShieldbreakWeaponPrivate::EquippedRotation);
 		}
 		WeaponMesh->SetCastShadow(false);
+	}
+	// The local player's gun draws with the first-person FOV and scale, like the arms holding it.
+	const EFirstPersonPrimitiveType ViewType = EquippedLayout == EEquippedLayout::Hand ? EFirstPersonPrimitiveType::None : EFirstPersonPrimitiveType::FirstPerson;
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
+	for (UPrimitiveComponent* Primitive : Primitives)
+	{
+		if (Primitive->FirstPersonPrimitiveType != ViewType)
+		{
+			Primitive->FirstPersonPrimitiveType = ViewType;
+			Primitive->MarkRenderStateDirty();
+		}
 	}
 	SetActorHiddenInGame(false);
 	CurrentSpread = Stats.BaseSpreadDegrees;
@@ -775,7 +787,12 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 	const FVector Muzzle = GetMuzzleLocation();
 	if (bHasArt && !Stats.MuzzleFlash.IsNull())
 	{
-		ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
+		UNiagaraComponent* Flash = ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
+		if (Flash && WeaponMesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+		{
+			Flash->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+			Flash->MarkRenderStateDirty();
+		}
 	}
 
 	const float Pitch = FMath::FRandRange(0.96f, 1.04f);
