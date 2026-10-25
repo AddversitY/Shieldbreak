@@ -373,8 +373,33 @@ void AShieldbreakCharacter::RefreshEquippedVisuals()
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->OnEquipped();
+		// Swapping (not the first weapon of a life) brings the new gun up.
+		if (Previous && Previous != CurrentWeapon)
+		{
+			PlayActionAnimation(EShieldbreakAction::Equip);
+		}
 	}
 	VisualEquippedWeapon = CurrentWeapon;
+}
+
+void AShieldbreakCharacter::PlayActionAnimation(EShieldbreakAction Action, float Duration)
+{
+	if (BodyAnimator && GetNetMode() != NM_DedicatedServer)
+	{
+		BodyAnimator->PlayAction(Action, Duration);
+	}
+}
+
+void AShieldbreakCharacter::MulticastPlayAction_Implementation(uint8 Action)
+{
+	// The controlling machine (the owning client, or the server for bots and the host) already played it on input.
+	if (IsLocallyControlled() || Action > static_cast<uint8>(EShieldbreakAction::Equip))
+	{
+		return;
+	}
+	const EShieldbreakAction Typed = static_cast<EShieldbreakAction>(Action);
+	const float Duration = Typed == EShieldbreakAction::Reload && CurrentWeapon ? CurrentWeapon->GetStats().ReloadTime : 0.f;
+	PlayActionAnimation(Typed, Duration);
 }
 
 AShieldbreakWeapon* AShieldbreakCharacter::GetHolsteredWeapon() const
@@ -770,6 +795,7 @@ void AShieldbreakCharacter::Melee()
 	}
 	LastLocalMeleeTime = Now;
 	SetSprinting(false);
+	PlayActionAnimation(EShieldbreakAction::Melee);
 	if (IsPlayerControlled())
 	{
 		FShieldbreakSFX::Play2D(this, EShieldbreakSound::Melee, 0.8f);
@@ -806,6 +832,7 @@ void AShieldbreakCharacter::DoMelee()
 		return;
 	}
 	LastServerMeleeTime = Now;
+	MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Melee));
 
 	const FVector Origin = GetActorLocation();
 	const FVector AimForward = FRotator(0.f, GetAimRotation().Yaw, 0.f).Vector();
@@ -901,6 +928,7 @@ void AShieldbreakCharacter::ThrowGrenade()
 		return;
 	}
 	SetSprinting(false);
+	PlayActionAnimation(EShieldbreakAction::GrenadeThrow);
 
 	if (HasAuthority())
 	{
@@ -939,6 +967,7 @@ void AShieldbreakCharacter::DoThrowGrenade()
 	{
 		Grenade->Launch(ThrowDir, GetVelocity());
 		--GrenadeCount;
+		MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 	}
 }
 

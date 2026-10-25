@@ -118,6 +118,7 @@ AWeapon_Sidearm::AWeapon_Sidearm()
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.26f, 0.05f, 0.1f);
 	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBSidearmMesh));
+	Stats.bPistolAnimations = true;
 	Stats.ArtMeshFallback = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
 	Stats.ArtViewLength = 26.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::PistolFire));

@@ -2,6 +2,7 @@
 
 #include "Shieldbreak.h"
 #include "Animation/AnimSequenceBase.h"
+#include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -47,7 +48,7 @@ void UShieldbreakBodyAnimator::BeginPlay()
 	Body->SetOwnerNoSee(true);
 	Body->bCastHiddenShadow = true;
 	bHasBodyArt = true;
-	AttachArmor(Body);
+	AttachArmor(Body, false);
 
 	// On clients the equipped weapon can replicate before the mesh exists; re-attach it to the hand now.
 	if (const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner()))
@@ -75,6 +76,7 @@ void UShieldbreakBodyAnimator::TickComponent(float DeltaTime, ELevelTick TickTyp
 	{
 		return;
 	}
+	UpdateFirstPersonArms();
 
 	float PlayRate = 1.f;
 	const EShieldbreakBodyPose Pose = ChoosePose(PlayRate);
@@ -221,6 +223,14 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 	}
 	bRagdoll = true;
 
+	if (FirstPersonArms)
+	{
+		FirstPersonArms->SetHiddenInGame(true);
+		for (UStaticMeshComponent* Piece : FirstPersonArmor)
+		{
+			Piece->SetHiddenInGame(true);
+		}
+	}
 	Body->SetOwnerNoSee(false);
 	for (UStaticMeshComponent* Piece : ArmorPieces)
 	{
@@ -265,11 +275,12 @@ namespace ShieldbreakBodyAnimatorPrivate
 	}
 }
 
-void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
+void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bFirstPerson)
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
+	TArray<TObjectPtr<UStaticMeshComponent>>& Pieces = bFirstPerson ? FirstPersonArmor : ArmorPieces;
 	const USkeletalMesh* Asset = Body ? Body->GetSkeletalMeshAsset() : nullptr;
-	if (!Asset || ArmorPieces.Num() > 0 || CVarArmor.GetValueOnGameThread() == 0
+	if (!Asset || Pieces.Num() > 0 || CVarArmor.GetValueOnGameThread() == 0
 		|| (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
 	{
 		return;
@@ -278,6 +289,10 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
 	const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
 	for (const TCHAR* Bone : ArmorBones)
 	{
+		if (bFirstPerson && !FCString::Strstr(Bone, TEXT("arm_")))
+		{
+			continue; // the arms only wear the upper/lower arm pieces
+		}
 		const int32 BoneIndex = RefSkeleton.FindBoneIndex(Bone);
 		const FString Name = FString(TEXT("SM_SB_Armor_")) + Bone;
 		const FString Path = FString(TEXT("/Game/Shieldbreak/Art/Armor/")) + Name + TEXT(".") + Name;
@@ -287,19 +302,27 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
 			continue;
 		}
 
-		UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(GetOwner(), *(FString(TEXT("Armor_")) + Bone));
+		UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(GetOwner(), *(FString(bFirstPerson ? TEXT("FPArmor_") : TEXT("Armor_")) + Bone));
 		Piece->SetStaticMesh(Mesh);
 		Piece->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Piece->SetGenerateOverlapEvents(false);
 		Piece->SetCanEverAffectNavigation(false);
-		Piece->SetOwnerNoSee(true);
-		Piece->bCastHiddenShadow = true;
-		Piece->SetCastShadow(CVarArmorShadows.GetValueOnGameThread() != 0);
+		if (bFirstPerson)
+		{
+			Piece->SetOnlyOwnerSee(true);
+			Piece->SetCastShadow(false);
+		}
+		else
+		{
+			Piece->SetOwnerNoSee(true);
+			Piece->bCastHiddenShadow = true;
+			Piece->SetCastShadow(CVarArmorShadows.GetValueOnGameThread() != 0);
+		}
 		Piece->SetupAttachment(Body, Bone);
 		// The piece is modeled where it sits on the reference pose, so undo the bone's reference transform.
 		Piece->SetRelativeTransform(RefPoseComponentSpace(RefSkeleton, BoneIndex).Inverse());
 		Piece->RegisterComponent();
-		ArmorPieces.Add(Piece);
+		Pieces.Add(Piece);
 
 		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
 		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
@@ -315,9 +338,9 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body)
 			}
 		}
 	}
-	if (ArmorPieces.Num() > 0)
+	if (Pieces.Num() > 0)
 	{
-		UE_LOG(LogShieldbreak, Log, TEXT("%s: %d armor pieces"), *GetOwner()->GetName(), ArmorPieces.Num());
+		UE_LOG(LogShieldbreak, Log, TEXT("%s: %d %sarmor pieces"), *GetOwner()->GetName(), Pieces.Num(), bFirstPerson ? TEXT("first-person ") : TEXT(""));
 	}
 }
 
@@ -341,4 +364,237 @@ void UShieldbreakBodyAnimator::SetArmorHidden(bool bHidden)
 	{
 		Piece->SetHiddenInGame(bHidden);
 	}
+}
+
+// ---- Actions and first-person arms ----
+
+namespace ShieldbreakBodyAnimatorPrivate
+{
+	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
+	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
+	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
+	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 24.f, TEXT("First-person gun hand: cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 11.f, TEXT("First-person gun hand: cm right of the eye."));
+	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 18.f, TEXT("First-person gun hand: cm below the eye."));
+	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
+
+	const TCHAR* const ActionsFolder = TEXT("/Game/Characters/Heroes/Mannequin/Animations/Actions/");
+	const TCHAR* const PistolIdle = TEXT("/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Pistol/MM_Pistol_Idle_Hipfire.MM_Pistol_Idle_Hipfire");
+	/** Bones hidden on the arms: the head (we look out of it) and the legs. */
+	const TCHAR* const FirstPersonHiddenBones[] = { TEXT("neck_01"), TEXT("thigh_l"), TEXT("thigh_r") };
+
+	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
+	struct FActionTiming { float StartTime; float PlayRate; };
+	FActionTiming GetActionTiming(EShieldbreakAction Action)
+	{
+		switch (Action)
+		{
+		case EShieldbreakAction::GrenadeThrow: return { 0.1f, 1.4f };
+		case EShieldbreakAction::Melee: return { 0.f, 1.5f };
+		case EShieldbreakAction::Equip: return { 0.f, 1.4f };
+		default: return { 0.f, 1.f };
+		}
+	}
+}
+
+bool UShieldbreakBodyAnimator::UsesPistolAnimations() const
+{
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	return Weapon && Weapon->GetStats().bPistolAnimations;
+}
+
+UAnimSequenceBase* UShieldbreakBodyAnimator::GetActionAnimation(EShieldbreakAction Action) const
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const TCHAR* Name = nullptr;
+	switch (Action)
+	{
+	case EShieldbreakAction::GrenadeThrow: Name = TEXT("GrenadeToss"); break;
+	case EShieldbreakAction::Melee: Name = TEXT("Melee"); break;
+	case EShieldbreakAction::Reload: Name = TEXT("Reload"); break;
+	case EShieldbreakAction::Equip: Name = TEXT("Equip"); break;
+	}
+	// Pistol version first when holding the sidearm, else (or if it doesn't exist) the rifle one.
+	for (const TCHAR* Set : { UsesPistolAnimations() ? TEXT("Pistol") : TEXT("Rifle"), TEXT("Rifle") })
+	{
+		const FString Asset = FString::Printf(TEXT("MM_%s_%s"), Set, Name);
+		const FString Path = FString(ActionsFolder) + Asset + TEXT(".") + Asset;
+		if (UAnimSequenceBase* Animation = ShieldbreakArt::Load<UAnimSequenceBase>(*Path))
+		{
+			return Animation;
+		}
+	}
+	return nullptr;
+}
+
+UAnimSequenceBase* UShieldbreakBodyAnimator::GetFirstPersonIdle() const
+{
+	if (UsesPistolAnimations())
+	{
+		if (UAnimSequenceBase* Pistol = ShieldbreakArt::Load<UAnimSequenceBase>(ShieldbreakBodyAnimatorPrivate::PistolIdle))
+		{
+			return Pistol;
+		}
+	}
+	return GetPoseAnimation(EShieldbreakBodyPose::Idle);
+}
+
+void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Duration)
+{
+	if (!bHasBodyArt || bRagdoll)
+	{
+		return;
+	}
+	UAnimSequenceBase* Animation = GetActionAnimation(Action);
+	if (!Animation)
+	{
+		return;
+	}
+	ShieldbreakBodyAnimatorPrivate::FActionTiming Timing = ShieldbreakBodyAnimatorPrivate::GetActionTiming(Action);
+	Timing.StartTime = FMath::Min(Timing.StartTime, Animation->GetPlayLength() * 0.5f);
+	if (Duration > 0.f)
+	{
+		Timing.PlayRate = (Animation->GetPlayLength() - Timing.StartTime) / Duration;
+	}
+	for (USkeletalMeshComponent* Mesh : { GetBodyMesh(), FirstPersonArms.Get() })
+	{
+		if (UShieldbreakBodyAnimInstance* Instance = Mesh ? Cast<UShieldbreakBodyAnimInstance>(Mesh->GetAnimInstance()) : nullptr)
+		{
+			Instance->PlayAction(Animation, Timing.StartTime, Timing.PlayRate);
+		}
+	}
+}
+
+UAnimSequenceBase* UShieldbreakBodyAnimator::GetPlayingAction() const
+{
+	const USkeletalMeshComponent* Body = GetBodyMesh();
+	const UShieldbreakBodyAnimInstance* Instance = Body ? Cast<UShieldbreakBodyAnimInstance>(Body->GetAnimInstance()) : nullptr;
+	return Instance ? Instance->GetActionAnimation() : nullptr;
+}
+
+USkeletalMeshComponent* UShieldbreakBodyAnimator::GetFirstPersonArms() const
+{
+	return FirstPersonArms;
+}
+
+bool UShieldbreakBodyAnimator::HasFirstPersonArms() const
+{
+	return FirstPersonArms && FirstPersonArms->IsVisible() && !bRagdoll;
+}
+
+void UShieldbreakBodyAnimator::SetFirstPersonArmsVisible(bool bVisible)
+{
+	// Not propagated: the gun in the hand is a child too, and must keep its own visibility.
+	FirstPersonArms->SetVisibility(bVisible);
+	for (UStaticMeshComponent* Piece : FirstPersonArmor)
+	{
+		Piece->SetVisibility(bVisible);
+	}
+}
+
+void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	USkeletalMeshComponent* Body = GetBodyMesh();
+	const UWorld* World = GetWorld();
+	if (!OwnerCharacter || !Body || !World)
+	{
+		return;
+	}
+
+	const bool bWanted = OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled()
+		&& OwnerCharacter->GetFirstPersonCamera() && CVarFirstPersonArms.GetValueOnGameThread() != 0;
+	if (!bWanted)
+	{
+		if (FirstPersonArms && FirstPersonArms->IsVisible())
+		{
+			SetFirstPersonArmsVisible(false);
+		}
+		return;
+	}
+
+	if (!FirstPersonArms)
+	{
+		FirstPersonArms = NewObject<USkeletalMeshComponent>(OwnerCharacter, TEXT("FirstPersonArms"));
+		FirstPersonArms->SetSkeletalMeshAsset(Body->GetSkeletalMeshAsset());
+		FirstPersonArms->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		FirstPersonArms->SetAnimInstanceClass(UShieldbreakBodyAnimInstance::StaticClass());
+		FirstPersonArms->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		FirstPersonArms->SetGenerateOverlapEvents(false);
+		FirstPersonArms->SetCanEverAffectNavigation(false);
+		FirstPersonArms->SetOnlyOwnerSee(true);
+		FirstPersonArms->SetCastShadow(false);
+		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
+		FirstPersonArms->RegisterComponent();
+		for (const TCHAR* Bone : FirstPersonHiddenBones)
+		{
+			FirstPersonArms->HideBoneByName(Bone, EPhysBodyOp::PBO_None);
+		}
+		AttachArmor(FirstPersonArms, true);
+		// Hidden (the gun stays a camera viewmodel) until the arms have been placed.
+		SetFirstPersonArmsVisible(false);
+		CalibratedIdle = nullptr;
+		UE_LOG(LogShieldbreak, Log, TEXT("%s: first-person arms on the camera."), *OwnerCharacter->GetName());
+	}
+	if (CalibratedIdle && !FirstPersonArms->IsVisible())
+	{
+		SetFirstPersonArmsVisible(true);
+	}
+
+	// Share the body's (team-tinted) materials, which ApplyPlayerColor may swap for dynamic instances at any time.
+	for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+	{
+		UMaterialInterface* Material = Body->GetMaterial(Slot);
+		if (FirstPersonArms->GetMaterial(Slot) != Material)
+		{
+			FirstPersonArms->SetMaterial(Slot, Material);
+		}
+	}
+
+	UShieldbreakBodyAnimInstance* Instance = Cast<UShieldbreakBodyAnimInstance>(FirstPersonArms->GetAnimInstance());
+	UAnimSequenceBase* Idle = GetFirstPersonIdle();
+	if (!Instance || !Idle)
+	{
+		return;
+	}
+	if (Instance->GetPoseAnimation() != Idle)
+	{
+		Instance->PlayPose(Idle, true);
+		FirstPersonIdleSince = World->GetTimeSeconds();
+	}
+
+	// Place the arms once the idle has settled (its cross-fade done) and no action is moving the hands.
+	const FVector3f Grip(CVarGripForward.GetValueOnGameThread(), CVarGripRight.GetValueOnGameThread(), CVarGripDown.GetValueOnGameThread());
+	const FVector2f Aim(CVarAimPitch.GetValueOnGameThread(), CVarAimYaw.GetValueOnGameThread());
+	const bool bSettled = World->GetTimeSeconds() - FirstPersonIdleSince > 0.3f && !Instance->GetActionAnimation();
+	if (bSettled && (CalibratedIdle != Idle || CalibratedGrip != Grip || CalibratedAim != Aim))
+	{
+		CalibratedIdle = Idle;
+		CalibratedGrip = Grip;
+		CalibratedAim = Aim;
+		CalibrateFirstPersonArms();
+	}
+}
+
+void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const FName Socket = FirstPersonArms->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
+	const FTransform SocketComponent = FirstPersonArms->GetSocketTransform(Socket, RTS_Component);
+	// Guns attach to this socket unrotated, and our (and Lyra's) gun meshes point their barrel along +Y.
+	const FVector Barrel = SocketComponent.TransformVectorNoScale(FVector(0.0, 1.0, 0.0)).GetSafeNormal();
+
+	// The mannequin faces +Y; turn it to face the camera's +X, then correct so the barrel points where we want.
+	const FQuat Facing = FRotator(0.f, -90.f, 0.f).Quaternion();
+	const FVector Desired = FRotator(CalibratedAim.X, CalibratedAim.Y, 0.f).Vector();
+	const FQuat Rotation = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
+	const FVector GripCamera(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
+	const FVector Location = GripCamera - Rotation.RotateVector(SocketComponent.GetLocation());
+	FirstPersonArms->SetRelativeTransform(FTransform(Rotation, Location));
+	UE_LOG(LogShieldbreak, Log, TEXT("First-person arms placed for %s: offset %s, rotation %s."),
+		*GetNameSafe(CalibratedIdle), *Location.ToCompactString(), *Rotation.Rotator().ToCompactString());
 }

@@ -23,6 +23,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Visuals/ShieldbreakBodyAnimator.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -170,6 +171,12 @@ AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 	{
 		return EEquippedLayout::Hand;
 	}
+	// The local player's first-person arms hold the gun the same way the body does.
+	const UShieldbreakBodyAnimator* Animator = OwnerCharacter->GetBodyAnimator();
+	if (bHasArt && bViewModel && Animator && Animator->HasFirstPersonArms())
+	{
+		return EEquippedLayout::FirstPersonHand;
+	}
 	return bHasArt ? EEquippedLayout::CameraArt : EEquippedLayout::CameraPlain;
 }
 
@@ -187,13 +194,15 @@ void AShieldbreakWeapon::OnEquipped()
 		return;
 	}
 
-	USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
-	if (EquippedLayout == EEquippedLayout::Hand)
+	if (EquippedLayout == EEquippedLayout::Hand || EquippedLayout == EEquippedLayout::FirstPersonHand)
 	{
+		const bool bFirstPerson = EquippedLayout == EEquippedLayout::FirstPersonHand;
+		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
 		SetActorRelativeTransform(FTransform::Identity);
-		WeaponMesh->SetCastShadow(true);
+		// The body's shadow already carries a gun; the first-person one would add a second.
+		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}
 	else
 	{
@@ -825,6 +834,10 @@ void AShieldbreakWeapon::StartReload()
 	{
 		ReloadStartLocalTime = World->GetTimeSeconds();
 	}
+	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
+	{
+		OwnerCharacter->PlayActionAnimation(EShieldbreakAction::Reload, Stats.ReloadTime);
+	}
 
 	if (HasAuthority())
 	{
@@ -853,6 +866,10 @@ void AShieldbreakWeapon::BeginReload()
 	if (const UWorld* World = GetWorld())
 	{
 		ReloadStartLocalTime = World->GetTimeSeconds();
+	}
+	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
+	{
+		OwnerCharacter->MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Reload));
 	}
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AShieldbreakWeapon::FinishReload, Stats.ReloadTime, false);
 }

@@ -18,6 +18,7 @@ class UShieldbreakBodyAnimator;
 class UShieldbreakMovementComponent;
 class UStaticMeshComponent;
 struct FInputActionValue;
+enum class EShieldbreakAction : uint8;
 
 /** Map-pickup equipment, used with the Use Equipment input. */
 UENUM(BlueprintType)
@@ -99,6 +100,13 @@ public:
 	void ToggleZoom();
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
+
+	// ---- Action animations (cosmetic) ----
+
+	/** This machine: plays a grenade throw, melee, reload or equip on the body and first-person arms. */
+	void PlayActionAnimation(EShieldbreakAction Action, float Duration = 0.f);
+	/** Server: shows an action to the machines that didn't start it (everyone but the controlling one). */
+	UFUNCTION(NetMulticast, Unreliable) void MulticastPlayAction(uint8 Action);
 
 	// ---- Server only ----
 

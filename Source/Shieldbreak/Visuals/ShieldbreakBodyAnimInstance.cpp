@@ -4,12 +4,15 @@
 #include "Animation/AnimationPoseData.h"
 #include "AnimationRuntime.h"
 #include "BonePose.h"
+#include "Engine/World.h"
 
 namespace ShieldbreakBodyAnimPrivate
 {
 	/** The spine bones that share the aim pitch, root to tip; the head, arms and the gun in the hand follow. */
 	const TCHAR* const AimBones[] = { TEXT("spine_02"), TEXT("spine_03"), TEXT("spine_04"), TEXT("spine_05") };
 	constexpr float MaxAimPitch = 70.f;
+	/** Actions replace this bone and everything below it (arms, head, the gun hand); legs and pelvis keep moving. */
+	const TCHAR* const ActionRootBone = TEXT("spine_01");
 }
 
 // ---- Anim instance (game thread) ----
@@ -24,6 +27,26 @@ void UShieldbreakBodyAnimInstance::PlayPose(UAnimSequenceBase* Animation, bool b
 	RequestedAnimation = Animation;
 	bRequestedLoop = bLoop;
 	++RequestCount;
+}
+
+void UShieldbreakBodyAnimInstance::PlayAction(UAnimSequenceBase* Animation, float StartTime, float InPlayRate)
+{
+	if (!Animation)
+	{
+		return;
+	}
+	ActionAnimation = Animation;
+	ActionStartTime = FMath::Max(0.f, StartTime);
+	ActionPlayRate = FMath::Max(0.05f, InPlayRate);
+	const UWorld* World = GetWorld();
+	ActionEndWorldTime = (World ? World->GetTimeSeconds() : 0.0) + (Animation->GetPlayLength() - ActionStartTime) / ActionPlayRate;
+	++ActionRequestCount;
+}
+
+UAnimSequenceBase* UShieldbreakBodyAnimInstance::GetActionAnimation() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() < ActionEndWorldTime ? ActionAnimation.Get() : nullptr;
 }
 
 // ---- Proxy (worker thread after PreUpdate) ----
@@ -45,6 +68,15 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 		BlendAlpha = bFirst ? 1.f : 0.f;
 	}
 	Current.PlayRate = Instance->PlayRate;
+	if (Instance->ActionRequestCount != SeenActionRequest)
+	{
+		SeenActionRequest = Instance->ActionRequestCount;
+		Action.Animation = Instance->ActionAnimation;
+		Action.Time = Instance->ActionStartTime;
+		Action.PlayRate = Instance->ActionPlayRate;
+		Action.bLoop = false;
+		// ActionWeight carries over, so a new action while one plays (melee right after a throw) cuts straight over.
+	}
 	AimPitch = FMath::Clamp(Instance->AimPitch, -ShieldbreakBodyAnimPrivate::MaxAimPitch, ShieldbreakBodyAnimPrivate::MaxAimPitch);
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 }
@@ -85,6 +117,25 @@ void FShieldbreakBodyAnimProxy::Update(float DeltaSeconds)
 		Advance(Previous, DeltaSeconds);
 		BlendAlpha = BlendTime > 0.f ? FMath::Min(1.f, BlendAlpha + DeltaSeconds / BlendTime) : 1.f;
 	}
+
+	if (Action.Animation)
+	{
+		Advance(Action, DeltaSeconds);
+		const float Remaining = (Action.Animation->GetPlayLength() - Action.Time) / FMath::Max(0.05f, Action.PlayRate);
+		if (Remaining <= 0.f)
+		{
+			Action.Animation = nullptr;
+			ActionWeight = 0.f;
+		}
+		else if (Remaining < ActionBlendOut)
+		{
+			ActionWeight = FMath::Min(ActionWeight, Remaining / ActionBlendOut);
+		}
+		else
+		{
+			ActionWeight = FMath::Min(1.f, ActionWeight + DeltaSeconds / ActionBlendIn);
+		}
+	}
 }
 
 void FShieldbreakBodyAnimProxy::Sample(const FTrack& Track, FPoseContext& Output)
@@ -118,8 +169,41 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 		Output.Pose.NormalizeRotations();
 	}
 
+	ApplyAction(Output);
 	ApplyAimPitch(Output);
 	return true;
+}
+
+void FShieldbreakBodyAnimProxy::ApplyAction(FPoseContext& Output) const
+{
+	if (!Action.Animation || ActionWeight <= 0.f)
+	{
+		return;
+	}
+
+	FPoseContext ActionPose(Output);
+	Sample(Action, ActionPose);
+
+	FCompactPose& Pose = Output.Pose;
+	const FBoneContainer& Bones = Pose.GetBoneContainer();
+	const int32 RootMeshIndex = Bones.GetPoseBoneIndexForBoneName(FName(ShieldbreakBodyAnimPrivate::ActionRootBone));
+	const FCompactPoseBoneIndex Root = RootMeshIndex != INDEX_NONE ? Bones.MakeCompactPoseIndex(FMeshPoseBoneIndex(RootMeshIndex)) : FCompactPoseBoneIndex(INDEX_NONE);
+	const float Weight = FMath::SmoothStep(0.f, 1.f, ActionWeight);
+
+	// Compact pose bones are ordered parents first, so one pass marks the root's whole branch.
+	TArray<bool, TInlineAllocator<128>> InBranch;
+	InBranch.SetNumZeroed(Pose.GetNumBones());
+	for (FCompactPoseBoneIndex Bone : Pose.ForEachBoneIndex())
+	{
+		const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Bone);
+		const bool bLayered = !Root.IsValid() || Bone == Root || (Parent.IsValid() && InBranch[Parent.GetInt()]);
+		InBranch[Bone.GetInt()] = bLayered;
+		if (bLayered)
+		{
+			Pose[Bone].BlendWith(ActionPose.Pose[Bone], Weight);
+		}
+	}
+	Pose.NormalizeRotations();
 }
 
 void FShieldbreakBodyAnimProxy::ApplyAimPitch(FPoseContext& Output) const

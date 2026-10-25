@@ -1,7 +1,8 @@
 // Native anim instance for the mannequin, so the body can blend without an Animation Blueprint asset.
 // UShieldbreakBodyAnimator still picks the locomotion sequence; this instance cross-fades from the previous one
 // (no more pops on direction changes) and bends the spine to the aim pitch, so bots and remote players look and
-// point their gun where they shoot.
+// point their gun where they shoot. On top of that it layers one-shot actions (grenade throw, melee, reload, equip)
+// over the upper body, from spine_01 up, fading in and out; the first-person arms use the same instance.
 
 #pragma once
 
@@ -36,10 +37,17 @@ private:
 
 	static void Advance(FTrack& Track, float DeltaSeconds);
 	static void Sample(const FTrack& Track, FPoseContext& Output);
+	void ApplyAction(FPoseContext& Output) const;
 	void ApplyAimPitch(FPoseContext& Output) const;
 
 	FTrack Current;
 	FTrack Previous;
+	/** The one-shot action layered over the upper body (Animation null when none). */
+	FTrack Action;
+	float ActionWeight = 0.f;
+	float ActionBlendIn = 0.1f;
+	float ActionBlendOut = 0.2f;
+	int32 SeenActionRequest = 0;
 	/** Weight of Current; Previous fades out as it reaches 1. */
 	float BlendAlpha = 1.f;
 	float BlendTime = 0.18f;
@@ -63,6 +71,12 @@ public:
 	UAnimSequenceBase* GetPoseAnimation() const { return RequestedAnimation; }
 	float GetAimPitch() const { return AimPitch; }
 
+	/** Plays Animation once over the upper body, from StartTime (s) at PlayRate, then fades back to the pose. */
+	void PlayAction(UAnimSequenceBase* Animation, float StartTime = 0.f, float InPlayRate = 1.f);
+	/** The action playing now (game-thread view: cleared once its time is up), or null. */
+	UAnimSequenceBase* GetActionAnimation() const;
+	int32 GetActionCount() const { return ActionRequestCount; }
+
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override { return new FShieldbreakBodyAnimProxy(this); }
 
@@ -75,6 +89,13 @@ private:
 	/** The one still fading out. */
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimSequenceBase> FadingAnimation;
+	UPROPERTY(Transient)
+	TObjectPtr<UAnimSequenceBase> ActionAnimation;
+	float ActionStartTime = 0.f;
+	float ActionPlayRate = 1.f;
+	/** World time the action ends (for GetActionAnimation). */
+	double ActionEndWorldTime = 0.0;
+	int32 ActionRequestCount = 0;
 	bool bRequestedLoop = true;
 	int32 RequestCount = 0;
 	float PlayRate = 1.f;

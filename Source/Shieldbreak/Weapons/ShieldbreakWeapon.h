@@ -75,6 +75,8 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMeshFallback;
 	/** First-person length (cm) the art mesh is scaled to along its barrel. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") float ArtViewLength = 55.f;
+	/** One-handed: the mannequin uses Lyra's pistol idle and actions instead of the rifle ones. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") bool bPistolAnimations = false;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath FireSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath MuzzleFlash;
 };
@@ -185,7 +187,7 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
 
-	enum class EEquippedLayout : uint8 { None, Hand, CameraArt, CameraPlain };
+	enum class EEquippedLayout : uint8 { None, Hand, FirstPersonHand, CameraArt, CameraPlain };
 	EEquippedLayout GetDesiredLayout() const;
 	/** What OnEquipped last attached as. */
 	EEquippedLayout EquippedLayout = EEquippedLayout::None;

@@ -72,6 +72,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 **First-person arms and action animations** (Vincent asked for on-screen grenade throws etc.). The local
+  player now has a second mannequin on the camera (`FirstPersonArms`: head/legs hidden, arm armor, only-owner-see)
+  playing the rifle (or, with the Sidearm, pistol) idle, and the gun sits in its `weapon_r` hand like on the body
+  (new weapon layout `FirstPersonHand`). The arms place themselves so the gun hand is at `sb.FPGripForward/Right/Down`
+  (24/11/18 cm) with the barrel at `sb.FPAimPitch/Yaw` (1.5/-3 deg); those cvars are live, so tune them in a match
+  and tell me the values that look right (log line "First-person arms placed for ..."). `sb.FPArms 0` gives back the
+  old floating viewmodel. Lyra's `Actions/MM_{Rifle,Pistol}_{GrenadeToss,Melee,Reload,Equip}` (names guessed: please
+  check against the "Lyra action animations" list and tell me any that are wrong) play over the upper body (spine_01
+  up) on throw, melee, reload (stretched to the reload time) and weapon swap, in first person and on everyone's
+  third-person view (new multicast). New self-test checks: "The melee plays a swing animation", "The local player has
+  first-person arms", "...and the gun is in their hand". Please send first-person screenshots: idle with the BR, with
+  the Sidearm, and mid-throw, mid-melee, mid-reload (JPG).
 - 2026-10-25 **Map visual pass** (Halo-inspired, original art, no ring in the sky per Vincent). Pull, then run
   `Tools/ImportArt.bat` FIRST (it now imports `Art/Export/Textures/T_SB_*.png` and builds `M_SB_World` plus
   `MI_SB_World_{Panel,Tile,Stone,Grass}`; check `Saved/Logs/ImportArt.txt` for "built .../M_SB_World" and no

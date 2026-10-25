@@ -30,6 +30,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Engine/StaticMesh.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Materials/Material.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
 #include "Weapons/ShieldbreakGrenade.h"
@@ -251,6 +252,30 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("Soldier bodies blend their animation (native anim instance)"), Animator && Animator->IsBlendedAnimation(),
 				Animator ? FString::Printf(TEXT("aim pitch %.1f"), Animator->GetAimPitch()) : TEXT("no animator"));
 			ClearDummies();
+			return true;
+		}, 5.f });
+
+	// ---- First person: the local player sees arms holding the gun (Lyra's mannequin on the camera). ----
+	Steps.Add({ TEXT("First-person arms hold the gun"),
+		nullptr,
+		[this](float Elapsed)
+		{
+			const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			const AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+			const UShieldbreakBodyAnimator* Animator = Player ? Player->GetBodyAnimator() : nullptr;
+			if (Elapsed < 1.f && !(Animator && Animator->HasFirstPersonArms()))
+			{
+				return false;
+			}
+			if (!Player)
+			{
+				Check(TEXT("First-person arms hold the gun"), true, TEXT("skipped: no local player pawn"));
+				return true;
+			}
+			const AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+			const USceneComponent* Holder = Weapon ? Weapon->GetRootComponent()->GetAttachParent() : nullptr;
+			Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
+			Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
 			return true;
 		}, 5.f });
 
@@ -750,6 +775,9 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				Check(TEXT("A frontal melee hits hard but does not kill"), B->IsAlive() && ShieldOf(B) + HealthOf(B) < MaxShield + MaxHealth - 50.f,
 					FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(B)), *Num(HealthOf(B))));
+				const UShieldbreakBodyAnimator* Animator = A->GetBodyAnimator();
+				const UAnimSequenceBase* Swing = Animator ? Animator->GetPlayingAction() : nullptr;
+				Check(TEXT("The melee plays a swing animation"), Swing && Swing->GetName().Contains(TEXT("Melee")), GetNameSafe(Swing));
 				B->SetActorRotation(FRotator(0.f, 0.f, 0.f)); // turn away from A
 				Phase = 2;
 			}
