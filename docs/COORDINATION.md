@@ -75,8 +75,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Blended body animation and aim pitch** (`Visuals/ShieldbreakBodyAnimInstance`). The mannequin now plays through a
   native anim instance instead of single-node mode: pose changes cross-fade over 0.18 s (no pops when a bot changes
   direction or lands), and spine_02..05 bend to the aim pitch so bots and remote players look and point the gun up or
-  down at what they shoot. Self-test gains "Soldier bodies blend their animation". On a Keel tour, check screenshots for
-  bots aiming at targets above/below them and for broken poses (twisted spine, gun pointing wrong).
+  down at what they shoot. **Verified 2026-10-25 (d75fca0):** clean build, self-test 94/94, Keel 12/12, poses natural in
+  screenshots, ragdolls keep team color. Not yet seen: a bot visibly aiming up/down, so the self-test now has "Aim
+  pitch raises the gun hand" (a dummy with RemoteViewPitch 45 must lift hand_r by > 8 cm) — needs a run.
 - **Main menu and Esc menu** (commit "Main menu and in-game Esc menu"). A bare `-game` launch (or `PlayTest.bat` without
   `-SBAutoShot`) should open the menu: pick map/mode/bots/skill, PLAY starts the match, HOST LAN GAME starts it with
   `?listen`, JOIN connects to the typed IP. In a match, Esc opens Resume / Leave match / Quit; Leave match returns to the

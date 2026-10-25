@@ -27,6 +27,7 @@
 #include "Player/ShieldbreakPlayerState.h"
 #include "Shield/ShieldHealthComponent.h"
 #include "Shield/ShieldTuningData.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Engine/StaticMesh.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
@@ -251,6 +252,46 @@ void AShieldbreakSelfTest::BuildSteps()
 			ClearDummies();
 			return true;
 		}, 5.f });
+
+	// ---- Aim pitch: a soldier aiming up bends its upper body, so the gun hand rises (remote players and bots). ----
+	{
+		TSharedRef<float> LevelHandZ = MakeShared<float>(0.f);
+		Steps.Add({ TEXT("Soldier bodies bend to the aim pitch"),
+			[this]()
+			{
+				// Uncontrolled, so GetBaseAimRotation uses the replicated RemoteViewPitch, as for a remote player.
+				A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f), 0.f, false);
+			},
+			[this, LevelHandZ](float Elapsed)
+			{
+				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
+				const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+				if (!Body || !Animator || !Animator->HasBodyArt())
+				{
+					Check(TEXT("Aim pitch raises the gun hand"), false, TEXT("no body art"));
+					ClearDummies();
+					return true;
+				}
+				const float HandZ = static_cast<float>(Body->GetSocketTransform(TEXT("hand_r"), RTS_Actor).GetLocation().Z);
+				if (Elapsed < 0.6f)
+				{
+					*LevelHandZ = HandZ;
+					return false;
+				}
+				if (A->RemoteViewPitch == 0)
+				{
+					A->SetRemoteViewPitch(45.f);
+				}
+				if (Elapsed < 1.2f)
+				{
+					return false;
+				}
+				Check(TEXT("Aim pitch raises the gun hand"), Animator->GetAimPitch() > 30.f && HandZ - *LevelHandZ > 8.f,
+					FString::Printf(TEXT("aim pitch %.1f, hand %.1f -> %.1f"), Animator->GetAimPitch(), *LevelHandZ, HandZ));
+				ClearDummies();
+				return true;
+			}, 5.f });
+	}
 
 	// Objective modes run only their own checks plus the bot match; Slayer runs the full mechanics suite.
 	const AShieldbreakGameMode* SBGameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
