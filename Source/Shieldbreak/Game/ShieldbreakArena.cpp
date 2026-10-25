@@ -26,6 +26,7 @@
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Game/ShieldbreakGravLift.h"
+#include "Visuals/ShieldbreakArt.h"
 
 namespace ShieldbreakArenaPrivate
 {
@@ -217,12 +218,13 @@ void AShieldbreakArena::LoadSurfaceMaterials()
 	GlowMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Shieldbreak/Art/Materials/M_SB_Surface.M_SB_Surface"), nullptr, LOAD_NoWarn | LOAD_Quiet);
 }
 
-void AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color) const
+UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color, float TileScale) const
 {
 	if (Style == FName(TEXT("glow")) && GlowMaterial)
 	{
 		Mesh->SetMaterial(0, GlowMaterial);
-		if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
+		UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+		if (MID)
 		{
 			MID->SetVectorParameterValue(TEXT("BaseColor"), Color * 0.2f);
 			MID->SetVectorParameterValue(TEXT("EmissiveColor"), Color);
@@ -230,28 +232,36 @@ void AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, FName Style, const FL
 			MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
 			MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
 		}
-		return;
+		return MID;
 	}
 
 	const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(ShieldbreakArenaPrivate::SurfaceKind(Style));
 	if (World && *World)
 	{
 		Mesh->SetMaterial(0, *World);
-		if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
+		UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+		if (MID)
 		{
 			MID->SetVectorParameterValue(TEXT("Tint"), Color);
+			float TileSize = 0.f;
+			if (TileScale != 1.f && MID->GetScalarParameterValue(FHashedMaterialParameterInfo(FName(TEXT("TileSize"))), TileSize))
+			{
+				MID->SetScalarParameterValue(TEXT("TileSize"), TileSize * TileScale);
+			}
 		}
-		return;
+		return MID;
 	}
 
 	if (BaseMaterial)
 	{
 		Mesh->SetMaterial(0, BaseMaterial);
 	}
-	if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
+	UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+	if (MID)
 	{
 		MID->SetVectorParameterValue(TEXT("Color"), Color);
 	}
+	return MID;
 }
 
 template <typename T>
@@ -347,10 +357,14 @@ void AShieldbreakArena::BuildTrim()
 	{
 		Strips[Index] = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Trim"), CubeMesh);
 		Strips[Index]->SetCastShadow(false);
-		ApplySurface(Strips[Index], TEXT("glow"), Colors[Index]);
+		// Brighter than glow blocks: the lines are thin and mostly seen from across the map.
+		if (UMaterialInstanceDynamic* MID = ApplySurface(Strips[Index], TEXT("glow"), Colors[Index]))
+		{
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 14.f);
+		}
 	}
 
-	constexpr float StripHeight = 8.f, StripDepth = 4.f, TopInset = 28.f, FootHeight = 60.f, EndInset = 30.f;
+	constexpr float StripHeight = 14.f, StripDepth = 6.f, TopInset = 30.f, FootHeight = 60.f, EndInset = 30.f;
 	const FVector2D Half = Layout.HalfExtent;
 	int32 Count = 0;
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
@@ -423,9 +437,24 @@ void AShieldbreakArena::BuildBackdrop()
 	Ground->SetRelativeScale3D(FVector(2000.f, 2000.f, 1.f));
 	Ground->RegisterComponent();
 	AddInstanceComponent(Ground);
-	ApplySurface(Ground, TEXT("grass"), GroundColor);
+	ApplySurface(Ground, TEXT("grass"), GroundColor, 6.f);
 
-	// A ring of mountains, hazy in the fog.
+	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
+	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
+	if (UStaticMesh* Ring = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/Environment/SM_SB_Mountains.SM_SB_Mountains")))
+	{
+		UStaticMeshComponent* Mountains = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), Ring);
+		Mountains->SetCastShadow(false);
+		const float Spread = (Reach + 3000.f) / 10000.f;
+		Mountains->SetRelativeLocation(FVector(0.f, 0.f, Layout.FloorZ - 400.f));
+		Mountains->SetRelativeRotation(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f));
+		Mountains->SetRelativeScale3D(FVector(Spread, Spread, Random.FRandRange(0.8f, 1.25f)));
+		Mountains->RegisterComponent();
+		AddInstanceComponent(Mountains);
+		ApplySurface(Mountains, TEXT("rock"), RockColor, 4.f);
+		return;
+	}
+	// Without the imported ring: the old engine cones.
 	if (!ConeMesh)
 	{
 		return;
@@ -601,9 +630,9 @@ void AShieldbreakArena::SpawnLighting()
 		{
 			FogComponent->SetFogDensity(Layout.FogDensity);
 			// Bright blue-white haze, starting past the arena so the playspace stays crisp and the backdrop fades.
-			FogComponent->SetFogInscatteringColor(FLinearColor(0.42f, 0.56f, 0.75f));
+			FogComponent->SetFogInscatteringColor(FLinearColor(0.32f, 0.43f, 0.6f));
 			FogComponent->SetFogHeightFalloff(0.08f);
-			FogComponent->SetStartDistance(2500.f);
+			FogComponent->SetStartDistance(4000.f);
 		}
 	}
 
@@ -624,6 +653,12 @@ void AShieldbreakArena::SpawnLighting()
 			Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.f);
 			Settings.bOverride_VignetteIntensity = true;
 			Settings.VignetteIntensity = 0.35f;
+			// The first shots read washed out (pale walls and floors in full sun): pull exposure down a little.
+			// -SBExposure=<stops> overrides it for comparisons.
+			float ExposureBias = -0.4f;
+			FParse::Value(FCommandLine::Get(), TEXT("SBExposure="), ExposureBias);
+			Settings.bOverride_AutoExposureBias = true;
+			Settings.AutoExposureBias = ExposureBias;
 		}
 	}
 }

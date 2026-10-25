@@ -72,6 +72,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   below were recovered from the PC session's chat after the project moved.
 
 ## Needs verification (code session → PC)
+- 2026-10-25 night **Map look v2 + first-person fixes** (d427b36 and the commit after it). Pull, run
+  `Tools/ImportArt.bat` (new: `Art/Export/Environment/SM_SB_Mountains.fbx`, a faceted mountain ring from
+  `Art/blender/build_environment.py`; `M_SB_World` gains a `DetailStrength` parameter and the instances get bigger tiles),
+  then build, self-test, and `Tools/VisualShots.bat` (maps and FP). Commit the new/changed .uasset files under
+  `Content/Shieldbreak/Art/{Environment,Materials}`. Changes: mountains are the imported ring (cones only as a fallback);
+  ground and mountain textures stretched (no more tiny repeating grass); detail patterns toned down; thicker, brighter
+  trim lines; less haze close in; exposure -0.4 stops (`-SBExposure=<stops>` to compare, e.g. 0 vs -0.4 vs -0.8).
+  First person: default grip 34/13/15; the grenade throw pitches the arms down (`sb.FPThrowDip`, 35) so the arm swing
+  shows; the camera's first-person FOV/scale is on (arms, armor, held gun and its muzzle flash are FirstPerson
+  primitives) so the viewmodel ignores the FOV setting and zoom and doesn't clip walls; no white puff on a melee miss.
+  If `bEnableFirstPersonFieldOfView` / `FirstPersonPrimitiveType` don't compile on 5.8, tell me the error rather than
+  removing them. Please send FP throw frames and map shots, and say which exposure looks best.
 - 2026-10-25 **First-person arms and action animations** (Vincent asked for on-screen grenade throws etc.). The local
   player now has a second mannequin on the camera (`FirstPersonArms`: head/legs hidden, arm armor, only-owner-see)
   playing the rifle (or, with the Sidearm, pistol) idle, and the gun sits in its `weapon_r` hand like on the body

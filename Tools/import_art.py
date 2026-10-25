@@ -22,12 +22,13 @@ EXPORT = os.path.join(PROJECT, "Art", "Export")
 ROOT = "/Game/Shieldbreak/Art"
 MATERIALS = ROOT + "/Materials"
 TEXTURES = ROOT + "/Textures"
-# Surface kinds for the map pieces: (detail texture, tile size in cm, metallic, roughness).
+# Surface kinds for the map pieces: (detail texture, tile size in cm, metallic, roughness, detail strength).
+# Detail strength fades the texture toward flat grey (0 = flat palette colour, 1 = full pattern).
 WORLD_STYLES = {
-    "Panel": ("T_SB_Panel", 400.0, 0.35, 0.4),
-    "Tile": ("T_SB_Tile", 400.0, 0.0, 0.6),
-    "Stone": ("T_SB_Stone", 700.0, 0.0, 0.85),
-    "Grass": ("T_SB_Grass", 300.0, 0.0, 0.95),
+    "Panel": ("T_SB_Panel", 600.0, 0.35, 0.4, 0.7),
+    "Tile": ("T_SB_Tile", 600.0, 0.0, 0.6, 0.55),
+    "Stone": ("T_SB_Stone", 700.0, 0.0, 0.85, 0.85),
+    "Grass": ("T_SB_Grass", 300.0, 0.0, 0.95, 0.6),
 }
 lines = []
 tools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -189,6 +190,15 @@ def world_material(default_texture):
             link(weighted, "", add, "B")
             blended = add
 
+    # Fade the pattern toward mid-grey by DetailStrength, so the palette colour reads first.
+    strength = node(unreal.MaterialExpressionScalarParameter, -350, 250, parameter_name="DetailStrength", default_value=1.0)
+    grey = node(unreal.MaterialExpressionConstant, -350, 350, r=0.5)
+    faded = node(unreal.MaterialExpressionLinearInterpolate, -250, 150)
+    link(grey, "", faded, "A")
+    link(blended, "", faded, "B")
+    link(strength, "", faded, "Alpha")
+    blended = faded
+
     tint = node(unreal.MaterialExpressionVectorParameter, -500, -500, parameter_name="Tint",
                 default_value=unreal.LinearColor(0.25, 0.25, 0.25, 1))
     tint2 = node(unreal.MaterialExpressionMultiply, -350, -450, const_b=2.0)
@@ -208,7 +218,7 @@ def world_material(default_texture):
 
 
 def world_instances(master, textures):
-    for kind, (texture_name, tile_size, metallic, roughness) in WORLD_STYLES.items():
+    for kind, (texture_name, tile_size, metallic, roughness, detail) in WORLD_STYLES.items():
         texture = textures.get(texture_name)
         if not texture:
             log("MISSING texture %s for MI_SB_World_%s" % (texture_name, kind))
@@ -223,8 +233,9 @@ def world_instances(master, textures):
         mel.set_material_instance_scalar_parameter_value(mi, "TileSize", tile_size)
         mel.set_material_instance_scalar_parameter_value(mi, "Metallic", metallic)
         mel.set_material_instance_scalar_parameter_value(mi, "Roughness", roughness)
+        mel.set_material_instance_scalar_parameter_value(mi, "DetailStrength", detail)
         eal.save_asset(path)
-        log("%s: %s, tile %.0f cm" % (path, texture_name, tile_size))
+        log("%s: %s, tile %.0f cm, detail %.2f" % (path, texture_name, tile_size, detail))
 
 
 def import_fbx(fbx, destination):

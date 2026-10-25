@@ -14,6 +14,7 @@
 class UInstancedStaticMeshComponent;
 class UMaterialInterface;
 class UMeshComponent;
+class UMaterialInstanceDynamic;
 class UStaticMesh;
 class UStaticMeshComponent;
 
@@ -71,7 +72,8 @@ private:
 	/** Loads the world materials made by Tools/import_art.py (missing ones fall back to the flat palette colour). */
 	void LoadSurfaceMaterials();
 	/** Gives Mesh its surface for a palette style: a tinted world material, the glow, or the flat colour. */
-	void ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color) const;
+	/** TileScale > 1 stretches the world material's texture (for the huge ground and mountains). Returns its instance. */
+	UMaterialInstanceDynamic* ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color, float TileScale = 1.f) const;
 
 	UStaticMeshComponent* AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, FName Style, const FRotator& Rotation = FRotator::ZeroRotator);
 	/** Box spanning Min..Max (axis aligned). */
