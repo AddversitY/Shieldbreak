@@ -5,9 +5,13 @@ dedicated servers and `-SBSelfTest` retain their gameplay entry path.
 
 ## Menu
 
-- **Play:** choose one of five launch maps and Slayer, CTF, KOTH or Oddball.
-- **Host Match:** starts a listen server, with eight human slots and no bots initially.
-- **Practice:** starts a local team match with seven bots.
+- **Play:** shows only Multiplayer, Host Match, Practice and Back. No map or game-type selectors appear here.
+- **Multiplayer:** an organized list of Keel, Bastion, Sanctum, Creekbed and Spire. Each row lists
+  its game types; selecting a map shows Slayer, Capture the Flag, King of the Hill and Oddball
+  in the adjacent panel. Done returns to Play and retains the selection.
+- **Host Match:** opens the map/game-type browser, then starts a listen server from its Host Match
+  button, with eight human slots and no bots initially.
+- **Practice:** opens the same browser, then Start Practice launches the selected local team match with seven bots.
 - **Join:** accepts a direct hostname or IPv4 address, with an optional port. Default port is 7777.
 - **Settings:** cycles Low/Medium/High/Epic graphics presets and saves immediately.
 - **Escape in a match:** opens Resume, Leave Match, Settings and Exit. Leaving a match asks
@@ -15,11 +19,11 @@ dedicated servers and `-SBSelfTest` retain their gameplay entry path.
 
 The menu uses native Slate widgets and engine fonts; no new runtime art is required. Its dark,
 single-accent presentation keeps the home screen to four actions and reveals match choices
-only after Play. Navigation references:
+only inside Multiplayer. Escape/Back from the browser returns to Play. Navigation references:
 [Halo Infinite menus](https://support.halowaypoint.com/hc/en-us/articles/4408368163348-Guide-to-Halo-Infinite-Menus)
 and [Call of Duty's UI redesign](https://news.blizzard.com/en-us/article/24150096/the-road-to-black-ops-6-launch-preload-and-new-user-interface).
 
-![Play menu, with Bastion selected](playtests/2026-10-26_menu.png)
+![Dedicated Multiplayer map and game-type browser](playtests/2026-10-26_multiplayer-browser.png)
 
 ## Efficiency and match limits
 
@@ -42,3 +46,15 @@ and [Call of Duty's UI redesign](https://news.blizzard.com/en-us/article/2415009
   and no gameplay FPS gain is claimed from the menu optimizations.
 - Keel and Spire headless server/client regression tests both passed after these changes.
 - PlayTest.bat explicitly opens Keel Slayer; it continues to capture gameplay rather than the menu.
+
+## Multiplayer browser revision (2026-10-26)
+
+- User-requested navigation: Play contains exactly Multiplayer, Host Match, Practice and Back.
+- Map and game-type selection is confined to the two-column Multiplayer browser.
+- UE 5.8 build passed. In-game visual checks verified the four Play actions, opening Multiplayer,
+  the map/game-type columns, default selection highlighting, and the unclipped layout.
+- Changing selections, return navigation and launching matches from this revised screen still
+  need a complete click-through check; the screenshot run closed automatically before those checks.
+- Compact row padding keeps all five maps and the action buttons inside the 1280x720 layout.
+- This revision changes only Slate UI/navigation. The earlier 84-check gameplay suite and
+  Keel/Spire network results above were not rerun for this UI-only change.

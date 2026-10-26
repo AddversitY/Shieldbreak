@@ -8,6 +8,7 @@ class AShieldbreakPlayerController;
 class SVerticalBox;
 class SEditableTextBox;
 class STextBlock;
+class SBox;
 
 /** Asset-free front end. Match choices are shown only after selecting Play. */
 class SShieldbreakMainMenu : public SCompoundWidget
@@ -26,21 +27,21 @@ public:
 private:
 	void Home();
 	void Play();
+	/** 0: browse, 1: host, 2: practice. Selection is retained between screens. */
+	void Multiplayer(int32 Intent);
 	void Join();
 	void Settings();
 	void StartMatch(bool bListen);
 	void Heading(const FString& Label);
 	TSharedRef<STextBlock> Action(const FText& Label, TFunction<void()> Callback);
 	void Note(const FText& Label);
-	FText MapLabel() const;
-	FText ModeLabel() const;
 	TWeakObjectPtr<AShieldbreakPlayerController> Controller;
 	TSharedPtr<SVerticalBox> Actions;
 	TSharedPtr<SEditableTextBox> AddressBox;
 	FButtonStyle ButtonStyle;
+	FButtonStyle BrowserButtonStyle;
 	TSharedPtr<STextBlock> StatusText;
-	TSharedPtr<STextBlock> MapText;
-	TSharedPtr<STextBlock> ModeText;
+	TSharedPtr<SBox> ContentWidth;
 	TSharedPtr<STextBlock> GraphicsText;
 	FText QualityLabel() const;
 	int32 MapIndex = 0;

@@ -7,6 +7,8 @@ check Git status and remote changes before starting. `main` is the shared integr
 
 - Shieldbreak is a multiplayer **4v4** arena FPS.
 - The main menu should be clean, sleek, simple and concise, informed by current AAA titles.
+- Play shows Multiplayer, Host Match, Practice and Back. Maps and game types belong in the
+  separate Multiplayer browser, not on the Play screen.
 - At the end of each completed change, update `docs/COORDINATION.md`, run appropriate checks,
   commit and push to GitHub so Claude can pick development back up. The user has authorized
   these GitHub updates; do not leave completed changes only on this PC.

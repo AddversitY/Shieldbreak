@@ -35,6 +35,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-26 Codex: Multiplayer browser revision completed; build and in-game visual checks passed. Submitting to main.
 - 2026-10-26 Codex: main menu and initial eight-player foundations completed and verified as
   described below. Submitting this increment to main. No overnight automation remains active.
 - Standing user instruction: update this handoff and push each completed change to GitHub so
@@ -98,6 +99,16 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-26 Codex: **Multiplayer browser navigation revision**. Play now contains only
+  Multiplayer, Host Match, Practice and Back. Multiplayer lists the five maps with their supported
+  modes; a second column selects the game type. Host/Practice open this browser before launch.
+  Selections persist; Done/Back/Escape return to Play. Fixed doubled style/content padding found
+  during visual QA so all maps and action buttons fit at 1280x720. UE 5.8 build passed; in-game
+  checks covered the four-item Play screen, opening Multiplayer, the map/type list and unclipped
+  layout. Full selection/return/launch click-through remains pending; the timed review auto-closed.
+  Screenshot: `docs/playtests/2026-10-26_multiplayer-browser.png`.
+  No gameplay/network code changed in this revision; the earlier 84-check and network results
+  below remain historical, rather than newly rerun. See `docs/MAIN_MENU.md` for the current flow.
 - 2026-10-26 Codex: **main menu + initial 4v4 foundations**. UE 5.8 build passed; gameplay
   self-test **84/84 PASS**, exit code 0. Keel and Spire listen-server/client regressions both
   **PASS**, with 30 game seconds joined on each map and no arena network-reference errors.

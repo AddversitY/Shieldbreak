@@ -22,6 +22,7 @@ namespace ShieldbreakMenuPrivate
 	const FLinearColor Muted(0.5f, 0.59f, 0.65f);
 	const TCHAR* Maps[] = { TEXT("Keel"), TEXT("Bastion"), TEXT("Sanctum"), TEXT("Creekbed"), TEXT("Spire") };
 	const TCHAR* Modes[] = { TEXT("Slayer"), TEXT("CTF"), TEXT("KOTH"), TEXT("Oddball") };
+	const TCHAR* ModeNames[] = { TEXT("Slayer"), TEXT("Capture the Flag"), TEXT("King of the Hill"), TEXT("Oddball") };
 	FText Label(const FString& Value) { return FText::FromString(Value); }
 }
 
@@ -39,6 +40,9 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 	Press.TintColor = FSlateColor(FLinearColor(0.08f, 0.28f, 0.32f));
 	ButtonStyle.SetNormal(Normal).SetHovered(Hover).SetPressed(Press)
 		.SetNormalPadding(FMargin(20.f, 13.f)).SetPressedPadding(FMargin(20.f, 13.f));
+	// Browser rows use only explicit content padding, avoiding double style/content insets.
+	BrowserButtonStyle = ButtonStyle;
+	BrowserButtonStyle.SetNormalPadding(FMargin(0)).SetPressedPadding(FMargin(0));
 	ChildSlot
 	[
 		SNew(SBorder).BorderImage(White).BorderBackgroundColor(Ink).Padding(0)
@@ -55,8 +59,8 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 					[SNew(STextBlock).Text(Label(TEXT("SHIELDBREAK"))).ColorAndOpacity(FLinearColor::White)
 						.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 54))]
 					+ SVerticalBox::Slot().FillHeight(1).Padding(96, 0, 0, 0)
-					[SNew(SBox).WidthOverride(440).HAlign(HAlign_Left)
-						[SNew(SBox).WidthOverride(440)[SAssignNew(Actions, SVerticalBox)]]]
+					.HAlign(HAlign_Left)
+					[SAssignNew(ContentWidth, SBox).WidthOverride(440)[SAssignNew(Actions, SVerticalBox)]]
 					+ SVerticalBox::Slot().AutoHeight().Padding(96, 12, 96, 44)
 					[SNew(STextBlock).Text(Label(TEXT("PRE-ALPHA                                     ESC  /  BACK")))
 						.ColorAndOpacity(Muted).Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10))]
@@ -70,7 +74,8 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 void SShieldbreakMainMenu::Heading(const FString& LabelText)
 {
 	Actions->ClearChildren();
-	StatusText.Reset(); AddressBox.Reset(); MapText.Reset(); ModeText.Reset(); GraphicsText.Reset();
+	StatusText.Reset(); AddressBox.Reset(); GraphicsText.Reset();
+	ContentWidth->SetWidthOverride(440);
 	Actions->AddSlot().AutoHeight().Padding(0, 0, 0, 12)
 	[SNew(STextBlock).Text(ShieldbreakMenuPrivate::Label(LabelText)).ColorAndOpacity(ShieldbreakMenuPrivate::Accent)
 		.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 12))];
@@ -117,26 +122,69 @@ void SShieldbreakMainMenu::Home()
 	Action(Label(TEXT("EXIT")), [this]() { UKismetSystemLibrary::QuitGame(Controller.Get(), Controller.Get(), EQuitPreference::Quit, false); });
 }
 
-FText SShieldbreakMainMenu::MapLabel() const
-{
-	return ShieldbreakMenuPrivate::Label(FString::Printf(TEXT("MAP   /   %s"), ShieldbreakMenuPrivate::Maps[MapIndex]));
-}
-
-FText SShieldbreakMainMenu::ModeLabel() const
-{
-	return ShieldbreakMenuPrivate::Label(FString::Printf(TEXT("MODE   /   %s"), ShieldbreakMenuPrivate::Modes[ModeIndex]));
-}
-
 void SShieldbreakMainMenu::Play()
 {
 	using namespace ShieldbreakMenuPrivate;
 	Page = 1; Heading(TEXT("PLAY  /  4v4"));
-	MapText = Action(MapLabel(), [this]() { MapIndex = (MapIndex + 1) % UE_ARRAY_COUNT(Maps); MapText->SetText(MapLabel()); });
-	ModeText = Action(ModeLabel(), [this]() { ModeIndex = (ModeIndex + 1) % UE_ARRAY_COUNT(Modes); ModeText->SetText(ModeLabel()); });
-	Action(Label(TEXT("HOST MATCH")), [this]() { StartMatch(true); });
-	Action(Label(TEXT("PRACTICE")), [this]() { StartMatch(false); });
+	Action(Label(TEXT("MULTIPLAYER")), [this]() { Multiplayer(0); });
+	Action(Label(TEXT("HOST MATCH")), [this]() { Multiplayer(1); });
+	Action(Label(TEXT("PRACTICE")), [this]() { Multiplayer(2); });
 	Action(Label(TEXT("BACK")), [this]() { Home(); });
-	Note(Label(TEXT("Host for direct connections. Practice fills the match with bots.")));
+}
+
+void SShieldbreakMainMenu::Multiplayer(int32 Intent)
+{
+	using namespace ShieldbreakMenuPrivate;
+	Page = 5;
+	Heading(Intent == 1 ? TEXT("MULTIPLAYER  /  HOST MATCH") : Intent == 2 ? TEXT("MULTIPLAYER  /  PRACTICE") : TEXT("MULTIPLAYER"));
+	ContentWidth->SetWidthOverride(1088);
+	TSharedPtr<SVerticalBox> MapList;
+	TSharedPtr<SVerticalBox> GameTypes;
+	Actions->AddSlot().AutoHeight()
+	[SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().FillWidth(1).Padding(0, 0, 32, 0)[SAssignNew(MapList, SVerticalBox)]
+		+ SHorizontalBox::Slot().FillWidth(1)[SAssignNew(GameTypes, SVerticalBox)]];
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Maps); ++Index)
+	{
+		MapList->AddSlot().AutoHeight().Padding(0, 0, 0, 6)
+		[SNew(SButton).ButtonStyle(&BrowserButtonStyle).ContentPadding(FMargin(16, 8)).HAlign(HAlign_Left)
+			.OnClicked_Lambda([this, Index, Intent]() { MapIndex = Index; Multiplayer(Intent); return FReply::Handled(); })
+			[SNew(SVerticalBox)
+				+ SVerticalBox::Slot().AutoHeight()
+				[SNew(STextBlock).Text(Label(Maps[Index])).ColorAndOpacity(Index == MapIndex ? Accent : FLinearColor::White)
+					.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 18))]
+				+ SVerticalBox::Slot().AutoHeight().Padding(0, 3, 0, 0)
+				[SNew(STextBlock).Text(Label(TEXT("Slayer  /  CTF  /  KOTH  /  Oddball"))).ColorAndOpacity(Muted)
+					.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 10))]]];
+	}
+	GameTypes->AddSlot().AutoHeight().Padding(0, 0, 0, 8)
+	[SNew(STextBlock).Text(Label(FString(Maps[MapIndex]).ToUpper())).ColorAndOpacity(FLinearColor::White)
+		.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 22))];
+	GameTypes->AddSlot().AutoHeight().Padding(0, 0, 0, 12)
+	[SNew(STextBlock).Text(Label(TEXT("GAME TYPE  /  4v4"))).ColorAndOpacity(Muted)
+		.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 11))];
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Modes); ++Index)
+	{
+		GameTypes->AddSlot().AutoHeight().Padding(0, 0, 0, 6)
+		[SNew(SButton).ButtonStyle(&BrowserButtonStyle).ContentPadding(FMargin(16, 10)).HAlign(HAlign_Left)
+			.OnClicked_Lambda([this, Index, Intent]() { ModeIndex = Index; Multiplayer(Intent); return FReply::Handled(); })
+			[SNew(STextBlock).Text(Label(ModeNames[Index])).ColorAndOpacity(Index == ModeIndex ? Accent : FLinearColor::White)
+				.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 16))]];
+	}
+	const FString ContinueLabel = Intent == 1 ? TEXT("HOST MATCH") : Intent == 2 ? TEXT("START PRACTICE") : TEXT("DONE");
+	GameTypes->AddSlot().AutoHeight().Padding(0, 12, 0, 6)
+	[SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Left)
+		.OnClicked_Lambda([this, Intent]() {
+			if (Intent == 0) { Play(); } else { StartMatch(Intent == 1); }
+			return FReply::Handled();
+		})
+		[SNew(STextBlock).Text(Label(ContinueLabel)).ColorAndOpacity(Accent)
+			.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 18))]];
+	GameTypes->AddSlot().AutoHeight()
+	[SNew(SButton).ButtonStyle(&ButtonStyle).HAlign(HAlign_Left)
+		.OnClicked_Lambda([this]() { Play(); return FReply::Handled(); })
+		[SNew(STextBlock).Text(Label(TEXT("BACK"))).ColorAndOpacity(FLinearColor::White)
+			.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 18))]];
 }
 
 void SShieldbreakMainMenu::StartMatch(bool bListen)
@@ -218,7 +266,8 @@ FReply SShieldbreakMainMenu::OnKeyDown(const FGeometry& Geometry, const FKeyEven
 {
 	if (KeyEvent.GetKey() == EKeys::Escape)
 	{
-		if (Page != 0) { Home(); }
+		if (Page == 5) { Play(); }
+		else if (Page != 0) { Home(); }
 		else if (bInMatch && Controller.IsValid()) { Controller->CloseMainMenu(); }
 		return FReply::Handled();
 	}
