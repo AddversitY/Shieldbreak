@@ -35,6 +35,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-25 Codex: arena network-reference fix complete locally; build, Keel/Spire network tests,
+  and gameplay self-test passed. Submitting this tested fix to main for Claude to resume.
 - (none) The PC session's last run (all three objective modes, then the first listen-server test) finished on
   2026-10-22; its results are under "Verified on the PC". They were recovered from the PC session's chat after the
   project moved, because that session's last COORDINATION edit was never pushed.
@@ -97,6 +99,19 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-25 Codex: baseline build succeeded and mechanics self-test **79/79 PASS** before changes.
+  Reproduced the listen-server bug locally: `FNetGUIDCache::SupportsObject` rejected arena
+  `StaticMeshComponent_*` movement-base references after a client joined. Fixed by spawning the
+  local arena with a deterministic map-specific name and giving each collision piece a deterministic
+  layout-index name; both actor and pieces are explicitly net-addressable before construction/registration.
+  Geometry remains locally built, with no geometry replication added.
+  `Tools/TestArenaNetwork.ps1 -Map Keel` and `-Map Spire` both **PASS**: client joins, both sides build
+  the selected map, and the client runs for 30 game seconds without arena network-reference errors.
+  These are headless functional tests, not visual or latency tests. Keel's client logged a saved-move
+  backlog during startup on this 8 GB machine. Logs: `Saved/Logs/ArenaNetwork-<Map>-Server.log` and
+  `ArenaNetwork-<Map>-Client.log`. Two stable-network-path checks added to the gameplay self-test.
+  Post-fix gameplay suite **81/81 PASS**, exit code 0, with 4 bots averaging 28.6 FPS.
+  Report: `Saved/Logs/SelfTest.txt`; run log: `Saved/Logs/ArenaFixSelfTestRun.log`.
 - 2026-10-22 `ab39f6f` (objective modes `5116512`; maps `dd66cf7` had not landed on the PC yet), **all three objective
   modes PASS**: CTF 12/12 again, **KOTH 6/6** (bots actively play the hill, 29-23), **Oddball 8/8**. Bots also captured
   a flag in the CTF bot match.
@@ -139,6 +154,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   would look much better (code session).
 - **Plasma Rifle:** still greybox; no imported plasma art.
 - **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** a client joins a listen server and weapons replicate (2026-10-22), but runtime-built arena
-  pieces can't be referenced over the network (see "Verified on the PC").
+- **Multiplayer:** arena movement-base network references fixed and verified on Keel and Spire
+  (2026-10-25; see "Verified on the PC"). Movement under latency, map travel, and longer multiplayer
+  sessions still need coverage.
 - **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).

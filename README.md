@@ -16,3 +16,6 @@ Create a FPS in UnrealEngine 5 that mimics Halo2/3 simplicity but adds mechanics
   Report: `Saved/Logs/SelfTest.txt` (one PASS/FAIL line per check, plus average FPS). Run it after any
   gameplay change; it needs no input and quits on its own (~6 minutes on a laptop).
 - `PlayTest.bat` builds, plays for a few seconds and saves screenshots to `Saved/Screenshots/AutoShot`.
+- After building, `Tools\TestArenaNetwork.ps1 -Map Keel` runs a headless listen server and joining
+  client and checks for arena network-reference errors. Repeat with `-Map Spire` for a non-default
+  map. Logs: `Saved/Logs/ArenaNetwork-<Map>-Server.log` and `ArenaNetwork-<Map>-Client.log`.

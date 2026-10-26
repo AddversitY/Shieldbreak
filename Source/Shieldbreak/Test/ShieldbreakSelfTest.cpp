@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakGameMode.h"
+#include "Game/ShieldbreakArena.h"
 #include "Game/ShieldbreakGameState.h"
 #include "Game/ShieldbreakObjectives.h"
 #include "GameFramework/GameStateBase.h"
@@ -219,6 +220,25 @@ void AShieldbreakSelfTest::BuildSteps()
 
 	// ---- Settle: let the arena and the first characters finish BeginPlay. ----
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
+
+	Steps.Add({ TEXT("Arena movement-base network references"),
+		[this]()
+		{
+			const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+			Check(TEXT("Arena has a stable network path"), Arena && Arena->IsFullNameStableForNetworking());
+			TArray<UStaticMeshComponent*> Geometry;
+			if (Arena)
+			{
+				Arena->GetComponents<UStaticMeshComponent>(Geometry);
+			}
+			bool bStableGeometry = !Geometry.IsEmpty();
+			for (const UStaticMeshComponent* Piece : Geometry)
+			{
+				bStableGeometry &= Piece && Piece->IsFullNameStableForNetworking();
+			}
+			Check(TEXT("All arena collision pieces have stable network paths"), bStableGeometry,
+				FString::Printf(TEXT("%d pieces"), Geometry.Num()));
+		}, nullptr, 5.f });
 
 	// Objective modes run only their own checks plus the bot match; Slayer runs the full mechanics suite.
 	const AShieldbreakGameMode* SBGameMode = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();

@@ -72,9 +72,13 @@ AShieldbreakArena* AShieldbreakArena::Find(const UWorld* World)
 
 AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 {
+	// Canonicalize before naming: defaults, unknown ids and case variants must produce the
+	// same actor path on both machines. Map-specific names also separate a replacement arena.
+	const FName ResolvedMapId = ShieldbreakMaps::GetMapIds().Contains(InMapId)
+		? InMapId : ShieldbreakMaps::GetDefaultMapId();
 	if (AShieldbreakArena* Existing = Find(World))
 	{
-		if (InMapId.IsNone() || Existing->GetMapId() == InMapId)
+		if (InMapId.IsNone() || Existing->GetMapId() == ResolvedMapId)
 		{
 			return Existing;
 		}
@@ -86,12 +90,18 @@ AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 		return nullptr;
 	}
 
-	// Deferred so MapId is set before OnConstruction builds the geometry.
-	AShieldbreakArena* Arena = World->SpawnActorDeferred<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity,
-		nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	// Character movement serializes its floor component (movement base). The locally built
+	// arena and its pieces must therefore have identical, net-addressable paths everywhere.
+	FActorSpawnParameters ArenaParams;
+	ArenaParams.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *ResolvedMapId.ToString().ToLower()));
+	ArenaParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+	ArenaParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ArenaParams.bDeferConstruction = true;
+	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, ArenaParams);
 	if (Arena)
 	{
-		Arena->MapId = InMapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : InMapId;
+		Arena->SetNetAddressable();
+		Arena->MapId = ResolvedMapId;
 		Arena->FinishSpawning(FTransform::Identity);
 	}
 	return Arena;
@@ -135,12 +145,16 @@ void AShieldbreakArena::BeginPlay()
 
 UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation)
 {
-	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, NAME_None, RF_Transient);
+	// Blocks, then ramps, are built in layout order on every machine. Never rely on the
+	// process-wide auto-name counter: it differs between listen server and joining clients.
+	const FName PieceName(*FString::Printf(TEXT("Piece_%03d"), Pieces.Num()));
+	UStaticMeshComponent* Piece = NewObject<UStaticMeshComponent>(this, PieceName, RF_Transient);
 	if (!Piece)
 	{
 		return nullptr;
 	}
 
+	Piece->SetNetAddressable();
 	Piece->SetMobility(EComponentMobility::Static);
 	if (CubeMesh)
 	{
