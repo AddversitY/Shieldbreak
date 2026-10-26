@@ -20,6 +20,7 @@
 #include "Widgets/SWeakWidget.h"
 #include "InputCoreTypes.h"
 #include "Engine/Engine.h"
+#include "Test/ShieldbreakNetworkTest.h"
 
 void AShieldbreakPlayerController::ShowMainMenu()
 {
@@ -88,6 +89,7 @@ void AShieldbreakPlayerController::BeginPlay()
 			HelpAutoHideTime = World->GetTimeSeconds() + 12.f;
 		}
 		SetupAutoShots();
+		FShieldbreakNetworkTest::Start(this);
 		AutoDetectScalability();
 		if (const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
 		{
@@ -208,8 +210,18 @@ void AShieldbreakPlayerController::SB_Skill(int32 Skill)
 	ServerSetBotSkill(Skill);
 }
 
+bool AShieldbreakPlayerController::AuthorizeMatchControl(const TCHAR* CommandName)
+{
+	// Evaluate locality on the authority, never on the owning client that sent the RPC.
+	if (HasAuthority() && IsLocalController()) { return true; }
+	UE_LOG(LogShieldbreak, Warning, TEXT("Rejected remote match control: %s"), CommandName);
+	ClientMessage(TEXT("Only the host can change match settings."));
+	return false;
+}
+
 void AShieldbreakPlayerController::ServerSetBots_Implementation(int32 Count)
 {
+	if (!AuthorizeMatchControl(TEXT("SB_Bots"))) { return; }
 	if (AShieldbreakGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AShieldbreakGameMode>() : nullptr)
 	{
 		GameMode->SetBotCount(Count);
@@ -218,6 +230,7 @@ void AShieldbreakPlayerController::ServerSetBots_Implementation(int32 Count)
 
 void AShieldbreakPlayerController::ServerSetBotSkill_Implementation(int32 Skill)
 {
+	if (!AuthorizeMatchControl(TEXT("SB_Skill"))) { return; }
 	if (AShieldbreakGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AShieldbreakGameMode>() : nullptr)
 	{
 		GameMode->SetBotSkill(Skill);
@@ -296,6 +309,7 @@ void AShieldbreakPlayerController::SB_Map(const FString& Map, const FString& Mod
 
 void AShieldbreakPlayerController::ServerChangeMap_Implementation(const FString& Map, const FString& Mode)
 {
+	if (!AuthorizeMatchControl(TEXT("SB_Map"))) { return; }
 	if (AShieldbreakGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AShieldbreakGameMode>() : nullptr)
 	{
 		GameMode->ChangeMap(Map, Mode);

@@ -35,11 +35,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-26 Codex: Multiplayer browser revision completed; build and in-game visual checks passed. Submitting to main.
-- 2026-10-26 Codex: main menu and initial eight-player foundations completed and verified as
-  described below. Submitting this increment to main. No overnight automation remains active.
-- Standing user instruction: update this handoff and push each completed change to GitHub so
-  Claude can resume. See `AGENTS.md`.
+- No files currently reserved for this increment. Host-only controls and eight-slot runtime
+  enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
+- Standing instruction: update this handoff and push each completed increment so Claude can
+  resume. Menu revisions are already on main (`07acef0`, `d027a22`). No overnight automation is active.
 
 ## Needs verification (code session → PC)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
@@ -99,6 +98,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-26 Codex: **host-only controls + 4v4 roster regression**. UE 5.8 build passed;
+  general gameplay suite **85/85 PASS** with a MaxPlayers=16 URL (live session still eight).
+  Server RPCs for SB_Bots/SB_Skill/SB_Map now authorize the local host on the authority.
+  A real local client sent all three requests; all were rejected and host settings stayed intact.
+  `Tools/Test4v4Network.ps1` passed: oversized limit/bot requests still yield balanced 4v4;
+  a human joins and replaces a bot (2 humans + 6 bots), then disconnects and the slot refills
+  (1 human + 7 bots). All **82 roster samples** kept four per team and at most eight total.
+  Runtime cap and bot-slot calculation share `Game/ShieldbreakMatchRules.h` constants.
+  Test helpers are opt-in only (-SBNetworkTest), with no test timers in ordinary games.
+  Logs: `Saved/Logs/4v4Network-Server.log`, `4v4Network-Client.log`, `HostControlsSelfTest.log`;
+  gameplay report: `Saved/Logs/SelfTest.txt`. See `docs/NETWORKING.md` for limits and commands.
+  Eight-human/internet play, lobby flow and dedicated administration are not verified here.
 - 2026-10-26 Codex: **Multiplayer browser navigation revision**. Play now contains only
   Multiplayer, Host Match, Practice and Back. Multiplayer lists the five maps with their supported
   modes; a second column selects the game type. Host/Practice open this browser before launch.
@@ -174,6 +185,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   Intel Iris Xe at the auto-detected scalability.
 
 ## Known issues / backlog
+- **Imported animation modifier:** FootstepEffectTagModifier still references missing Lyra
+  types and logs Blueprint/compiler errors. Confirmed in the earlier menu gameplay log and
+  the current network run. Gameplay checks pass; clean up the imported editor metadata separately.
 - **Performance:** ~15 FPS on the Iris Xe laptop. Lyra's 8K mannequin textures take ~3 min to build on
   first launch. Vincent may move to his desktop.
 - **Bots:** locomotion is single-node sequence swapping; a proper anim BP (blend spaces, aim offsets)

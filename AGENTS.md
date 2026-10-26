@@ -24,3 +24,6 @@ check Git status and remote changes before starting. `main` is the shared integr
   server/client joins. Keep explicit match URLs working alongside the startup menu.
 - Git commits can use the connected account's private address when local identity is absent:
   `AddversitY <341202389+AddversitY@users.noreply.github.com>`.
+
+- For roster, session-capacity or match-control changes, run `Tools/Test4v4Network.ps1` after
+  building. Match-wide commands are authorized on the server for the local host only.

@@ -4,6 +4,8 @@
 #include "AI/ShieldbreakBotController.h"
 #include "Game/ShieldbreakTeams.h"
 #include "Game/ShieldbreakMaps.h"
+#include "Game/ShieldbreakMatchRules.h"
+#include "GameFramework/GameSession.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
@@ -83,6 +85,8 @@ AShieldbreakGameMode::AShieldbreakGameMode()
 void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
+	// Keep the 4v4 contract even when a launch URL supplies a larger MaxPlayers value.
+	if (GameSession) { GameSession->MaxPlayers = ShieldbreakMatchRules::MaxPlayers; }
 	// A plain launch opens the front end; explicit match URLs and dedicated servers bypass it.
 	const bool bMatchURL = UGameplayStatics::HasOption(Options, TEXT("Map"))
 		|| UGameplayStatics::HasOption(Options, TEXT("Mode")) || UGameplayStatics::HasOption(Options, TEXT("listen"));
@@ -196,7 +200,7 @@ void AShieldbreakGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	if (bFrontEnd) { Super::PostLogin(NewPlayer); return; }
 	// Human arrivals replace practice bots before team assignment, preserving four slots per side.
-	while (Bots.Num() > FMath::Max(0, 8 - GetNumPlayers())) { RemoveLastBot(); }
+	while (Bots.Num() > FMath::Max(0, ShieldbreakMatchRules::MaxPlayers - GetNumPlayers())) { RemoveLastBot(); }
 	// Name and tint before Super, which spawns the pawn (and the pawn reads the tint on possession).
 	if (NewPlayer)
 	{
@@ -547,7 +551,7 @@ void AShieldbreakGameMode::ReconcileBots()
 		return !IsValid(Bot.Get()) || Bot->IsPendingKillPending();
 	});
 
-	const int32 TargetBots = FMath::Min(NumBots, FMath::Max(0, 8 - GetNumPlayers()));
+	const int32 TargetBots = FMath::Min(NumBots, FMath::Max(0, ShieldbreakMatchRules::MaxPlayers - GetNumPlayers()));
 	while (Bots.Num() < TargetBots && AddBot())
 	{
 	}

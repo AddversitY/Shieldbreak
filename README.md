@@ -24,3 +24,7 @@ Launch the project as a game to open Play, Join, Settings and Exit. See
 - After building, `Tools\TestArenaNetwork.ps1 -Map Keel` runs a headless listen server and joining
   client and checks for arena network-reference errors. Repeat with `-Map Spire` for a non-default
   map. Logs: `Saved/Logs/ArenaNetwork-<Map>-Server.log` and `ArenaNetwork-<Map>-Client.log`.
+
+- After building, `Tools/Test4v4Network.ps1` checks host permissions, the eight-player cap,
+  bot replacement on join and refill on disconnect using a real local client. See
+  [docs/NETWORKING.md](docs/NETWORKING.md) for the current network scope and test reports.

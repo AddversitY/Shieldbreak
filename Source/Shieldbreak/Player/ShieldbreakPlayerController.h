@@ -57,6 +57,7 @@ private:
 	UFUNCTION(Server, Reliable) void ServerSetBotSkill(int32 Skill);
 	UFUNCTION(Server, Reliable) void ServerChangeMap(const FString& Map, const FString& Mode);
 
+	bool AuthorizeMatchControl(const TCHAR* CommandName);
 	void AddInputContext();
 	void OnScoreboardStarted();
 	void OnScoreboardCompleted();

@@ -225,6 +225,8 @@ void AShieldbreakSelfTest::BuildSteps()
 	Steps.Add({ TEXT("Front end and match capacity"), [this]()
 	{
 		Check(TEXT("Session capacity is eight players"), GetDefault<AGameSession>()->MaxPlayers == 8);
+		const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+		Check(TEXT("Runtime session enforces eight players"), Rules && Rules->GameSession && Rules->GameSession->MaxPlayers == 8);
 		Check(TEXT("Direct join accepts IPv4 and hostnames"),
 			SShieldbreakMainMenu::IsValidAddress(TEXT("127.0.0.1:7777")) && SShieldbreakMainMenu::IsValidAddress(TEXT("arena.example.com")));
 		Check(TEXT("Direct join rejects invalid ports and travel options"),
