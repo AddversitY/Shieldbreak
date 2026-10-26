@@ -9,6 +9,11 @@ Create a FPS in UnrealEngine 5 that mimics Halo2/3 simplicity but adds mechanics
 5. [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md): style guide and the asset import plan.
 6. [docs/MAPS.md](docs/MAPS.md): the launch maps with overview images, and how to switch maps.
 
+## Main menu
+
+Launch the project as a game to open Play, Join, Settings and Exit. See
+[docs/MAIN_MENU.md](docs/MAIN_MENU.md) for hosting, practice, direct joins and verification limits.
+
 ## Testing
 - `Tools\SelfTest.bat` builds the editor target and runs a scripted gameplay self-test (`-SBSelfTest`):
   shields, recharge timing, Shield Bleed, Shaping, Overcharge Vent, Break Pulse, Battle Rifle hitscan and

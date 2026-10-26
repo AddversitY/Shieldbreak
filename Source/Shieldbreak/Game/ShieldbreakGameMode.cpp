@@ -83,6 +83,20 @@ AShieldbreakGameMode::AShieldbreakGameMode()
 void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
+	// A plain launch opens the front end; explicit match URLs and dedicated servers bypass it.
+	const bool bMatchURL = UGameplayStatics::HasOption(Options, TEXT("Map"))
+		|| UGameplayStatics::HasOption(Options, TEXT("Mode")) || UGameplayStatics::HasOption(Options, TEXT("listen"));
+	bFrontEnd = !AShieldbreakSelfTest::IsRequested() && !IsRunningDedicatedServer()
+		&& (UGameplayStatics::HasOption(Options, TEXT("Menu")) || !bMatchURL);
+	if (bFrontEnd)
+	{
+		// The front end has no match simulation; do not dispatch a match tick every frame.
+		PrimaryActorTick.bStartWithTickEnabled = false;
+		SetActorTickEnabled(false);
+		DefaultPawnClass = nullptr;
+		HUDClass = nullptr;
+		return;
+	}
 
 	using namespace ShieldbreakGameModePrivate;
 	NumBots = FMath::Clamp(UGameplayStatics::GetIntOption(Options, TEXT("Bots"), NumBots), 0, MaxBots);
@@ -145,6 +159,7 @@ void AShieldbreakGameMode::InitGame(const FString& MapName, const FString& Optio
 void AShieldbreakGameMode::InitGameState()
 {
 	Super::InitGameState();
+	if (bFrontEnd) { return; }
 
 	if (AShieldbreakGameState* SBGameState = GetGameState<AShieldbreakGameState>())
 	{
@@ -157,6 +172,7 @@ void AShieldbreakGameMode::InitGameState()
 
 void AShieldbreakGameMode::StartPlay()
 {
+	if (bFrontEnd) { Super::StartPlay(); return; }
 	EnsureArena();
 
 	Super::StartPlay();
@@ -178,6 +194,9 @@ void AShieldbreakGameMode::StartPlay()
 
 void AShieldbreakGameMode::PostLogin(APlayerController* NewPlayer)
 {
+	if (bFrontEnd) { Super::PostLogin(NewPlayer); return; }
+	// Human arrivals replace practice bots before team assignment, preserving four slots per side.
+	while (Bots.Num() > FMath::Max(0, 8 - GetNumPlayers())) { RemoveLastBot(); }
 	// Name and tint before Super, which spawns the pawn (and the pawn reads the tint on possession).
 	if (NewPlayer)
 	{
@@ -206,6 +225,7 @@ void AShieldbreakGameMode::Logout(AController* Exiting)
 void AShieldbreakGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (bFrontEnd) { return; }
 
 	// During the banner nobody spawns; the reset brings everyone back at once.
 	if (bMatchOver)
@@ -247,6 +267,7 @@ AShieldbreakArena* AShieldbreakGameMode::EnsureArena()
 
 void AShieldbreakGameMode::RestartPlayer(AController* NewPlayer)
 {
+	if (bFrontEnd) { return; }
 	if (!IsValid(NewPlayer) || NewPlayer->IsPendingKillPending())
 	{
 		return;
@@ -526,11 +547,12 @@ void AShieldbreakGameMode::ReconcileBots()
 		return !IsValid(Bot.Get()) || Bot->IsPendingKillPending();
 	});
 
-	while (Bots.Num() < NumBots && AddBot())
+	const int32 TargetBots = FMath::Min(NumBots, FMath::Max(0, 8 - GetNumPlayers()));
+	while (Bots.Num() < TargetBots && AddBot())
 	{
 	}
 
-	while (Bots.Num() > NumBots)
+	while (Bots.Num() > TargetBots)
 	{
 		RemoveLastBot();
 	}

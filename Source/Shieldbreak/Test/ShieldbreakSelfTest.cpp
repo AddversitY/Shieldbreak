@@ -15,6 +15,8 @@
 #include "Game/ShieldbreakGameState.h"
 #include "Game/ShieldbreakObjectives.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/GameSession.h"
+#include "UI/SShieldbreakMainMenu.h"
 #include "HAL/FileManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -220,6 +222,15 @@ void AShieldbreakSelfTest::BuildSteps()
 
 	// ---- Settle: let the arena and the first characters finish BeginPlay. ----
 	Steps.Add({ TEXT("Settle"), nullptr, [](float Elapsed) { return Elapsed > 1.5f; }, 5.f });
+	Steps.Add({ TEXT("Front end and match capacity"), [this]()
+	{
+		Check(TEXT("Session capacity is eight players"), GetDefault<AGameSession>()->MaxPlayers == 8);
+		Check(TEXT("Direct join accepts IPv4 and hostnames"),
+			SShieldbreakMainMenu::IsValidAddress(TEXT("127.0.0.1:7777")) && SShieldbreakMainMenu::IsValidAddress(TEXT("arena.example.com")));
+		Check(TEXT("Direct join rejects invalid ports and travel options"),
+			!SShieldbreakMainMenu::IsValidAddress(TEXT("127.0.0.1:0")) && !SShieldbreakMainMenu::IsValidAddress(TEXT("host:65536"))
+			&& !SShieldbreakMainMenu::IsValidAddress(TEXT("host?listen")) && !SShieldbreakMainMenu::IsValidAddress(TEXT("/Engine/Maps/Entry")));
+	}, nullptr, 5.f });
 
 	Steps.Add({ TEXT("Arena movement-base network references"),
 		[this]()

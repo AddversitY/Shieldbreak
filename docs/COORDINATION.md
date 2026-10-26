@@ -1,8 +1,8 @@
-# Working Together: Two Claude Sessions
+# Shieldbreak development handoff
 
-Two Claude sessions build Shieldbreak on the branch `claude/peaceful-hamilton-xcl6c8`. They can't share a
-chat, so this file is the shared to-do list and the rules of the road. Read it before starting work,
-and update it in the same commit as the work.
+Claude and Codex share this handoff. The integration branch is **main**; the earlier Claude
+session branches have been merged. Read this before starting work, and update it in the same
+commit as the work. See `AGENTS.md` for the user's standing GitHub and 4v4 instructions.
 
 | Session | Can do | Can't do | Owns |
 |---|---|---|---|
@@ -35,11 +35,10 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-25 Codex: arena network-reference fix complete locally; build, Keel/Spire network tests,
-  and gameplay self-test passed. Submitting this tested fix to main for Claude to resume.
-- (none) The PC session's last run (all three objective modes, then the first listen-server test) finished on
-  2026-10-22; its results are under "Verified on the PC". They were recovered from the PC session's chat after the
-  project moved, because that session's last COORDINATION edit was never pushed.
+- 2026-10-26 Codex: main menu and initial eight-player foundations completed and verified as
+  described below. Submitting this increment to main. No overnight automation remains active.
+- Standing user instruction: update this handoff and push each completed change to GitHub so
+  Claude can resume. See `AGENTS.md`.
 
 ## Needs verification (code session → PC)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
@@ -99,6 +98,22 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-26 Codex: **main menu + initial 4v4 foundations**. UE 5.8 build passed; gameplay
+  self-test **84/84 PASS**, exit code 0. Keel and Spire listen-server/client regressions both
+  **PASS**, with 30 game seconds joined on each map and no arena network-reference errors.
+  Main menu offers Play (map/mode, Host/Practice), Join by address, graphics presets and Exit;
+  Escape opens the in-match menu. Session configuration is eight human slots, with bots capped
+  to remaining slots and removed before assigning an arriving human's team.
+  Efficiency: no match-rule tick or arena/bot/objective creation in the front end; menu labels
+  update on events instead of allocating text from per-frame bindings. PlayTest.bat explicitly
+  opens a Keel Slayer match so the new default menu does not change its purpose.
+  Visually inspected home/Play at 1280x720 and clicked Play/map cycling (Keel -> Bastion).
+  Full Host/Join/Settings/Leave click-through, gamepad navigation, and eight-human/internet
+  tests are still pending. See `docs/MAIN_MENU.md` and `docs/playtests/2026-10-26_menu.png`.
+  Gameplay report: `Saved/Logs/SelfTest.txt`; run: `Saved/Logs/MenuGameplaySelfTest.log`.
+  Bot run averaged **10.9 FPS** under this machine's current load; this is not a controlled
+  benchmark and no gameplay FPS improvement is claimed. Network logs: `Saved/Logs/ArenaNetwork-*`.
+  Earlier arena fix was pushed as `e5ed484`.
 - 2026-10-25 Codex: baseline build succeeded and mechanics self-test **79/79 PASS** before changes.
   Reproduced the listen-server bug locally: `FNetGUIDCache::SupportsObject` rejected arena
   `StaticMeshComponent_*` movement-base references after a client joined. Fixed by spawning the

@@ -15,6 +15,59 @@
 #include "Misc/Paths.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
+#include "UI/SShieldbreakMainMenu.h"
+#include "Engine/GameViewportClient.h"
+#include "Widgets/SWeakWidget.h"
+#include "InputCoreTypes.h"
+#include "Engine/Engine.h"
+
+void AShieldbreakPlayerController::ShowMainMenu()
+{
+	if (!IsLocalController() || MainMenu.IsValid() || !GEngine || !GEngine->GameViewport) { return; }
+	const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+	const bool bInMatch = !Rules || !Rules->IsFrontEnd();
+	SAssignNew(MainMenu, SShieldbreakMainMenu).Controller(this).InMatch(bInMatch);
+	GEngine->GameViewport->AddViewportWidgetContent(MainMenu.ToSharedRef(), 100);
+	FInputModeUIOnly MenuInput;
+	MenuInput.SetWidgetToFocus(MainMenu).SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	SetInputMode(MenuInput);
+	SetShowMouseCursor(true);
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+}
+
+void AShieldbreakPlayerController::CloseMainMenu()
+{
+	if (!MainMenu.IsValid()) { return; }
+	if (GEngine && GEngine->GameViewport) { GEngine->GameViewport->RemoveViewportWidgetContent(MainMenu.ToSharedRef()); }
+	MainMenu.Reset();
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+	SetInputMode(FInputModeGameOnly());
+	SetShowMouseCursor(false);
+}
+
+void AShieldbreakPlayerController::OnEscape()
+{
+	if (MainMenu.IsValid()) { CloseMainMenu(); }
+	else { ShowMainMenu(); }
+}
+
+void AShieldbreakPlayerController::HandleNetworkFailure(UWorld* FailedWorld, UNetDriver* FailedDriver,
+	ENetworkFailure::Type FailureType, const FString& ErrorString)
+{
+	if (FailedWorld == GetWorld() && MainMenu.IsValid())
+	{
+		MainMenu->ShowConnectionError(TEXT("Could not connect. Check the host address and try again."));
+	}
+}
+
+void AShieldbreakPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (GEngine) { GEngine->OnNetworkFailure().RemoveAll(this); }
+	CloseMainMenu();
+	Super::EndPlay(EndPlayReason);
+}
 
 AShieldbreakPlayerController::AShieldbreakPlayerController()
 {
@@ -26,6 +79,7 @@ void AShieldbreakPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
+		if (GEngine) { GEngine->OnNetworkFailure().AddUObject(this, &AShieldbreakPlayerController::HandleNetworkFailure); }
 		AddInputContext();
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
@@ -35,6 +89,10 @@ void AShieldbreakPlayerController::BeginPlay()
 		}
 		SetupAutoShots();
 		AutoDetectScalability();
+		if (const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
+		{
+			if (Rules->IsFrontEnd()) { ShowMainMenu(); }
+		}
 	}
 }
 
@@ -53,6 +111,7 @@ void AShieldbreakPlayerController::AddInputContext()
 void AShieldbreakPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AShieldbreakPlayerController::OnEscape);
 
 	UShieldbreakInputSet* Inputs = UShieldbreakInputSet::Get();
 	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))

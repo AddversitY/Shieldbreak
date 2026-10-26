@@ -18,7 +18,7 @@ echo BUILDCODE=%BUILDCODE% >> "%LOG%"
 if not "%BUILDCODE%"=="0" goto :done
 
 echo === Run === >> "%LOG%"
-"%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" -game -windowed -ResX=1600 -ResY=900 -log -SBAutoShot=%FIRST% -SBAutoShotCount=%COUNT% -SBAutoShotInterval=4 -SBAutoQuit >> "%LOG%" 2>&1
+"%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" "/Engine/Maps/Entry?Map=Keel?Mode=Slayer" -game -windowed -ResX=1600 -ResY=900 -log -SBAutoShot=%FIRST% -SBAutoShotCount=%COUNT% -SBAutoShotInterval=4 -SBAutoQuit >> "%LOG%" 2>&1
 echo RUNCODE=%ERRORLEVEL% >> "%LOG%"
 
 :done

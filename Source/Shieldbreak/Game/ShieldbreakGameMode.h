@@ -52,6 +52,7 @@ public:
 	void SetBotSkill(int32 NewSkill);
 
 	bool IsMatchOver() const { return bMatchOver; }
+	bool IsFrontEnd() const { return bFrontEnd; }
 
 	int32 GetBotCount() const { return NumBots; }
 	int32 GetBotSkill() const { return BotSkill; }
@@ -141,6 +142,7 @@ protected:
 	bool bUseGenericPlayerNames = true;
 
 private:
+	bool bFrontEnd = false;
 	// ---- Bots ----
 	void SpawnInitialBots();
 	void ReconcileBots();

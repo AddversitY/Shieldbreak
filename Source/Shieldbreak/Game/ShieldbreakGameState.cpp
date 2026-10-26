@@ -4,6 +4,7 @@
 
 #include "Algo/Sort.h"
 #include "Game/ShieldbreakArena.h"
+#include "Game/ShieldbreakGameMode.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/ShieldbreakPlayerState.h"
@@ -35,6 +36,10 @@ void AShieldbreakGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 void AShieldbreakGameState::BeginPlay()
 {
 	Super::BeginPlay();
+	if (const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
+	{
+		if (Rules->IsFrontEnd()) { return; }
+	}
 
 	// The arena is not replicated; every machine builds the same deterministic copy locally. On clients the
 	// replicated MapId has normally arrived by now; OnRep_MapId rebuilds if it changes later.

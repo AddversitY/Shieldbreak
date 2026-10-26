@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
+#include "Engine/EngineBaseTypes.h"
 #include "ShieldbreakPlayerController.generated.h"
 
 UCLASS()
@@ -15,6 +16,8 @@ class SHIELDBREAK_API AShieldbreakPlayerController : public APlayerController
 
 public:
 	AShieldbreakPlayerController();
+	void ShowMainMenu();
+	void CloseMainMenu();
 
 	// ---- Local UI state ----
 	bool IsScoreboardVisible() const { return bScoreboardVisible; }
@@ -41,11 +44,15 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
 private:
+	TSharedPtr<class SShieldbreakMainMenu> MainMenu;
+	void OnEscape();
+	void HandleNetworkFailure(UWorld* FailedWorld, UNetDriver* FailedDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 	UFUNCTION(Server, Reliable) void ServerSetBots(int32 Count);
 	UFUNCTION(Server, Reliable) void ServerSetBotSkill(int32 Skill);
 	UFUNCTION(Server, Reliable) void ServerChangeMap(const FString& Map, const FString& Mode);
