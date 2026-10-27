@@ -35,6 +35,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-26 Codex desktop setup: storage now approximately 127 GiB free; no
+  files deleted by this session. Epic UE 5.8.4 installation configured with
+  debugging symbols at `C:\Users\addve\Epic Games\UE_5.8` (83.309 GB per launcher).
+  Install is waiting on the user's Windows UAC approval; engine directory is
+  not yet created. Build, self-test and local network verification remain pending.
 - No files currently reserved for this increment. Host-only controls and eight-slot runtime
   enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
 - Standing instruction: update this handoff and push each completed increment so Claude can

@@ -18,6 +18,15 @@ Inspected 2026-10-26 on the desktop at
 
 ## Required before building
 
+Follow-up: free space increased to approximately 127 GiB without any deletion
+by this session. Epic Launcher is signed in and offers UE **5.8.4**. Installation
+was configured at `C:\Users\addve\Epic Games\UE_5.8` with core components,
+templates, source and editor debugging symbols: launcher reports 25.42 GB
+download and 83.309 GB installed. The Install action is currently waiting for
+the user to approve Windows UAC; a `consent.exe` process is present and the
+engine directory has not yet been created. The earlier handoff commit
+`bdf5c0b` was successfully pushed. No build can run until installation completes.
+
 Unreal Engine 5.8 is not registered or installed in the inspected Epic locations.
 Only C: is available, with approximately 25 GiB free at inspection. Free at least
 150 GB as the project's planning guideline, or provide another SSD before engine
