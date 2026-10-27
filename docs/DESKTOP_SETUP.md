@@ -14,29 +14,35 @@ Inspected 2026-10-26 on the desktop at
   with C++ and Game development with C++ workloads, MSVC 14.44.35207 and
   Windows SDK 10.0.26100.0.
 - Epic Games Launcher is installed.
-- Hardware inventory: 16 GB RAM and NVIDIA GeForce RTX 2080 Ti.
+- Hardware inventory: i9-9900K (8 cores / 16 threads), 16 GB RAM and NVIDIA
+  GeForce RTX 2080 Ti. Windows 11 Pro; x64 Visual C++ runtime installed.
+- Desktop shortcuts: Shieldbreak (normal game/menu launch), Shieldbreak Editor,
+  and Shieldbreak Playtest (existing build/screenshot script).
 
 ## Required before building
 
-Follow-up: free space increased to approximately 127 GiB without any deletion
-by this session. Epic Launcher is signed in and offers UE **5.8.4**. Installation
-was configured at `C:\Users\addve\Epic Games\UE_5.8` with core components,
-templates, source and editor debugging symbols: launcher reports 25.42 GB
-download and 83.309 GB installed. The Install action is currently waiting for
-the user to approve Windows UAC; a `consent.exe` process is present and the
-engine directory has not yet been created. The earlier handoff commit
-`bdf5c0b` was successfully pushed. No build can run until installation completes.
+As of 2026-10-27, UAC cleared and UE **5.8.4** files are downloaded at
+`C:\Users\addve\Epic Games\UE_5.8`, matching the existing batch tools' path.
+Selected core, templates, source and editor debugging symbols total 83.309 GB
+per Epic Launcher. Space increased to approximately 127 GiB before installation
+without deletion by this session; approximately 43 GiB remains afterward.
+The launcher appeared inactive before completion; restarting it resumed file
+verification, last observed at 23%. Wait for installation registration before
+treating the engine as ready.
 
-Unreal Engine 5.8 is not registered or installed in the inspected Epic locations.
-Only C: is available, with approximately 25 GiB free at inspection. Free at least
-150 GB as the project's planning guideline, or provide another SSD before engine
-installation. No personal files or games were removed.
+A project-generation probe ran using bundled .NET 10 and wrote solution files,
+but logged a missing UnrealEditor target rule during incomplete installation.
+Rerun after completion. VS 2022 also warns that it cannot load .NET 10 C# engine
+automation projects; the C++ editor build has not yet been tested. Generated
+`.slnx` and `.vsconfig` files are ignored with the other local IDE output.
 
-Install **5.8** through Epic Games Launcher. The existing batch tools expect
-`%USERPROFILE%\Epic Games\UE_5.8`, which on this desktop means
-`C:\Users\addve\Epic Games\UE_5.8`. If using another drive, update the engine
-resolution in the batch tools before using them; the PowerShell network tools
-already accept `-EngineRoot`.
+The user explicitly authorized overnight continuation. Local ignored
+`Saved/DesktopSetup.ps1` waits for Epic's installation record, then generates
+project files, runs SelfTest, and runs the three local network regressions
+sequentially. Read `Saved/Logs/DesktopSetupPhase.txt` and check running processes
+before starting duplicate work. A 15-minute heartbeat named
+`finish-shieldbreak-desktop-setup` continues the chat, diagnoses failures and
+completes the handoff; stop it once setup is complete and pushed.
 
 After installation:
 
@@ -50,4 +56,4 @@ After installation:
 
 No engine build or gameplay/network tests have run on this desktop yet. Laptop
 test results in the coordination document remain historical. Launcher account
-access and any assets held only on the laptop have not been verified.
+is signed in; any assets held only on the laptop have not been verified.

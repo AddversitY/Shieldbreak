@@ -35,15 +35,26 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-26 Codex desktop setup: storage now approximately 127 GiB free; no
-  files deleted by this session. Epic UE 5.8.4 installation configured with
-  debugging symbols at `C:\Users\addve\Epic Games\UE_5.8` (83.309 GB per launcher).
-  Install is waiting on the user's Windows UAC approval; engine directory is
-  not yet created. Build, self-test and local network verification remain pending.
-- No files currently reserved for this increment. Host-only controls and eight-slot runtime
+- 2026-10-27 Codex desktop setup continues overnight at the user's explicit request.
+  UE 5.8.4 files are downloaded at `C:\Users\addve\Epic Games\UE_5.8`, with
+  debugging symbols selected. UAC cleared; Epic Launcher was restarted after
+  apparent inactivity and is now verifying files (last observed 23%). About
+  43 GiB remains free. No personal files or games deleted by this session.
+  Desktop game/editor/playtest shortcuts created. Generated `.slnx`/`.vsconfig`
+  files are now ignored; `git diff --check` passed.
+  Local ignored `Saved/DesktopSetup.ps1` is actively waiting for Epic's install
+  registration, then generates project files and sequentially runs SelfTest,
+  Keel/Spire network regressions and the 4v4 regression. Inspect
+  `Saved/Logs/DesktopSetupPhase.txt` and processes before launching duplicate work.
+  A 15-minute heartbeat (`finish-shieldbreak-desktop-setup`) will continue this
+  chat and finish verification, documentation and pushes. Stop it when complete.
+  Initial project generation during install returned success but logged a missing
+  UnrealEditor target rule; rerun after installation. No editor build or gameplay/
+  network tests have completed on this desktop yet. See `docs/DESKTOP_SETUP.md`.
+- Host-only controls and eight-slot runtime
   enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
 - Standing instruction: update this handoff and push each completed increment so Claude can
-  resume. Menu revisions are already on main (`07acef0`, `d027a22`). No overnight automation is active.
+  resume. Menu revisions are already on main (`07acef0`, `d027a22`).
 
 ## Needs verification (code session → PC)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
