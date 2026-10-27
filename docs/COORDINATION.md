@@ -35,6 +35,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-27 Codex: connection-failure recovery completed and verified; see the
+  latest record below. No files reserved. Arena lighting remains a separate pass.
 - 2026-10-27 Codex desktop setup completed and verified; see the latest record
   below and `docs/DESKTOP_SETUP.md`. No files reserved. The overnight setup
   heartbeat is stopped after this final handoff is pushed.
@@ -101,6 +103,30 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-27 Codex: **Connection failure recovery and retry**. Added a persistent
+  game instance that retains sanitized feedback and the last host address across
+  Unreal's disconnect travel/controller replacement. Failed joins and lost-host
+  connections open a usable Join screen; successful joins clear stale errors.
+  Pending-driver ownership handles failures with no World and direct startup URLs;
+  listen hosts ignore ordinary client departures. No custom reconnect loop or
+  automatic retry added, and the Play/Multiplayer layout is unchanged.
+  UE 5.8 editor build **PASS**. `Tools/TestConnectionRecovery.ps1` **PASS** with real
+  local processes: joined client recovers after host termination; an unavailable
+  join retains its address; one subsequent attempt joins a live host with no stale
+  widget/game-instance error. Existing 4v4 regression **PASS**, including bot join
+  replacement, disconnect refill, host-only controls and **21** balanced roster samples.
+  General gameplay suite finished **86/86 PASS** on the unchanged rerun. The first
+  run was **85/86**, missing only the existing plain rocket-jump upward-velocity
+  sample (0 versus >400); survival/health and overshield launch passed. Both launches
+  sampled >1200 on the rerun. No rocket behavior or thresholds changed; a timing
+  hitch is plausible but the cause is not established. First report preserved as
+  `Saved/Logs/ConnectionGameplay-First.txt` and `ConnectionGameplay-FirstRun.log`.
+  Visually verified the 1280x720 timeout retry screen, retained address, readable
+  feedback and unclipped actions after a failed direct startup join. Screenshot:
+  `docs/playtests/2026-10-27_connection-recovery.png`. Reports:
+  `Saved/Logs/ConnectionRecovery-*.log`, `ConnectionRecovery-Report.txt`,
+  `Connection4v4-Report.txt`, `SelfTest.txt`; the known batch run-end log append
+  sharing messages remain. No eight-human, internet, NAT or dedicated-hosting claim.
 - 2026-10-27 Codex: **Desktop build environment ready** at
   `C:\Users\addve\Documents\ChatGPT\Shieldbreak`. Installed and verified UE 5.8.4
   with debugging symbols at `C:\Users\addve\Epic Games\UE_5.8`; VS 2022/MSVC 14.44

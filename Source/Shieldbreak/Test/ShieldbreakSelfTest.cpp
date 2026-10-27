@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakGameMode.h"
+#include "Game/ShieldbreakGameInstance.h"
 #include "Game/ShieldbreakArena.h"
 #include "Game/ShieldbreakGameState.h"
 #include "Game/ShieldbreakObjectives.h"
@@ -227,6 +228,8 @@ void AShieldbreakSelfTest::BuildSteps()
 		Check(TEXT("Session capacity is eight players"), GetDefault<AGameSession>()->MaxPlayers == 8);
 		const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
 		Check(TEXT("Runtime session enforces eight players"), Rules && Rules->GameSession && Rules->GameSession->MaxPlayers == 8);
+		Check(TEXT("Configured game instance preserves connection recovery across travel"),
+			GetGameInstance<UShieldbreakGameInstance>() != nullptr);
 		Check(TEXT("Direct join accepts IPv4 and hostnames"),
 			SShieldbreakMainMenu::IsValidAddress(TEXT("127.0.0.1:7777")) && SShieldbreakMainMenu::IsValidAddress(TEXT("arena.example.com")));
 		Check(TEXT("Direct join rejects invalid ports and travel options"),

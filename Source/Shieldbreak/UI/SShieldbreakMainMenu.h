@@ -22,7 +22,10 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& Geometry, const FKeyEvent& KeyEvent) override;
 	static bool IsValidAddress(const FString& Address);
-	void ShowConnectionError(const FString& Message);
+	void ShowConnectionError(const FString& Message, const FString& Address = FString());
+	/** Inspect the current retry prompt without relying on rendered text scraping. */
+	bool IsConnectionRetryVisible() const;
+	FString GetJoinAddress() const;
 
 private:
 	void Home();
@@ -48,4 +51,5 @@ private:
 	int32 ModeIndex = 0;
 	int32 Page = 0;
 	bool bInMatch = false;
+	bool bConnectionError = false;
 };

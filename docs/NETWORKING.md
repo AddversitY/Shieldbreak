@@ -43,3 +43,37 @@ report `Saved/Logs/SelfTest.txt`, run log `Saved/Logs/HostControlsSelfTest.log`.
 This is a two-process local test with bots, not an eight-human or internet latency test.
 The existing imported FootstepEffectTagModifier asset logs missing Lyra type/compiler
 errors in both old and current runs; asset cleanup remains a separate backlog item.
+
+## Connection recovery
+
+`UShieldbreakGameInstance` keeps local connection feedback across world/controller
+replacement. It tracks the pending connection's owning game instance and driver, including
+direct startup URLs, so pending failures with no `World` are still attributed correctly.
+Connected clients use Unreal's normal disconnect travel back to the default map. The new
+front end consumes the saved message, opens Join Match and restores the host address.
+
+Messages distinguish join timeouts, host loss and version mismatch without showing raw
+server/driver strings. Successful joins, host launches and practice launches clear old
+feedback. Ordinary client departures do not put a listen host into a retry screen.
+No reconnect attempt is automatic; the player controls retry or chooses another address.
+
+After building, run `Tools/TestConnectionRecovery.ps1` (optional `-EngineRoot` and `-Port`,
+default test port 17877). It starts only its own local processes, uses rendering-disabled
+clients and checks:
+
+1. A real client joins, then returns to a visible retry screen after its host process stops.
+2. A join to an unavailable local port returns to Join with its address intact.
+3. One subsequent attempt joins a real local host, with no stale menu or saved error.
+
+The opt-in `-SBConnectionTest` helper runs only in this regression. Normal matches do not
+create its timers or perform its connection attempts. Reports are
+`Saved/Logs/ConnectionRecovery-HostLoss-{Server,Client}.log` and
+`Saved/Logs/ConnectionRecovery-Retry-{Server,Client}.log`.
+These are local transport/UI recovery checks; internet reachability and NAT traversal
+remain unverified.
+
+Verified 2026-10-27: editor build and all connection-recovery scenarios passed. The
+existing 4v4 regression also passed with 21 balanced roster samples. General gameplay
+finished 86/86 on an unchanged rerun after the first run missed one existing rocket-jump
+velocity sample; see `COORDINATION.md` for both results. A rendered direct-startup timeout
+also showed the retained address, feedback and usable Join screen at 1280x720.

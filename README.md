@@ -28,3 +28,5 @@ Launch the project as a game to open Play, Join, Settings and Exit. See
 - After building, `Tools/Test4v4Network.ps1` checks host permissions, the eight-player cap,
   bot replacement on join and refill on disconnect using a real local client. See
   [docs/NETWORKING.md](docs/NETWORKING.md) for the current network scope and test reports.
+- `Tools/TestConnectionRecovery.ps1` checks lost-host recovery, a failed join retaining
+  its address, and a successful local retry without stale error feedback.

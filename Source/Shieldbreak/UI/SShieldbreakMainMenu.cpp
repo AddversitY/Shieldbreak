@@ -1,6 +1,7 @@
 #include "UI/SShieldbreakMainMenu.h"
 
 #include "Player/ShieldbreakPlayerController.h"
+#include "Game/ShieldbreakGameInstance.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
@@ -75,6 +76,7 @@ void SShieldbreakMainMenu::Heading(const FString& LabelText)
 {
 	Actions->ClearChildren();
 	StatusText.Reset(); AddressBox.Reset(); GraphicsText.Reset();
+	bConnectionError = false;
 	ContentWidth->SetWidthOverride(440);
 	Actions->AddSlot().AutoHeight().Padding(0, 0, 0, 12)
 	[SNew(STextBlock).Text(ShieldbreakMenuPrivate::Label(LabelText)).ColorAndOpacity(ShieldbreakMenuPrivate::Accent)
@@ -217,14 +219,18 @@ void SShieldbreakMainMenu::Join()
 {
 	using namespace ShieldbreakMenuPrivate;
 	Page = 2; Heading(TEXT("JOIN MATCH"));
+	const UShieldbreakGameInstance* Session = Controller.IsValid()
+		? Controller->GetGameInstance<UShieldbreakGameInstance>() : nullptr;
 	Actions->AddSlot().AutoHeight().Padding(0, 0, 0, 12)
 	[SAssignNew(AddressBox, SEditableTextBox).HintText(Label(TEXT("Host address   /   192.168.1.10:7777")))
+		.Text(Session ? FText::FromString(Session->GetLastJoinAddress()) : FText::GetEmpty())
 		.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 16)).Padding(FMargin(14))];
 	Action(Label(TEXT("CONNECT")), [this]() {
 		const FString Address = AddressBox->GetText().ToString().TrimStartAndEnd();
 		if (!IsValidAddress(Address)) { ShowConnectionError(TEXT("Enter a host address and optional port.")); return; }
-		ShowConnectionError(TEXT("Connecting..."));
-		if (Controller.IsValid()) { Controller->ClientTravel(Address, TRAVEL_Absolute); }
+		bConnectionError = false;
+		if (StatusText.IsValid()) { StatusText->SetText(Label(TEXT("Connecting..."))); }
+		if (Controller.IsValid()) { Controller->JoinMatch(Address); }
 	});
 	Action(Label(TEXT("BACK")), [this]() { Home(); });
 	Actions->AddSlot().AutoHeight().Padding(0, 8)
@@ -233,9 +239,25 @@ void SShieldbreakMainMenu::Join()
 	Note(Label(TEXT("Direct connection. Internet hosts require a reachable UDP port (default 7777).")));
 }
 
-void SShieldbreakMainMenu::ShowConnectionError(const FString& Message)
+void SShieldbreakMainMenu::ShowConnectionError(const FString& Message, const FString& Address)
 {
+	// The old controller/menu may have been replaced by engine disconnect travel.
+	// Always create a usable retry screen, even when this menu started on Home.
+	if (Page != 2 || !StatusText.IsValid()) { Join(); }
+	if (!Address.IsEmpty() && AddressBox.IsValid()) { AddressBox->SetText(FText::FromString(Address)); }
+	bConnectionError = !Message.IsEmpty();
 	if (StatusText.IsValid()) { StatusText->SetText(FText::FromString(Message)); }
+}
+
+bool SShieldbreakMainMenu::IsConnectionRetryVisible() const
+{
+	return Page == 2 && bConnectionError && StatusText.IsValid() && !StatusText->GetText().IsEmpty()
+		&& AddressBox.IsValid();
+}
+
+FString SShieldbreakMainMenu::GetJoinAddress() const
+{
+	return AddressBox.IsValid() ? AddressBox->GetText().ToString() : FString();
 }
 
 FText SShieldbreakMainMenu::QualityLabel() const

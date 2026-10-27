@@ -7,6 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Game/ShieldbreakGameMode.h"
+#include "Game/ShieldbreakGameInstance.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Player/ShieldbreakInputSet.h"
 #include "HAL/FileManager.h"
@@ -21,20 +22,29 @@
 #include "InputCoreTypes.h"
 #include "Engine/Engine.h"
 #include "Test/ShieldbreakNetworkTest.h"
+#include "Test/ShieldbreakConnectionTest.h"
 
 void AShieldbreakPlayerController::ShowMainMenu()
 {
-	if (!IsLocalController() || MainMenu.IsValid() || !GEngine || !GEngine->GameViewport) { return; }
-	const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
-	const bool bInMatch = !Rules || !Rules->IsFrontEnd();
-	SAssignNew(MainMenu, SShieldbreakMainMenu).Controller(this).InMatch(bInMatch);
-	GEngine->GameViewport->AddViewportWidgetContent(MainMenu.ToSharedRef(), 100);
-	FInputModeUIOnly MenuInput;
-	MenuInput.SetWidgetToFocus(MainMenu).SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	SetInputMode(MenuInput);
-	SetShowMouseCursor(true);
-	SetIgnoreMoveInput(true);
-	SetIgnoreLookInput(true);
+	if (!IsLocalController() || !GEngine || !GEngine->GameViewport) { return; }
+	if (!MainMenu.IsValid())
+	{
+		const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+		const bool bInMatch = !Rules || !Rules->IsFrontEnd();
+		SAssignNew(MainMenu, SShieldbreakMainMenu).Controller(this).InMatch(bInMatch);
+		GEngine->GameViewport->AddViewportWidgetContent(MainMenu.ToSharedRef(), 100);
+		FInputModeUIOnly MenuInput;
+		MenuInput.SetWidgetToFocus(MainMenu).SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(MenuInput);
+		SetShowMouseCursor(true);
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+	}
+	if (UShieldbreakGameInstance* Instance = Cast<UShieldbreakGameInstance>(GetGameInstance()))
+	{
+		const FString Message = Instance->ConsumeConnectionError();
+		if (!Message.IsEmpty()) { MainMenu->ShowConnectionError(Message, Instance->GetLastJoinAddress()); }
+	}
 }
 
 void AShieldbreakPlayerController::CloseMainMenu()
@@ -54,18 +64,18 @@ void AShieldbreakPlayerController::OnEscape()
 	else { ShowMainMenu(); }
 }
 
-void AShieldbreakPlayerController::HandleNetworkFailure(UWorld* FailedWorld, UNetDriver* FailedDriver,
-	ENetworkFailure::Type FailureType, const FString& ErrorString)
+void AShieldbreakPlayerController::JoinMatch(const FString& Address)
 {
-	if (FailedWorld == GetWorld() && MainMenu.IsValid())
+	if (!IsLocalController()) { return; }
+	if (UShieldbreakGameInstance* Instance = Cast<UShieldbreakGameInstance>(GetGameInstance()))
 	{
-		MainMenu->ShowConnectionError(TEXT("Could not connect. Check the host address and try again."));
+		Instance->BeginJoin(Address);
 	}
+	ClientTravel(Address, TRAVEL_Absolute);
 }
 
 void AShieldbreakPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (GEngine) { GEngine->OnNetworkFailure().RemoveAll(this); }
 	CloseMainMenu();
 	Super::EndPlay(EndPlayReason);
 }
@@ -80,7 +90,6 @@ void AShieldbreakPlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
-		if (GEngine) { GEngine->OnNetworkFailure().AddUObject(this, &AShieldbreakPlayerController::HandleNetworkFailure); }
 		AddInputContext();
 		SetInputMode(FInputModeGameOnly());
 		SetShowMouseCursor(false);
@@ -95,6 +104,7 @@ void AShieldbreakPlayerController::BeginPlay()
 		{
 			if (Rules->IsFrontEnd()) { ShowMainMenu(); }
 		}
+		FShieldbreakConnectionTest::Start(this);
 	}
 }
 

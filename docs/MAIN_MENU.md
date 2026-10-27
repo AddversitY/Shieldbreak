@@ -13,6 +13,10 @@ dedicated servers and `-SBSelfTest` retain their gameplay entry path.
   button, with eight human slots and no bots initially.
 - **Practice:** opens the same browser, then Start Practice launches the selected local team match with seven bots.
 - **Join:** accepts a direct hostname or IPv4 address, with an optional port. Default port is 7777.
+- Failed joins and lost-host connections return to a retryable **Join Match** screen with
+  a clear connection message and the host address retained. The message survives Unreal's
+  disconnect map change; joining successfully clears it. Returning to Join also prefills
+  the last address for this application run.
 - **Settings:** cycles Low/Medium/High/Epic graphics presets and saves immediately.
 - **Escape in a match:** opens Resume, Leave Match, Settings and Exit. Leaving a match asks
   for confirmation; leaving as the host disconnects other players.
@@ -58,3 +62,15 @@ and [Call of Duty's UI redesign](https://news.blizzard.com/en-us/article/2415009
 - Compact row padding keeps all five maps and the action buttons inside the 1280x720 layout.
 - This revision changes only Slate UI/navigation. The earlier 84-check gameplay suite and
   Keel/Spire network results above were not rerun for this UI-only change.
+
+## Connection recovery (2026-10-27)
+
+Join feedback now lives across world/controller replacement. A failed join or lost host
+returns to Join Match with its address retained; Connect starts a new attempt and a
+successful connection clears the previous error. Network and game-version messages use
+fixed player-facing text. The four Play actions and separate map/mode browser are unchanged.
+
+Editor build, real local host-loss/failed-join/retry regression and the existing 4v4
+regression passed. A direct-startup timeout was visually verified at 1280x720:
+
+![Join screen after a connection timeout](playtests/2026-10-27_connection-recovery.png)

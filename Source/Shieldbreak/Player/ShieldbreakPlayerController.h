@@ -18,6 +18,8 @@ public:
 	AShieldbreakPlayerController();
 	void ShowMainMenu();
 	void CloseMainMenu();
+	/** Join a validated direct host address while retaining it for a failed-connection retry. */
+	void JoinMatch(const FString& Address);
 
 	// ---- Local UI state ----
 	bool IsScoreboardVisible() const { return bScoreboardVisible; }
@@ -50,9 +52,9 @@ protected:
 	virtual void OnUnPossess() override;
 
 private:
+	friend struct FShieldbreakConnectionTest;
 	TSharedPtr<class SShieldbreakMainMenu> MainMenu;
 	void OnEscape();
-	void HandleNetworkFailure(UWorld* FailedWorld, UNetDriver* FailedDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 	UFUNCTION(Server, Reliable) void ServerSetBots(int32 Count);
 	UFUNCTION(Server, Reliable) void ServerSetBotSkill(int32 Skill);
 	UFUNCTION(Server, Reliable) void ServerChangeMap(const FString& Map, const FString& Mode);
