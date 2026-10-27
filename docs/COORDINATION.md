@@ -35,25 +35,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-27 Codex desktop setup continues overnight at the user's explicit request.
-  UE 5.8.4 files are downloaded at `C:\Users\addve\Epic Games\UE_5.8`, with
-  debugging symbols selected. Epic completed verification and now offers Launch.
-  The engine's `.item` manifest confirms `bIsIncompleteInstall=False`; the older
-  LauncherInstalled.dat did not update, so the local watcher now also checks
-  the `.item` manifests. Project generation succeeded after installation with
-  no missing-target exception; the initial editor build is running with VS 2022
-  MSVC 14.44 and SDK 26100. About 42 GiB remains free. No personal files or games
-  deleted by this session.
-  Desktop game/editor/playtest shortcuts created. Generated `.slnx`/`.vsconfig`
-  files are now ignored; `git diff --check` passed.
-  Local ignored `Saved/DesktopSetup.ps1` generated project files and is now
-  building before it sequentially runs SelfTest,
-  Keel/Spire network regressions and the 4v4 regression. Inspect
-  `Saved/Logs/DesktopSetupPhase.txt` and processes before launching duplicate work.
-  A 15-minute heartbeat (`finish-shieldbreak-desktop-setup`) will continue this
-  chat and finish verification, documentation and pushes. Stop it when complete.
-  No completed editor build or gameplay/
-  network tests have completed on this desktop yet. See `docs/DESKTOP_SETUP.md`.
+- 2026-10-27 Codex desktop setup completed and verified; see the latest record
+  below and `docs/DESKTOP_SETUP.md`. No files reserved. The overnight setup
+  heartbeat is stopped after this final handoff is pushed.
 - Host-only controls and eight-slot runtime
   enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
 - Standing instruction: update this handoff and push each completed increment so Claude can
@@ -117,6 +101,28 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-27 Codex: **Desktop build environment ready** at
+  `C:\Users\addve\Documents\ChatGPT\Shieldbreak`. Installed and verified UE 5.8.4
+  with debugging symbols at `C:\Users\addve\Epic Games\UE_5.8`; VS 2022/MSVC 14.44
+  and SDK 26100 built ShieldbreakEditor successfully (exit 0, 103.17 s).
+  Gameplay self-test **85/85 PASS**, reported 116.6 average FPS with four bots
+  (not a controlled benchmark). Keel and Spire local server/client regressions
+  both **PASS**, each with 30 joined game seconds and no arena reference errors.
+  4v4 regression **PASS**, with host controls/remote rejection, join replacement,
+  disconnect refill and all **21** roster samples balanced within 4v4 limits.
+  Visually verified Home -> Play -> Multiplayer -> Done -> Practice -> Keel Slayer,
+  then Escape -> Leave confirmation -> Home -> Exit at 1280x720. Unreal Editor
+  also opened the project successfully. Per-user engine/file associations and
+  desktop game/editor/playtest shortcuts configured; Windows `.uproject` launch
+  tested. No assets edited; discarded only editor-generated Android settings.
+  Full LFS integrity check passed earlier. About 39 GiB free; no personal files
+  or games deleted. Test processes closed. Source gameplay/config unchanged.
+  Reports: `Saved/Logs/SelfTest.txt`, `SelfTestRun.log`, `DesktopProjectFiles.log`,
+  `DesktopNetwork*.txt`, `ArenaNetwork-*`, `4v4Network-*`, `DesktopVisual.log`,
+  `DesktopEditor.log`. Batch run-end log append had file-sharing messages; the
+  completed gameplay report and independent network checks above are the evidence.
+  Internet hosting/eight-human tests and laptop-only files/preferences remain
+  unverified. See `docs/DESKTOP_SETUP.md` for installed tools and setup caveats.
 - 2026-10-26 Codex: **Desktop setup, partial** at
   `C:\Users\addve\Documents\ChatGPT\Shieldbreak`. Synced main through `a9ce29b`;
   installed standalone Git 2.56.0.windows.3 / LFS 3.8.1, initialized local LFS
