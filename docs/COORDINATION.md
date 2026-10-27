@@ -98,6 +98,15 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-26 Codex: **Desktop setup, partial** at
+  `C:\Users\addve\Documents\ChatGPT\Shieldbreak`. Synced main through `a9ce29b`;
+  installed standalone Git 2.56.0.windows.3 / LFS 3.8.1, initialized local LFS
+  hooks and commit identity. Full asset `git lfs fsck` passed. Existing VS 2022
+  17.14.43 has both required C++ workloads, MSVC 14.44 and SDK 26100; Epic Launcher
+  is installed. Actual desktop hardware is 16 GB RAM / RTX 2080 Ti (the 8 GB
+  laptop constraints above are historical). UE 5.8 is missing and C: has only
+  about 25 GiB free; waiting for user storage choice. No files/games deleted,
+  no engine build or gameplay/network tests run here. See `docs/DESKTOP_SETUP.md`.
 - 2026-10-26 Codex: **host-only controls + 4v4 roster regression**. UE 5.8 build passed;
   general gameplay suite **85/85 PASS** with a MaxPlayers=16 URL (live session still eight).
   Server RPCs for SB_Bots/SB_Skill/SB_Map now authorize the local host on the authority.
