@@ -27,13 +27,15 @@ Selected core, templates, source and editor debugging symbols total 83.309 GB
 per Epic Launcher. Space increased to approximately 127 GiB before installation
 without deletion by this session; approximately 43 GiB remains afterward.
 The launcher appeared inactive before completion; restarting it resumed file
-verification, last observed at 23%. Wait for installation registration before
-treating the engine as ready.
+verification. Verification is now complete and Epic offers Launch. Its `.item`
+manifest records `bIsIncompleteInstall=False`; the older LauncherInstalled.dat
+did not update. The local watcher now checks both manifest formats.
 
-A project-generation probe ran using bundled .NET 10 and wrote solution files,
-but logged a missing UnrealEditor target rule during incomplete installation.
-Rerun after completion. VS 2022 also warns that it cannot load .NET 10 C# engine
-automation projects; the C++ editor build has not yet been tested. Generated
+A project-generation probe during installation logged a missing UnrealEditor
+target rule. Generation was rerun after installation and succeeded without
+that exception. VS 2022 still warns that it cannot load .NET 10 C# engine
+automation projects; the C++ editor build is currently running with MSVC 14.44
+and SDK 26100. Generated
 `.slnx` and `.vsconfig` files are ignored with the other local IDE output.
 
 The user explicitly authorized overnight continuation. Local ignored

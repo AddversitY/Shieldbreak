@@ -37,19 +37,22 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 ## In progress
 - 2026-10-27 Codex desktop setup continues overnight at the user's explicit request.
   UE 5.8.4 files are downloaded at `C:\Users\addve\Epic Games\UE_5.8`, with
-  debugging symbols selected. UAC cleared; Epic Launcher was restarted after
-  apparent inactivity and is now verifying files (last observed 23%). About
-  43 GiB remains free. No personal files or games deleted by this session.
+  debugging symbols selected. Epic completed verification and now offers Launch.
+  The engine's `.item` manifest confirms `bIsIncompleteInstall=False`; the older
+  LauncherInstalled.dat did not update, so the local watcher now also checks
+  the `.item` manifests. Project generation succeeded after installation with
+  no missing-target exception; the initial editor build is running with VS 2022
+  MSVC 14.44 and SDK 26100. About 42 GiB remains free. No personal files or games
+  deleted by this session.
   Desktop game/editor/playtest shortcuts created. Generated `.slnx`/`.vsconfig`
   files are now ignored; `git diff --check` passed.
-  Local ignored `Saved/DesktopSetup.ps1` is actively waiting for Epic's install
-  registration, then generates project files and sequentially runs SelfTest,
+  Local ignored `Saved/DesktopSetup.ps1` generated project files and is now
+  building before it sequentially runs SelfTest,
   Keel/Spire network regressions and the 4v4 regression. Inspect
   `Saved/Logs/DesktopSetupPhase.txt` and processes before launching duplicate work.
   A 15-minute heartbeat (`finish-shieldbreak-desktop-setup`) will continue this
   chat and finish verification, documentation and pushes. Stop it when complete.
-  Initial project generation during install returned success but logged a missing
-  UnrealEditor target rule; rerun after installation. No editor build or gameplay/
+  No completed editor build or gameplay/
   network tests have completed on this desktop yet. See `docs/DESKTOP_SETUP.md`.
 - Host-only controls and eight-slot runtime
   enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
