@@ -38,6 +38,7 @@ private:
 	};
 
 	void BuildSteps();
+	void BuildPresentationSteps();
 	/** Objective-mode checks (CTF / KOTH / Oddball), used instead of the mechanics suite in those modes. */
 	void BuildModeSteps(EShieldbreakGameType Mode);
 	void Check(const FString& What, bool bPassed, const FString& Detail = FString());

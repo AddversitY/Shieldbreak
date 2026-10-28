@@ -36,6 +36,17 @@ See the pull request for the exact order. Short version: `git lfs pull`, then `T
 then the arena, 4v4 and connection-recovery scripts one at a time, then look at Settings, Controls,
 and a shadowed wall.
 
+## Latest desktop pass
+
+- Launch maps now have four times their original ground area (2x X/Y), with
+  original heights and movement tuning. Spire has original modular detail.
+- Claude's action rig now has continuous directional blending, gait continuity,
+  action cross-fades, smoother crouch-camera presentation and bounded network
+  visual corrections. Shields visibly flash on absorbed hits and breaks.
+- Actual tests and limits are in `COORDINATION.md`; implementation and test
+  commands are in `SMOOTHING_AND_SHIELD_FEEDBACK.md`. Complete AAA presentation,
+  FPS-specific animation authoring, foot IK and more environment art remain ahead.
+
 ## Still open
 
 - All five launch maps have a first expansion to 2x X/Y (4x ground area), keeping

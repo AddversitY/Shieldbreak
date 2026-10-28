@@ -20,6 +20,7 @@ struct SHIELDBREAK_API FShieldbreakBodyAnimProxy : public FAnimInstanceProxy
 
 	FShieldbreakBodyAnimProxy() = default;
 	explicit FShieldbreakBodyAnimProxy(UAnimInstance* InAnimInstance) : FAnimInstanceProxy(InAnimInstance) {}
+	float GetCyclePhase() const;
 
 protected:
 	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
@@ -33,6 +34,9 @@ private:
 		float Time = 0.f;
 		float PlayRate = 1.f;
 		bool bLoop = true;
+		const UAnimSequenceBase* Directions[4] = {};
+		FVector4 Weights = FVector4(1.f, 0.f, 0.f, 0.f);
+		bool bDirectional = false;
 	};
 
 	static void Advance(FTrack& Track, float DeltaSeconds);
@@ -44,6 +48,10 @@ private:
 	FTrack Previous;
 	/** The one-shot action layered over the upper body (Animation null when none). */
 	FTrack Action;
+	FTrack PreviousAction;
+	float ActionTransition = 1.f;
+	FVector4 TargetWeights = FVector4(1.f, 0.f, 0.f, 0.f);
+	float TargetPlayRate = 1.f;
 	float ActionWeight = 0.f;
 	float ActionBlendIn = 0.1f;
 	float ActionBlendOut = 0.2f;
@@ -53,6 +61,7 @@ private:
 	float BlendTime = 0.18f;
 	int32 SeenRequest = -1;
 	float AimPitch = 0.f;
+	float TargetAimPitch = 0.f;
 	FVector AimAxis = FVector::RightVector;
 };
 
@@ -64,12 +73,17 @@ class SHIELDBREAK_API UShieldbreakBodyAnimInstance : public UAnimInstance
 public:
 	/** Switch to Animation, cross-fading from what plays now. Calling it again with the same animation does nothing. */
 	void PlayPose(UAnimSequenceBase* Animation, bool bLoop);
+	/** Shared gait phase and continuous forward/back/left/right blending. */
+	void PlayDirectionalPose(UAnimSequenceBase* Forward, UAnimSequenceBase* Backward,
+		UAnimSequenceBase* Left, UAnimSequenceBase* Right, const FVector2D& Direction);
 	void SetPosePlayRate(float InPlayRate) { PlayRate = InPlayRate; }
 	/** Aim pitch in degrees (up is positive) and the pitch axis (the character's right) in mesh component space. */
 	void SetAim(float InPitch, const FVector& InAxisComponentSpace) { AimPitch = InPitch; AimAxis = InAxisComponentSpace; }
 
 	UAnimSequenceBase* GetPoseAnimation() const { return RequestedAnimation; }
 	float GetAimPitch() const { return AimPitch; }
+	/** Diagnostic snapshot; completes any in-flight animation work before reading. */
+	float GetLocomotionPhase() const { return GetProxyOnGameThread<FShieldbreakBodyAnimProxy>().GetCyclePhase(); }
 
 	/** Plays Animation once over the upper body, from StartTime (s) at PlayRate, then fades back to the pose. */
 	void PlayAction(UAnimSequenceBase* Animation, float StartTime = 0.f, float InPlayRate = 1.f);
@@ -89,6 +103,10 @@ private:
 	/** The one still fading out. */
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimSequenceBase> FadingAnimation;
+	UPROPERTY(Transient) TArray<TObjectPtr<UAnimSequenceBase>> DirectionalAnimations;
+	UPROPERTY(Transient) TArray<TObjectPtr<UAnimSequenceBase>> FadingDirectionalAnimations;
+	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> FadingActionAnimation;
+	FVector4 DirectionWeights = FVector4(1.f, 0.f, 0.f, 0.f);
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimSequenceBase> ActionAnimation;
 	float ActionStartTime = 0.f;

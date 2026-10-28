@@ -16,6 +16,7 @@ class UMaterialInstanceDynamic;
 class UShieldHealthComponent;
 class UShieldbreakBodyAnimator;
 class UShieldbreakMovementComponent;
+class UShieldbreakShieldVisual;
 class UStaticMeshComponent;
 struct FInputActionValue;
 enum class EShieldbreakAction : uint8;
@@ -127,6 +128,8 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual bool CanJumpInternal_Implementation() const override;
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
 	// ---- Components ----
 
@@ -149,6 +152,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Shieldbreak")
 	TObjectPtr<UShieldHealthComponent> ShieldHealth;
+
+	UPROPERTY(VisibleAnywhere, Category = "Shieldbreak")
+	TObjectPtr<UShieldbreakShieldVisual> ShieldVisual;
 
 	/** Imported mannequin body + locomotion (falls back to the greybox meshes when the art is missing). */
 	UPROPERTY(VisibleAnywhere, Category = "Character")
@@ -242,6 +248,7 @@ private:
 
 	void SetAegisRaisedInternal(bool bRaise);
 	void UpdateCamoVisuals();
+	void UpdateCrouchCamera(float DeltaSeconds);
 	UFUNCTION() void OnRep_AegisRaised();
 	UFUNCTION() void OnRep_CamoEnd();
 
@@ -313,6 +320,7 @@ private:
 	float AimAssistStrength = 0.f;
 	float LastServerMeleeTime = -100.f;
 	float LastShieldValue = -1.f;
+	float CrouchCameraOffset = 0.f;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;

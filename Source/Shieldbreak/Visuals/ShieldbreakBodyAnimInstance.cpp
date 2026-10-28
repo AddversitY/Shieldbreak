@@ -19,13 +19,34 @@ namespace ShieldbreakBodyAnimPrivate
 
 void UShieldbreakBodyAnimInstance::PlayPose(UAnimSequenceBase* Animation, bool bLoop)
 {
-	if (!Animation || Animation == RequestedAnimation)
+	if (!Animation || (Animation == RequestedAnimation && DirectionalAnimations.IsEmpty()))
 	{
 		return;
 	}
 	FadingAnimation = RequestedAnimation;
+	FadingDirectionalAnimations = DirectionalAnimations;
+	DirectionalAnimations.Reset();
 	RequestedAnimation = Animation;
 	bRequestedLoop = bLoop;
+	++RequestCount;
+}
+
+void UShieldbreakBodyAnimInstance::PlayDirectionalPose(UAnimSequenceBase* Forward, UAnimSequenceBase* Backward,
+	UAnimSequenceBase* Left, UAnimSequenceBase* Right, const FVector2D& Direction)
+{
+	if (!Forward || !Backward || !Left || !Right) { PlayPose(Forward, true); return; }
+	const double Total = FMath::Abs(Direction.X) + FMath::Abs(Direction.Y);
+	if (Total > UE_SMALL_NUMBER)
+	{
+		DirectionWeights = FVector4(FMath::Max(0.0, Direction.X) / Total, FMath::Max(0.0, -Direction.X) / Total,
+			FMath::Max(0.0, -Direction.Y) / Total, FMath::Max(0.0, Direction.Y) / Total);
+	}
+	if (RequestedAnimation == Forward && DirectionalAnimations.Num() == 4) { return; }
+	FadingAnimation = RequestedAnimation;
+	FadingDirectionalAnimations = DirectionalAnimations;
+	RequestedAnimation = Forward;
+	DirectionalAnimations = { Forward, Backward, Left, Right };
+	bRequestedLoop = true;
 	++RequestCount;
 }
 
@@ -35,6 +56,7 @@ void UShieldbreakBodyAnimInstance::PlayAction(UAnimSequenceBase* Animation, floa
 	{
 		return;
 	}
+	FadingActionAnimation = ActionAnimation;
 	ActionAnimation = Animation;
 	ActionStartTime = FMath::Max(0.f, StartTime);
 	ActionPlayRate = FMath::Max(0.05f, InPlayRate);
@@ -51,6 +73,11 @@ UAnimSequenceBase* UShieldbreakBodyAnimInstance::GetActionAnimation() const
 
 // ---- Proxy (worker thread after PreUpdate) ----
 
+float FShieldbreakBodyAnimProxy::GetCyclePhase() const
+{
+	return Current.Animation && Current.Animation->GetPlayLength() > 0.f ? Current.Time / Current.Animation->GetPlayLength() : -1.f;
+}
+
 void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
 	FAnimInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
@@ -62,22 +89,35 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 		// The first pose snaps in; later ones fade from the current one.
 		const bool bFirst = Current.Animation == nullptr;
 		Previous = Current;
+		const float Phase = Current.bLoop && Current.Animation && Current.Animation->GetPlayLength() > 0.f
+			? Current.Time / Current.Animation->GetPlayLength() : 0.f;
 		Current.Animation = Instance->RequestedAnimation;
 		Current.bLoop = Instance->bRequestedLoop;
-		Current.Time = 0.f;
+		Current.bDirectional = Instance->DirectionalAnimations.Num() == 4;
+		for (int32 Index = 0; Index < 4; ++Index)
+		{
+			Current.Directions[Index] = Current.bDirectional ? Instance->DirectionalAnimations[Index].Get() : nullptr;
+		}
+		// Preserve the feet's cycle across walk/jog/crouch transitions; turns never restart it.
+		Current.Time = Previous.bDirectional && Current.bDirectional && Current.Animation
+			? Phase * Current.Animation->GetPlayLength() : 0.f;
+		if (!Previous.bDirectional) { Current.Weights = Instance->DirectionWeights; }
 		BlendAlpha = bFirst ? 1.f : 0.f;
 	}
-	Current.PlayRate = Instance->PlayRate;
+	TargetWeights = Instance->DirectionWeights;
+	TargetPlayRate = Instance->PlayRate;
 	if (Instance->ActionRequestCount != SeenActionRequest)
 	{
 		SeenActionRequest = Instance->ActionRequestCount;
+		PreviousAction = Action;
+		ActionTransition = Action.Animation && ActionWeight > 0.f ? 0.f : 1.f;
 		Action.Animation = Instance->ActionAnimation;
 		Action.Time = Instance->ActionStartTime;
 		Action.PlayRate = Instance->ActionPlayRate;
 		Action.bLoop = false;
-		// ActionWeight carries over, so a new action while one plays (melee right after a throw) cuts straight over.
+		// Keep the layer's weight, but cross-fade the old and new actions instead of cutting.
 	}
-	AimPitch = FMath::Clamp(Instance->AimPitch, -ShieldbreakBodyAnimPrivate::MaxAimPitch, ShieldbreakBodyAnimPrivate::MaxAimPitch);
+	TargetAimPitch = FMath::Clamp(Instance->AimPitch, -ShieldbreakBodyAnimPrivate::MaxAimPitch, ShieldbreakBodyAnimPrivate::MaxAimPitch);
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 }
 
@@ -110,6 +150,10 @@ void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
 void FShieldbreakBodyAnimProxy::Update(float DeltaSeconds)
 {
 	FAnimInstanceProxy::Update(DeltaSeconds);
+	const float Follow = 1.f - FMath::Exp(-12.f * FMath::Max(0.f, DeltaSeconds));
+	Current.Weights = FMath::Lerp(Current.Weights, TargetWeights, Follow);
+	Current.PlayRate = FMath::Lerp(Current.PlayRate, TargetPlayRate, Follow);
+	AimPitch = FMath::Lerp(AimPitch, TargetAimPitch, Follow);
 
 	Advance(Current, DeltaSeconds);
 	if (BlendAlpha < 1.f)
@@ -120,6 +164,11 @@ void FShieldbreakBodyAnimProxy::Update(float DeltaSeconds)
 
 	if (Action.Animation)
 	{
+		if (ActionTransition < 1.f)
+		{
+			Advance(PreviousAction, DeltaSeconds);
+			ActionTransition = FMath::Min(1.f, ActionTransition + DeltaSeconds / 0.1f);
+		}
 		Advance(Action, DeltaSeconds);
 		const float Remaining = (Action.Animation->GetPlayLength() - Action.Time) / FMath::Max(0.05f, Action.PlayRate);
 		if (Remaining <= 0.f)
@@ -146,6 +195,32 @@ void FShieldbreakBodyAnimProxy::Sample(const FTrack& Track, FPoseContext& Output
 		return;
 	}
 	FAnimationPoseData PoseData(Output);
+	if (Track.bDirectional)
+	{
+		const float Phase = Track.Animation->GetPlayLength() > 0.f ? Track.Time / Track.Animation->GetPlayLength() : 0.f;
+		float TotalWeight = 0.f;
+		for (int32 Index = 0; Index < 4; ++Index)
+		{
+			const float Weight = static_cast<float>(Track.Weights[Index]);
+			const UAnimSequenceBase* Clip = Track.Directions[Index];
+			if (!Clip || Weight < 0.001f) { continue; }
+			if (TotalWeight == 0.f)
+			{
+				Clip->GetAnimationPose(PoseData, FAnimExtractContext(static_cast<double>(Phase * Clip->GetPlayLength()), false));
+			}
+			else
+			{
+				FPoseContext Next(Output);
+				FAnimationPoseData NextData(Next);
+				Clip->GetAnimationPose(NextData, FAnimExtractContext(static_cast<double>(Phase * Clip->GetPlayLength()), false));
+				FAnimationRuntime::BlendTwoPosesTogetherInPlace(PoseData, NextData, TotalWeight / (TotalWeight + Weight));
+			}
+			TotalWeight += Weight;
+		}
+		if (TotalWeight == 0.f) { Output.ResetToRefPose(); }
+		Output.Pose.NormalizeRotations();
+		return;
+	}
 	Track.Animation->GetAnimationPose(PoseData, FAnimExtractContext(static_cast<double>(Track.Time), false));
 }
 
@@ -183,6 +258,13 @@ void FShieldbreakBodyAnimProxy::ApplyAction(FPoseContext& Output) const
 
 	FPoseContext ActionPose(Output);
 	Sample(Action, ActionPose);
+	if (PreviousAction.Animation && ActionTransition < 1.f)
+	{
+		FPoseContext OldAction(Output);
+		Sample(PreviousAction, OldAction);
+		FAnimationPoseData NewData(ActionPose), OldData(OldAction);
+		FAnimationRuntime::BlendTwoPosesTogetherInPlace(NewData, OldData, FMath::SmoothStep(0.f, 1.f, ActionTransition));
+	}
 
 	FCompactPose& Pose = Output.Pose;
 	const FBoneContainer& Bones = Pose.GetBoneContainer();

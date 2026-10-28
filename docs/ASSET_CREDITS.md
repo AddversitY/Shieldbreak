@@ -1,5 +1,12 @@
 # Asset Credits and Imported Content Paths
 
+## Original shield-hit material (2026-10-27)
+
+`/Game/Shieldbreak/Art/Materials/M_SB_ShieldImpact` is an original procedural
+additive Fresnel material created by `Tools/create_shield_material.py`.
+No external textures, models or generation service are used. It renders short
+shield/overshield impact pulses over the existing character and armor meshes.
+
 ## Original Spire modules (2026-10-27)
 
 Collector fin, service panel and segmented lift collar authored for Shieldbreak

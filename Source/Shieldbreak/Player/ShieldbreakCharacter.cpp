@@ -4,6 +4,7 @@
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Visuals/ShieldbreakShieldVisual.h"
 #include "Game/ShieldbreakTeams.h"
 #include "Game/ShieldbreakObjectives.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -155,6 +156,7 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	ShieldHealth = CreateDefaultSubobject<UShieldHealthComponent>(TEXT("ShieldHealth"));
 	CreateDefaultSubobject<UShieldbreakCharacterAudio>(TEXT("ShieldAudio"));
 	BodyAnimator = CreateDefaultSubobject<UShieldbreakBodyAnimator>(TEXT("BodyAnimator"));
+	ShieldVisual = CreateDefaultSubobject<UShieldbreakShieldVisual>(TEXT("ShieldVisual"));
 
 	// Mannequin placement (the mesh asset itself is assigned at runtime by BodyAnimator): feet on the
 	// capsule bottom, facing +X. Set here so ACharacter caches it as the crouch base offset.
@@ -574,6 +576,7 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	if (bLocalPlayerView)
 	{
 		UpdateAimAssist(DeltaSeconds);
+		if (!bDeathHandled) { UpdateCrouchCamera(DeltaSeconds); }
 	}
 	if (!bLocalPlayerView && FirstPersonCamera && !bDeathHandled)
 	{
@@ -611,6 +614,57 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 }
 
 // ---- Input ----
+
+void AShieldbreakCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	if (IsLocallyControlled() && IsPlayerControlled())
+	{
+		CrouchCameraOffset += ScaledHalfHeightAdjust;
+		UpdateCrouchCamera(0.f);
+	}
+}
+
+void AShieldbreakCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	if (IsLocallyControlled() && IsPlayerControlled())
+	{
+		CrouchCameraOffset -= ScaledHalfHeightAdjust;
+		UpdateCrouchCamera(0.f);
+	}
+}
+
+void AShieldbreakCharacter::UpdateCrouchCamera(float DeltaSeconds)
+{
+	if (!FirstPersonCamera || !GetWorld() || bDeathHandled) { return; }
+	// Compensate the capsule's immediate height change, then settle visually.
+	// Movement/collision and saved-move prediction still take effect immediately.
+	CrouchCameraOffset *= FMath::Exp(-18.f * FMath::Max(0.f, DeltaSeconds));
+	if (FMath::Abs(CrouchCameraOffset) < 0.01f) { CrouchCameraOffset = 0.f; }
+	FVector Relative = FirstPersonCamera->GetRelativeLocation();
+	Relative.Z = BaseEyeHeight + CrouchCameraOffset;
+	if (!FMath::IsNearlyZero(CrouchCameraOffset))
+	{
+		const FVector Start = GetActorLocation() + FVector(0.f, 0.f, BaseEyeHeight);
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakCrouchCamera), false, this);
+		if (GetWorld()->SweepSingleByObjectType(Hit, Start, Start + FVector(0.f, 0.f, CrouchCameraOffset), FQuat::Identity,
+			FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeSphere(6.f), Params))
+		{
+			Relative.Z = Hit.bStartPenetrating ? BaseEyeHeight : Hit.Location.Z - GetActorLocation().Z;
+		}
+	}
+	if (DeltaSeconds <= 0.f)
+	{
+		// Crouch callbacks execute inside the capsule's deferred movement scope.
+		// A normal MoveComponent-based setter converts against its old transform
+		// and loses this compensation. Match ACharacter's mesh-offset handling;
+		// the enclosing movement scope updates the attached camera afterward.
+		FirstPersonCamera->GetRelativeLocation_DirectMutable() = Relative;
+	}
+	else { FirstPersonCamera->SetRelativeLocation(Relative); }
+}
 
 void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -1413,6 +1467,7 @@ void AShieldbreakCharacter::UpdateCamoVisuals()
 		const float Time = GetWorld()->GetTimeSeconds() * 23.f + static_cast<float>(GetUniqueID() % 97);
 		const float Noise = 0.5f + 0.5f * FMath::Sin(Time) * FMath::Sin(Time * 0.37f + 1.3f);
 		bHide = bShooting ? Noise < 0.25f : (bMoving ? Noise < 0.7f : true);
+		if (ShieldVisual && ShieldVisual->IsPulseActive()) { bHide = false; }
 	}
 
 	if (bHide == bCamoHidden)

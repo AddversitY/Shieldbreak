@@ -20,6 +20,7 @@
 UShieldbreakBodyAnimator::UShieldbreakBodyAnimator()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 USkeletalMeshComponent* UShieldbreakBodyAnimator::GetBodyMesh() const
@@ -39,6 +40,11 @@ void UShieldbreakBodyAnimator::BeginPlay()
 		SetComponentTickEnabled(false);
 		return;
 	}
+	if (const ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		AddTickPrerequisiteComponent(Character->GetCharacterMovement());
+	}
+	Body->AddTickPrerequisiteComponent(this);
 
 	Body->SetSkeletalMeshAsset(Manny);
 	// Our native anim instance cross-fades between the sequences ChoosePose picks and bends the spine to the aim.
@@ -48,6 +54,23 @@ void UShieldbreakBodyAnimator::BeginPlay()
 	Body->SetOwnerNoSee(true);
 	Body->bCastHiddenShadow = true;
 	bHasBodyArt = true;
+	// Load the small shared animation set during spawn/map loading, before the
+	// first strafe, turn or action would otherwise synchronously load its clip.
+	static bool bAnimationsWarmed = false;
+	if (!bAnimationsWarmed && GetNetMode() != NM_DedicatedServer)
+	{
+		bAnimationsWarmed = true;
+		for (int32 Index = static_cast<int32>(EShieldbreakBodyPose::Idle); Index <= static_cast<int32>(EShieldbreakBodyPose::Falling); ++Index)
+		{
+			GetPoseAnimation(static_cast<EShieldbreakBodyPose>(Index));
+		}
+		for (const TCHAR* Name : { TEXT("MM_Rifle_Reload"), TEXT("MM_Rifle_Melee"), TEXT("MM_Rifle_GrenadeToss"),
+			TEXT("MM_Rifle_Equip"), TEXT("MM_Pistol_Reload"), TEXT("MM_Pistol_Melee"), TEXT("MM_Pistol_Equip") })
+		{
+			const FString Path = FString(TEXT("/Game/Characters/Heroes/Mannequin/Animations/Actions/")) + Name + TEXT(".") + Name;
+			ShieldbreakArt::Load<UAnimSequenceBase>(*Path);
+		}
+	}
 	AttachArmor(Body, false);
 
 	// On clients the equipped weapon can replicate before the mesh exists; re-attach it to the hand now.
@@ -83,22 +106,29 @@ void UShieldbreakBodyAnimator::TickComponent(float DeltaTime, ELevelTick TickTyp
 	const float Now = World->GetTimeSeconds();
 
 	UShieldbreakBodyAnimInstance* AnimInstance = Cast<UShieldbreakBodyAnimInstance>(Body->GetAnimInstance());
-	if (Pose != CurrentPose && Now - LastPoseChangeTime >= MinPoseTime)
+	if (Pose == CurrentPose || Now - LastPoseChangeTime >= MinPoseTime)
 	{
 		if (UAnimSequenceBase* Animation = GetPoseAnimation(Pose))
 		{
 			const bool bLoop = Pose != EShieldbreakBodyPose::Apex;
 			if (AnimInstance)
 			{
-				AnimInstance->PlayPose(Animation, bLoop);
+				const bool bDirectional = Pose == EShieldbreakBodyPose::WalkFwd || Pose == EShieldbreakBodyPose::JogFwd || Pose == EShieldbreakBodyPose::CrouchFwd;
+				if (bDirectional)
+				{
+					const FVector Local = GetOwner()->GetActorRotation().UnrotateVector(GetOwner()->GetVelocity());
+					const int32 Base = static_cast<int32>(Pose);
+					AnimInstance->PlayDirectionalPose(Animation, GetPoseAnimation(static_cast<EShieldbreakBodyPose>(Base + 1)),
+						GetPoseAnimation(static_cast<EShieldbreakBodyPose>(Base + 2)), GetPoseAnimation(static_cast<EShieldbreakBodyPose>(Base + 3)), FVector2D(Local.X, Local.Y));
+				}
+				else { AnimInstance->PlayPose(Animation, bLoop); }
 			}
-			else
+			else if (Pose != CurrentPose)
 			{
 				// No anim instance (shouldn't happen): fall back to single-node playback, no blending.
 				Body->PlayAnimation(Animation, bLoop);
 			}
-			CurrentPose = Pose;
-			LastPoseChangeTime = Now;
+			if (Pose != CurrentPose) { CurrentPose = Pose; LastPoseChangeTime = Now; }
 		}
 	}
 	if (!AnimInstance)
@@ -160,27 +190,19 @@ EShieldbreakBodyPose UShieldbreakBodyAnimator::ChoosePose(float& OutPlayRate) co
 		return bCrouched ? EShieldbreakBodyPose::CrouchIdle : EShieldbreakBodyPose::Idle;
 	}
 
-	// Direction relative to facing, bucketed into the four authored directions.
-	const FVector Local = Character->GetActorRotation().UnrotateVector(Velocity);
-	const bool bForwardAxis = FMath::Abs(Local.X) >= FMath::Abs(Local.Y);
-	const int32 Direction = bForwardAxis ? (Local.X >= 0.f ? 0 : 1) : (Local.Y >= 0.f ? 3 : 2); // 0 fwd, 1 bwd, 2 left, 3 right
-
 	if (bCrouched)
 	{
 		OutPlayRate = FMath::Clamp(Speed / CrouchAnimSpeed, 0.5f, 2.f);
-		static const EShieldbreakBodyPose CrouchPoses[] = { EShieldbreakBodyPose::CrouchFwd, EShieldbreakBodyPose::CrouchBwd, EShieldbreakBodyPose::CrouchLeft, EShieldbreakBodyPose::CrouchRight };
-		return CrouchPoses[Direction];
+		return EShieldbreakBodyPose::CrouchFwd;
 	}
 	if (Speed < JogThreshold)
 	{
 		OutPlayRate = FMath::Clamp(Speed / WalkAnimSpeed, 0.5f, 2.f);
-		static const EShieldbreakBodyPose WalkPoses[] = { EShieldbreakBodyPose::WalkFwd, EShieldbreakBodyPose::WalkBwd, EShieldbreakBodyPose::WalkLeft, EShieldbreakBodyPose::WalkRight };
-		return WalkPoses[Direction];
+		return EShieldbreakBodyPose::WalkFwd;
 	}
 
 	OutPlayRate = FMath::Clamp(Speed / JogAnimSpeed, 0.6f, 2.f);
-	static const EShieldbreakBodyPose JogPoses[] = { EShieldbreakBodyPose::JogFwd, EShieldbreakBodyPose::JogBwd, EShieldbreakBodyPose::JogLeft, EShieldbreakBodyPose::JogRight };
-	return JogPoses[Direction];
+	return EShieldbreakBodyPose::JogFwd;
 }
 
 UAnimSequenceBase* UShieldbreakBodyAnimator::GetPoseAnimation(EShieldbreakBodyPose Pose) const
@@ -289,9 +311,9 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 	const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
 	for (const TCHAR* Bone : ArmorBones)
 	{
-		if (bFirstPerson && !FCString::Strstr(Bone, TEXT("arm_")))
+		if (bFirstPerson && !FCString::Strstr(Bone, TEXT("lowerarm_")))
 		{
-			continue; // the arms only wear the upper/lower arm pieces
+			continue; // Forearm plates only: upper-arm plates sweep through the eye in full-body action clips.
 		}
 		const int32 BoneIndex = RefSkeleton.FindBoneIndex(Bone);
 		const FString Name = FString(TEXT("SM_SB_Armor_")) + Bone;
@@ -564,6 +586,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
 		FirstPersonArms->RegisterComponent();
+		FirstPersonArms->AddTickPrerequisiteComponent(this);
 		for (const TCHAR* Bone : FirstPersonHiddenBones)
 		{
 			FirstPersonArms->HideBoneByName(Bone, EPhysBodyOp::PBO_None);

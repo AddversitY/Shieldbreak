@@ -112,6 +112,9 @@ UShieldbreakMovementComponent::UShieldbreakMovementComponent()
 	FallingLateralFriction = 0.f;
 	SetCrouchedHalfHeight(58.f);
 	bCanWalkOffLedgesWhenCrouching = true;
+	NetworkSmoothingMode = ENetworkSmoothingMode::Exponential;
+	NetworkSimulatedSmoothLocationTime = 0.1f;
+	NetworkSimulatedSmoothRotationTime = 0.05f;
 	NavAgentProps.bCanCrouch = true;
 	NavAgentProps.bCanJump = true;
 }
@@ -122,8 +125,10 @@ FNetworkPredictionData_Client* UShieldbreakMovementComponent::GetPredictionData_
 	{
 		UShieldbreakMovementComponent* MutableThis = const_cast<UShieldbreakMovementComponent*>(this);
 		MutableThis->ClientPredictionData = new FNetworkPredictionData_Client_Shieldbreak(*this);
-		MutableThis->ClientPredictionData->MaxSmoothNetUpdateDist = 92.f;
-		MutableThis->ClientPredictionData->NoSmoothNetUpdateDist = 140.f;
+		// At sprint speed a normal delayed update can exceed 1.4 m. The old
+		// thresholds snapped those corrections; retain a bounded visual offset.
+		MutableThis->ClientPredictionData->MaxSmoothNetUpdateDist = 256.f;
+		MutableThis->ClientPredictionData->NoSmoothNetUpdateDist = 384.f;
 	}
 	return ClientPredictionData;
 }

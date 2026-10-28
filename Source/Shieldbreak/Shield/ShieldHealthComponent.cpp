@@ -160,6 +160,11 @@ void UShieldHealthComponent::MulticastBreakPulse_Implementation()
 	OnBreakPulse.Broadcast();
 }
 
+void UShieldHealthComponent::MulticastShieldImpact_Implementation(float AbsorbedDamage, bool bBroken, bool bOvershield)
+{
+	OnShieldImpact.Broadcast(AbsorbedDamage, bBroken, bOvershield);
+}
+
 // ---- Damage ----
 
 void UShieldHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
@@ -226,6 +231,10 @@ float UShieldHealthComponent::AbsorbWithShield(float RawDamage, float ShieldMult
 	const float FromShield = FMath::Min(Shield, ShieldDamage);
 	SetShieldInternal(Shield - FromShield);
 	ShieldDamage -= FromShield;
+	if (FromOvershield + FromShield > 0.f)
+	{
+		MulticastShieldImpact(FromOvershield + FromShield, bHadShield && Shield <= 0.f, FromOvershield > 0.f);
+	}
 
 	if (bHadShield && Shield <= 0.f)
 	{

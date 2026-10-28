@@ -32,6 +32,10 @@
 #include "Shield/ShieldTuningData.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Visuals/ShieldbreakBodyAnimInstance.h"
+#include "Visuals/ShieldbreakShieldVisual.h"
+#include "Visuals/ShieldbreakArt.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Materials/Material.h"
@@ -267,13 +271,19 @@ void AShieldbreakSelfTest::BuildSteps()
 		}, nullptr, 5.f });
 
 	// -SBShots / -SBFPShots: only take comparison screenshots (and a fixed-view FPS figure), no checks.
-	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
 		BuildShotSteps();
 		return;
 	}
 
 	// ---- Original art (Art/blender, imported by Tools/ImportArt.bat): every gun has its own model, soldiers wear armor. ----
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBPresentationTest")))
+	{
+		ModeTag = TEXT("Presentation");
+		BuildPresentationSteps();
+		return;
+	}
 	Steps.Add({ TEXT("Original art is in place"),
 		[this]()
 		{
@@ -457,6 +467,7 @@ void AShieldbreakSelfTest::BuildSteps()
 	else
 	{
 	// (Slayer-only steps below are not re-indented, to keep diffs readable.)
+	BuildPresentationSteps();
 
 	// ---- Front end ----
 	Steps.Add({ TEXT("Main menu launch rules"), nullptr,
@@ -1878,6 +1889,147 @@ void AShieldbreakSelfTest::BuildSteps()
 
 // ---- Map tour (launch with ?Map=Keel|Bastion|Sanctum|Creekbed|Spire; see Tools/MapTour.bat) ----
 
+void AShieldbreakSelfTest::BuildPresentationSteps()
+{
+	Steps.Add({ TEXT("Crouch camera settles without a capsule-height pop"),
+		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
+		[this](float Elapsed)
+		{
+			if (!A || !A->GetFirstPersonCamera()) { Check(TEXT("Crouch view has a local pawn"), false); return true; }
+			if (Phase == 0 && Elapsed > 0.5f)
+			{
+				Value0 = A->GetFirstPersonCamera()->GetComponentLocation().Z;
+				Value1 = 0.f;
+				A->Crouch(); Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1)
+			{
+				const float Eye = A->GetFirstPersonCamera()->GetComponentLocation().Z;
+				Value1 = FMath::Max(Value1, FMath::Abs(Eye - Value0));
+				Value0 = Eye;
+				if (Now() - Mark > 0.4f)
+				{
+					Check(TEXT("Crouching does not jump the camera by the 34 cm capsule change"), A->bIsCrouched && Value1 < 25.f,
+						FString::Printf(TEXT("largest frame change %.2f cm"), Value1));
+					Value1 = 0.f; A->UnCrouch(); Mark = Now(); Phase = 2;
+				}
+			}
+			else if (Phase == 2)
+			{
+				const float Eye = A->GetFirstPersonCamera()->GetComponentLocation().Z;
+				Value1 = FMath::Max(Value1, FMath::Abs(Eye - Value0));
+				Value0 = Eye;
+				if (Now() - Mark > 0.4f)
+				{
+					Check(TEXT("Standing also eases the camera without delaying the capsule"), !A->bIsCrouched && Value1 < 25.f,
+						FString::Printf(TEXT("largest frame change %.2f cm"), Value1));
+					return true;
+				}
+			}
+			return false;
+		}, 4.f });
+	Steps.Add({ TEXT("Directional gait keeps its cycle through a turn"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA, 0.f, false);
+			if (A && A->GetBodyAnimator())
+			{
+				A->GetBodyAnimator()->SetComponentTickEnabled(false);
+				A->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			}
+		},
+		[this](float Elapsed)
+		{
+			auto* Instance = A ? Cast<UShieldbreakBodyAnimInstance>(A->GetMesh()->GetAnimInstance()) : nullptr;
+			if (!Instance) { Check(TEXT("Directional gait has an animation instance"), false); return true; }
+			auto Direction = [Instance](FVector2D Value)
+			{
+				auto Clip = [](const TCHAR* Suffix)
+				{
+					const FString Name = FString(TEXT("MM_Rifle_Walk_")) + Suffix;
+					const FString Path = FString(TEXT("/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Rifle/")) + Name + TEXT(".") + Name;
+					return ShieldbreakArt::Load<UAnimSequenceBase>(*Path);
+				};
+				Instance->PlayDirectionalPose(Clip(TEXT("Fwd")), Clip(TEXT("Bwd")), Clip(TEXT("Left")), Clip(TEXT("Right")), Value);
+				Instance->SetPosePlayRate(1.f);
+			};
+			if (Phase == 0) { Direction(FVector2D(1.f, 0.f)); Mark = Now(); Phase = 1; }
+			else if (Phase == 1 && Now() - Mark > 0.35f)
+			{
+				Value0 = Instance->GetLocomotionPhase();
+				Direction(FVector2D(0.f, 1.f)); Mark = Now(); Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.04f)
+			{
+				const float After = Instance->GetLocomotionPhase();
+				const float Advance = FMath::Fmod(After - Value0 + 1.f, 1.f);
+				Check(TEXT("A strafe turn advances the gait instead of restarting the feet"), Value0 >= 0.f && Advance > 0.f && Advance < 0.3f,
+					FString::Printf(TEXT("phase %.3f -> %.3f"), Value0, After));
+				return true;
+			}
+			return false;
+		}, 4.f });
+
+	const TSharedRef<FVector> PreviousHand = MakeShared<FVector>(FVector::ZeroVector);
+	Steps.Add({ TEXT("Interrupted upper-body actions blend"),
+		[this]() { ClearDummies(); A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA, 0.f, false); },
+		[this, PreviousHand](float Elapsed)
+		{
+			UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			if (!Animator) { Check(TEXT("Action blend has body art"), false); return true; }
+			A->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			if (Phase == 0 && Elapsed > 0.4f) { Animator->PlayAction(EShieldbreakAction::Reload, 2.f); Mark = Now(); Phase = 1; }
+			else if (Phase == 1 && Now() - Mark > 0.5f)
+			{
+				*PreviousHand = A->GetMesh()->GetSocketLocation(TEXT("hand_r"));
+				Animator->PlayAction(EShieldbreakAction::Melee); Mark = Now(); Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.01f)
+			{
+				const float Distance = static_cast<float>(FVector::Dist(*PreviousHand, A->GetMesh()->GetSocketLocation(TEXT("hand_r"))));
+				const UAnimSequenceBase* Action = Animator->GetPlayingAction();
+				Check(TEXT("Reload-to-melee does not teleport the gun hand"), Action && Action->GetName().Contains(TEXT("Melee")) && Distance < 35.f,
+					FString::Printf(TEXT("hand moved %.2f cm over %.3f s"), Distance, Now() - Mark));
+				return true;
+			}
+			return false;
+		}, 4.f });
+
+	Steps.Add({ TEXT("Shield impacts and passive decay"),
+		[this]() { ClearDummies(); A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA, 0.f, false); },
+		[this](float Elapsed)
+		{
+			auto* Visual = A ? A->FindComponentByClass<UShieldbreakShieldVisual>() : nullptr;
+			UShieldHealthComponent* Shield = A ? A->GetShieldHealth() : nullptr;
+			if (!Visual || !Shield) { Check(TEXT("Shield feedback component exists"), false); return true; }
+			if (Phase == 0 && Elapsed > 0.3f)
+			{
+				Damage(A, 10.f, UDamageType_Ballistic::StaticClass());
+				Check(TEXT("Absorbed bullets flash the character's shield overlay"), Visual->GetImpactCount() == 1 && Visual->IsPulseActive()
+					&& A->GetMesh()->GetOverlayMaterial() != nullptr);
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.35f)
+			{
+				Check(TEXT("Shield flash fades and releases its overlay"), !Visual->IsPulseActive() && Visual->GetIntensity() == 0.f && !A->GetMesh()->GetOverlayMaterial());
+				Damage(A, Shield->GetShield() + 5.f, UDamageType_Ballistic::StaticClass());
+				Check(TEXT("A shield break has a stronger pulse"), Shield->GetShield() == 0.f && Visual->GetImpactCount() == 2 && Visual->IsPulseActive());
+				Damage(A, 1.f, UDamageType_Ballistic::StaticClass());
+				Check(TEXT("Health-only damage does not fake a shield impact"), Visual->GetImpactCount() == 2);
+				Shield->GrantOvershield(10.f); Mark = Now(); Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.7f)
+			{
+				Check(TEXT("Passive overshield decay does not flash"), Shield->GetOvershield() > 0.f && Shield->GetOvershield() < 10.f && Visual->GetImpactCount() == 2 && !Visual->IsPulseActive());
+				Damage(A, 1.f, UDamageType_Ballistic::StaticClass());
+				Check(TEXT("Overshield damage does flash"), Visual->GetImpactCount() == 3 && Visual->IsPulseActive());
+				return true;
+			}
+			return false;
+		}, 4.f });
+}
+
 void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 {
 	const FTransform ToWorld = Arena->GetActorTransform();
@@ -2510,6 +2662,43 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				Lines.Add(FString::Printf(TEXT("INFO  fixed-view FPS %.1f over %.1f s"), (GFrameCounter - Value0) / Seconds, Seconds));
 				return true;
 			}, 25.f });
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
+	{
+		Steps.Add({ TEXT("Shield reaction target"),
+			[this]()
+			{
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+				const FTransform Where = Arena && !Arena->GetSpawnTransforms().IsEmpty() ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
+				A = PossessLocalDummy(Where);
+				if (A) { B = SpawnTeamDummy(A->GetActorLocation() + A->GetActorForwardVector() * 350.f, A->GetActorRotation().Yaw + 180.f, ShieldbreakTeams::Blue); }
+			},
+			[this](float Elapsed) { if (Elapsed < 5.f) return false; TakeShot(TEXT("shield_intact"), true); return true; }, 8.f });
+		auto ImpactShot = [this](const TCHAR* Name, TFunction<void()> Begin, float Delay)
+		{
+			// Writing the preceding PNG can stall a frame past a short pulse's
+			// lifetime. Let that capture finish before applying the next hit.
+			Steps.Add({ FString(Name) + TEXT(" capture settle"), nullptr,
+				[](float Elapsed) { return Elapsed > 0.5f; }, 2.f });
+			Steps.Add({ Name, Begin, [this, Name, Delay](float Elapsed)
+				{
+					if (Elapsed < Delay) return false;
+					if (B)
+					{
+						const auto* V = B->FindComponentByClass<UShieldbreakShieldVisual>();
+						UE_LOG(LogShieldbreak, Log, TEXT("ShieldShot: %s time=%.3f shield=%.1f impacts=%d active=%d intensity=%.3f overlay=%s"),
+							Name, Elapsed, B->GetShieldHealth()->GetShield(), V ? V->GetImpactCount() : -1, V && V->IsPulseActive(),
+							V ? V->GetIntensity() : -1.f, *GetNameSafe(B->GetMesh()->GetOverlayMaterial()));
+					}
+					TakeShot(Name, true); return true;
+				}, Delay + 3.f });
+		};
+		ImpactShot(TEXT("shield_hit"), [this]() { Damage(B, 10.f, UDamageType_Ballistic::StaticClass()); }, 0.04f);
+		ImpactShot(TEXT("shield_faded"), []() {}, 0.4f);
+		ImpactShot(TEXT("shield_break"), [this]() { if (B) Damage(B, B->GetShieldHealth()->GetShield() + 1.f, UDamageType_Ballistic::StaticClass()); }, 0.04f);
+		ImpactShot(TEXT("shield_health_only"), [this]() { Damage(B, 1.f, UDamageType_Ballistic::StaticClass()); }, 0.7f);
+		ImpactShot(TEXT("shield_overshield"), [this]() { if (B) { B->GetShieldHealth()->GrantOvershield(40.f); Damage(B, 10.f, UDamageType_Ballistic::StaticClass()); } }, 0.04f);
+		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
 	}
 	else
 	{

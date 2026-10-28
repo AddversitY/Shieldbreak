@@ -10,15 +10,50 @@
 #include "Misc/Parse.h"
 #include "Player/ShieldbreakPlayerController.h"
 #include "Player/ShieldbreakPlayerState.h"
+#include "Player/ShieldbreakCharacter.h"
+#include "Shield/ShieldHealthComponent.h"
+#include "Weapons/ShieldbreakDamageTypes.h"
 #include "TimerManager.h"
 
 void FShieldbreakNetworkTest::Start(AShieldbreakPlayerController* TestController)
 {
-	if (!TestController || !TestController->IsLocalController()
-		|| !FParse::Param(FCommandLine::Get(), TEXT("SBNetworkTest"))) { return; }
+	if (!TestController || !TestController->IsLocalController()) { return; }
 	UWorld* TestWorld = TestController->GetWorld();
 	if (!TestWorld) { return; }
 	const TWeakObjectPtr<AShieldbreakPlayerController> WeakController(TestController);
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldFeedbackTest")))
+	{
+		if (TestWorld->GetNetMode() == NM_Client)
+		{
+			UE_LOG(LogShieldbreak, Log, TEXT("ShieldFeedback: client ready."));
+			return;
+		}
+		const TSharedRef<FTimerHandle> ImpactTimer = MakeShared<FTimerHandle>();
+		TestWorld->GetTimerManager().SetTimer(*ImpactTimer, FTimerDelegate::CreateLambda([WeakController, ImpactTimer, Stage = -4]() mutable
+		{
+			AShieldbreakPlayerController* Host = WeakController.Get();
+			UWorld* World = Host ? Host->GetWorld() : nullptr;
+			const auto* State = World ? World->GetGameState<AShieldbreakGameState>() : nullptr;
+			auto* Pawn = Host ? Cast<AShieldbreakCharacter>(Host->GetPawn()) : nullptr;
+			if (!State || State->PlayerArray.Num() < 2 || !Pawn || !Pawn->GetShieldHealth()) { return; }
+			UShieldHealthComponent* Shield = Pawn->GetShieldHealth();
+			// Wait two seconds after the human joins, so the cosmetic receiver exists.
+			if (Stage == 0 || Stage == 1 || Stage == 2 || Stage == 3 || Stage == 8)
+			{
+				const float Damage = Stage < 2 ? 20.f : Stage == 2 ? 40.f : 1.f;
+				Shield->ApplyShieldbreakDamage(Damage, GetDefault<UDamageType_Ballistic>(), nullptr, Pawn);
+				Pawn->ForceNetUpdate();
+			}
+			if (Stage == 4) { Shield->GrantOvershield(10.f); }
+			if (++Stage > 8)
+			{
+				UE_LOG(LogShieldbreak, Log, TEXT("ShieldFeedback: probe completed (four impacts, one break; no health-only/decay impact)."));
+				World->GetTimerManager().ClearTimer(*ImpactTimer);
+			}
+		}), 0.5f, true);
+		return;
+	}
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SBNetworkTest"))) { return; }
 	FTimerHandle ProbeTimer;
 	if (TestWorld->GetNetMode() == NM_Client)
 	{

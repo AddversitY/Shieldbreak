@@ -15,6 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FShieldbreakValueChanged, float, Ne
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FShieldbreakEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FShieldbreakVentResult, bool, bSuccess);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FShieldbreakDeath, AController*, Killer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FShieldbreakShieldImpact, float, AbsorbedDamage, bool, bBroken, bool, bOvershield);
 
 UCLASS(ClassGroup = (Shieldbreak), meta = (BlueprintSpawnableComponent))
 class SHIELDBREAK_API UShieldHealthComponent : public UActorComponent
@@ -86,6 +87,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakValueChanged OnOvershieldChanged;
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakValueChanged OnHealthChanged;
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakEvent OnShieldBroken;
+	/** Actual absorbed damage only; recharge and passive overshield decay do not fire it. */
+	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakShieldImpact OnShieldImpact;
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakEvent OnRechargeStarted;
 	UPROPERTY(BlueprintAssignable, Category = "Shield") FShieldbreakEvent OnBreakPulse;
 	/** Owning client only. */
@@ -120,6 +123,7 @@ private:
 	UFUNCTION(Server, Reliable) void ServerTryBreakPulse(float ClientServerTime);
 	UFUNCTION(Client, Reliable) void ClientVentResult(bool bSuccess);
 	UFUNCTION(NetMulticast, Unreliable) void MulticastBreakPulse();
+	UFUNCTION(NetMulticast, Unreliable) void MulticastShieldImpact(float AbsorbedDamage, bool bBroken, bool bOvershield);
 
 	UFUNCTION() void OnRep_Shield();
 	UFUNCTION() void OnRep_ShieldBreakCount();

@@ -30,6 +30,9 @@ Mechanics and genre conventions are free to use. Halo's specific characters, wea
 UI layouts and names are not: a "slightly modified" copy is still a derivative work, and Halo's look is
 also protected as a trademark. Every asset in this project must be original or properly licensed.
 
+The subsequent presentation pass extends Claude's animation rig with directional
+blending and visible shield-hit overlays; see `SMOOTHING_AND_SHIELD_FEEDBACK.md`.
+
 ## Style guide (what to aim for)
 
 | Element | Halo-2 feel we want | Our original take |

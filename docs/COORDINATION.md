@@ -40,23 +40,17 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-27 Codex: map expansion, Spire modules and sketch planner completed;
-  see the desktop verification entry below. Claude's merged art/actions retained.
-- Next user request is in progress: smooth animation/movement for both the local
-  view and other characters, plus visible shield reactions to bullets. Reserving
-  `Visuals/ShieldbreakBodyAnim*`, `Player/ShieldbreakCharacter.*`,
-  `Player/ShieldbreakMovementComponent.*`, `Shield/ShieldHealthComponent.*`,
-  cosmetic shield component/material/import helper, related opt-in tests and docs.
+- 2026-10-27 Codex: map expansion/Spire modules/planner and the subsequent
+  animation/movement-presentation/shield-hit pass are complete. See desktop
+  verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
-- **Unification build.** On the desktop, build this branch and run `Tools/SelfTest.bat`, then
-  `Tools/TestArenaNetwork.ps1 -Map Keel`, `-Map Spire`, `Tools/Test4v4Network.ps1`, and
-  `Tools/TestConnectionRecovery.ps1`, one process at a time. Also open the game and check
-  Settings, Controls, menu music, the emblem, and that shadowed walls are not near-black.
-  The bullets below are historical requests. Later "Verified on the PC" entries already
-  closed the ones that landed on main before this merge. SMG and Plasma Rifle classes are
-  gone; do not reintroduce them. Shield Shaping is gone. `UDamageType_Plasma` remains only
-  as a damage-type multiplier checked by the self-test.
+- Full manual Settings/Controls/music walkthrough of the merged menu is still
+  separate from the automated gameplay and networking results below.
+- Further human playtesting should judge movement feel, bespoke FPS poses,
+  foot contact/IK, map pacing/cover density, and visual movement under latency.
+  Local delayed-packet shield delivery is tested; internet/eight-human play is not.
+- Historical requests below are preserved for context, not new outstanding work.
 
 ## Current game (this branch)
 - Spawn kit is Battle Rifle, Sidearm and grenades. Map pickups are Sniper, Rocket Launcher,
@@ -129,6 +123,53 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-27 Codex desktop: **smoother presentation and visible shield hits**.
+  Built on Claude's native animation/first-person rig. Ground movement now blends
+  four directional clips continuously, preserves gait phase through turns and
+  gait changes, and smooths aim pitch/playback rate. Interrupted actions cross-fade
+  for 0.1 s. Ordered movement -> animator -> body/arms ticks and warmed the fixed
+  animation set on first spawn. Removed first-person upper-arm plates that were
+  crossing the camera; world armor is retained. Further FPS-specific posing and
+  foot IK remain polish work, not a claim of AAA parity.
+  Client visual corrections use exponential smoothing and 256/384 cm bounds
+  (previously 92/140), with 0.1/0.05 s location/rotation windows. Collision, input,
+  sprint/jump tuning, server authority and saved-move prediction remain intact.
+  Local crouch/stand camera now compensates and eases capsule-height changes,
+  with a static-geometry sphere sweep and death-camera exclusion. First camera
+  check exposed a 34 cm snap: the usual setter lost its offset inside Unreal's
+  deferred capsule movement. Matching the engine's direct mesh-offset pattern
+  fixed it. Full-suite frame samples were **2.89/2.86 cm** for crouch/stand;
+  these are fixture observations, not a bound for all frame rates/scenarios.
+  Added actual absorbed-damage cosmetic events and an original additive Fresnel
+  overlay: cyan shield hits (~0.32 s), brighter breaks (0.5 s), gold overshields.
+  Health-only hits, recharge and passive overshield decay do not flash. Overlays
+  clear after pulses; no permanent extra mesh draws. Hits briefly reveal camo
+  during the pulse. Shield break replication supplies a dropped-hit-RPC fallback.
+  No shield/health damage math changed.
+  UE 5.8 editor builds **PASS**. Full gameplay suite **117/117 PASS**; focused
+  presentation suite **17/17 PASS** again after final visual tuning. Tests cover
+  gait continuity, interrupted hand continuity, crouch/stand, overlay application,
+  fade/cleanup, break, health-only and passive-decay exclusions. Initial reports
+  and camera diagnostics remain under `Saved/Logs/Smoothing-*` and `Presentation*`.
+  Real local host/client shield regression **PASS** with **80 ms packet lag and
+  20 ms variance configured on both processes**, matching all four events and
+  one break on authority and remote roles; no health-only/decay events. This is
+  delayed local delivery verification, not measured movement quality online.
+  Final 4v4 regression **PASS** with host controls/remote rejection, join bot
+  replacement, disconnect refill and **20** balanced roster samples.
+  Rendered Spire checks cover cyan hit, white/cyan break, gold overshield, normal
+  return, and first-person action poses. Fixed capture timing: writing a preceding
+  PNG stalled a frame until the short hit expired; capture-settle steps now record
+  active hits at ~40 ms. Removed the unnecessary experimental overlay warm-up.
+  Reports: `SelfTest.txt`, `SelfTest-Presentation.txt`, `ShieldFeedback-FinalReport.txt`,
+  `ShieldFeedback-{Server,Client}.log`, `Smooth4v4-Report.txt`, `ShieldVisualShots.log`,
+  `SmoothActionShots.log`. Captures: `docs/playtests/2026-10-27_shield-*.png`.
+  See `docs/SMOOTHING_AND_SHIELD_FEEDBACK.md`. No dedicated/internet/eight-human
+  verification or controlled performance comparison claimed. Known batch run-end
+  log append-sharing messages remain; completed reports and independent checks
+  are the evidence.
+  Editor captures still show shader-preparation messages; cold shader/PSO pacing
+  and packaged performance are not verified by this pass.
 - 2026-10-27 Codex desktop: **4x ground-area map pass and Spire modules**.
   Synced merged main at `174ffd3` before editing; both checks of fetched
   `origin/claude/*` found no commits outside main. Preserved Claude's original
