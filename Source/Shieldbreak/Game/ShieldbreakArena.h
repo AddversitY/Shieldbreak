@@ -67,6 +67,8 @@ private:
 	void SpawnPickups();
 	/** Glowing trim lines along the top (and foot, on tall ones) of the structures' walls. Visual only. */
 	void BuildTrim();
+	/** Original Spire machinery outside the playable routes; no collision or nav influence. */
+	void BuildSpireArt();
 	/** Ground and mountains outside the walls. Visual only. */
 	void BuildBackdrop();
 

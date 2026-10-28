@@ -180,6 +180,7 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 		LoadSurfaceMaterials();
 		BuildGeometry();
 		BuildTrim();
+		BuildSpireArt();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -452,6 +453,64 @@ void AShieldbreakArena::BuildTrim()
 		AddInstanceComponent(Strip);
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d trim lines."), *Layout.DisplayName, Count);
+}
+
+void AShieldbreakArena::BuildSpireArt()
+{
+	if (MapId != FName(TEXT("Spire")) || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	// Authoring coordinates are local centimetres. Modules stay outside the walls,
+	// or flush with the floor at lifts, so collision, sight lines and jumps stay authored.
+	auto Module = [this](const TCHAR* Name, const TCHAR* Style, FLinearColor Tint)
+	{
+		const FString Path = FString::Printf(TEXT("/Game/Shieldbreak/Art/Spire/%s.%s"), Name, Name);
+		UStaticMesh* Mesh = ShieldbreakArt::Load<UStaticMesh>(*Path);
+		if (!Mesh) return static_cast<UInstancedStaticMeshComponent*>(nullptr);
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("SpireArt"), Mesh);
+		Instances->SetCastShadow(false);
+		ApplySurface(Instances, Style, Tint);
+		return Instances;
+	};
+	auto* Collectors = Module(TEXT("SM_SB_Spire_Collector"), TEXT("metal"), FLinearColor(0.32f, 0.40f, 0.43f));
+	auto* Panels = Module(TEXT("SM_SB_Spire_ServicePanel"), TEXT("metal"), FLinearColor(0.16f, 0.22f, 0.25f));
+	auto* Collars = Module(TEXT("SM_SB_Spire_LiftCollar"), TEXT("glow"), FLinearColor(0.16f, 0.65f, 0.8f));
+	for (const float Side : { -1.f, 1.f })
+	{
+		for (const float X : { -3300.f, -1800.f, 0.f, 1800.f, 3300.f })
+		{
+			if (Collectors)
+			{
+				const float HeightScale = X == 0.f ? 1.8f : (FMath::Abs(X) < 2000.f ? 1.35f : 1.1f);
+				Collectors->AddInstance(FTransform(FRotator(0.f, Side < 0.f ? 0.f : 180.f, 0.f),
+					FVector(X * Layout.HalfExtent.X / 4200.f, Side * (Layout.HalfExtent.Y + 180.f), 700.f), FVector(1.f, 1.f, HeightScale)));
+			}
+			if (Panels)
+			{
+				// Face inward, set into the wall's inner surface. Raised above the lower route.
+				Panels->AddInstance(FTransform(FRotator(0.f, Side < 0.f ? 180.f : 0.f, 0.f),
+					FVector(X * Layout.HalfExtent.X / 4200.f, Side * (Layout.HalfExtent.Y + 25.f), 1080.f), FVector(2.f, 1.f, 1.f)));
+			}
+		}
+	}
+	if (Collars)
+	{
+		for (const auto& Lift : Layout.Lifts)
+		{
+			Collars->AddInstance(FTransform(FRotator::ZeroRotator, Lift.Base + FVector(0.f, 0.f, 1.f), FVector(1.f)));
+		}
+	}
+	for (auto* Instances : { Collectors, Panels, Collars })
+	{
+		if (Instances)
+		{
+			Instances->RegisterComponent();
+			AddInstanceComponent(Instances);
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("Spire art: %d collectors, %d service panels, %d lift collars (visual only)."),
+		Collectors ? Collectors->GetInstanceCount() : 0, Panels ? Panels->GetInstanceCount() : 0, Collars ? Collars->GetInstanceCount() : 0);
 }
 
 void AShieldbreakArena::BuildBackdrop()

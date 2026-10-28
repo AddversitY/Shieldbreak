@@ -1,0 +1,361 @@
+<div id="shieldbreak-map-scale">
+  <h2>Shieldbreak map scale</h2>
+  <div class="viz-row" role="group" aria-label="Map selection" data-map-buttons></div>
+  <div class="viz-controls">
+    <label class="form-label">Size comparison
+      <select class="form-select" data-preset>
+        <option value="1">Current footprint</option>
+        <option value="2">2× ground area · each side ×1.41</option>
+        <option value="4">4× ground area · each side ×2</option>
+        <option value="16">16× ground area · each side ×4</option>
+        <option value="custom" disabled>Custom dimensions</option>
+      </select>
+    </label>
+    <label class="form-check"><input type="checkbox" class="form-check-input" data-baseline checked><span class="form-check-label">Current outline</span></label>
+    <label class="form-check"><input type="checkbox" class="form-check-input" data-overhead checked><span class="form-check-label">Overhead slabs</span></label>
+    <label class="form-check"><input type="checkbox" class="form-check-input" data-reference checked><span class="form-check-label">Reference geometry</span></label>
+  </div>
+  <div class="viz-grid" data-dimensions>
+    <label class="form-label">Length · east–west (m)
+      <input class="form-control tabular-nums" type="number" step="0.1" required data-length>
+    </label>
+    <label class="form-label">Width · north–south (m)
+      <input class="form-control tabular-nums" type="number" step="0.1" required data-width>
+    </label>
+  </div>
+  <div class="text-small text-muted" data-original></div>
+  <div class="tabular-nums" data-metrics aria-live="polite"></div>
+  <div class="viz-controls">
+    <label class="form-label">Sketch tool
+      <select class="form-select" data-tool>
+        <option value="move">Select / move</option><option value="route">Draw route</option>
+        <option value="structure">Draw building / platform</option><option value="cover">Draw cover</option>
+        <option value="gap">Draw gap / no-play area</option><option value="lift">Place lift</option>
+        <option value="baseA">Place base A</option><option value="baseB">Place base B</option>
+        <option value="label">Place label</option><option value="erase">Erase mark</option>
+      </select>
+    </label>
+    <label class="form-label">Mark label<input class="form-control" type="text" maxlength="40" data-mark-label placeholder="Optional name"></label>
+    <button class="btn" type="button" data-add-center disabled>Place at center</button>
+  </div>
+  <div class="map-stage"><svg class="scale-map" role="img" aria-label="Selected map overhead layout"></svg></div>
+  <div class="viz-controls" data-mark-controls>
+    <label class="form-label">Selected mark<select class="form-select" data-mark-select><option value="">None</option></select></label>
+    <button class="btn" type="button" data-nudge="-1,0" aria-label="Move selected mark west one metre">← 1 m</button>
+    <button class="btn" type="button" data-nudge="0,1" aria-label="Move selected mark north one metre">↑ 1 m</button>
+    <button class="btn" type="button" data-nudge="0,-1" aria-label="Move selected mark south one metre">↓ 1 m</button>
+    <button class="btn" type="button" data-nudge="1,0" aria-label="Move selected mark east one metre">→ 1 m</button>
+    <button class="btn" type="button" data-delete disabled>Delete mark</button>
+  </div>
+  <div class="text-small" data-sketch-status role="status"></div>
+  <div class="viz-row text-small" aria-label="Map legend">
+    <span><span class="key ground"></span>Floor / cover</span>
+    <span><span class="key upper"></span>Upper level</span>
+    <span><span class="key ramp"></span>Ramp / lift</span>
+    <span><span class="key red"></span>A / red spawns</span>
+    <span><span class="key blue"></span>B / blue spawns</span>
+    <span>△ Weapon · ◇ Power-up · ⚑ Flag</span>
+  </div>
+  <div class="text-small text-muted">Footprint sketch · geometry stretched for comparison · heights unchanged · game not modified</div>
+  <div class="notes-wrap"><label class="form-label">Direction for <span data-note-map>Keel</span>
+    <textarea class="form-control" rows="2" maxlength="500" data-notes placeholder="e.g. widen the side routes, larger center room, keep bases compact"></textarea>
+  </label></div>
+  <div class="viz-row"><button class="btn btn-primary" type="button" data-send>Send map direction</button><span class="text-small text-muted" data-send-status role="status"></span></div>
+  <div data-brief-panel hidden><label class="form-label">Direction brief<textarea class="form-control" rows="9" readonly data-brief></textarea></label></div>
+  <script type="application/json" data-map-data>__MAP_DATA_JSON__</script>
+</div>
+<style>
+#shieldbreak-map-scale { color: var(--foreground); }
+#shieldbreak-map-scale h2 { margin-block: 0 16px; }
+#shieldbreak-map-scale [data-original] { margin-block: 6px; }
+#shieldbreak-map-scale [data-metrics] { min-height: 24px; }
+#shieldbreak-map-scale .map-stage { width: 100%; min-width: 0; }
+#shieldbreak-map-scale .scale-map { display: block; width: 100%; overflow: visible; }
+#shieldbreak-map-scale .scale-map.sketching { touch-action: none; cursor: crosshair; }
+#shieldbreak-map-scale .scale-map .sketch-mark { touch-action: none; }
+#shieldbreak-map-scale .scale-map text { fill: var(--foreground); font-size: 12px; font-weight: 400; }
+#shieldbreak-map-scale .scale-map .grid { stroke: var(--border); stroke-width: 1; opacity: .45; }
+#shieldbreak-map-scale .scale-map .current-outline { fill: none; stroke: var(--foreground); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .7; }
+#shieldbreak-map-scale .scale-map .proposed-outline { fill: none; stroke: var(--viz-series-1); stroke-width: 1.6; }
+#shieldbreak-map-scale .key { display: inline-block; width: 11px; height: 11px; margin-inline-end: 4px; }
+#shieldbreak-map-scale .ground { background: var(--muted-foreground); opacity: .55; }
+#shieldbreak-map-scale .upper { background: var(--viz-series-1); opacity: .55; }
+#shieldbreak-map-scale .ramp { background: var(--viz-series-4); }
+#shieldbreak-map-scale .red { background: var(--red); border-radius: 50%; }
+#shieldbreak-map-scale .blue { background: var(--blue); border-radius: 50%; }
+#shieldbreak-map-scale .notes-wrap { margin-block: 16px 12px; }
+#shieldbreak-map-scale [data-brief-panel] { margin-block-start: 12px; }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('shieldbreak-map-scale');
+  if (!root) return;
+  const maps = JSON.parse(root.querySelector('[data-map-data]').textContent);
+  const ids = Object.keys(maps);
+  const q = selector => root.querySelector(selector);
+  const inputLength = q('[data-length]'), inputWidth = q('[data-width]');
+  const preset = q('[data-preset]'), notes = q('[data-notes]');
+  const svg = q('svg.scale-map'), NS = 'http://www.w3.org/2000/svg';
+  let active = ids.includes('Spire') ? 'Spire' : ids[0], showBaseline = true, showOverhead = true, showReference = true, saveTimer;
+  let tool = 'move', selected = '', draft = null, drag = null, projection = null, idCounter = 0;
+  const markNames = {route:'Route',structure:'Building / platform',cover:'Cover',gap:'Gap / no-play',lift:'Lift',baseA:'Base A',baseB:'Base B',label:'Label'};
+  const round = n => Math.round(n * 1000000) / 1000000;
+  const initialMarks = id => {
+    const m=maps[id], uv=p=>[round(p[0]/m.span[0]+.5),round(p[1]/m.span[1]+.5)];
+    return [...m.flags.map((p,i)=>({id:`${id}-base-${i}`,type:i?'baseB':'baseA',pts:[uv(p)],label:i?'Base B':'Base A'})),
+      ...m.lifts.map((p,i)=>({id:`${id}-lift-${i}`,type:'lift',pts:[uv(p.a)],label:`Lift ${i+1}`}))];
+  };
+  const choices = Object.fromEntries(ids.map(id => [id, { length: maps[id].span[0], width: maps[id].span[1], notes: '', sketch:initialMarks(id) }]));
+  const fmt = (value, digits = 1) => Number(value).toLocaleString('en-US', {maximumFractionDigits: digits});
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  function restore(snapshot) {
+    const model = snapshot?.modelContent;
+    if (!model || model.version !== 1 || !model.maps) return;
+    for (const id of ids) {
+      const saved = model.maps[id], base = maps[id].span;
+      if (!saved) continue;
+      const length = Number(saved.length), width = Number(saved.width);
+      if (Number.isFinite(length)) choices[id].length = clamp(length, base[0], base[0] * 4);
+      if (Number.isFinite(width)) choices[id].width = clamp(width, base[1], base[1] * 4);
+      choices[id].notes = typeof saved.notes === 'string' ? saved.notes.slice(0, 500) : '';
+      if(Array.isArray(saved.sketch)) choices[id].sketch=saved.sketch.slice(0,40).filter(a=>a && markNames[a.type] && typeof a.id==='string' && /^[\w-]{1,60}$/.test(a.id) && Array.isArray(a.pts) && a.pts.length>0 && a.pts.length<=12 && a.pts.every(p=>Array.isArray(p)&&p.length===2&&p.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=1))).map(a=>({id:a.id,type:a.type,pts:a.pts.map(p=>p.map(round)),label:typeof a.label==='string'?a.label.slice(0,40):markNames[a.type]}));
+    }
+    const view = snapshot.privateContent || {};
+    if (ids.includes(view.active)) active = view.active;
+    showBaseline = view.showBaseline !== false;
+    showOverhead = view.showOverhead !== false;
+    showReference = view.showReference !== false;
+    let remaining=40;
+    for(const id of ids){choices[id].sketch=choices[id].sketch.slice(0,remaining);remaining-=choices[id].sketch.length;}
+  }
+
+  function state() {
+    return { modelContent: {version: 1, purpose: 'Provisional map design; normalized sketch marks are not runtime geometry', maps: Object.fromEntries(ids.map(id => [id, {...choices[id], sketch:choices[id].sketch.map(a=>({...a,pts:a.pts.map(p=>p.map(round))}))}]))}, privateContent: {active, showBaseline, showOverhead, showReference} };
+  }
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const snapshot=state();
+      if(new TextEncoder().encode(JSON.stringify(snapshot)).length>15500){q('[data-sketch-status]').textContent='This plan is too detailed to remember here. Send the direction brief, or remove a few marks.';return;}
+      if (window.openai?.setWidgetState) Promise.resolve(window.openai.setWidgetState(snapshot)).catch(() => {});
+    }, 200);
+  }
+
+  function element(tag, attrs = {}, text) {
+    const node = document.createElementNS(NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+    if (text !== undefined) node.textContent = text;
+    svg.appendChild(node);
+    return node;
+  }
+
+  function draw() {
+    const data = maps[active], choice = choices[active];
+    const sx = choice.length / data.span[0], sy = choice.width / data.span[1];
+    const width = Math.max(280, q('.map-stage').clientWidth);
+    const height = width < 440 ? 340 : 430;
+    const ex = Math.max(...data.blocks.map(b => Math.max(Math.abs(b.a[0]), Math.abs(b.b[0])))) * sx;
+    const ey = Math.max(...data.blocks.map(b => Math.max(Math.abs(b.a[1]), Math.abs(b.b[1])))) * sy;
+    const scale = Math.min((width - 64) / (2 * ex), (height - 92) / (2 * ey));
+    const px = x => width / 2 + x * scale, py = y => height / 2 - y * scale;
+    projection={width,height,scale,px,py};
+    svg.replaceChildren();
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('height', String(height));
+    element('title', {}, `${active}: current authored geometry at a proposed ${fmt(choice.length)} by ${fmt(choice.width)} metre footprint`);
+    element('desc', {}, `Schematic overhead from the real map generator. Dashed outline is the current footprint. Proposed area is ${(sx * sy).toFixed(2)} times current. Stacked surfaces overlap; toggle overhead slabs to inspect lower routes. This is not a validated playable layout.`);
+    const step = Math.pow(10, Math.floor(Math.log10(choice.length / 6)));
+    const grid = choice.length / 6 / step > 5 ? step * 5 : choice.length / 6 / step > 2 ? step * 2 : step;
+    for (let x = Math.ceil(-ex / grid) * grid; x <= ex; x += grid) element('line', {x1:px(x), y1:py(-ey), x2:px(x), y2:py(ey), class:'grid'});
+    for (let y = Math.ceil(-ey / grid) * grid; y <= ey; y += grid) element('line', {x1:px(-ex), y1:py(y), x2:px(ex), y2:py(y), class:'grid'});
+    const colors = {red:'var(--red)', blue:'var(--blue)', water:'var(--blue)', ramp:'var(--viz-series-4)', slide:'var(--viz-series-4)', glow:'var(--viz-series-5)'};
+    if(showReference) {
+    for (const block of [...data.blocks].sort((a,b) => a.b[2] - b.b[2])) {
+      if (!showOverhead && block.a[2] > data.floor + 2) continue;
+      const elevated = block.b[2] > data.floor + 2.2 && block.kind !== 'wall';
+      const fill = colors[block.kind] || (elevated ? 'var(--viz-series-1)' : 'var(--muted-foreground)');
+      const opacity = block.kind === 'floor' ? .08 : block.kind === 'wall' ? .45 : elevated ? .45 : .25;
+      element('rect', {x:px(block.a[0]*sx), y:py(block.b[1]*sy), width:Math.max(.5,(block.b[0]-block.a[0])*sx*scale), height:Math.max(.5,(block.b[1]-block.a[1])*sy*scale), fill, 'fill-opacity':opacity, stroke:'var(--border)', 'stroke-width':.7, 'data-tooltip':`${block.kind} · top ${fmt(block.b[2])} m · bottom ${fmt(block.a[2])} m`});
+    }
+    for (const ramp of data.ramps) {
+      const dx = ramp.b[0] - ramp.a[0], dy = ramp.b[1] - ramp.a[1], length = Math.hypot(dx,dy);
+      if (!length || (!showOverhead && Math.min(ramp.a[2], ramp.b[2]) > data.floor + 2)) continue;
+      const nx = -dy / length * ramp.width / 2, ny = dx / length * ramp.width / 2;
+      const points = [[ramp.a[0]+nx,ramp.a[1]+ny],[ramp.b[0]+nx,ramp.b[1]+ny],[ramp.b[0]-nx,ramp.b[1]-ny],[ramp.a[0]-nx,ramp.a[1]-ny]];
+      element('polygon', {points:points.map(p=>`${px(p[0]*sx)},${py(p[1]*sy)}`).join(' '), fill:'var(--viz-series-4)', 'fill-opacity':.5, 'data-tooltip':`Ramp · ${fmt(ramp.a[2])} → ${fmt(ramp.b[2])} m`});
+      const top = ramp.a[2] > ramp.b[2] ? ramp.a : ramp.b;
+      element('circle', {cx:px(top[0]*sx),cy:py(top[1]*sy),r:2.5,fill:'var(--foreground)'});
+    }
+    for (const lift of data.lifts) {
+      element('line', {x1:px(lift.a[0]*sx),y1:py(lift.a[1]*sy),x2:px(lift.b[0]*sx),y2:py(lift.b[1]*sy),stroke:'var(--viz-series-4)','stroke-width':2,'data-tooltip':'Gravity lift route'});
+      element('circle',{cx:px(lift.a[0]*sx),cy:py(lift.a[1]*sy),r:5,fill:'none',stroke:'var(--viz-series-4)','stroke-width':2});
+    }
+    data.spawns.forEach(p => element('circle',{cx:px(p[0]*sx),cy:py(p[1]*sy),r:3.5,fill:p[0]<0?'var(--red)':'var(--blue)','data-tooltip':`${p[0]<0?'A / red':'B / blue'} spawn · height ${fmt(p[2])} m`}));
+    function pickup(p, kind, powerup) {
+      const x=px(p[0]*sx),y=py(p[1]*sy),r=5;
+      const points=powerup?`${x},${y-r} ${x+r},${y} ${x},${y+r} ${x-r},${y}`:`${x},${y-r} ${x+r},${y+r} ${x-r},${y+r}`;
+      element('polygon',{points,fill:powerup?'var(--viz-series-3)':'var(--viz-series-2)',stroke:'var(--foreground)','stroke-width':.6,'data-tooltip':`${kind} · height ${fmt(p[2])} m`});
+    }
+    data.weapons.forEach(p=>pickup(p.p,p.kind,false));
+    data.powerups.forEach(p=>pickup(p.p,p.kind,true));
+    data.flags.forEach((p,index)=>{if(!p)return; const x=px(p[0]*sx),y=py(p[1]*sy); element('path',{d:`M ${x} ${y+6} v -12 l 7 3 -7 3`,stroke:index===0?'var(--red)':'var(--blue)',fill:index===0?'var(--red)':'var(--blue)','stroke-width':2,'data-tooltip':`${index===0?'A / red':'B / blue'} flag`});});
+    }
+    const current={x:px(-data.span[0]/2),y:py(data.span[1]/2),width:data.span[0]*scale,height:data.span[1]*scale};
+    if(showBaseline) element('rect',{...current,class:'current-outline','data-tooltip':`Current ${fmt(data.span[0])} × ${fmt(data.span[1])} m footprint`});
+    element('rect',{x:px(-choice.length/2),y:py(choice.width/2),width:choice.length*scale,height:choice.width*scale,class:'proposed-outline'});
+    drawSketch();
+    element('text',{x:width/2,y:18,'text-anchor':'middle'},`${active} · ${fmt(choice.length)} × ${fmt(choice.width)} m`);
+    element('text',{x:16,y:height-36},'+Y ↑');
+    const bar=Math.pow(10,Math.floor(Math.log10(choice.length/5)));
+    const barLength=bar*scale;
+    element('line',{x1:width-24-barLength,y1:height-22,x2:width-24,y2:height-22,stroke:'var(--foreground)','stroke-width':2});
+    element('text',{x:width-24-barLength/2,y:height-30,'text-anchor':'middle'},`${fmt(bar)} m`);
+    element('text',{x:width/2,y:height-9,'text-anchor':'middle'},'East–west / X →');
+  }
+
+  function selectedMark() { return choices[active].sketch.find(a=>a.id===selected); }
+  function syncMarks() {
+    const select=q('[data-mark-select]'); select.replaceChildren(new Option('None',''));
+    for(const a of choices[active].sketch) select.add(new Option(a.label||markNames[a.type],a.id));
+    select.value=selected;
+    q('[data-delete]').disabled=!selectedMark();
+    for(const button of root.querySelectorAll('[data-nudge]'))button.disabled=!selectedMark();
+    q('[data-add-center]').disabled=tool==='move'||tool==='erase';
+    svg.classList.toggle('sketching',tool!=='move');
+  }
+  function drawSketch() {
+    const c=choices[active],p=projection;if(!p)return;
+    const xy=uv=>[p.px((uv[0]-.5)*c.length),p.py((uv[1]-.5)*c.width)];
+    for(const a of [...c.sketch,...(draft?[draft]:[])]) {
+      const group=element('g',{'data-sketch-id':a.id,class:'sketch-mark cursor-interaction','data-tooltip':`${a.label||markNames[a.type]} · ${markNames[a.type]}`});
+      const add=(tag,attrs,text)=>{const node=element(tag,attrs,text);group.appendChild(node);return node;};
+      const ps=a.pts.map(xy),first=ps[0],last=ps[ps.length-1];
+      const color=a.type==='baseA'?'var(--red)':a.type==='baseB'?'var(--blue)':a.type==='gap'?'var(--destructive)':a.type==='lift'?'var(--viz-series-5)':a.type==='cover'?'var(--viz-series-2)':'var(--viz-series-1)';
+      const stroke=a.id===selected?'var(--foreground)':color,sw=a.id===selected?3:2;
+      if(a.type==='route') {
+        const points=ps.map(v=>v.join(',')).join(' ');
+        add('polyline',{points,fill:'none',stroke:'transparent','stroke-width':16});
+        add('polyline',{points,fill:'none',stroke,'stroke-width':sw+1,'stroke-linecap':'round','stroke-linejoin':'round'});
+      } else if(['structure','cover','gap'].includes(a.type)) {
+        add('rect',{x:Math.min(first[0],last[0]),y:Math.min(first[1],last[1]),width:Math.max(2,Math.abs(last[0]-first[0])),height:Math.max(2,Math.abs(last[1]-first[1])),fill:color,'fill-opacity':.22,stroke,'stroke-width':sw,...(a.type==='gap'?{'stroke-dasharray':'5 3'}:{})});
+      } else {
+        add('circle',{cx:first[0],cy:first[1],r:a.type==='lift'?8:10,fill:color,'fill-opacity':.8,stroke,'stroke-width':sw});
+        if(a.type==='baseA'||a.type==='baseB')add('text',{x:first[0],y:first[1]+4,'text-anchor':'middle'},a.type==='baseA'?'A':'B');
+        if(a.type==='lift')add('path',{d:`M ${first[0]-3} ${first[1]+3} l 3 -6 3 6`,fill:'none',stroke:'var(--foreground)','stroke-width':1.5});
+      }
+      const text=a.label||markNames[a.type],short=text.length>19?text.slice(0,18)+'…':text;
+      const cx=(Math.min(...ps.map(v=>v[0]))+Math.max(...ps.map(v=>v[0])))/2;
+      const cy=Math.min(...ps.map(v=>v[1]))-12;
+      add('text',{x:clamp(cx,80,p.width-80),y:clamp(cy,36,p.height-54),'text-anchor':'middle',style:'paint-order:stroke;stroke:var(--background);stroke-width:3px;stroke-linejoin:round;'},short);
+    }
+  }
+  function addMark(type,pts) {
+    const count=ids.reduce((sum,id)=>sum+choices[id].sketch.length,0);
+    if(count>=40){q('[data-sketch-status]').textContent='40 marks across the plan. Remove a mark before adding another.';return;}
+    const a={id:`mark-${Date.now().toString(36)}-${++idCounter}`,type,pts:pts.map(p=>p.map(round)),label:q('[data-mark-label]').value.trim().slice(0,40)||markNames[type]};
+    choices[active].sketch.push(a);selected=a.id;draft=null;
+    q('[data-sketch-status]').textContent=`${a.label} added`;syncMarks();draw();q('[data-brief]').value=brief();save();
+  }
+  function movePoints(points,du,dv) {
+    const us=points.map(p=>p[0]),vs=points.map(p=>p[1]);
+    du=clamp(du,-Math.min(...us),1-Math.max(...us));dv=clamp(dv,-Math.min(...vs),1-Math.max(...vs));
+    return points.map(p=>[p[0]+du,p[1]+dv]);
+  }
+  function pointerPosition(event,insideOnly=false) {
+    if(!projection)return null;const r=svg.getBoundingClientRect(),p=projection,c=choices[active];
+    const x=(event.clientX-r.left)/r.width*p.width,y=(event.clientY-r.top)/r.height*p.height;
+    const u=(x-p.width/2)/(p.scale*c.length)+.5,v=(p.height/2-y)/(p.scale*c.width)+.5;
+    if(insideOnly&&(u<0||u>1||v<0||v>1))return null;
+    return [clamp(u,0,1),clamp(v,0,1)];
+  }
+  function deleteSelected() {
+    if(!selectedMark())return;
+    choices[active].sketch=choices[active].sketch.filter(a=>a.id!==selected);selected='';
+    syncMarks();draw();q('[data-brief]').value=brief();save();
+  }
+  q('[data-tool]').addEventListener('change',e=>{tool=e.target.value;selected='';draft=null;drag=null;q('[data-mark-label]').value='';syncMarks();draw();});
+  q('[data-mark-select]').addEventListener('change',e=>{selected=e.target.value;tool='move';q('[data-tool]').value=tool;q('[data-mark-label]').value=selectedMark()?.label||'';syncMarks();draw();});
+  q('[data-mark-label]').addEventListener('input',e=>{const a=selectedMark();if(a&&tool==='move'){a.label=e.target.value.slice(0,40);syncMarks();draw();q('[data-brief]').value=brief();save();}});
+  q('[data-delete]').addEventListener('click',deleteSelected);
+  for(const button of root.querySelectorAll('[data-nudge]'))button.addEventListener('click',()=>{const a=selectedMark();if(!a)return;const [dx,dy]=button.dataset.nudge.split(',').map(Number);a.pts=movePoints(a.pts,dx/choices[active].length,dy/choices[active].width);draw();q('[data-brief]').value=brief();save();});
+  q('[data-add-center]').addEventListener('click',()=>{if(tool==='move'||tool==='erase')return;const c=choices[active];const ps=tool==='route'?[[.35,.5],[.65,.5]]:['structure','cover','gap'].includes(tool)?[[.5-6/c.length,.5-4/c.width],[.5+6/c.length,.5+4/c.width]]:[[.5,.5]];addMark(tool,ps);});
+  svg.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;const uv=pointerPosition(event,true);if(!uv)return;
+    const id=event.target.closest('[data-sketch-id]')?.getAttribute('data-sketch-id');
+    if(tool==='erase'){selected=id||'';deleteSelected();return;}
+    if(tool==='move') {
+      selected=id||'';syncMarks();const a=selectedMark();if(a){q('[data-mark-label]').value=a.label;drag={start:uv,origin:a.pts.map(p=>[...p])};svg.setPointerCapture(event.pointerId);event.preventDefault();}draw();return;
+    }
+    if(['lift','baseA','baseB','label'].includes(tool)){addMark(tool,[uv]);return;}
+    selected='';draft={id:'draft',type:tool,pts:[uv,uv],label:q('[data-mark-label]').value.trim()||markNames[tool]};
+    drag={start:uv};svg.setPointerCapture(event.pointerId);event.preventDefault();draw();
+  });
+  svg.addEventListener('pointermove',event=>{
+    if(!drag)return;const uv=pointerPosition(event);if(!uv)return;
+    if(tool==='move'){const a=selectedMark();if(a)a.pts=movePoints(drag.origin,uv[0]-drag.start[0],uv[1]-drag.start[1]);}
+    else if(draft){if(tool==='route'){const last=draft.pts[draft.pts.length-1];if(Math.hypot(uv[0]-last[0],uv[1]-last[1])>.006)draft.pts.push(uv);if(draft.pts.length>120)draft.pts=draft.pts.filter((_,i)=>i%2===0);}else draft.pts=[drag.start,uv];}
+    draw();
+  });
+  function finishPointer(event,cancel=false) {
+    if(!drag)return;
+    if(cancel){if(tool==='move'&&selectedMark())selectedMark().pts=drag.origin;draft=null;drag=null;draw();return;}
+    const uv=pointerPosition(event)||drag.start;
+    if(draft){let ps=tool==='route'?[...draft.pts,uv]:[drag.start,uv];if(tool==='route'&&ps.length>12)ps=Array.from({length:12},(_,i)=>ps[Math.round(i*(ps.length-1)/11)]);const c=choices[active];const distance=tool==='route'?ps.slice(1).reduce((sum,p,i)=>sum+Math.hypot((p[0]-ps[i][0])*c.length,(p[1]-ps[i][1])*c.width),0):Math.hypot((uv[0]-drag.start[0])*c.length,(uv[1]-drag.start[1])*c.width);if(distance>1)addMark(tool,ps);else{draft=null;draw();}}
+    else {q('[data-brief]').value=brief();save();}
+    drag=null;syncMarks();if(svg.hasPointerCapture(event.pointerId))svg.releasePointerCapture(event.pointerId);
+  }
+  svg.addEventListener('pointerup',event=>finishPointer(event));
+  svg.addEventListener('pointercancel',event=>finishPointer(event,true));
+
+  function brief() {
+    const lines = ids.map(id => {const c=choices[id],m=maps[id],factor=c.length*c.width/(m.span[0]*m.span[1]); const marks=c.sketch.map(a=>`${a.label||markNames[a.type]} [${a.type}]: `+a.pts.map(p=>`(${fmt((p[0]-.5)*c.length)},${fmt((p[1]-.5)*c.width)})`).join(' → ')).join('; ');return `${id}: X length ${fmt(c.length)} m × Y width ${fmt(c.width)} m (${factor.toFixed(2)}× current ground area).${c.notes?' Direction: '+c.notes:''}\nSketch (X,Y metres from map center): ${marks||'No marks'}`;});
+    return 'My Shieldbreak map-design direction (4v4, Spire art first, varied moods drawing from the full reference collage):\n'+lines.join('\n')+'\nUse these target footprints and sketch marks to propose playable layouts, not a global mesh scale. Sketches are conceptual: rework routes and cover spacing while keeping player-scale cover, jumps, doorways and heights deliberate. Starting base/lift marks originate in the current maps; moved and added marks express my changes. Show revised overheads before detailed artwork. None of this planner data has been applied to the game.';
+  }
+  function sync() {
+    const data=maps[active],c=choices[active];
+    inputLength.removeAttribute('aria-invalid'); inputWidth.removeAttribute('aria-invalid');
+    inputLength.min=data.span[0]; inputLength.max=data.span[0]*4; inputLength.value=c.length.toFixed(1);
+    inputWidth.min=data.span[1]; inputWidth.max=data.span[1]*4; inputWidth.value=c.width.toFixed(1);
+    const sx=c.length/data.span[0],sy=c.width/data.span[1];
+    preset.value='custom';
+    for(const factor of [1,2,4,16]) if(Math.abs(sx-Math.sqrt(factor))<1e-7 && Math.abs(sy-Math.sqrt(factor))<1e-7) preset.value=String(factor);
+    q('[data-baseline]').checked=showBaseline; q('[data-overhead]').checked=showOverhead; q('[data-reference]').checked=showReference;
+    q('[data-original]').textContent=`Current: ${fmt(data.span[0])} × ${fmt(data.span[1])} m · ${fmt(data.span[0]*data.span[1],0)} m²`;
+    q('[data-metrics]').textContent=`Proposed: ${(sx*sy).toFixed(2)}× area · ${fmt(c.length*c.width,0)} m² · ${fmt(c.length/6.6)} s straight-line walk across X`;
+    q('[data-note-map]').textContent=active; notes.value=c.notes;
+    for(const button of root.querySelectorAll('[data-map]'))button.setAttribute('aria-pressed',String(button.dataset.map===active));
+    q('[data-brief]').value=brief(); syncMarks(); draw();
+  }
+  for(const id of ids) {
+    const button=document.createElement('button'); button.type='button'; button.className='btn'; button.dataset.map=id; button.textContent=id;
+    button.addEventListener('click',()=>{active=id;selected='';draft=null;drag=null;sync();save();}); q('[data-map-buttons]').appendChild(button);
+  }
+  preset.addEventListener('change',()=>{const s=Math.sqrt(Number(preset.value)); if(!Number.isFinite(s))return; choices[active].length=maps[active].span[0]*s;choices[active].width=maps[active].span[1]*s;sync();save();});
+  function changeDimension(input,key,axis) {
+    const number=Number(input.value),base=maps[active].span[axis];
+    if(!input.value || !Number.isFinite(number) || number<base || number>base*4) {input.setAttribute('aria-invalid','true');return;}
+    input.removeAttribute('aria-invalid'); choices[active][key]=number;sync();save();
+  }
+  inputLength.addEventListener('change',()=>changeDimension(inputLength,'length',0));
+  inputWidth.addEventListener('change',()=>changeDimension(inputWidth,'width',1));
+  q('[data-baseline]').addEventListener('change',e=>{showBaseline=e.target.checked;draw();save();});
+  q('[data-overhead]').addEventListener('change',e=>{showOverhead=e.target.checked;draw();save();});
+  q('[data-reference]').addEventListener('change',e=>{showReference=e.target.checked;draw();save();});
+  notes.addEventListener('input',()=>{choices[active].notes=notes.value.slice(0,500);q('[data-brief]').value=brief();save();});
+  q('[data-send]').addEventListener('click',async()=>{
+    if(!inputLength.reportValidity() || !inputWidth.reportValidity()) return;
+    const prompt=brief();
+    // HOST_SEND_BEGIN
+    if(window.openai?.sendFollowUpMessage) {
+      try {await window.openai.sendFollowUpMessage({prompt,title:'Send Shieldbreak map-size direction'});q('[data-send-status]').textContent='Direction sent';return;}
+      catch {q('[data-send-status]').textContent='Copy the direction brief below';}
+    }
+    // HOST_SEND_END
+    q('[data-brief-panel]').hidden=false; q('[data-brief]').value=prompt; q('[data-brief]').focus();q('[data-brief]').select();
+  });
+  restore(window.openai?.widgetState); sync();
+  window.addEventListener('openai:set_globals',event=>{const snapshot=event.detail?.globals?.widgetState;if(snapshot){restore(snapshot);sync();}});
+  new ResizeObserver(draw).observe(q('.map-stage'));
+})();
+</script>

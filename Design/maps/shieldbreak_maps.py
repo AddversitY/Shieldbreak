@@ -395,7 +395,34 @@ def spire():
     return m
 
 
-MAPS = [keel(), bastion(), sanctum(), creekbed(), spire(), crucible()]
+def expand_horizontal(m, factor=2.0):
+    """First size pass: double X/Y, retain authored Z and human movement scale.
+
+    Transform every gameplay anchor together with its supporting surfaces.
+    Widths expand, but ramp thickness, cover heights and lift pads do not.
+    Crucible is deliberately excluded so mechanic regression distances stay fixed.
+    """
+    if factor <= 0:
+        raise ValueError('Map scale must be positive')
+    def p(v):
+        return (v[0] * factor, v[1] * factor, v[2])
+    m.half_x *= factor
+    m.half_y *= factor
+    m.blocks = [(p(a),p(b),style) for a,b,style in m.blocks]
+    m.ramps = [(p(a),p(b),width*factor,style,thickness)
+               for a,b,width,style,thickness in m.ramps]
+    m.lifts = [(p(a),p(b)) for a,b in m.lifts]
+    m.spawns = [p(v) for v in m.spawns]
+    m.weapons = [(kind,p(at),respawn) for kind,at,respawn in m.weapons]
+    m.powerups = [(kind,p(at),respawn) for kind,at,respawn in m.powerups]
+    m.flags = [p(v) if v is not None else None for v in m.flags]
+    m.hills = [p(v) for v in m.hills]
+    m.ball = p(m.ball) if m.ball is not None else None
+    m.notes.append('2x length and width / 4x original ground area; original heights retained')
+    return m
+
+
+MAPS = [expand_horizontal(m) for m in (keel(), bastion(), sanctum(), creekbed(), spire())] + [crucible()]
 DEFAULT_MAP = "Keel"
 
 

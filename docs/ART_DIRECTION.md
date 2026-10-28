@@ -1,5 +1,30 @@
 # Art Direction and Asset Plan
 
+## Current direction (2026-10-27)
+
+The user supplied a Halo environment collage as a mood reference and selected
+**a different mood for each map**, drawing from the **whole collage**, with
+**Spire first**. Carry across monumental scale, substantial material construction,
+industrial/natural contrasts and readable landmarks while authoring original
+architecture and scenery for Shieldbreak.
+
+Map scale is being redesigned first: the user says the existing maps feel too
+small and wants roughly 2–4x size. The first playable pass now doubles each horizontal axis, giving four times
+the ground area. Use the overhead sketch planner and `MAP_SCALE_DIRECTION.md`
+to direct further route and footprint changes. Runtime maps retain their
+original heights and use the synced world-material/trim pass.
+
+Proposed Spire art starting point: a storm-harvesting exchange above a broken
+mountain caldera, with layered structural fins, grounded service machinery and
+clear upper/lower routes. This theme and its palette are creative proposals,
+not a final environment design. No complete environment, foliage or terrain kit is
+currently imported; the recorded Lyra assets mostly cover characters, weapons,
+audio and effects. Claude's original armor, weapons, materials and mountain ring
+are now synced on the desktop. A first set of original Spire collector fins,
+service panels and lift surrounds extends that work; see `SPIRE_ART_PASS.md`.
+Detailed bridge approaches and lower-route redesign still follow the user's
+chosen footprint and route direction.
+
 **Target:** the *feel* of Halo 2 with Halo Infinite-level polish, built from **original designs**.
 Mechanics and genre conventions are free to use. Halo's specific characters, weapons, maps, logos,
 UI layouts and names are not: a "slightly modified" copy is still a derivative work, and Halo's look is

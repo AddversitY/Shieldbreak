@@ -1,5 +1,14 @@
 # Asset Credits and Imported Content Paths
 
+## Original Spire modules (2026-10-27)
+
+Collector fin, service panel and segmented lift collar authored for Shieldbreak
+with `Art/build_spire_modules.py`; generated source is in `Art/Export/Spire`.
+Imported assets: `/Game/Shieldbreak/Art/Spire/SM_SB_Spire_Collector`,
+`SM_SB_Spire_ServicePanel`, `SM_SB_Spire_LiftCollar`. No third-party mesh,
+texture or paid generation service used. These reuse Shieldbreak's existing
+world/surface materials. See `SPIRE_ART_PASS.md` for placement and limitations.
+
 ## Sources
 
 | Source | Publisher | License | Where it lives |

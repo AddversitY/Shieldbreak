@@ -5,13 +5,15 @@ Design is `docs/DESIGN.md`. Code map is `docs/ARCHITECTURE.md`. The menu is `doc
 
 ## Where the code is
 
-- Repo `AddversitY/Shieldbreak`. This work is a branch off `main` that integrates PR #2
-  (`claude/project-thread-iqwexu`) without merging that PR and without rewriting `main`.
+- Repo `AddversitY/Shieldbreak`. PR #4 merged the integration of main and PR #2
+  (`claude/project-thread-iqwexu`) into **main** at `174ffd3`.
 - UE 5.8, C++. The front end is Slate. The HUD is Canvas. Enhanced Input actions are built in code.
 - Desktop build machine: `C:\Users\addve\Documents\ChatGPT\Shieldbreak`, UE 5.8.4 at
   `C:\Users\addve\Epic Games\UE_5.8`, RTX 2080 Ti. The batch files look for
   `%USERPROFILE%\Epic Games\UE_5.8`. The laptop path and 8 GB notes are historical.
-- This cloud session did not compile or launch the editor.
+- The earlier cloud unification was not compiled there. The desktop subsequently
+  fixed a unity-build namespace collision in `SShieldbreakMenus.cpp` and built it.
+  Current runtime results are in `COORDINATION.md`.
 
 ## What this branch kept
 
@@ -35,6 +37,16 @@ then the arena, 4v4 and connection-recovery scripts one at a time, then look at 
 and a shadowed wall.
 
 ## Still open
+
+- All five launch maps have a first expansion to 2x X/Y (4x ground area), keeping
+  original heights. Further route/cover/pacing iteration is open. The preserved
+  overhead sketch tool is `Design/map-planner/index.html`.
+- Spire has original collector, service-panel and lift-surround modules; see
+  `SPIRE_ART_PASS.md`. Claude's existing reload, melee and grenade animations are
+  retained, not reimplemented. Complete environment artwork remains ahead.
+- `Tools/PushContent.bat` still names a historical Claude branch. For this desktop
+  pass, commit on main and use `git pull --rebase` before `git push origin main`;
+  do not use that legacy helper until its branch handling is updated.
 
 - Lyra GAS blueprints and `FootstepEffectTagModifier` still log load errors. They were not deleted:
   the asset bytes are Git LFS pointers here, and the packaging notes say animations still reference

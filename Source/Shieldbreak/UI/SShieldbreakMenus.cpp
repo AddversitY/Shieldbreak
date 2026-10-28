@@ -18,7 +18,7 @@
 
 #define LOCTEXT_NAMESPACE "ShieldbreakMenus"
 
-namespace ShieldbreakMenuPrivate
+namespace ShieldbreakOverlayMenusPrivate
 {
 	const FLinearColor Accent(0.35f, 0.8f, 1.f, 1.f);
 	const FLinearColor Muted(0.6f, 0.65f, 0.7f, 1.f);
@@ -86,7 +86,7 @@ namespace ShieldbreakMenuPrivate
 
 TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFunction<void()> OnClick, float Width, int32 FontSize)
 {
-	using namespace ShieldbreakMenuPrivate;
+	using namespace ShieldbreakOverlayMenusPrivate;
 	return SNew(SBox)
 		.WidthOverride(Width)
 		.Padding(FMargin(6.f))
@@ -110,7 +110,7 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeButton(const FText& Label, TFuncti
 
 TSharedRef<SWidget> ShieldbreakMenuStyle::MakeChooser(const FText& Label, TFunction<FText()> Value, TFunction<void(int32)> Step, float LabelWidth, float ValueWidth)
 {
-	using namespace ShieldbreakMenuPrivate;
+	using namespace ShieldbreakOverlayMenusPrivate;
 	auto Arrow = [Step](const FText& Glyph, int32 Delta) -> TSharedRef<SWidget>
 	{
 		return SNew(SButton)
@@ -264,12 +264,12 @@ void SShieldbreakControlsMenu::Open(const TSharedPtr<SWidget>& ReturnFocus)
 {
 	TSharedRef<SShieldbreakControlsMenu> Menu = SNew(SShieldbreakControlsMenu);
 	Menu->ReturnFocus = ReturnFocus;
-	ShieldbreakMenuPrivate::OpenOverlay(Menu);
+	ShieldbreakOverlayMenusPrivate::OpenOverlay(Menu);
 }
 
 void SShieldbreakControlsMenu::Construct(const FArguments& InArgs)
 {
-	using namespace ShieldbreakMenuPrivate;
+	using namespace ShieldbreakOverlayMenusPrivate;
 
 	const int32 Count = UShieldbreakInputSet::Get()->GetBindings().Num();
 	const int32 Half = (Count + 1) / 2;
@@ -331,7 +331,7 @@ void SShieldbreakControlsMenu::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> SShieldbreakControlsMenu::MakeRow(int32 Index)
 {
-	using namespace ShieldbreakMenuPrivate;
+	using namespace ShieldbreakOverlayMenusPrivate;
 	const FShieldbreakKeyBinding& Binding = UShieldbreakInputSet::Get()->GetBindings()[Index];
 
 	return SNew(SBox)
@@ -433,19 +433,19 @@ FReply SShieldbreakControlsMenu::OnMouseWheel(const FGeometry& MyGeometry, const
 
 void SShieldbreakControlsMenu::Close()
 {
-	ShieldbreakMenuPrivate::CloseOverlay(AsShared(), ReturnFocus);
+	ShieldbreakOverlayMenusPrivate::CloseOverlay(AsShared(), ReturnFocus);
 }
 
 void SShieldbreakSettingsMenu::Open(const TSharedPtr<SWidget>& ReturnFocus)
 {
 	TSharedRef<SShieldbreakSettingsMenu> Menu = SNew(SShieldbreakSettingsMenu);
 	Menu->ReturnFocus = ReturnFocus;
-	ShieldbreakMenuPrivate::OpenOverlay(Menu);
+	ShieldbreakOverlayMenusPrivate::OpenOverlay(Menu);
 }
 
 void SShieldbreakSettingsMenu::Construct(const FArguments& InArgs)
 {
-	using namespace ShieldbreakMenuPrivate;
+	using namespace ShieldbreakOverlayMenusPrivate;
 
 	auto Column = [](const FText& Heading, const TSharedRef<SWidget>& Rows) -> TSharedRef<SWidget>
 	{
@@ -514,7 +514,7 @@ FReply SShieldbreakSettingsMenu::OnMouseButtonDown(const FGeometry& MyGeometry, 
 
 void SShieldbreakSettingsMenu::Close()
 {
-	ShieldbreakMenuPrivate::CloseOverlay(AsShared(), ReturnFocus);
+	ShieldbreakOverlayMenusPrivate::CloseOverlay(AsShared(), ReturnFocus);
 }
 
 #undef LOCTEXT_NAMESPACE

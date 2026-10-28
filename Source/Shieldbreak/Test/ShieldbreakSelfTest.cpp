@@ -343,6 +343,16 @@ void AShieldbreakSelfTest::BuildSteps()
 				A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f)));
 				// An enemy 10 m ahead, 40 cm to the side: inside the assist cone, not on the crosshair.
 				B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(1000.f, 40.f, 1500.f), 180.f, false);
+				// This tests camera assistance, not falling/landing. Different maps can
+				// catch the two falling pawns at different heights and occlude the target.
+				for (AShieldbreakCharacter* Dummy : { A.Get(), B.Get() })
+				{
+					if (Dummy && Dummy->GetCharacterMovement())
+					{
+						Dummy->GetCharacterMovement()->StopMovementImmediately();
+						Dummy->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+					}
+				}
 			},
 			[this, StartError](float Elapsed)
 			{
@@ -1916,9 +1926,10 @@ void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)
 
 	if (Arena->GetMapId() == FName(TEXT("Sanctum")))
 	{
-		// The rockets plinth (300x300, top z=320 at the center) should take a Power Jump, not a plain jump.
+		// Keep a human-sized run-up outside the plinth as horizontal map size changes.
 		const FVector PlinthTop = ToWorld.TransformPosition(FVector(0.f, 0.f, 320.f));
-		const FVector Start = ToWorld.TransformPosition(FVector(-330.f, 0.f, 100.f));
+		const float HorizontalScale = static_cast<float>(Layout.HalfExtent.X) / 3800.f;
+		const FVector Start = ToWorld.TransformPosition(FVector(-150.f * HorizontalScale - 180.f, 0.f, 100.f));
 		Steps.Add({ TEXT("Sanctum: Power Jump onto the rockets plinth"),
 			[this]() { ClearDummies(); },
 			[this, PlinthTop, Start, Reached = MakeShared<bool>(false)](float Elapsed)

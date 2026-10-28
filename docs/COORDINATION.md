@@ -3,8 +3,7 @@
 Claude and Codex share this handoff. **main** is the integration branch. This branch unifies
 main (ChatGPT's menu, 4v4 rules, connection recovery, desktop verification) with PR #2
 (`claude/project-thread-iqwexu`: settings, key rebinding, medals, music, original art, emblem,
-packaging, and the shadowed-wall lighting fix). It is not merged into main until that pull
-request is accepted. Do not force-push main or delete either source branch.
+packaging, and the shadowed-wall lighting fix). It was merged through PR #4 (174ffd3). Do not force-push main or delete either source branch.
 
 Read this before starting work, and update it in the same commit as the work. See `AGENTS.md`
 for the user's standing GitHub and 4v4 instructions. `docs/HANDOFF.md` is the short pickup
@@ -41,12 +40,13 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-27 unification (this branch): one menu, one game instance, PR #2's settings and
-  controls on the concise menu, medals/music/art/emblem/packaging kept, 4v4 and connection
-  recovery kept, Lumen and virtual shadow maps off. Not built or played in this cloud session.
-  No files reserved.
-- Earlier Codex work on main (connection recovery, desktop setup, host-only 4v4 controls) is
-  recorded below. Those results are for main before this unification, not a rerun of this branch.
+- 2026-10-27 Codex: map expansion, Spire modules and sketch planner completed;
+  see the desktop verification entry below. Claude's merged art/actions retained.
+- Next user request is in progress: smooth animation/movement for both the local
+  view and other characters, plus visible shield reactions to bullets. Reserving
+  `Visuals/ShieldbreakBodyAnim*`, `Player/ShieldbreakCharacter.*`,
+  `Player/ShieldbreakMovementComponent.*`, `Shield/ShieldHealthComponent.*`,
+  cosmetic shield component/material/import helper, related opt-in tests and docs.
 
 ## Needs verification (code session → PC)
 - **Unification build.** On the desktop, build this branch and run `Tools/SelfTest.bat`, then
@@ -129,6 +129,46 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-27 Codex desktop: **4x ground-area map pass and Spire modules**.
+  Synced merged main at `174ffd3` before editing; both checks of fetched
+  `origin/claude/*` found no commits outside main. Preserved Claude's original
+  weapons/armor, world art, body/first-person animation and menu/settings work.
+  Fixed a unity-build collision between private menu helper namespaces; UE 5.8
+  final editor build **PASS**. All five launch maps now have **2x X/Y** and their
+  original Z heights: Keel **144x88 m**, Bastion **120x120 m**, Sanctum **152x104 m**,
+  Creekbed **112x72 m**, Spire **168x64 m**. All gameplay anchors and supporting
+  surfaces transform together. Crucible and movement/jump tuning are unchanged.
+  Authoring validation and generated-data equality **PASS** for all six maps.
+  Final general gameplay suite **109/109 PASS**. Map/mode tours: Keel **23/23**,
+  Bastion **23/23**, Sanctum **25/25**, Creekbed **23/23**, Spire **27/27**,
+  Keel CTF **33/33**, Bastion KOTH **27/27**; all seven 75-second four-bot matches
+  passed stuck detection and combat checks. Sanctum's test run-up now follows
+  the larger plinth edge and still distinguishes normal from charged jumps.
+  First Spire run was **26/27**, failing only the shared aim-assist fixture:
+  its falling pawns can encounter different map geometry. The fixture now holds
+  both pawns stationary in flying mode; thresholds/gameplay assistance unchanged.
+  Rerun **27/27**, including all four lift landings (within ~20 cm). First report
+  retained as `Saved/Logs/Spire-FirstPass-AimFixtureFailure.txt`.
+  Added three original, low-poly Spire meshes (collector, service panel, lift
+  collar), import-axis/size/pivot checks, and instanced material usage flags.
+  Runtime uses ten collectors, ten panels and four collars with no collision/nav
+  influence. Visual check: enlarged Spire overview, readable shaded walls,
+  first-person reload/melee/grenade and third-person throw. Current action poses
+  still need FPS polish; this is an initial architectural pass, not finished art.
+  Captures: `docs/playtests/2026-10-27_expanded-spire.png` and `spire-*` captures.
+  Preserved/completed the overhead sketch planner from this chat: actual map data,
+  drawing/moving marks, one-metre nudges, independent dimensions, saved sketches
+  and direction briefs. Browser checks **PASS** at 320/736 px and in the inline
+  runtime; regenerated outputs **PASS**. Defaults show the enlarged current size.
+  Keel and Spire local server/client joins **PASS** (30 joined game seconds each).
+  4v4 regression **PASS**, including bot replacement/refill, host-only commands
+  and **20** balanced roster samples. Connection recovery **PASS**: host loss
+  restores retry; failed join retains its address; one retry joins without stale
+  errors. Full manual Settings/Controls/music check remains separate.
+  No internet, latency, dedicated-hosting or eight-human claim. Bot FPS figures
+  are not controlled benchmarks. Reports: `Saved/Logs/SelfTest*.txt`,
+  `MapTour-*.log`, `SpireFinalMap.log`, `SpireImport.txt`, `SpirePass*.txt`.
+  See `docs/SPIRE_ART_PASS.md`, `docs/MAPS.md`, and `Design/map-planner/README.md`.
 - 2026-10-27 Codex: **Connection failure recovery and retry**. Added a persistent
   game instance that retains sanitized feedback and the last host address across
   Unreal's disconnect travel/controller replacement. Failed joins and lost-host
@@ -271,9 +311,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   Intel Iris Xe at the auto-detected scalability.
 
 ## Known issues / backlog
-- **Unification is not runtime-verified.** This cloud session cannot launch UE 5.8. Static
-  checks covered class uniqueness, project includes, config class names, and the lighting
-  keys. The desktop steps are in the pull request.
+- **Unification desktop results** are recorded above. A complete manual pass of the
+  Settings/Controls screens and music remains separate from the automated tests.
 - **Imported Lyra Blueprints were left in place.** `Weapons/B_Weapon`, `Weapons/GA_*`,
   `Weapons/*/B_*`, the Lyra anim blueprints, and `FootstepEffectTagModifier` log missing
   Lyra-type errors. Content here is Git LFS pointers, so inbound asset references could not
