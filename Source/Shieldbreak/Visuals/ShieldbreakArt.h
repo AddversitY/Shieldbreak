@@ -23,6 +23,14 @@ namespace ShieldbreakArt
 	inline constexpr const TCHAR* ShotgunMesh = TEXT("/Game/Weapons/Shotgun/Mesh/SM_Shotgun.SM_Shotgun");
 	inline constexpr const TCHAR* GrenadeMesh = TEXT("/Game/Weapons/Grenade/Mesh/SM_grenade.SM_grenade");
 
+	// Shieldbreak's own weapon models (Art/blender/build_weapons.py, imported by Tools/ImportArt.bat). Same mesh space
+	// as Lyra's guns: grip at the origin, barrel along +Y, a "Muzzle" socket at the tip.
+	inline constexpr const TCHAR* SBBattleRifleMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_BattleRifle.SM_SB_BattleRifle");
+	inline constexpr const TCHAR* SBSidearmMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_Sidearm.SM_SB_Sidearm");
+	inline constexpr const TCHAR* SBSniperMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_Sniper.SM_SB_Sniper");
+	inline constexpr const TCHAR* SBRocketLauncherMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher.SM_SB_RocketLauncher");
+	inline constexpr const TCHAR* SBRailLanceMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_RailLance.SM_SB_RailLance");
+
 	// Niagara
 	inline constexpr const TCHAR* MuzzleFlashRifle = TEXT("/Game/Effects/Particles/Weapons/NS_WeaponFire_MuzzleFlash_Rifle.NS_WeaponFire_MuzzleFlash_Rifle");
 	inline constexpr const TCHAR* ImpactConcrete = TEXT("/Game/Effects/Particles/Impacts/NS_ImpactConcrete.NS_ImpactConcrete");

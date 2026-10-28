@@ -27,12 +27,22 @@ public:
 
 	// ---- Feedback (server -> owning client) ----
 	UFUNCTION(Client, Unreliable) void ClientHitConfirmed(bool bKill, bool bHeadshot);
+	/** A medal for this player (EShieldbreakMedal); queued for the HUD. */
+	UFUNCTION(Client, Reliable) void ClientMedal(uint8 Medal);
 	UFUNCTION(Client, Unreliable) void ClientDamagedFrom(FVector_NetQuantize SourceLocation);
 	UFUNCTION(Client, Reliable) void ClientSetRespawnTime(float ServerTimeOfRespawn);
 
 	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }
 	bool WasLastHitKill() const { return bLastHitKill; }
 	bool WasLastHitHeadshot() const { return bLastHitHeadshot; }
+
+	struct FMedalPopup
+	{
+		uint8 Medal = 0;
+		float Time = 0.f;
+	};
+	/** Medals from the last few seconds, oldest first. */
+	const TArray<FMedalPopup>& GetMedalPopups() const { return MedalPopups; }
 	FVector GetLastDamageSource() const { return LastDamageSource; }
 	float GetLastDamagedTime() const { return LastDamagedTime; }
 	/** Server time of the pending respawn, or -1. */
@@ -54,6 +64,7 @@ protected:
 private:
 	friend struct FShieldbreakConnectionTest;
 	TSharedPtr<class SShieldbreakMainMenu> MainMenu;
+	/** Esc in a match opens the same menu as the front end (Resume, Leave, Settings, Controls). */
 	void OnEscape();
 	UFUNCTION(Server, Reliable) void ServerSetBots(int32 Count);
 	UFUNCTION(Server, Reliable) void ServerSetBotSkill(int32 Skill);
@@ -64,6 +75,7 @@ private:
 	void OnScoreboardStarted();
 	void OnScoreboardCompleted();
 	void OnToggleHelp();
+	void OnPause();
 
 	/** Play-test helper: -SBAutoShot=<seconds> saves screenshots to Saved/Screenshots/AutoShot; -SBAutoQuit exits after. */
 	void SetupAutoShots();
@@ -84,6 +96,7 @@ private:
 	float LastHitConfirmTime = -100.f;
 	bool bLastHitKill = false;
 	bool bLastHitHeadshot = false;
+	TArray<FMedalPopup> MedalPopups;
 	FVector LastDamageSource = FVector::ZeroVector;
 	float LastDamagedTime = -100.f;
 	float RespawnServerTime = -1.f;

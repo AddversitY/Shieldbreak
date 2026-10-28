@@ -65,4 +65,6 @@ private:
 	FTimerHandle RespawnTimerHandle;
 	float SpinAngle = 0.f;
 	float BobTime = 0.f;
+	/** Center of the display mesh in its own space (scaled), so art meshes spin around their middle, not the grip. */
+	FVector DisplayCenter = FVector::ZeroVector;
 };

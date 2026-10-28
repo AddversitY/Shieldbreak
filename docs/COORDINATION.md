@@ -1,12 +1,18 @@
 # Shieldbreak development handoff
 
-Claude and Codex share this handoff. The integration branch is **main**; the earlier Claude
-session branches have been merged. Read this before starting work, and update it in the same
-commit as the work. See `AGENTS.md` for the user's standing GitHub and 4v4 instructions.
+Claude and Codex share this handoff. **main** is the integration branch. This branch unifies
+main (ChatGPT's menu, 4v4 rules, connection recovery, desktop verification) with PR #2
+(`claude/project-thread-iqwexu`: settings, key rebinding, medals, music, original art, emblem,
+packaging, and the shadowed-wall lighting fix). It is not merged into main until that pull
+request is accepted. Do not force-push main or delete either source branch.
+
+Read this before starting work, and update it in the same commit as the work. See `AGENTS.md`
+for the user's standing GitHub and 4v4 instructions. `docs/HANDOFF.md` is the short pickup
+note; this file is the log.
 
 | Session | Can do | Can't do | Owns |
 |---|---|---|---|
-| **PC session** (linked to Vincent's laptop) | Build with UE 5.8, run the game, self-test, screenshots, editor/Python asset work, Epic launcher / Fab downloads, Git LFS content pushes | Fast iteration (each build + test is minutes on an Iris Xe laptop) | `Content/`, `Tools/`, `Source/Shieldbreak/Test/`, `PlayTest.bat`, build/perf config, `docs/ASSET_CREDITS.md` |
+| **PC session** (desktop is the build machine; the laptop notes below are historical) | Build with UE 5.8, run the game, self-test, screenshots, editor/Python asset work, Epic launcher / Fab downloads, Git LFS content pushes | This cloud session cannot compile or launch Unreal | `Content/`, `Tools/`, `Source/Shieldbreak/Test/`, `PlayTest.bat`, build/perf config, `docs/ASSET_CREDITS.md` |
 | **Code session** (cloud only) | Fast C++ feature work, design docs | Compiling, running, opening assets | Gameplay features: `Game/`, `Player/`, `Weapons/`, `AI/`, `UI/`, `Visuals/`, `Audio/`, `Shield/` |
 
 ## Rules
@@ -35,17 +41,38 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-27 Codex: connection-failure recovery completed and verified; see the
-  latest record below. No files reserved. Arena lighting remains a separate pass.
-- 2026-10-27 Codex desktop setup completed and verified; see the latest record
-  below and `docs/DESKTOP_SETUP.md`. No files reserved. The overnight setup
-  heartbeat is stopped after this final handoff is pushed.
-- Host-only controls and eight-slot runtime
-  enforcement are completed and tested; see the latest verification record and `docs/NETWORKING.md`.
-- Standing instruction: update this handoff and push each completed increment so Claude can
-  resume. Menu revisions are already on main (`07acef0`, `d027a22`).
+- 2026-10-27 unification (this branch): one menu, one game instance, PR #2's settings and
+  controls on the concise menu, medals/music/art/emblem/packaging kept, 4v4 and connection
+  recovery kept, Lumen and virtual shadow maps off. Not built or played in this cloud session.
+  No files reserved.
+- Earlier Codex work on main (connection recovery, desktop setup, host-only 4v4 controls) is
+  recorded below. Those results are for main before this unification, not a rerun of this branch.
 
 ## Needs verification (code session → PC)
+- **Unification build.** On the desktop, build this branch and run `Tools/SelfTest.bat`, then
+  `Tools/TestArenaNetwork.ps1 -Map Keel`, `-Map Spire`, `Tools/Test4v4Network.ps1`, and
+  `Tools/TestConnectionRecovery.ps1`, one process at a time. Also open the game and check
+  Settings, Controls, menu music, the emblem, and that shadowed walls are not near-black.
+  The bullets below are historical requests. Later "Verified on the PC" entries already
+  closed the ones that landed on main before this merge. SMG and Plasma Rifle classes are
+  gone; do not reintroduce them. Shield Shaping is gone. `UDamageType_Plasma` remains only
+  as a damage-type multiplier checked by the self-test.
+
+## Current game (this branch)
+- Spawn kit is Battle Rifle, Sidearm and grenades. Map pickups are Sniper, Rocket Launcher,
+  Rail Lance, Overshield, Aegis and Active Camo. No SMG, no Plasma Rifle, no Shield Shaping.
+- Modes: Team Slayer, CTF, King of the Hill, Oddball. Maps: Keel, Bastion, Sanctum, Creekbed,
+  Spire, plus the Crucible test layout. Session cap is 4v4 (8).
+- Front end is `SShieldbreakMainMenu`: Play (Multiplayer, Host Match, Practice, Back), Join,
+  Settings, Controls, Exit. Settings and Controls are the PR #2 screens (graphics, window,
+  VSync, frame cap, volumes, FOV, sensitivity, invert, tips, key rebinding). There is one
+  `UShieldbreakGameInstance`, in `Game/ShieldbreakGameInstance.*`, for connection recovery.
+- Menu music plays on the front end. The cracked-shield emblem is `Content/Splash/Emblem.png`.
+- Renderer: Lumen GI off (`r.DynamicGlobalIlluminationMethod=0`), reflections screen-space
+  (`r.ReflectionMethod=2`), virtual shadow maps off, motion blur off. The arena also adds a
+  shadowless fill light. This is the dark-walls fix. It has not been re-screenshotted here.
+
+### Historical requests (already covered by later PC records, or obsolete)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.
   - Maps are data (`Game/ShieldbreakMaps.h`, generated `Game/ShieldbreakMapsData.cpp` from `Design/maps/shieldbreak_maps.py`).
     `AShieldbreakArena` builds whichever map the GameState's replicated `MapId` names (`?Map=Keel|Bastion|Sanctum|Creekbed|Spire|Crucible`;
@@ -86,8 +113,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
     hitscan (bullets drain `AegisHealth` 200, uptime 6 s) but not rockets, grenades or melee; no firing while raised.
   - **Active Camo** (`AShieldbreakPowerup` type `ActiveCamo`, 30 s): invisible to others when still, shimmering when
     moving or firing; bots only spot it within 450 uu (still) or 1800 uu (moving).
-  - Arena: plasma spots are now Rail Lances (60 s); an Aegis sits at (0,-800) (45 s). SMG/Plasma classes stay in code
-    only for your Shield Bleed checks; tell me when I can delete them.
+  - Arena: plasma spots are now Rail Lances (60 s); an Aegis sits at (0,-800) (45 s). The SMG and Plasma Rifle classes were deleted after this note; do not add them back.
 - **Rocket self-damage (answer to the design question).** Your own rockets now deal 0.4x damage to you
   (`SelfDamageScale`) with 0.65x knockback (`SelfKnockbackScale`), so a rocket jump at your feet from full
   shields costs 88 and leaves ~27 health. Enemies still take the full 220. Please turn the rocket-jump INFO into
@@ -245,16 +271,21 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   Intel Iris Xe at the auto-detected scalability.
 
 ## Known issues / backlog
-- **Imported animation modifier:** FootstepEffectTagModifier still references missing Lyra
-  types and logs Blueprint/compiler errors. Confirmed in the earlier menu gameplay log and
-  the current network run. Gameplay checks pass; clean up the imported editor metadata separately.
-- **Performance:** ~15 FPS on the Iris Xe laptop. Lyra's 8K mannequin textures take ~3 min to build on
-  first launch. Vincent may move to his desktop.
-- **Bots:** locomotion is single-node sequence swapping; a proper anim BP (blend spaces, aim offsets)
-  would look much better (code session).
-- **Plasma Rifle:** still greybox; no imported plasma art.
-- **Arena:** still the cube-built greybox; Phase 2 of `ART_DIRECTION.md` (modular kit) not started.
-- **Multiplayer:** arena movement-base network references fixed and verified on Keel and Spire
-  (2026-10-25; see "Verified on the PC"). Movement under latency, map travel, and longer multiplayer
-  sessions still need coverage.
-- **Lighting:** walls in shadow render nearly black (see `docs/playtests/`).
+- **Unification is not runtime-verified.** This cloud session cannot launch UE 5.8. Static
+  checks covered class uniqueness, project includes, config class names, and the lighting
+  keys. The desktop steps are in the pull request.
+- **Imported Lyra Blueprints were left in place.** `Weapons/B_Weapon`, `Weapons/GA_*`,
+  `Weapons/*/B_*`, the Lyra anim blueprints, and `FootstepEffectTagModifier` log missing
+  Lyra-type errors. Content here is Git LFS pointers, so inbound asset references could not
+  be read. `docs/ASSET_CREDITS.md` and the packaging notes say anim modifiers and layers
+  are still referenced by animations that the game loads. They were not deleted.
+- **Performance:** the Iris Xe laptop history is about 15–35 FPS. The desktop (RTX 2080 Ti)
+  reported about 116 FPS on main's last self-test. That number is not a result for this branch.
+- **Bots:** locomotion is single-node sequence swapping. PR #2 added `UShieldbreakBodyAnimInstance`
+  as a step toward a real anim blueprint; blend spaces and aim offsets are still open.
+- **Arena art:** layouts are still code-built. Original weapon, armor, trim and world materials
+  from PR #2 load by path when the assets are present and fall back to flat colours otherwise.
+- **Multiplayer:** movement under latency, long sessions, NAT, matchmaking, dedicated hosting
+  and eight-human play are not verified. Do not claim them.
+- **Lighting:** the near-black shadowed-wall bug is addressed in config and in the arena fill
+  light on this branch. Confirm it visually on the desktop; it was not re-run here.

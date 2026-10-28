@@ -1,8 +1,10 @@
 #include "Game/ShieldbreakArena.h"
 
 #include "Shieldbreak.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -10,16 +12,22 @@
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/HitResult.h"
+#include "Engine/PostProcessVolume.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Game/ShieldbreakGameMode.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Game/ShieldbreakGravLift.h"
+#include "Visuals/ShieldbreakArt.h"
 
 namespace ShieldbreakArenaPrivate
 {
@@ -30,6 +38,49 @@ namespace ShieldbreakArenaPrivate
 	constexpr float MaxDropHeight = 700.f;
 
 	const TArray<int32> EmptyNeighbors;
+
+	/** Surface kind (an MI_SB_World_<Kind> instance) for a palette style; None keeps the flat colour. */
+	FName SurfaceKind(FName Style)
+	{
+		static const FName Glow(TEXT("glow")), Water(TEXT("water")), Floor(TEXT("floor")), Grass(TEXT("grass"));
+		static const FName Stone(TEXT("stone")), Rock(TEXT("rock")), Sand(TEXT("sand"));
+		if (Style.IsNone() || Style == Glow || Style == Water)
+		{
+			return NAME_None;
+		}
+		if (Style == Floor)
+		{
+			return TEXT("Tile");
+		}
+		if (Style == Grass)
+		{
+			return TEXT("Grass");
+		}
+		if (Style == Stone || Style == Rock || Style == Sand)
+		{
+			return TEXT("Stone");
+		}
+		// Walls, towers, bridges, team bases, cover, ramps: Forerunner-style metal panels.
+		return TEXT("Panel");
+	}
+
+	/** Built structures (not the floor or natural rock) get glowing trim. */
+	bool HasTrim(FName Style)
+	{
+		return SurfaceKind(Style) == FName(TEXT("Panel")) && Style != FName(TEXT("ramp")) && Style != FName(TEXT("slide"));
+	}
+
+	const FLinearColor TrimCyan(0.25f, 0.8f, 1.f);
+	const FLinearColor TrimRed(1.f, 0.22f, 0.12f);
+	const FLinearColor TrimBlue(0.2f, 0.45f, 1.f);
+
+	/** Emissive share of the mountain ring's colour; -SBMountainLight=<x> overrides it for comparisons. */
+	float MountainSelfLight()
+	{
+		float Value = 0.35f;
+		FParse::Value(FCommandLine::Get(), TEXT("SBMountainLight="), Value);
+		return FMath::Max(0.f, Value);
+	}
 }
 
 AShieldbreakArena::AShieldbreakArena()
@@ -44,6 +95,11 @@ AShieldbreakArena::AShieldbreakArena()
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeFinder(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	if (ConeFinder.Succeeded())
+	{
+		ConeMesh = ConeFinder.Object;
+	}
 	if (CubeFinder.Succeeded())
 	{
 		CubeMesh = CubeFinder.Object;
@@ -90,14 +146,20 @@ AShieldbreakArena* AShieldbreakArena::EnsureLocal(UWorld* World, FName InMapId)
 		return nullptr;
 	}
 
-	// Character movement serializes its floor component (movement base). The locally built
-	// arena and its pieces must therefore have identical, net-addressable paths everywhere.
-	FActorSpawnParameters ArenaParams;
-	ArenaParams.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *ResolvedMapId.ToString().ToLower()));
-	ArenaParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-	ArenaParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ArenaParams.bDeferConstruction = true;
-	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, ArenaParams);
+	// Characters stand on the arena's pieces, and replicated movement references its movement base by path, so
+	// the arena and its pieces must have the same names on every machine and be net-addressable.
+	FActorSpawnParameters Params;
+	Params.Name = FName(*FString::Printf(TEXT("ShieldbreakArena_%s"), *ResolvedMapId.ToString().ToLower()));
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Params.bDeferConstruction = true;
+	if (UObject* NameHolder = StaticFindObjectFast(nullptr, World->PersistentLevel, Params.Name))
+	{
+		// A destroyed arena awaiting garbage collection still holds the name (map changes).
+		NameHolder->Rename(*MakeUniqueObjectName(World->PersistentLevel, NameHolder->GetClass()).ToString(), nullptr,
+			REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
+	}
+
+	AShieldbreakArena* Arena = World->SpawnActor<AShieldbreakArena>(AShieldbreakArena::StaticClass(), FTransform::Identity, Params);
 	if (Arena)
 	{
 		Arena->SetNetAddressable();
@@ -115,7 +177,9 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 	{
 		bGeometryBuilt = true;
 		MapId = ShieldbreakMaps::Build(MapId.IsNone() ? ShieldbreakMaps::GetDefaultMapId() : MapId, Layout);
+		LoadSurfaceMaterials();
 		BuildGeometry();
+		BuildTrim();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -132,18 +196,126 @@ void AShieldbreakArena::BeginPlay()
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		SpawnLighting();
+		BuildBackdrop();
 	}
 
-	if (HasAuthority() && GetNetMode() != NM_Client)
+	// Bots and pickups only in a match. The front end does not build an arena; this also covers a backdrop.
+	const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+	if (HasAuthority() && GetNetMode() != NM_Client && Rules && !Rules->IsFrontEnd())
 	{
 		BuildWaypointGraph();
 		SpawnPickups();
 	}
 }
 
+void AShieldbreakArena::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (EndPlayReason == EEndPlayReason::Destroyed && GetWorld())
+	{
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		{
+			if (It->GetOwner() == this)
+			{
+				It->Destroy();
+			}
+		}
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
 // ---- Geometry helpers ----
 
-UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, const FRotator& Rotation)
+void AShieldbreakArena::LoadSurfaceMaterials()
+{
+	SurfaceMaterials.Reset();
+	GlowMaterial = nullptr;
+	// -SBFlatMaterials keeps the old flat colours (for comparison shots and slow machines).
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBFlatMaterials")))
+	{
+		return;
+	}
+	for (const TCHAR* Kind : { TEXT("Panel"), TEXT("Tile"), TEXT("Stone"), TEXT("Grass") })
+	{
+		const FString Path = FString::Printf(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_World_%s.MI_SB_World_%s"), Kind, Kind);
+		if (UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			SurfaceMaterials.Add(FName(Kind), Material);
+		}
+	}
+	GlowMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Shieldbreak/Art/Materials/M_SB_Surface.M_SB_Surface"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+}
+
+UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, FName Style, const FLinearColor& Color, float TileScale) const
+{
+	if (Style == FName(TEXT("glow")) && GlowMaterial)
+	{
+		Mesh->SetMaterial(0, GlowMaterial);
+		UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+		if (MID)
+		{
+			MID->SetVectorParameterValue(TEXT("BaseColor"), Color * 0.2f);
+			MID->SetVectorParameterValue(TEXT("EmissiveColor"), Color);
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+			MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
+			MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
+		}
+		return MID;
+	}
+
+	const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(ShieldbreakArenaPrivate::SurfaceKind(Style));
+	if (World && *World)
+	{
+		Mesh->SetMaterial(0, *World);
+		UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+		if (MID)
+		{
+			MID->SetVectorParameterValue(TEXT("Tint"), Color);
+			float TileSize = 0.f;
+			if (TileScale != 1.f && MID->GetScalarParameterValue(FHashedMaterialParameterInfo(FName(TEXT("TileSize"))), TileSize))
+			{
+				MID->SetScalarParameterValue(TEXT("TileSize"), TileSize * TileScale);
+			}
+		}
+		return MID;
+	}
+
+	if (BaseMaterial)
+	{
+		Mesh->SetMaterial(0, BaseMaterial);
+	}
+	UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0);
+	if (MID)
+	{
+		MID->SetVectorParameterValue(TEXT("Color"), Color);
+	}
+	return MID;
+}
+
+template <typename T>
+T* AShieldbreakArena::AddDecoration(const TCHAR* BaseName, UStaticMesh* Mesh)
+{
+	T* Component = NewObject<T>(this, FName(BaseName, Decorations.Num() + 1), RF_Transient);
+	if (!Component)
+	{
+		return nullptr;
+	}
+	// Deterministic names plus this flag keep the self-test's stable-path check true for trim and backdrop meshes.
+	Component->SetNetAddressable();
+	Component->SetMobility(EComponentMobility::Static);
+	if (Mesh)
+	{
+		Component->SetStaticMesh(Mesh);
+	}
+	Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Component->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	Component->SetGenerateOverlapEvents(false);
+	Component->SetCanEverAffectNavigation(false);
+	Component->SetupAttachment(Root);
+	Decorations.Add(Component);
+	return Component;
+}
+
+UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVector& Size, const FLinearColor& Color, FName Style, const FRotator& Rotation)
 {
 	// Blocks, then ramps, are built in layout order on every machine. Never rely on the
 	// process-wide auto-name counter: it differs between listen server and joining clients.
@@ -160,41 +332,35 @@ UStaticMeshComponent* AShieldbreakArena::AddBox(const FVector& Center, const FVe
 	{
 		Piece->SetStaticMesh(CubeMesh);
 	}
-	if (BaseMaterial)
-	{
-		Piece->SetMaterial(0, BaseMaterial);
-	}
 	Piece->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	Piece->SetCollisionResponseToChannel(ECC_Weapon, ECR_Block);
 	Piece->SetGenerateOverlapEvents(false);
 	Piece->SetupAttachment(Root);
 	Piece->SetRelativeLocationAndRotation(Center, Rotation);
 	Piece->SetRelativeScale3D(Size / 100.f);
+	// Same build order on every machine, so the same name: a movement base the server can reference.
 	Piece->RegisterComponent();
 	AddInstanceComponent(Piece);
 
-	if (UMaterialInstanceDynamic* MID = Piece->CreateDynamicMaterialInstance(0))
-	{
-		MID->SetVectorParameterValue(TEXT("Color"), Color);
-	}
+	ApplySurface(Piece, Style, Color);
 
 	Pieces.Add(Piece);
 	return Piece;
 }
 
-UStaticMeshComponent* AShieldbreakArena::AddBlock(const FVector& Min, const FVector& Max, const FLinearColor& Color)
+UStaticMeshComponent* AShieldbreakArena::AddBlock(const FVector& Min, const FVector& Max, const FLinearColor& Color, FName Style)
 {
-	return AddBox((Min + Max) * 0.5f, (Max - Min).GetAbs(), Color);
+	return AddBox((Min + Max) * 0.5f, (Max - Min).GetAbs(), Color, Style);
 }
 
-UStaticMeshComponent* AShieldbreakArena::AddRamp(const FVector& Start, const FVector& End, float Width, float Thickness, const FLinearColor& Color)
+UStaticMeshComponent* AShieldbreakArena::AddRamp(const FVector& Start, const FVector& End, float Width, float Thickness, const FLinearColor& Color, FName Style)
 {
 	const FVector Delta = End - Start;
 	const float Length = static_cast<float>(Delta.Size()) + 30.f; // overlap both ends a little
 	const FRotator Rotation = Delta.Rotation();
 	const FVector Up = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Z);
 	const FVector Center = (Start + End) * 0.5f - Up * (Thickness * 0.5f);
-	return AddBox(Center, FVector(Length, Width, Thickness), Color, Rotation);
+	return AddBox(Center, FVector(Length, Width, Thickness), Color, Style, Rotation);
 }
 
 // ---- Layout ----
@@ -203,11 +369,154 @@ void AShieldbreakArena::BuildGeometry()
 {
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		AddBlock(Block.Min, Block.Max, Block.Color);
+		AddBlock(Block.Min, Block.Max, Block.Color, Block.Style);
 	}
 	for (const FShieldbreakMapRamp& RampData : Layout.Ramps)
 	{
-		AddRamp(RampData.Start, RampData.End, RampData.Width, RampData.Thickness, RampData.Color);
+		AddRamp(RampData.Start, RampData.End, RampData.Width, RampData.Thickness, RampData.Color, RampData.Style);
+	}
+}
+
+void AShieldbreakArena::BuildTrim()
+{
+	using namespace ShieldbreakArenaPrivate;
+	if (!GlowMaterial || !CubeMesh)
+	{
+		return;
+	}
+
+	// One instanced mesh per colour: three draw calls for every trim line on the map.
+	const FName RedStyle(TEXT("red")), BlueStyle(TEXT("blue"));
+	UInstancedStaticMeshComponent* Strips[3] = { nullptr, nullptr, nullptr };
+	const FLinearColor Colors[3] = { TrimCyan, TrimRed, TrimBlue };
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		Strips[Index] = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Trim"), CubeMesh);
+		Strips[Index]->SetCastShadow(false);
+		// Brighter than glow blocks: the lines are thin and mostly seen from across the map.
+		if (UMaterialInstanceDynamic* MID = ApplySurface(Strips[Index], TEXT("glow"), Colors[Index]))
+		{
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 14.f);
+		}
+	}
+
+	constexpr float StripHeight = 14.f, StripDepth = 6.f, TopInset = 30.f, FootHeight = 60.f, EndInset = 30.f;
+	const FVector2D Half = Layout.HalfExtent;
+	int32 Count = 0;
+	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+	{
+		const FVector3f Size(Block.Max - Block.Min);
+		if (!HasTrim(Block.Style) || Size.Z < 120.f)
+		{
+			continue;
+		}
+		UInstancedStaticMeshComponent* Strip = Strips[Block.Style == RedStyle ? 1 : Block.Style == BlueStyle ? 2 : 0];
+		TArray<float, TInlineAllocator<2>> Heights;
+		Heights.Add(static_cast<float>(Block.Max.Z) - TopInset);
+		if (Size.Z >= 400.f)
+		{
+			Heights.Add(static_cast<float>(Block.Min.Z) + FootHeight);
+		}
+
+		const FVector Center = (Block.Min + Block.Max) * 0.5;
+		// The four side faces: outward normal, distance from the centre and length along the face.
+		struct FFace { FVector Normal; float Offset; float Length; };
+		const FFace Faces[4] = {
+			{ FVector(1.0, 0.0, 0.0), Size.X * 0.5f, Size.Y }, { FVector(-1.0, 0.0, 0.0), Size.X * 0.5f, Size.Y },
+			{ FVector(0.0, 1.0, 0.0), Size.Y * 0.5f, Size.X }, { FVector(0.0, -1.0, 0.0), Size.Y * 0.5f, Size.X } };
+		for (const FFace& Face : Faces)
+		{
+			if (Face.Length < 250.f)
+			{
+				continue;
+			}
+			const FVector FaceCenter = Center + Face.Normal * (Face.Offset + StripDepth * 0.5f - 1.f);
+			// Skip faces that look out of the map (the back of the perimeter walls).
+			if (FMath::Abs(FaceCenter.X) > Half.X + 1.f || FMath::Abs(FaceCenter.Y) > Half.Y + 1.f)
+			{
+				continue;
+			}
+			const bool bAlongY = Face.Normal.X != 0.0;
+			const float Length = Face.Length - 2.f * EndInset;
+			const FVector Scale = bAlongY ? FVector(StripDepth, Length, StripHeight) : FVector(Length, StripDepth, StripHeight);
+			for (const float Z : Heights)
+			{
+				Strip->AddInstance(FTransform(FRotator::ZeroRotator, FVector(FaceCenter.X, FaceCenter.Y, Z), Scale / 100.f));
+				++Count;
+			}
+		}
+	}
+	for (UInstancedStaticMeshComponent* Strip : Strips)
+	{
+		Strip->RegisterComponent();
+		AddInstanceComponent(Strip);
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d trim lines."), *Layout.DisplayName, Count);
+}
+
+void AShieldbreakArena::BuildBackdrop()
+{
+	if (!CubeMesh)
+	{
+		return;
+	}
+
+	// The same scenery on every machine for a map, so seed from its id.
+	FRandomStream Random(static_cast<int32>(GetTypeHash(MapId.ToString())));
+	const float Reach = static_cast<float>(FMath::Max(Layout.HalfExtent.X, Layout.HalfExtent.Y));
+	const FLinearColor GroundColor(0.20f, 0.27f, 0.15f), RockColor(0.30f, 0.29f, 0.27f);
+
+	// Ground out to the horizon, a few metres below the map floor so the arena reads as a raised platform.
+	UStaticMeshComponent* Ground = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), CubeMesh);
+	Ground->SetCastShadow(false);
+	Ground->SetRelativeLocation(FVector(0.f, 0.f, Layout.FloorZ - 400.f));
+	Ground->SetRelativeScale3D(FVector(2000.f, 2000.f, 1.f));
+	Ground->RegisterComponent();
+	AddInstanceComponent(Ground);
+	ApplySurface(Ground, TEXT("grass"), GroundColor, 6.f);
+
+	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
+	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
+	if (UStaticMesh* Ring = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/Environment/SM_SB_Mountains.SM_SB_Mountains")))
+	{
+		UStaticMeshComponent* Mountains = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), Ring);
+		Mountains->SetCastShadow(false);
+		const float Spread = (Reach + 3000.f) / 10000.f;
+		Mountains->SetRelativeLocation(FVector(0.f, 0.f, Layout.FloorZ - 400.f));
+		Mountains->SetRelativeRotation(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f));
+		Mountains->SetRelativeScale3D(FVector(Spread, Spread, Random.FRandRange(0.8f, 1.25f)));
+		Mountains->RegisterComponent();
+		AddInstanceComponent(Mountains);
+		// Far past Lumen's range and the shadow distance, the ring came out near black on the PC (only a fog-pale rim):
+		// keep it out of distance-field lighting and let it glow faintly in its own colour so the skyline reads.
+		Mountains->bAffectDistanceFieldLighting = false;
+		if (UMaterialInstanceDynamic* Rock = ApplySurface(Mountains, TEXT("rock"), RockColor, 4.f))
+		{
+			Rock->SetScalarParameterValue(TEXT("SelfLight"), ShieldbreakArenaPrivate::MountainSelfLight());
+		}
+		return;
+	}
+	// Without the imported ring: the old engine cones.
+	if (!ConeMesh)
+	{
+		return;
+	}
+	constexpr int32 Peaks = 22;
+	for (int32 Index = 0; Index < Peaks; ++Index)
+	{
+		const float Angle = (Index + Random.FRandRange(-0.35f, 0.35f)) * static_cast<float>(UE_TWO_PI) / Peaks;
+		const float Distance = Reach * 2.f + Random.FRandRange(9000.f, 22000.f);
+		const float Width = Random.FRandRange(9000.f, 18000.f);
+		const float Height = Random.FRandRange(3000.f, 9000.f) * (Distance / (Reach * 2.f + 15000.f));
+		UStaticMeshComponent* Peak = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), ConeMesh);
+		Peak->SetCastShadow(false);
+		// The engine cone is 100 x 100 x 100 with its pivot at the centre.
+		Peak->SetRelativeLocation(FVector(FMath::Cos(Angle) * Distance, FMath::Sin(Angle) * Distance, Layout.FloorZ - 400.f + Height * 0.5f));
+		Peak->SetRelativeRotation(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f));
+		Peak->SetRelativeScale3D(FVector(Width, Width * Random.FRandRange(0.6f, 1.f), Height) / 100.f);
+		Peak->RegisterComponent();
+		AddInstanceComponent(Peak);
+		ApplySurface(Peak, TEXT("rock"), RockColor * Random.FRandRange(0.85f, 1.15f));
 	}
 }
 
@@ -278,15 +587,41 @@ void AShieldbreakArena::SpawnLighting()
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.ObjectFlags |= RF_Transient;
+	// Owned by the arena so EndPlay can take them down when the menu backdrop swaps maps.
+	Params.Owner = this;
+
+	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
+	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
+	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
+	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
+	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
 
 	if (ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), Layout.SunRotation, Params))
 	{
 		if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 		{
 			SunLight->SetMobility(EComponentMobility::Movable);
-			SunLight->SetIntensity(8.f);
+			SunLight->SetIntensity(SunIntensity);
 			SunLight->SetAtmosphereSunLight(true);
+			SunLight->SetForwardShadingPriority(1); // the sun, not the fill, drives fog and translucency
 			SunLight->SetCastShadows(true);
+		}
+	}
+
+	// Fill light from the opposite side, no shadows: on low scalability (the Iris Xe laptop) Lumen GI and the sky
+	// light's real-time capture contribute little, so faces turned away from the sun rendered nearly black.
+	const FRotator FillRotation(-25.f, Layout.SunRotation.Yaw + 180.f, 0.f);
+	if (ADirectionalLight* Fill = World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.f, 0.f, 3000.f), FillRotation, Params))
+	{
+		if (UDirectionalLightComponent* FillLight = Cast<UDirectionalLightComponent>(Fill->GetLightComponent()))
+		{
+			FillLight->SetMobility(EComponentMobility::Movable);
+			FillLight->SetIntensity(FillIntensity);
+			FillLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
+			FillLight->SetAtmosphereSunLight(false);
+			FillLight->SetCastShadows(false);
 		}
 	}
 
@@ -301,8 +636,35 @@ void AShieldbreakArena::SpawnLighting()
 		{
 			SkyComponent->SetMobility(EComponentMobility::Movable);
 			SkyComponent->bRealTimeCapture = true;
-			SkyComponent->SetIntensity(1.5f);
+			SkyComponent->SetIntensity(SkyIntensity);
+			// The ground under the map is just as lit as the sky, so undersides and overhangs aren't black either.
+			SkyComponent->bLowerHemisphereIsBlack = false;
+			SkyComponent->SetLowerHemisphereColor(FLinearColor(0.35f, 0.33f, 0.3f));
 			SkyComponent->RecaptureSky();
+
+			// PC finding (2026-10-22): shaded walls stay near-black from startup, but turn a readable blue-grey as soon as
+			// any renderer cvar with a recreate-render-state sink is set mid-match (even to its current value); timed
+			// RecaptureSky() calls alone didn't help. So once the arena and the first players exist, recreate every
+			// component's render state the way that cvar does, then recapture the sky. A one-off hitch at load.
+			// -SBNoSkyRecapture keeps the old behaviour for comparison; -SBRecreateAt=<s> moves it (default 1.5 s).
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoSkyRecapture")))
+			{
+				float RecreateDelay = 1.5f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBRecreateAt="), RecreateDelay);
+				TWeakObjectPtr<USkyLightComponent> WeakSky = SkyComponent;
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle, [WeakSky]()
+				{
+					{
+						FGlobalComponentRecreateRenderStateContext Recreate;
+					}
+					if (USkyLightComponent* Component = WeakSky.Get())
+					{
+						Component->RecaptureSky();
+					}
+					UE_LOG(LogShieldbreak, Log, TEXT("Lighting: recreated render state and recaptured the sky."));
+				}, FMath::Max(RecreateDelay, 0.1f), false);
+			}
 		}
 	}
 
@@ -311,6 +673,36 @@ void AShieldbreakArena::SpawnLighting()
 		if (UExponentialHeightFogComponent* FogComponent = Fog->GetComponent())
 		{
 			FogComponent->SetFogDensity(Layout.FogDensity);
+			// Bright blue-white haze, starting past the arena so the playspace stays crisp and the backdrop fades.
+			FogComponent->SetFogInscatteringColor(FLinearColor(0.32f, 0.43f, 0.6f));
+			FogComponent->SetFogHeightFalloff(0.08f);
+			FogComponent->SetStartDistance(4000.f);
+		}
+	}
+
+	// A light grade: some bloom for the trim and glow, a touch more saturation and contrast, and a soft vignette.
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
+	{
+		if (APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
+		{
+			Grade->bUnbound = true;
+			FPostProcessSettings& Settings = Grade->Settings;
+			Settings.bOverride_BloomIntensity = true;
+			Settings.BloomIntensity = 0.9f;
+			Settings.bOverride_BloomThreshold = true;
+			Settings.BloomThreshold = 1.2f;
+			Settings.bOverride_ColorSaturation = true;
+			Settings.ColorSaturation = FVector4(1.12f, 1.12f, 1.12f, 1.f);
+			Settings.bOverride_ColorContrast = true;
+			Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.f);
+			Settings.bOverride_VignetteIntensity = true;
+			Settings.VignetteIntensity = 0.35f;
+			// The first shots read washed out (pale walls and floors in full sun): pull exposure down a little.
+			// -SBExposure=<stops> overrides it for comparisons.
+			float ExposureBias = -0.4f;
+			FParse::Value(FCommandLine::Get(), TEXT("SBExposure="), ExposureBias);
+			Settings.bOverride_AutoExposureBias = true;
+			Settings.AutoExposureBias = ExposureBias;
 		}
 	}
 }

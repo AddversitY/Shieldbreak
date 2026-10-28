@@ -182,11 +182,15 @@ float UShieldHealthComponent::ApplyShieldbreakDamage(float Damage, const UDamage
 
 	ResetRechargeDelay(SBType ? SBType->RechargeDelayExtension : 0.f);
 
+	const bool bHeadshot = bPendingHeadshot;
+	bPendingHeadshot = false;
 	if (HealthDamage > 0.f)
 	{
 		SetHealthInternal(Health - HealthDamage);
 		if (Health <= 0.f)
 		{
+			KillingDamageType = DamageType;
+			bKilledByHeadshot = bHeadshot;
 			Die(InstigatedBy);
 		}
 	}

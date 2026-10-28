@@ -4,6 +4,7 @@
 
 | Source | Publisher | License | Where it lives |
 |---|---|---|---|
+| Shieldbreak originals: menu music (`Art/audio/make_music.py`), textures, weapon/armor/environment meshes (`Art/blender/`) | Shieldbreak (synthesized/scripted from scratch, no samples) | Ours | `Art/Export/`, imported to `/Game/Shieldbreak/Art/` |
 | Lyra Starter Game (Fab listing `93faede1-4434-47c0-85f1-bf27c0820ad0`, UE 5.8 build, published 2026-09-30) | Epic Games | Fab Standard License, "UE-Only Content": licensed for use only in Unreal Engine-based products | `Content/Characters/Heroes/`, `Content/Weapons/`, `Content/Effects/`, `Content/Audio/`, `Content/PhysicsMaterials/` |
 
 Phase 1 note: the assets were copied file-for-file from the Lyra download **at their original Lyra

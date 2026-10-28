@@ -23,6 +23,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Visuals/ShieldbreakBodyAnimator.h"
+#include "NiagaraComponent.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -100,6 +102,9 @@ void AShieldbreakWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bOverheated, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bReloading, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AShieldbreakWeapon, bCharging, COND_SkipOwner);
+	// Every machine attaches the gun itself in OnEquipped (to the body, or to the owner's local first-person arms,
+	// which other machines don't have), so the server's attachment must not replicate.
+	DISABLE_REPLICATED_PRIVATE_PROPERTY(AActor, AttachmentReplication);
 }
 
 void AShieldbreakWeapon::BeginPlay()
@@ -155,23 +160,53 @@ void AShieldbreakWeapon::SetOwningCharacter(AShieldbreakCharacter* NewOwner)
 	SetInstigator(NewOwner);
 }
 
-void AShieldbreakWeapon::OnEquipped()
+AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 {
-	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	if (!OwnerCharacter || !OwnerCharacter->GetFirstPersonCamera())
 	{
-		return;
+		return EEquippedLayout::None;
 	}
 
 	// Everyone else sees the imported gun in the mannequin's hand; the local player gets a camera viewmodel.
 	const bool bViewModel = OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
-	USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
+	const USkeletalMeshComponent* Body = OwnerCharacter->GetMesh();
 	if (bHasArt && !bViewModel && Body && Body->GetSkeletalMeshAsset())
 	{
+		return EEquippedLayout::Hand;
+	}
+	// The local player's first-person arms hold the gun the same way the body does.
+	const UShieldbreakBodyAnimator* Animator = OwnerCharacter->GetBodyAnimator();
+	if (bHasArt && bViewModel && Animator && Animator->HasFirstPersonArms())
+	{
+		return EEquippedLayout::FirstPersonHand;
+	}
+	return bHasArt ? EEquippedLayout::CameraArt : EEquippedLayout::CameraPlain;
+}
+
+bool AShieldbreakWeapon::NeedsReattach() const
+{
+	return GetDesiredLayout() != EquippedLayout;
+}
+
+void AShieldbreakWeapon::OnEquipped()
+{
+	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	EquippedLayout = GetDesiredLayout();
+	if (EquippedLayout == EEquippedLayout::None)
+	{
+		return;
+	}
+
+	if (EquippedLayout == EEquippedLayout::Hand || EquippedLayout == EEquippedLayout::FirstPersonHand)
+	{
+		const bool bFirstPerson = EquippedLayout == EEquippedLayout::FirstPersonHand;
+		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
 		SetActorRelativeTransform(FTransform::Identity);
-		WeaponMesh->SetCastShadow(true);
+		// The body's shadow already carries a gun; the first-person one would add a second.
+		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}
 	else
 	{
@@ -191,12 +226,24 @@ void AShieldbreakWeapon::OnEquipped()
 		}
 		WeaponMesh->SetCastShadow(false);
 	}
+	// The local player's gun draws with the first-person FOV and scale, like the arms holding it.
+	const EFirstPersonPrimitiveType ViewType = EquippedLayout == EEquippedLayout::Hand ? EFirstPersonPrimitiveType::None : EFirstPersonPrimitiveType::FirstPerson;
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
+	for (UPrimitiveComponent* Primitive : Primitives)
+	{
+		if (Primitive->FirstPersonPrimitiveType != ViewType)
+		{
+			Primitive->FirstPersonPrimitiveType = ViewType;
+			Primitive->MarkRenderStateDirty();
+		}
+	}
 	SetActorHiddenInGame(false);
 	CurrentSpread = Stats.BaseSpreadDegrees;
 }
 
 void AShieldbreakWeapon::OnUnequipped()
 {
+	EquippedLayout = EEquippedLayout::None;
 	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;
@@ -616,6 +663,10 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 		AController* InstigatorController = OwnerCharacter->GetController();
 		TSubclassOf<UDamageType> DamageClass = Stats.DamageType ? Stats.DamageType : TSubclassOf<UDamageType>(UDamageType_Ballistic::StaticClass());
+		if (Victim && Victim->GetShieldHealth())
+		{
+			Victim->GetShieldHealth()->NoteHeadshot(bHeadshot);
+		}
 		UGameplayStatics::ApplyPointDamage(HitActor, DamageAmount, ShotDir, Hit, InstigatorController, this, DamageClass);
 
 		if (bVictimWasAlive)
@@ -669,9 +720,19 @@ void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
 	}
 }
 
+UStaticMesh* AShieldbreakWeapon::LoadArtMesh(const FShieldbreakWeaponStats& WeaponStats)
+{
+	UStaticMesh* Art = WeaponStats.ArtMesh.IsNull() ? nullptr : ShieldbreakArt::Load<UStaticMesh>(*WeaponStats.ArtMesh.ToString());
+	if (!Art && !WeaponStats.ArtMeshFallback.IsNull())
+	{
+		Art = ShieldbreakArt::Load<UStaticMesh>(*WeaponStats.ArtMeshFallback.ToString());
+	}
+	return Art;
+}
+
 void AShieldbreakWeapon::ApplyArt()
 {
-	UStaticMesh* Art = Stats.ArtMesh.IsNull() ? nullptr : ShieldbreakArt::Load<UStaticMesh>(*Stats.ArtMesh.ToString());
+	UStaticMesh* Art = LoadArtMesh(Stats);
 	if (!Art)
 	{
 		return;
@@ -733,7 +794,12 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 	const FVector Muzzle = GetMuzzleLocation();
 	if (bHasArt && !Stats.MuzzleFlash.IsNull())
 	{
-		ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
+		UNiagaraComponent* Flash = ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
+		if (Flash && WeaponMesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+		{
+			Flash->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+			Flash->MarkRenderStateDirty();
+		}
 	}
 
 	const float Pitch = FMath::FRandRange(0.96f, 1.04f);
@@ -792,6 +858,10 @@ void AShieldbreakWeapon::StartReload()
 	{
 		ReloadStartLocalTime = World->GetTimeSeconds();
 	}
+	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
+	{
+		OwnerCharacter->PlayActionAnimation(EShieldbreakAction::Reload, Stats.ReloadTime);
+	}
 
 	if (HasAuthority())
 	{
@@ -820,6 +890,10 @@ void AShieldbreakWeapon::BeginReload()
 	if (const UWorld* World = GetWorld())
 	{
 		ReloadStartLocalTime = World->GetTimeSeconds();
+	}
+	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
+	{
+		OwnerCharacter->MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Reload));
 	}
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AShieldbreakWeapon::FinishReload, Stats.ReloadTime, false);
 }

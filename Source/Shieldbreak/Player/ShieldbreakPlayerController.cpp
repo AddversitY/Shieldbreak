@@ -1,6 +1,9 @@
 #include "Player/ShieldbreakPlayerController.h"
 
+#include "Audio/ShieldbreakMusic.h"
 #include "Audio/ShieldbreakSFX.h"
+#include "Player/ShieldbreakSettings.h"
+#include "Game/ShieldbreakMedals.h"
 #include "Shieldbreak.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -17,10 +20,9 @@
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "UI/SShieldbreakMainMenu.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/SWeakWidget.h"
-#include "InputCoreTypes.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "InputCoreTypes.h"
 #include "Test/ShieldbreakNetworkTest.h"
 #include "Test/ShieldbreakConnectionTest.h"
 
@@ -39,6 +41,7 @@ void AShieldbreakPlayerController::ShowMainMenu()
 		SetShowMouseCursor(true);
 		SetIgnoreMoveInput(true);
 		SetIgnoreLookInput(true);
+		FlushPressedKeys();
 	}
 	if (UShieldbreakGameInstance* Instance = Cast<UShieldbreakGameInstance>(GetGameInstance()))
 	{
@@ -99,10 +102,15 @@ void AShieldbreakPlayerController::BeginPlay()
 		}
 		SetupAutoShots();
 		FShieldbreakNetworkTest::Start(this);
+		ShieldbreakSettings::ApplyAudio();
 		AutoDetectScalability();
 		if (const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>())
 		{
-			if (Rules->IsFrontEnd()) { ShowMainMenu(); }
+			if (Rules->IsFrontEnd())
+			{
+				ShowMainMenu();
+				ShieldbreakMusic::PlayMenuMusic(this);
+			}
 		}
 		FShieldbreakConnectionTest::Start(this);
 	}
@@ -131,6 +139,7 @@ void AShieldbreakPlayerController::SetupInputComponent()
 		EnhancedInput->BindAction(Inputs->Scoreboard, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnScoreboardStarted);
 		EnhancedInput->BindAction(Inputs->Scoreboard, ETriggerEvent::Completed, this, &AShieldbreakPlayerController::OnScoreboardCompleted);
 		EnhancedInput->BindAction(Inputs->ToggleHelp, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnToggleHelp);
+		EnhancedInput->BindAction(Inputs->Pause, ETriggerEvent::Started, this, &AShieldbreakPlayerController::OnPause);
 	}
 	else
 	{
@@ -181,6 +190,16 @@ void AShieldbreakPlayerController::OnToggleHelp()
 	HelpOverride = IsHelpVisible() ? 0 : 1;
 }
 
+void AShieldbreakPlayerController::OnPause()
+{
+	// Keyboard Escape toggles through BindKey. This action is only the controller menu button,
+	// and it only opens: the focused menu handles backing out, so a second delivery cannot reopen it.
+	if (!MainMenu.IsValid())
+	{
+		ShowMainMenu();
+	}
+}
+
 // ---- Feedback ----
 
 void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(bool bKill, bool bHeadshot)
@@ -192,6 +211,24 @@ void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(bool bKill,
 	bLastHitKill = bKill;
 	bLastHitHeadshot = bHeadshot;
 	FShieldbreakSFX::Play2D(this, bKill ? EShieldbreakSound::KillMarker : EShieldbreakSound::HitMarker);
+}
+
+void AShieldbreakPlayerController::ClientMedal_Implementation(uint8 Medal)
+{
+	const UWorld* World = GetWorld();
+	if (!World || Medal >= static_cast<uint8>(EShieldbreakMedal::Count))
+	{
+		return;
+	}
+	const float Now = World->GetTimeSeconds();
+	MedalPopups.RemoveAll([Now](const FMedalPopup& Popup) { return Now - Popup.Time > 3.f; });
+	if (MedalPopups.Num() >= 4)
+	{
+		MedalPopups.RemoveAt(0);
+	}
+	MedalPopups.Add({ Medal, Now });
+	const bool bBig = ShieldbreakMedals::IsBig(static_cast<EShieldbreakMedal>(Medal));
+	FShieldbreakSFX::Play2D(this, EShieldbreakSound::VentSuccess, bBig ? 0.9f : 0.6f, bBig ? 1.25f : 1.5f);
 }
 
 void AShieldbreakPlayerController::ClientDamagedFrom_Implementation(FVector_NetQuantize SourceLocation)
@@ -292,24 +329,7 @@ void AShieldbreakPlayerController::TakeAutoShot()
 
 void AShieldbreakPlayerController::AutoDetectScalability()
 {
-	// Standalone game only: in the editor this would also change the editor viewport's settings.
-	if (GIsEditor || !GEngine)
-	{
-		return;
-	}
-
-	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	if (!Settings || Settings->GetLastGPUBenchmarkResult() >= 0.f)
-	{
-		return; // Already benchmarked on this machine (or the player picked settings).
-	}
-
-	// Lumen and virtual shadow maps at Epic settings run at a few FPS on integrated GPUs;
-	// let Unreal's hardware benchmark pick the scalability level once, then remember it.
-	Settings->RunHardwareBenchmark();
-	Settings->ApplyHardwareBenchmarkResults();
-	UE_LOG(LogShieldbreak, Log, TEXT("Scalability auto-detected: overall level %d (CPU %.0f, GPU %.0f)."),
-		Settings->GetOverallScalabilityLevel(), Settings->GetLastCPUBenchmarkResult(), Settings->GetLastGPUBenchmarkResult());
+	ShieldbreakSettings::AutoDetectGraphics();
 }
 
 void AShieldbreakPlayerController::SB_Map(const FString& Map, const FString& Mode)
