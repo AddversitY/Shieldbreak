@@ -14,6 +14,7 @@ void AShieldbreakPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(AShieldbreakPlayerState, Deaths);
 	DOREPLIFETIME(AShieldbreakPlayerState, PlayerColor);
 	DOREPLIFETIME(AShieldbreakPlayerState, TeamId);
+	DOREPLIFETIME(AShieldbreakPlayerState, MedalCount);
 }
 
 void AShieldbreakPlayerState::CopyProperties(APlayerState* NewPlayerState)
@@ -26,6 +27,7 @@ void AShieldbreakPlayerState::CopyProperties(APlayerState* NewPlayerState)
 		Destination->Deaths = Deaths;
 		Destination->PlayerColor = PlayerColor;
 		Destination->ColorIndex = ColorIndex;
+		Destination->MedalCount = MedalCount;
 	}
 }
 
@@ -56,6 +58,13 @@ void AShieldbreakPlayerState::RemoveKill()
 	ForceNetUpdate();
 }
 
+void AShieldbreakPlayerState::NoteKillForMedals(float ServerTime)
+{
+	ChainKills = ServerTime - LastKillServerTime <= MultiKillWindow ? ChainKills + 1 : 1;
+	LastKillServerTime = ServerTime;
+	++SpreeKills;
+}
+
 void AShieldbreakPlayerState::AddDeath()
 {
 	if (!HasAuthority())
@@ -64,6 +73,9 @@ void AShieldbreakPlayerState::AddDeath()
 	}
 
 	++Deaths;
+	ChainKills = 0;
+	SpreeKills = 0;
+	LastKillServerTime = -100.f;
 	ForceNetUpdate();
 }
 
@@ -76,6 +88,11 @@ void AShieldbreakPlayerState::ResetStats()
 
 	Kills = 0;
 	Deaths = 0;
+	MedalCount = 0;
+	ChainKills = 0;
+	SpreeKills = 0;
+	LastKillServerTime = -100.f;
+	LastKilledBy.Reset();
 	SetScore(0.f);
 	ForceNetUpdate();
 }

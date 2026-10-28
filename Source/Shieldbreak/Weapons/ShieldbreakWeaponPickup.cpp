@@ -89,13 +89,27 @@ void AShieldbreakWeaponPickup::UpdateVisuals()
 	const AShieldbreakWeapon* WeaponDefaults = WeaponClass ? WeaponClass->GetDefaultObject<AShieldbreakWeapon>() : nullptr;
 	const FLinearColor WeaponColor = WeaponDefaults ? WeaponDefaults->GetStats().TracerColor : FLinearColor::White;
 
-	if (WeaponDefaults)
+	// The weapon's own model when it has one (shown 1.25x so it reads from a distance), else a tinted greybox block.
+	UStaticMesh* Art = WeaponDefaults ? AShieldbreakWeapon::LoadArtMesh(WeaponDefaults->GetStats()) : nullptr;
+	if (Art)
+	{
+		constexpr float ArtScale = 1.25f;
+		DisplayMesh->SetStaticMesh(Art);
+		DisplayMesh->EmptyOverrideMaterials();
+		DisplayMesh->SetRelativeScale3D(FVector(ArtScale));
+		DisplayCenter = Art->GetBoundingBox().GetCenter() * ArtScale;
+	}
+	else if (WeaponDefaults)
 	{
 		DisplayMesh->SetRelativeScale3D(WeaponDefaults->GetStats().MeshScale * 1.4f);
+		DisplayCenter = FVector::ZeroVector;
 	}
-	if (UMaterialInstanceDynamic* MID = DisplayMesh->CreateDynamicMaterialInstance(0))
+	if (!Art)
 	{
-		MID->SetVectorParameterValue(TEXT("Color"), WeaponColor);
+		if (UMaterialInstanceDynamic* MID = DisplayMesh->CreateDynamicMaterialInstance(0))
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), WeaponColor);
+		}
 	}
 	if (UMaterialInstanceDynamic* BaseMID = BaseMesh->CreateDynamicMaterialInstance(0))
 	{
@@ -114,7 +128,8 @@ void AShieldbreakWeaponPickup::Tick(float DeltaSeconds)
 	{
 		SpinAngle = FMath::Fmod(SpinAngle + 90.f * DeltaSeconds, 360.f);
 		BobTime += DeltaSeconds;
-		DisplayMesh->SetRelativeLocationAndRotation(FVector(0.f, 0.f, 10.f + 8.f * FMath::Sin(BobTime * 2.5f)), FRotator(0.f, SpinAngle, 0.f));
+		const FRotator Spin(0.f, SpinAngle, 0.f);
+		DisplayMesh->SetRelativeLocationAndRotation(FVector(0.f, 0.f, 10.f + 8.f * FMath::Sin(BobTime * 2.5f)) - Spin.RotateVector(DisplayCenter), Spin);
 	}
 }
 

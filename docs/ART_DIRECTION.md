@@ -10,9 +10,9 @@ also protected as a trademark. Every asset in this project must be original or p
 | Element | Halo-2 feel we want | Our original take |
 |---|---|---|
 | Soldiers | Bulky powered armor, readable from 50 m, mirrored visor | Our own armor silhouette: angular shoulder plates, one-piece faceted visor (amber/teal, not gold), armor paint in bold team colors |
-| Weapons | Chunky, low-poly-readable, iconic silhouettes | Our own shapes: the BR is a long bullpup with a top rail scope; the SMG is a compact box mag; plasma weapons are smooth organic shells with glowing vents |
+| Weapons | Chunky, low-poly-readable, iconic silhouettes | Our own shapes: the battle rifle is a long bullpup with a top rail; the sidearm, sniper, rocket launcher and rail lance are separate silhouettes. The SMG and plasma rifle are not in the game |
 | Architecture | Monumental alien structures, silver-grey metal, glowing seams | "Ancient builder" ruins: stacked slab geometry, chamfered edges, warm stone plus cool metal, cyan light strips |
-| Lighting | Bright, saturated sky, strong sun, bloom on energy effects | Golden-hour or clear-noon skies, Lumen GI, bloom on shields, plasma and light strips |
+| Lighting | Bright, saturated sky, strong sun, readable shadow | Clear skies and a shadowless fill light. Lumen and virtual shadow maps are off: with them on, shadowed walls went near-black |
 | Shields | Flicker and flare on hit, a pop when broken | Hex-pattern energy shell that flares toward the hit direction, with a shatter burst when broken |
 | HUD | Minimal: shield bar on top, radar bottom-left, ammo top-right | Same information layout (a genre convention), drawn with our own shapes, fonts and color palette |
 

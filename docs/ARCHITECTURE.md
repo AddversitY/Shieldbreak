@@ -1,24 +1,36 @@
-# Shieldbreak Architecture (code-only prototype)
+# Shieldbreak Architecture
 
-Goal: a **fully playable greybox prototype built from C++ and config alone**, with no `.uasset`/`.umap` files required.
-The user installs UE5, double-clicks `Shieldbreak.uproject`, accepts the rebuild prompt, and presses Play:
-an arena builds itself, the player spawns with a Battle Rifle + SMG, and bots fight them in Free-For-All Slayer.
+UE **5.8** C++ arena FPS. A normal launch opens the Slate front end. Explicit `?Map=`, `?Mode=`,
+`?listen`, `-SBSelfTest` and `-SBAutoShot=` go straight into a match. There is no project map:
+the game uses `/Engine/Maps/Entry`, and `AShieldbreakArena` builds the layout from
+`Game/ShieldbreakMapsData.cpp`.
 
-Everything visual uses **engine content only**:
-- Meshes: `/Engine/BasicShapes/Cube.Cube`, `Sphere.Sphere`, `Cylinder.Cylinder`, `Cone.Cone`, `Plane.Plane`
-  (each 100 uu across, pivot at center).
-- Material: `/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial` tinted with a
-  `UMaterialInstanceDynamic` vector parameter named `Color`.
-- Load in constructors with `ConstructorHelpers::FObjectFinder` and **null-check every result**.
-- No sounds, no Niagara, no UMG assets. The HUD draws with `AHUD` Canvas.
+The player spawns with a **Battle Rifle and Sidearm** on a team of four (eight players max).
+Bots fill empty slots. Modes are Team Slayer, Capture the Flag, King of the Hill and Oddball.
+Maps are Keel, Bastion, Sanctum, Creekbed, Spire, and the Crucible test layout.
 
-Enhanced Input actions and mapping contexts are **created at runtime in C++** (`UShieldbreakInputSet`).
+**Not in the game:** Shield Shaping, the SMG, and the Plasma Rifle. `UDamageType_Plasma` remains
+only as shield/health multipliers plus a recharge-delay extension, covered by the self-test.
+Mastery mechanics that are in: Overcharge Vent, Break Pulse, Momentum Carry and Power Jump.
+
+Original weapon, armor, world materials, the cracked-shield emblem and menu music live under
+`Content/Shieldbreak` and `Content/Splash`. Lyra mannequin/weapon meshes are still the imported
+placeholder art. Lumen and virtual shadow maps are **off** (`Config/DefaultEngine.ini`); shadowed
+walls were near-black with them on. The HUD and menus are Canvas and Slate. Enhanced Input
+actions are created in C++.
+
+There is one `UShieldbreakGameInstance` (`Game/ShieldbreakGameInstance.*`). It keeps connection
+failure text across travel. There is one `SShieldbreakMainMenu`. Settings and key rebinding are
+`SShieldbreakSettingsMenu` and `SShieldbreakControlsMenu`.
+
+The notes below were the original prototype spec. Where they disagree with the summary above,
+the summary is the current code.
 
 ---
 
 ## Engine/version rules (apply to every file)
 
-- Target **UE 5.4+** APIs (build settings `Latest`). Module name `Shieldbreak`, API macro `SHIELDBREAK_API`.
+- Target **UE 5.8** APIs (build settings `Latest`). Module name `Shieldbreak`, API macro `SHIELDBREAK_API`.
 - Includes are module-root relative, e.g. `#include "Shield/ShieldHealthComponent.h"`. Every `.h` starts with
   `#pragma once`, includes `CoreMinimal.h`, and ends its include list with its own `X.generated.h`.
 - `TObjectPtr<>` for every UPROPERTY object pointer. Raw pointers are fine for locals and parameters.
@@ -57,11 +69,11 @@ Source/Shieldbreak/
   Shield/      ShieldHealthComponent, ShieldTuningData, ShieldbreakDamageType     (exists)
   Player/      ShieldbreakCharacter, ShieldbreakPlayerController, ShieldbreakInputSet, ShieldbreakPlayerState
   Player/      ShieldbreakMovementComponent
-  Weapons/     ShieldbreakWeapon (base + FShieldbreakWeaponStats), ShieldbreakWeaponClasses (BR, SMG, Plasma Rifle),
+  Weapons/     ShieldbreakWeapon, ShieldbreakWeaponClasses (Battle Rifle, Sidearm, Sniper, Rocket Launcher, Rail Lance),
                ShieldbreakDamageTypes, ShieldbreakGrenade, ShieldbreakWeaponPickup, ShieldbreakTracer
   Game/        ShieldbreakGameMode, ShieldbreakGameState, ShieldbreakArena
   AI/          ShieldbreakBotController
-  UI/          ShieldbreakHUD
+  UI/          ShieldbreakHUD, ShieldbreakMenu (game instance, menu game mode/controller), SShieldbreakMenus (Slate)
 ```
 
 ---
@@ -83,7 +95,7 @@ Config essentials:
 - `DefaultEngine.ini`: `GameDefaultMap=/Engine/Maps/Entry`, `EditorStartupMap=/Engine/Maps/Entry`,
   `GlobalDefaultGameMode=/Script/Shieldbreak.ShieldbreakGameMode`; collision channel
   `+DefaultChannelResponses=(Channel=ECC_GameTraceChannel1,DefaultResponse=ECR_Block,bTraceType=True,bStaticObject=False,Name="Weapon")`;
-  Lumen GI/reflections + virtual shadow maps; `[/Script/Engine.Engine] +ActiveGameNameRedirects` not needed.
+  plain shadow maps (Lumen GI off, virtual shadow maps off, screen-space reflections); `[/Script/Engine.Engine] +ActiveGameNameRedirects` not needed.
 - `DefaultInput.ini`: `DefaultPlayerInputClass=/Script/EnhancedInput.EnhancedPlayerInput`,
   `DefaultInputComponentClass=/Script/EnhancedInput.EnhancedInputComponent`.
 
@@ -92,17 +104,18 @@ Config essentials:
 ## Shield (exists, `Shield/`)
 
 `UShieldHealthComponent`. Public API used by others:
-`SetShaping(bool)`, `TryVent()`, `TryBreakPulse()`, `ApplyShieldbreakDamage(...)`, `ApplyShieldOnlyDamage(...)`,
-`GetShield()`, `GetMaxShield()`, `GetOvershield()`, `GetHealth()`, `GetMaxHealth()`, `IsShaping()`,
+`TryVent()`, `TryBreakPulse()`, `ApplyShieldbreakDamage(...)`, `ApplyShieldOnlyDamage(...)`,
+`GrantOvershield(...)`,
+`GetShield()`, `GetMaxShield()`, `GetOvershield()`, `GetHealth()`, `GetMaxHealth()`,
 `IsRecharging()`, `IsDead()`, `GetVentMarkerPosition()` (0..1 or -1), `GetTuningData()` (never null),
-`GetLastShieldBreakLocalTime()`; delegates `OnShieldChanged`, `OnOvershieldChanged`, `OnHealthChanged`
+`GetLastShieldBreakLocalTime()`, `WasKilledByHeadshot()`, `GetKillingDamageType()`; delegates `OnShieldChanged`, `OnOvershieldChanged`, `OnHealthChanged`
 (float NewValue, float MaxValue), `OnShieldBroken`, `OnRechargeStarted`, `OnBreakPulse`, `OnVentResult(bool)`,
 `OnDeath(AController* Killer)`. It binds the owner's `OnTakeAnyDamage` itself, so **all damage must go
 through `UGameplayStatics::ApplyPointDamage/ApplyRadialDamage*/ApplyDamage`**. Never call
 `ApplyShieldbreakDamage` directly in addition.
 
 `UShieldbreakDamageType` fields: `ShieldDamageMultiplier`, `HealthDamageMultiplier`,
-`RechargeDelayExtension`, `bIgnoresShieldShaping`.
+`RechargeDelayExtension`. There is no Shield Shaping flag.
 
 ---
 
@@ -113,7 +126,7 @@ Runtime-built input. `static UShieldbreakInputSet* Get();` lazily creates one in
 (`NewObject<UShieldbreakInputSet>(GetTransientPackage())` + `AddToRoot()`) and builds everything once.
 
 Public `UPROPERTY() TObjectPtr<UInputAction>` members (exact names):
-`Move` (Axis2D), `Look` (Axis2D), `Jump`, `Fire`, `Zoom`, `Shape`, `Melee`, `Grenade`, `ReloadVent`,
+`Move` (Axis2D), `Look` (Axis2D), `LookGamepad` (Axis2D), `Jump`, `Fire`, `Zoom`, `Equipment`, `Melee`, `Grenade`, `ReloadVent`,
 `SwapWeapon`, `Interact`, `Sprint`, `CrouchSlide`, `Scoreboard`, `ToggleHelp` (all others Boolean), plus
 `TObjectPtr<UInputMappingContext> Context`.
 
@@ -128,7 +141,7 @@ Bindings (keyboard/mouse | gamepad):
 | Jump | SpaceBar | Gamepad_FaceButton_Bottom |
 | Fire | LeftMouseButton | Gamepad_RightTrigger |
 | Zoom | RightMouseButton | Gamepad_RightThumbstick |
-| Shape (hold) | LeftAlt, ThumbMouseButton | Gamepad_LeftTrigger |
+| Equipment (hold) | LeftAlt, ThumbMouseButton | Gamepad_LeftTrigger |
 | Melee | F | Gamepad_RightShoulder |
 | Grenade | G | Gamepad_LeftShoulder |
 | ReloadVent | R | Gamepad_FaceButton_Left |
@@ -214,7 +227,6 @@ void ReloadOrVent();         // vent if ShieldHealth->GetVentMarkerPosition() >=
 void SwapWeapon();
 void Interact();             // pick up/swap with an overlapping AShieldbreakWeaponPickup
 void SetSprinting(bool bSprint);
-void SetShaping(bool bShape);
 void SetZoomed(bool bZoom);  void ToggleZoom();
 void StartCrouchOrSlide();   void StopCrouchOrSlide();   // Crouch()/UnCrouch(); the movement component decides slide
 
@@ -223,7 +235,7 @@ void GiveWeapon(TSubclassOf<AShieldbreakWeapon> WeaponClass);  // fills an empty
 void EquipWeapon(AShieldbreakWeapon* Weapon);
 void AddGrenades(int32 Count);
 ```
-Defaults: `PrimaryWeaponClass = AWeapon_BattleRifle`, `SecondaryWeaponClass = AWeapon_SMG`,
+Defaults: `PrimaryWeaponClass = AWeapon_BattleRifle`, `SecondaryWeaponClass = AWeapon_Sidearm`,
 `GrenadeClass = AShieldbreakGrenade`, 2 grenades (max 4), melee damage 70, range 190, lunge range 320,
 cooldown 0.9 s, **melee from behind (target forward · attacker→target dir > 0.6) = 999 damage (assassination)**.
 Melee is a server sphere sweep on `ECC_Pawn` objects using `UDamageType_Melee`.
@@ -236,8 +248,7 @@ Jumping is allowed while crouched/sliding (`CanJumpInternal_Implementation` over
 Death (server, bound to `ShieldHealth->OnDeath`): stop fire, call
 `AShieldbreakGameMode::NotifyKilled(AController* Killer, AController* Victim, AShieldbreakCharacter* VictimPawn)`,
 disable capsule collision and movement, `DetachFromControllerPendingDestroy()`, `SetLifeSpan(6)`, destroy weapons.
-Death visuals run on all machines from `OnDeath`: body/head become physics-simulating debris and the shaping
-plate hides. For non-locally-controlled characters, `Tick` sets the camera's relative pitch from
+Death visuals run on all machines from `OnDeath`: body/head become physics-simulating debris. For non-locally-controlled characters, `Tick` sets the camera's relative pitch from
 `GetBaseAimRotation().Pitch` so third-person weapons aim. Player tint comes from
 `AShieldbreakPlayerState::GetPlayerColor()` (apply in `OnRep_PlayerState` and `PossessedBy`).
 
@@ -247,13 +258,12 @@ plate hides. For non-locally-controlled characters, `Tick` sets the camera's rel
 
 ### `ShieldbreakDamageTypes.h`
 `UDamageType_Ballistic` (shield ×1.0, health ×1.0), `UDamageType_BallisticLight` (shield ×0.8, health ×1.25),
-`UDamageType_Plasma` (shield ×1.6, health ×0.5, RechargeDelayExtension 1.0), `UDamageType_Explosive`
-(bIgnoresShieldShaping), `UDamageType_Melee` (neutral). All subclass `UShieldbreakDamageType` and set their values
-in constructors.
+`UDamageType_Plasma` (shield ×1.6, health ×0.5, RechargeDelayExtension 1.0), `UDamageType_Explosive` (splash; the thrower takes scaled self-damage so rocket jumps are survivable), `UDamageType_Melee` (neutral). All subclass `UShieldbreakDamageType` and set their values
+in constructors. `EShieldbreakFireMode` includes `Charge` for the Rail Lance.
 
 ### `AShieldbreakWeapon` : AActor (`Weapons/ShieldbreakWeapon.h`, Abstract)
 ```cpp
-UENUM(BlueprintType) enum class EShieldbreakFireMode : uint8 { SemiAuto, Burst, FullAuto };
+UENUM(BlueprintType) enum class EShieldbreakFireMode : uint8 { SemiAuto, Burst, FullAuto, Charge };
 
 USTRUCT(BlueprintType) struct FShieldbreakWeaponStats {
   FText DisplayName; EShieldbreakFireMode FireMode; float Damage; bool bPrecision; float HeadshotMultiplier;
@@ -294,10 +304,7 @@ magazine. The cosmetic tracer is `AShieldbreakTracer::Spawn(World, Start, End, C
 - `AWeapon_BattleRifle`: Burst 3, BurstInterval 0.055, TimeBetweenShots 0.42 (between bursts; hold = repeat),
   Damage 6.5, precision, HeadshotMultiplier 10, spread 0.25→max 0.6, mag 36, reserve 108, reload 2.0, range 12000,
   ZoomFOV 40, Ballistic, recoil 0.35.
-- `AWeapon_SMG`: FullAuto, 0.066 s, Damage 4.0, spread 2.0 +0.35/shot max 6, recovery 12/s, mag 60, reserve 180,
-  reload 2.0, range 3500, BallisticLight, no zoom, recoil 0.15.
-- `AWeapon_PlasmaRifle`: FullAuto, 0.11 s, Damage 6.0, heat 0.075/shot, cooldown 0.55/s, lockout 2.5, spread 1.2 max 3.5,
-  range 4500, Plasma, cyan tracer. Pickup-only.
+- `AWeapon_RailLance`: charge weapon. The SMG and Plasma Rifle classes are not in the project.
 
 ### `AShieldbreakGrenade` : AActor
 Replicated movement. Sphere collision (radius 9) blocks world, ignores `ECC_Weapon`. `UProjectileMovementComponent` with
@@ -333,8 +340,8 @@ Replicated: `TArray<FShieldbreakKillFeedEntry> KillFeed` (max 6, newest last), `
 
 ### `AShieldbreakGameMode` : AGameModeBase
 Defaults: pawn `AShieldbreakCharacter`, controller `AShieldbreakPlayerController`, player state, game state, HUD `AShieldbreakHUD`.
-`NumBots` 5 (URL option `?Bots=N`), `BotSkill` 1 (0 Easy, 1 Normal, 2 Heroic, 3 Legendary; `?Skill=N`), `RespawnDelay` 3 s,
-`ScoreLimit` 25.
+The live session is 4v4 (`ShieldbreakMatchRules::MaxPlayers` is 8). `?Bots=` fills only the slots humans are not using.
+A bare launch is the front end (`IsFrontEnd()`): no arena, no pawns, no match tick. `BotSkill` is 0–3. `RespawnDelay` 3 s.
 - `EnsureArena()`: spawns one `AShieldbreakArena` at the origin if none exists (`TActorIterator`). Called from `InitGame`'s
   first world access point, `RestartPlayer`, and `StartPlay`, so spawning works before BeginPlay.
 - `RestartPlayer(AController*)` override: `EnsureArena()` then
@@ -370,8 +377,8 @@ const TArray<int32>& GetWaypointNeighbors(int32 Index) const;     // walkable st
 int32 FindNearestWaypoint(const FVector& Location, bool bRequireLineOfSight = true) const;
 bool FindPath(int32 FromIndex, int32 ToIndex, TArray<int32>& OutPath) const;  // A*
 ```
-Pickups: on the **server**, `BeginPlay` spawns `AShieldbreakWeaponPickup` (replicated) for Plasma Rifles at two symmetric spots
-and one in the tower top.
+Pickups: on the **server**, `BeginPlay` spawns the map's sandbox weapons and power-ups (sniper, rockets,
+Rail Lance, Overshield, Aegis). Not an SMG or Plasma Rifle.
 
 ---
 
@@ -384,11 +391,12 @@ and one in the tower top.
   intervals, sometimes jump or crouch. Sprint when out of combat on long straight segments, and try a slide on
   downhill segments (Heroic+).
 - **Aim**: `SetControlRotation` interpolated toward the target's head with a skill-scaled error that shrinks while
-  tracking. Fire when the error is under the weapon's spread + skill margin, using BR bursts at range and SMG close up
-  (swap with `SwapWeapon`).
-- **Mastery use by skill**: shaping when 1v1 frontal with shield < 60% (Normal+); vent attempt during recharge with
+  tracking. Fire when the error is under the weapon's spread + skill margin, using the Battle Rifle at range
+  and the Sidearm up close (swap with `SwapWeapon`).
+- **Mastery use by skill**: vent attempt during recharge with
   skill-scaled timing accuracy (Heroic+ mostly hits, Easy never tries); Break Pulse melee when shield pops and enemy
   < 350 uu (Legendary); grenades at last-known positions behind cover; melee under 180 uu.
+  Shield Shaping is not a bot behavior.
 - Skill table: reaction 0.6/0.4/0.25/0.15 s; aim error 9/5/2.5/1.2°; turn speed 180/280/420/600 °/s.
 
 ---
@@ -397,8 +405,7 @@ and one in the tower top.
 - **Shield bar** top-center: segmented blue fill; gold overshield overlay; flashes red when empty; brightens while
   recharging. **Vent sweep**: when `GetVentMarkerPosition() >= 0`, draw the sweet-spot window (from
   `GetTuningData()`) and a moving white marker. "VENT!" flash on success, "VENT FAILED" on miss (bind `OnVentResult`).
-- **Health pips** under the shield bar (only visible when shield is down, Halo-like). Low health turns red.
-- **Shaping indicator**: frontal-arc chevron when `IsShaping()`.
+- **Health pips** under the shield bar (only visible when shield is down). Low health turns red.
 - **Break Pulse prompt**: for `BreakPulseWindow + 0.25` s after `GetLastShieldBreakLocalTime()`, flash "PULSE" near the crosshair
   (teaches the timing).
 - Crosshair per weapon: dot + ring scaled by `GetCurrentSpreadDegrees()`. Red when a trace from the camera hits an enemy
@@ -409,5 +416,23 @@ and one in the tower top.
 - Momentum: when 2D speed > 650, show speed (uu/s) and a "CARRY" tag while momentum-carrying.
 - Top-left kill feed (last 6 s). Top-right: top 4 scores plus your rank. Scoreboard (hold): full table. Match-over banner
   with the winner and a restart countdown. Death: "RESPAWN IN N".
-- Help overlay listing all controls and the four mastery mechanics in one line each.
+- Help overlay listing the live controls. Medal popups come from `ClientMedal`.
 Scale everything by `Canvas->ClipY / 1080`. Fonts: `GEngine->GetSmallFont()/GetMediumFont()/GetLargeFont()`.
+
+## UI — front end
+- `UShieldbreakGameInstance` (`Game/ShieldbreakGameInstance.h`, set as `GameInstanceClass`) stores the last
+  join address and a sanitized connection error across disconnect travel. It does not swap the game mode.
+- `AShieldbreakGameMode::IsFrontEnd()` follows `ShieldbreakMenu::ShouldShowMainMenu`: a bare launch or `?Menu`
+  opens the menu; `?Map`, `?Mode`, `?listen`, a dedicated server, `-SBSelfTest`, `-SBNoMenu` and `-SBAutoShot=`
+  enter a match. `?Menu` is checked before the self-test flag so the helper's unit check can see it; the real
+  self-test launch does not pass `?Menu`.
+- `SShieldbreakMainMenu` (`UI/SShieldbreakMainMenu.h`): Home is Play, Join, Settings, Controls, Exit.
+  Play is Multiplayer, Host Match, Practice and Back. Multiplayer picks the map and mode. Host starts a
+  listen server with no bots. Practice starts a team match with seven bots. Join is a direct address.
+- Settings and Controls (`UI/SShieldbreakMenus.h`) open over that menu. Settings edits
+  `ShieldbreakSettings` (sensitivity, FOV, invert, tips, graphics, resolution, window mode, VSync,
+  frame cap, master and music volume). Controls rebinds `UShieldbreakInputSet` keyboard and mouse keys.
+- Menu music is `ShieldbreakMusic::PlayMenuMusic` on the front end. The emblem is the loose file
+  `Content/Splash/Emblem.png`.
+- In a match, Escape opens the same menu with Resume and Leave Match. Leave uses `OpenLevel` back to
+  Entry with `Menu=1`.

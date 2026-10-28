@@ -11,16 +11,20 @@ Create a FPS in UnrealEngine 5 that mimics Halo2/3 simplicity but adds mechanics
 
 ## Main menu
 
-Launch the project as a game to open Play, Join, Settings and Exit. See
-[docs/MAIN_MENU.md](docs/MAIN_MENU.md) for hosting, practice, direct joins and verification limits.
+A normal game launch opens the front end: Play, Join, Settings, Controls and Exit.
+Play shows only Multiplayer, Host Match, Practice and Back. Settings and Controls are
+full screens (graphics, audio, field of view, sensitivity, key rebinding). See
+[docs/MAIN_MENU.md](docs/MAIN_MENU.md).
 
 ## Testing
-- `Tools\SelfTest.bat` builds the editor target and runs a scripted gameplay self-test (`-SBSelfTest`):
-  shields, recharge timing, Shield Bleed, Shaping, Overcharge Vent, Break Pulse, Battle Rifle hitscan and
-  headshots, sprint/slide/Momentum Carry, grenade knockback, melee/assassination, and a 75 s bot match.
+- `Tools\SelfTest.bat` builds the editor target and runs the scripted gameplay self-test (`-SBSelfTest`):
+  shields, recharge, Overcharge Vent, Break Pulse, the spawn kit (Battle Rifle and Sidearm),
+  sniper, rockets, Rail Lance, Aegis, Active Camo, sprint/slide/Momentum Carry, Power Jump,
+  grenades, melee, medals, objective modes, and a bot match.
+  Shield Shaping is not in the game. The SMG and Plasma Rifle are not in the game.
   Report: `Saved/Logs/SelfTest.txt` (one PASS/FAIL line per check, plus average FPS). Run it after any
-  gameplay change; it needs no input and quits on its own (~6 minutes on a laptop).
-- `PlayTest.bat` builds, plays for a few seconds and saves screenshots to `Saved/Screenshots/AutoShot`.
+  gameplay change; it needs no input and quits on its own.
+- `PlayTest.bat` builds, opens Keel Slayer, plays for a few seconds and saves screenshots to `Saved/Screenshots/AutoShot`.
 - After building, `Tools\TestArenaNetwork.ps1 -Map Keel` runs a headless listen server and joining
   client and checks for arena network-reference errors. Repeat with `-Map Spire` for a non-default
   map. Logs: `Saved/Logs/ArenaNetwork-<Map>-Server.log` and `ArenaNetwork-<Map>-Client.log`.

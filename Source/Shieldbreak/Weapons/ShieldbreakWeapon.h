@@ -13,6 +13,7 @@
 class AShieldbreakCharacter;
 class UDamageType;
 class UMaterialInstanceDynamic;
+class UStaticMesh;
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
@@ -70,8 +71,12 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 
 	// ---- Imported art (optional; anything missing falls back to the greybox / synthesized sound) ----
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMesh;
+	/** Tried when ArtMesh is missing (e.g. our own model before it is imported): the stand-in Lyra gun. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath ArtMeshFallback;
 	/** First-person length (cm) the art mesh is scaled to along its barrel. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") float ArtViewLength = 55.f;
+	/** One-handed: the mannequin uses Lyra's pistol idle and actions instead of the rifle ones. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") bool bPistolAnimations = false;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath FireSound;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Art") FSoftObjectPath MuzzleFlash;
 };
@@ -86,8 +91,13 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
+	/** Attachment is cosmetic and decided per machine in OnEquipped (viewmodel for the local player, hand socket for
+	 * everyone else), so the server's attachment (to the hand socket of a pawn it sees as remote) must not override it. */
+	virtual void OnRep_AttachmentReplication() override {}
 
 	const FShieldbreakWeaponStats& GetStats() const { return Stats; }
+	/** The weapon's art mesh (ArtMesh, else ArtMeshFallback), or null for the greybox. */
+	static UStaticMesh* LoadArtMesh(const FShieldbreakWeaponStats& WeaponStats);
 
 	AShieldbreakCharacter* GetOwningCharacter() const;
 	/** Server: sets Owner and Instigator. */
@@ -96,6 +106,8 @@ public:
 	/** Every machine: attach to the owner's camera and show / hide. */
 	void OnEquipped();
 	void OnUnequipped();
+	/** True when the attachment OnEquipped would pick now (hand vs camera viewmodel, art or not) differs from the last one. */
+	bool NeedsReattach() const;
 
 	// ---- Local (owning client or server AI) ----
 	void StartFire();
@@ -174,6 +186,11 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Charging) bool bCharging = false;
 
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
+
+	enum class EEquippedLayout : uint8 { None, Hand, FirstPersonHand, CameraArt, CameraPlain };
+	EEquippedLayout GetDesiredLayout() const;
+	/** What OnEquipped last attached as. */
+	EEquippedLayout EquippedLayout = EEquippedLayout::None;
 
 	// Imported art layout, derived from the mesh in ApplyArt().
 	bool bHasArt = false;

@@ -12,7 +12,8 @@
 
 AShieldbreakGravLift::AShieldbreakGravLift()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.1f;
 	bReplicates = false;
 	SetCanBeDamaged(false);
 
@@ -82,6 +83,25 @@ FVector AShieldbreakGravLift::ComputeLaunchVelocity(const FVector& From, const F
 void AShieldbreakGravLift::HandleOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	TryLaunch(OtherActor, false);
+}
+
+void AShieldbreakGravLift::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// A begin-overlap doesn't fire for a character that was already inside the trigger (spawned there, or the
+	// overlap fired before its movement was ready), so anyone standing on the pad gets launched here too.
+	TArray<AActor*> Overlapping;
+	Trigger->GetOverlappingActors(Overlapping, ACharacter::StaticClass());
+	for (AActor* Actor : Overlapping)
+	{
+		TryLaunch(Actor, true);
+	}
+}
+
+void AShieldbreakGravLift::TryLaunch(AActor* OtherActor, bool bRequireGround)
+{
 	ACharacter* Character = Cast<ACharacter>(OtherActor);
 	UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
 	// The server and the owning client both launch (the client predicts); other machines just watch.
@@ -89,9 +109,16 @@ void AShieldbreakGravLift::HandleOverlap(UPrimitiveComponent* OverlappedComponen
 	{
 		return;
 	}
+	if (bRequireGround && !Movement->IsMovingOnGround())
+	{
+		return;
+	}
 
 	const FVector Feet = Character->GetActorLocation() - FVector(0.f, 0.f, Character->GetSimpleCollisionHalfHeight());
-	Character->LaunchCharacter(ComputeLaunchVelocity(Feet, Target, Movement->GetGravityZ()), true, true);
+	// A tall climb onto a ledge needs a high arc, or the flight clips the ledge's front face before it's above it
+	// (Spire's base lifts did with a fixed 150 clearance).
+	const float Clearance = FMath::Max(150.f, 0.6f * static_cast<float>(FMath::Abs(Target.Z - Feet.Z)));
+	Character->LaunchCharacter(ComputeLaunchVelocity(Feet, Target, Movement->GetGravityZ(), Clearance), true, true);
 	if (Character->IsLocallyControlled())
 	{
 		FShieldbreakSFX::PlayAt(this, EShieldbreakSound::AegisRaise, GetActorLocation(), 1.f, 0.7f);

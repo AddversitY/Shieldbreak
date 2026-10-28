@@ -17,9 +17,13 @@ dedicated servers and `-SBSelfTest` retain their gameplay entry path.
   a clear connection message and the host address retained. The message survives Unreal's
   disconnect map change; joining successfully clears it. Returning to Join also prefills
   the last address for this application run.
-- **Settings:** cycles Low/Medium/High/Epic graphics presets and saves immediately.
-- **Escape in a match:** opens Resume, Leave Match, Settings and Exit. Leaving a match asks
-  for confirmation; leaving as the host disconnects other players.
+- **Settings** opens gameplay, video and audio: sensitivity, field of view, invert look,
+  new-player tips, graphics quality, resolution scale, window mode, VSync, frame cap,
+  master volume and music volume. Changes save immediately.
+- **Controls** rebinds keyboard and mouse. Controller buttons stay fixed. Escape cancels a capture.
+- **Escape in a match:** opens Resume, Leave Match, Settings, Controls and Exit. Leaving a match asks
+  for confirmation; leaving as the host disconnects other players. The controller View/menu button
+  opens the same menu.
 
 The menu uses native Slate widgets and engine fonts; no new runtime art is required. Its dark,
 single-accent presentation keeps the home screen to four actions and reveals match choices

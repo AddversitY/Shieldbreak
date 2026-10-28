@@ -28,66 +28,11 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.48f, 0.05f, 0.075f);
-	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBBattleRifleMesh));
+	Stats.ArtMeshFallback = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
 	Stats.ArtViewLength = 50.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::RifleFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
-}
-
-AWeapon_SMG::AWeapon_SMG()
-{
-	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "SMG", "SMG");
-	Stats.FireMode = EShieldbreakFireMode::FullAuto;
-	Stats.TimeBetweenShots = 0.066f;
-	Stats.Damage = 4.f;
-	Stats.bPrecision = false;
-	Stats.HeadshotMultiplier = 1.f;
-	Stats.BaseSpreadDegrees = 2.f;
-	Stats.SpreadPerShot = 0.35f;
-	Stats.MaxSpreadDegrees = 6.f;
-	Stats.SpreadRecoveryPerSecond = 12.f;
-	Stats.Range = 3500.f;
-	Stats.MagazineSize = 60;
-	Stats.MaxReserveAmmo = 180;
-	Stats.ReloadTime = 2.f;
-	Stats.ZoomFOV = 0.f;
-	Stats.RecoilPitch = 0.15f;
-	Stats.Color = FLinearColor(0.2f, 0.2f, 0.24f);
-	Stats.TracerColor = FLinearColor(1.f, 0.7f, 0.3f);
-	Stats.DamageType = UDamageType_BallisticLight::StaticClass();
-	Stats.MeshScale = FVector(0.38f, 0.07f, 0.11f);
-	// Compact pistol-frame mesh until the SMG gets original art.
-	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
-	Stats.ArtViewLength = 30.f;
-	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::Rifle2Fire));
-	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
-}
-
-AWeapon_PlasmaRifle::AWeapon_PlasmaRifle()
-{
-	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "PlasmaRifle", "Plasma Rifle");
-	Stats.FireMode = EShieldbreakFireMode::FullAuto;
-	Stats.TimeBetweenShots = 0.11f;
-	Stats.Damage = 6.f;
-	Stats.bPrecision = false;
-	Stats.BaseSpreadDegrees = 1.2f;
-	Stats.SpreadPerShot = 0.15f;
-	Stats.MaxSpreadDegrees = 3.5f;
-	Stats.SpreadRecoveryPerSecond = 6.f;
-	Stats.Range = 4500.f;
-	Stats.bUsesHeat = true;
-	Stats.HeatPerShot = 0.075f;
-	Stats.HeatCooldownPerSecond = 0.55f;
-	Stats.OverheatLockout = 2.5f;
-	Stats.MagazineSize = 0;
-	Stats.MaxReserveAmmo = 0;
-	Stats.ZoomFOV = 0.f;
-	Stats.RecoilPitch = 0.1f;
-	Stats.Color = FLinearColor(0.25f, 0.1f, 0.45f);
-	Stats.TracerColor = FLinearColor(0.2f, 0.9f, 1.f);
-	Stats.DamageType = UDamageType_Plasma::StaticClass();
-	Stats.MeshScale = FVector(0.42f, 0.11f, 0.1f);
-	// No imported plasma art: it keeps the purple greybox and the synthesized plasma sound so it reads as alien tech.
 }
 
 AWeapon_SniperRifle::AWeapon_SniperRifle()
@@ -114,8 +59,8 @@ AWeapon_SniperRifle::AWeapon_SniperRifle()
 	Stats.TracerColor = FLinearColor(1.f, 1.f, 0.9f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.7f, 0.05f, 0.08f);
-	// Long rifle frame until the sniper gets original art.
-	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBSniperMesh));
+	Stats.ArtMeshFallback = FSoftObjectPath(FString(ShieldbreakArt::RifleMesh));
 	Stats.ArtViewLength = 68.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::ShotgunFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
@@ -142,8 +87,8 @@ AWeapon_RocketLauncher::AWeapon_RocketLauncher()
 	Stats.DamageType = UDamageType_Explosive::StaticClass();
 	Stats.MeshScale = FVector(0.7f, 0.14f, 0.14f);
 	Stats.ProjectileClass = AShieldbreakRocket::StaticClass();
-	// Chunky shotgun frame until the launcher gets original art.
-	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::ShotgunMesh));
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBRocketLauncherMesh));
+	Stats.ArtMeshFallback = FSoftObjectPath(FString(ShieldbreakArt::ShotgunMesh));
 	Stats.ArtViewLength = 70.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::ShotgunFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
@@ -172,7 +117,9 @@ AWeapon_Sidearm::AWeapon_Sidearm()
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.45f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.26f, 0.05f, 0.1f);
-	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBSidearmMesh));
+	Stats.bPistolAnimations = true;
+	Stats.ArtMeshFallback = FSoftObjectPath(FString(ShieldbreakArt::PistolMesh));
 	Stats.ArtViewLength = 26.f;
 	Stats.FireSound = FSoftObjectPath(FString(ShieldbreakArt::PistolFire));
 	Stats.MuzzleFlash = FSoftObjectPath(FString(ShieldbreakArt::MuzzleFlashRifle));
@@ -197,9 +144,11 @@ AWeapon_RailLance::AWeapon_RailLance()
 	Stats.ReloadTime = 0.f;
 	Stats.ZoomFOV = 45.f;
 	Stats.RecoilPitch = 1.5f;
-	// No imported art yet: the distinctive glowing greybox reads as exotic tech.
 	Stats.Color = FLinearColor(0.85f, 0.88f, 0.92f);
 	Stats.TracerColor = FLinearColor(0.2f, 0.95f, 1.f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
 	Stats.MeshScale = FVector(0.6f, 0.07f, 0.09f);
+	// Our own model only; without it the glowing greybox stays (no Lyra stand-in reads as exotic tech).
+	Stats.ArtMesh = FSoftObjectPath(FString(ShieldbreakArt::SBRailLanceMesh));
+	Stats.ArtViewLength = 62.f;
 }

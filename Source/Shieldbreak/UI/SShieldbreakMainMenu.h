@@ -45,8 +45,6 @@ private:
 	FButtonStyle BrowserButtonStyle;
 	TSharedPtr<STextBlock> StatusText;
 	TSharedPtr<SBox> ContentWidth;
-	TSharedPtr<STextBlock> GraphicsText;
-	FText QualityLabel() const;
 	int32 MapIndex = 0;
 	int32 ModeIndex = 0;
 	int32 Page = 0;

@@ -1,4 +1,5 @@
 #include "Player/ShieldbreakCharacter.h"
+#include "Player/ShieldbreakSettings.h"
 
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
@@ -14,6 +15,8 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
@@ -40,9 +43,24 @@ namespace ShieldbreakCharacterPrivate
 {
 	const FLinearColor VisorColor(1.f, 0.65f, 0.08f);
 	const FLinearColor AegisColor(0.2f, 0.75f, 1.f);
+	const FLinearColor UndersuitColor(0.035f, 0.036f, 0.04f);
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
+	/** Death camera: pulled back behind the body and raised, looking down at it. */
+	constexpr float DeathCameraBack = 280.f;
+	constexpr float DeathCameraUp = 140.f;
+
+	// Controller aim assist, Halo-style: friction slows the stick near an enemy; magnetism eases the view along.
+	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: controller players get aim assist (friction and gentle tracking)."));
+	/** Assist cone half-width at the target (cm): about a body's width either side of the chest. */
+	constexpr float AimAssistRadius = 90.f;
+	constexpr float AimAssistMaxRange = 6000.f;
+	/** Stick speed multiplier with the crosshair dead on an enemy. */
+	constexpr float AimAssistFriction = 0.45f;
+	constexpr float AimAssistPullDegreesPerSecond = 9.f;
+	/** Seconds after the last stick input that a player still counts as on a controller. */
+	constexpr float AimAssistMemory = 2.f;
 }
 
 AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectInitializer)
@@ -64,6 +82,12 @@ AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectIni
 	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->SetFieldOfView(DefaultFOV);
+	// First-person arms and guns render at the default FOV whatever the player's FOV or scope zoom, and scaled toward
+	// the eye so they don't clip into walls (UShieldbreakBodyAnimator marks them FirstPerson primitives).
+	FirstPersonCamera->bEnableFirstPersonFieldOfView = true;
+	FirstPersonCamera->FirstPersonFieldOfView = ShieldbreakSettings::DefaultFieldOfView;
+	FirstPersonCamera->bEnableFirstPersonScale = true;
+	FirstPersonCamera->FirstPersonScale = 0.6f;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -243,6 +267,11 @@ void AShieldbreakCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	ApplyPlayerColor();
+	// IsPlayerControlled() needs the PlayerState, so the viewmodel choice can change once it arrives.
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->OnEquipped();
+	}
 }
 
 UShieldbreakMovementComponent* AShieldbreakCharacter::GetShieldbreakMovement() const
@@ -363,8 +392,33 @@ void AShieldbreakCharacter::RefreshEquippedVisuals()
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->OnEquipped();
+		// Swapping (not the first weapon of a life) brings the new gun up.
+		if (Previous && Previous != CurrentWeapon)
+		{
+			PlayActionAnimation(EShieldbreakAction::Equip);
+		}
 	}
 	VisualEquippedWeapon = CurrentWeapon;
+}
+
+void AShieldbreakCharacter::PlayActionAnimation(EShieldbreakAction Action, float Duration)
+{
+	if (BodyAnimator && GetNetMode() != NM_DedicatedServer)
+	{
+		BodyAnimator->PlayAction(Action, Duration);
+	}
+}
+
+void AShieldbreakCharacter::MulticastPlayAction_Implementation(uint8 Action)
+{
+	// The controlling machine (the owning client, or the server for bots and the host) already played it on input.
+	if (IsLocallyControlled() || Action > static_cast<uint8>(EShieldbreakAction::Equip))
+	{
+		return;
+	}
+	const EShieldbreakAction Typed = static_cast<EShieldbreakAction>(Action);
+	const float Duration = Typed == EShieldbreakAction::Reload && CurrentWeapon ? CurrentWeapon->GetStats().ReloadTime : 0.f;
+	PlayActionAnimation(Typed, Duration);
 }
 
 AShieldbreakWeapon* AShieldbreakCharacter::GetHolsteredWeapon() const
@@ -463,6 +517,11 @@ void AShieldbreakCharacter::TintMesh(UStaticMeshComponent* MeshComponent, const 
 
 void AShieldbreakCharacter::ApplyPlayerColor()
 {
+	// A dead body is unpossessed and loses its PlayerState: keep the team color it died in rather than going grey.
+	if (!GetPlayerState() && AppliedColor.A >= 0.f)
+	{
+		return;
+	}
 	const FLinearColor Color = GetPlayerColor();
 	if (Color.Equals(AppliedColor))
 	{
@@ -472,7 +531,13 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
 
-	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips.
+	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips. Under our
+	// armor the mannequin is a dark undersuit and only its strips keep the team color.
+	const bool bArmored = BodyAnimator && BodyAnimator->HasArmor();
+	if (bArmored)
+	{
+		BodyAnimator->SetArmorColor(Color);
+	}
 	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
 	{
 		static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
@@ -480,7 +545,7 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 		{
 			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
 			{
-				MID->SetVectorParameterValue(TEXT("TeamColor"), Color);
+				MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
 				for (const FName& Parameter : GlowParameters)
 				{
 					MID->SetVectorParameterValue(Parameter, Color * 4.f);
@@ -497,8 +562,20 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	// The PlayerState color can replicate after the pawn; cheap to re-check.
 	ApplyPlayerColor();
 
+	// On a client, who controls this pawn, the body mesh and the weapon art can arrive in any order, and the owning
+	// client could end up seeing the hand-attached gun through its own camera (sideways across the screen). Re-attach
+	// whenever the right layout changes.
+	if (CurrentWeapon && !CurrentWeapon->IsHidden() && CurrentWeapon->NeedsReattach())
+	{
+		CurrentWeapon->OnEquipped();
+	}
+
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
-	if (!bLocalPlayerView && FirstPersonCamera)
+	if (bLocalPlayerView)
+	{
+		UpdateAimAssist(DeltaSeconds);
+	}
+	if (!bLocalPlayerView && FirstPersonCamera && !bDeathHandled)
 	{
 		// Remote characters and bots: pitch the camera (and the weapon attached to it) to the aim.
 		FRotator Relative = FirstPersonCamera->GetRelativeRotation();
@@ -527,7 +604,8 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
 		const float ZoomFOV = (bZoomed && CurrentWeapon) ? CurrentWeapon->GetStats().ZoomFOV : 0.f;
-		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : DefaultFOV;
+		// Hip-fire FOV is the player's setting (DefaultFOV for bots' and spectators' views); scopes keep their zoom.
+		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : (IsLocallyControlled() ? ShieldbreakSettings::GetFieldOfView() : DefaultFOV);
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ShieldbreakCharacterPrivate::ZoomInterpSpeed));
 	}
 }
@@ -548,6 +626,7 @@ void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 	EnhancedInput->BindAction(Inputs->Move, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_Move);
 	EnhancedInput->BindAction(Inputs->Look, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_Look);
+	EnhancedInput->BindAction(Inputs->LookGamepad, ETriggerEvent::Triggered, this, &AShieldbreakCharacter::Input_LookGamepad);
 	EnhancedInput->BindAction(Inputs->Jump, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_JumpStarted);
 	EnhancedInput->BindAction(Inputs->Jump, ETriggerEvent::Completed, this, &AShieldbreakCharacter::Input_JumpCompleted);
 	EnhancedInput->BindAction(Inputs->Fire, ETriggerEvent::Started, this, &AShieldbreakCharacter::Input_FireStarted);
@@ -582,9 +661,99 @@ void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
 	// Zoomed aim is slower so the scope stays usable.
-	const float Scale = bZoomed ? 0.55f : 1.f;
+	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
-	AddControllerPitchInput(-Axis.Y * Scale);
+	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
+}
+
+void AShieldbreakCharacter::Input_LookGamepad(const FInputActionValue& Value)
+{
+	NotifyGamepadLook();
+	// Aim assist friction: the stick turns slower while the crosshair is on or near an enemy.
+	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, ShieldbreakCharacterPrivate::AimAssistFriction, AimAssistStrength);
+	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
+	AddControllerYawInput(Axis.X * Scale);
+	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
+}
+
+void AShieldbreakCharacter::NotifyGamepadLook()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastGamepadLookTime = World->GetTimeSeconds();
+	}
+}
+
+void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
+{
+	using namespace ShieldbreakCharacterPrivate;
+	AimAssistStrength = 0.f;
+	UWorld* World = GetWorld();
+	if (!World || !Controller || !IsAlive() || CVarAimAssist.GetValueOnGameThread() == 0
+		|| World->GetTimeSeconds() - LastGamepadLookTime > AimAssistMemory)
+	{
+		return;
+	}
+
+	// The enemy closest to the crosshair, measured as an angle against a cone about a body's width wide at their range.
+	const FVector Eye = GetAimOrigin();
+	const FRotator View = Controller->GetControlRotation();
+	const FVector Forward = View.Vector();
+	const float MaxRange = CurrentWeapon ? FMath::Min(CurrentWeapon->GetStats().Range, AimAssistMaxRange) : AimAssistMaxRange;
+	const AShieldbreakCharacter* Best = nullptr;
+	FVector BestPoint = FVector::ZeroVector;
+	float BestScore = 1.f;
+	for (TActorIterator<AShieldbreakCharacter> It(World); It; ++It)
+	{
+		const AShieldbreakCharacter* Other = *It;
+		if (Other == this || !Other->IsAlive() || Other->IsHidden() || ShieldbreakTeams::AreTeammates(this, Other))
+		{
+			continue;
+		}
+		const FVector Chest = Other->GetActorLocation() + FVector(0.f, 0.f, 30.f);
+		const FVector ToTarget = Chest - Eye;
+		const float Distance = static_cast<float>(ToTarget.Size());
+		if (Distance < 1.f || Distance > MaxRange)
+		{
+			continue;
+		}
+		const float Angle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(FVector::DotProduct(ToTarget / Distance, Forward)), -1.f, 1.f)));
+		const float Cone = FMath::RadiansToDegrees(FMath::Atan2(AimAssistRadius, Distance));
+		const float Score = Angle / Cone; // < 1 inside the cone
+		if (Score >= BestScore)
+		{
+			continue;
+		}
+		FHitResult Hit;
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakAimAssist), false, this);
+		Params.AddIgnoredActor(Other);
+		if (World->LineTraceSingleByChannel(Hit, Eye, Chest, ECC_Visibility, Params))
+		{
+			continue;
+		}
+		Best = Other;
+		BestPoint = Chest;
+		BestScore = Score;
+	}
+	if (!Best)
+	{
+		return;
+	}
+	AimAssistStrength = 1.f - BestScore;
+
+	// Magnetism: ease the view toward the target, gently, and only while the player is aiming or moving (it helps
+	// track a strafing enemy; it never snaps or aims for a player who isn't touching the controls).
+	const bool bActive = GetLastMovementInputVector().SizeSquared() > 0.01f || World->GetTimeSeconds() - LastGamepadLookTime < 0.1f;
+	if (bActive)
+	{
+		const FRotator ToTarget = (BestPoint - Eye).Rotation();
+		const FRotator Delta = (ToTarget - View).GetNormalized();
+		const float Step = AimAssistPullDegreesPerSecond * AimAssistStrength * DeltaSeconds;
+		FRotator NewView = View;
+		NewView.Yaw += FMath::Clamp(Delta.Yaw, -Step, Step);
+		NewView.Pitch += FMath::Clamp(Delta.Pitch, -Step, Step);
+		Controller->SetControlRotation(NewView);
+	}
 }
 
 void AShieldbreakCharacter::Input_JumpStarted()
@@ -740,6 +909,7 @@ void AShieldbreakCharacter::Melee()
 	}
 	LastLocalMeleeTime = Now;
 	SetSprinting(false);
+	PlayActionAnimation(EShieldbreakAction::Melee);
 	if (IsPlayerControlled())
 	{
 		FShieldbreakSFX::Play2D(this, EShieldbreakSound::Melee, 0.8f);
@@ -776,6 +946,7 @@ void AShieldbreakCharacter::DoMelee()
 		return;
 	}
 	LastServerMeleeTime = Now;
+	MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Melee));
 
 	const FVector Origin = GetActorLocation();
 	const FVector AimForward = FRotator(0.f, GetAimRotation().Yaw, 0.f).Vector();
@@ -821,7 +992,7 @@ void AShieldbreakCharacter::DoMelee()
 
 	if (!Best)
 	{
-		MulticastMeleeFX(GetAimOrigin() + GetAimRotation().Vector() * MeleeRange * 0.6f, false);
+		// A miss shows nothing: a puff in the air filled the swinger's view (the white sphere in the first-person shots).
 		return;
 	}
 
@@ -871,6 +1042,7 @@ void AShieldbreakCharacter::ThrowGrenade()
 		return;
 	}
 	SetSprinting(false);
+	PlayActionAnimation(EShieldbreakAction::GrenadeThrow);
 
 	if (HasAuthority())
 	{
@@ -909,6 +1081,7 @@ void AShieldbreakCharacter::DoThrowGrenade()
 	{
 		Grenade->Launch(ThrowDir, GetVelocity());
 		--GrenadeCount;
+		MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 	}
 }
 
@@ -1010,6 +1183,29 @@ void AShieldbreakCharacter::HandleBreakPulse()
 	AShieldbreakTracer::SpawnBurst(GetWorld(), GetActorLocation(), 40.f, Radius, 0.35f, FLinearColor(0.3f, 0.6f, 1.f));
 }
 
+void AShieldbreakCharacter::StartDeathCamera()
+{
+	if (!FirstPersonCamera)
+	{
+		return;
+	}
+	using namespace ShieldbreakCharacterPrivate;
+	const FRotator Facing(0.f, GetControlRotation().Yaw, 0.f);
+	const FVector Head = FirstPersonCamera->GetComponentLocation();
+	FVector Desired = Head + Facing.RotateVector(FVector(-DeathCameraBack, 0.f, DeathCameraUp));
+
+	// Don't put the camera inside a wall: stop short of whatever is in the way.
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
+	if (GetWorld() && GetWorld()->SweepSingleByChannel(Hit, Head, Desired, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(12.f), Params))
+	{
+		Desired = Hit.Location;
+	}
+
+	FirstPersonCamera->bUsePawnControlRotation = false;
+	FirstPersonCamera->SetWorldLocationAndRotation(Desired, (GetActorLocation() - Desired).Rotation());
+}
+
 void AShieldbreakCharacter::HandleDeath(AController* Killer)
 {
 	if (bDeathHandled)
@@ -1069,11 +1265,13 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 		Movement->DisableMovement();
 	}
 
-	// A local player keeps watching their body.
+	// A local player keeps watching their body, from a camera pulled back behind and above it (the first-person view
+	// from the corpse's head stared at the floor, with the dropped gun filling the screen).
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		if (PC->IsLocalController())
 		{
+			StartDeathCamera();
 			PC->SetViewTarget(this);
 		}
 	}
@@ -1226,6 +1424,10 @@ void AShieldbreakCharacter::UpdateCamoVisuals()
 	if (USkeletalMeshComponent* Body = GetMesh())
 	{
 		Body->SetHiddenInGame(bHide);
+	}
+	if (BodyAnimator)
+	{
+		BodyAnimator->SetArmorHidden(bHide);
 	}
 	if (BodyAnimator && !BodyAnimator->HasBodyArt())
 	{

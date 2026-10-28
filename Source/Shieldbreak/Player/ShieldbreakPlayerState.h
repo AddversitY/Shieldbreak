@@ -28,6 +28,18 @@ public:
 	void AddDeath();
 	void ResetStats();
 
+	/** Server: medal bookkeeping. Kills within MultiKillWindow of each other chain; a death ends chain and spree. */
+	static constexpr float MultiKillWindow = 4.5f;
+	int32 GetChainKills() const { return ChainKills; }
+	int32 GetSpreeKills() const { return SpreeKills; }
+	/** Counts a kill at ServerTime toward the chain and spree. */
+	void NoteKillForMedals(float ServerTime);
+	AShieldbreakPlayerState* GetLastKilledBy() const { return LastKilledBy.Get(); }
+	void SetLastKilledBy(AShieldbreakPlayerState* Killer) { LastKilledBy = Killer; }
+	/** Medals earned this match (replicated for the scoreboard). */
+	UFUNCTION(BlueprintPure, Category = "Shieldbreak") int32 GetMedalCount() const { return MedalCount; }
+	void AddMedal() { ++MedalCount; }
+
 	/** Assigned by AShieldbreakGameMode on join. PaletteIndex lets the GameMode keep colors distinct. */
 	void SetPlayerColor(const FLinearColor& NewColor, int32 PaletteIndex = INDEX_NONE);
 
@@ -59,4 +71,12 @@ private:
 	FLinearColor PlayerColor = FLinearColor(0.6f, 0.6f, 0.6f, 1.f);
 
 	int32 ColorIndex = INDEX_NONE;
+
+	UPROPERTY(Replicated)
+	int32 MedalCount = 0;
+
+	float LastKillServerTime = -100.f;
+	int32 ChainKills = 0;
+	int32 SpreeKills = 0;
+	TWeakObjectPtr<AShieldbreakPlayerState> LastKilledBy;
 };

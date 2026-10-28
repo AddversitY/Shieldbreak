@@ -2,8 +2,11 @@
 
 #include "Player/ShieldbreakPlayerController.h"
 #include "Game/ShieldbreakGameInstance.h"
-#include "Engine/Engine.h"
-#include "GameFramework/GameUserSettings.h"
+#include "UI/SShieldbreakMenus.h"
+#include "Brushes/SlateDynamicImageBrush.h"
+#include "Misc/Paths.h"
+#include "Widgets/Images/SImage.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Styling/CoreStyle.h"
@@ -12,7 +15,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -25,6 +27,23 @@ namespace ShieldbreakMenuPrivate
 	const TCHAR* Modes[] = { TEXT("Slayer"), TEXT("CTF"), TEXT("KOTH"), TEXT("Oddball") };
 	const TCHAR* ModeNames[] = { TEXT("Slayer"), TEXT("Capture the Flag"), TEXT("King of the Hill"), TEXT("Oddball") };
 	FText Label(const FString& Value) { return FText::FromString(Value); }
+
+	/** Cracked-shield emblem staged as Content/Splash/Emblem.png. Null when the file is absent. */
+	const FSlateBrush* EmblemBrush()
+	{
+		static TSharedPtr<FSlateDynamicImageBrush> Brush;
+		static bool bTried = false;
+		if (!bTried)
+		{
+			bTried = true;
+			const FString File = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("Splash/Emblem.png"));
+			if (FPaths::FileExists(File))
+			{
+				Brush = MakeShared<FSlateDynamicImageBrush>(FName(*File), FVector2D(72.f, 72.f));
+			}
+		}
+		return Brush.Get();
+	}
 }
 
 void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
@@ -57,8 +76,17 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 					[SNew(STextBlock).Text(Label(TEXT("4v4  /  ARENA COMBAT"))).ColorAndOpacity(Accent)
 						.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Regular"), 12))]
 					+ SVerticalBox::Slot().AutoHeight().Padding(92, 0, 0, 28)
-					[SNew(STextBlock).Text(Label(TEXT("SHIELDBREAK"))).ColorAndOpacity(FLinearColor::White)
-						.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 54))]
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 16, 0)
+						[
+							SNew(SBox).WidthOverride(72).HeightOverride(72).Visibility(EmblemBrush() ? EVisibility::Visible : EVisibility::Collapsed)
+							[SNew(SImage).Image(EmblemBrush())]
+						]
+						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+						[SNew(STextBlock).Text(Label(TEXT("SHIELDBREAK"))).ColorAndOpacity(FLinearColor::White)
+							.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), 54))]
+					]
 					+ SVerticalBox::Slot().FillHeight(1).Padding(96, 0, 0, 0)
 					.HAlign(HAlign_Left)
 					[SAssignNew(ContentWidth, SBox).WidthOverride(440)[SAssignNew(Actions, SVerticalBox)]]
@@ -75,7 +103,7 @@ void SShieldbreakMainMenu::Construct(const FArguments& InArgs)
 void SShieldbreakMainMenu::Heading(const FString& LabelText)
 {
 	Actions->ClearChildren();
-	StatusText.Reset(); AddressBox.Reset(); GraphicsText.Reset();
+	StatusText.Reset(); AddressBox.Reset();
 	bConnectionError = false;
 	ContentWidth->SetWidthOverride(440);
 	Actions->AddSlot().AutoHeight().Padding(0, 0, 0, 12)
@@ -121,6 +149,7 @@ void SShieldbreakMainMenu::Home()
 		Action(Label(TEXT("JOIN")), [this]() { Join(); });
 	}
 	Action(Label(TEXT("SETTINGS")), [this]() { Settings(); });
+	Action(Label(TEXT("CONTROLS")), [this]() { SShieldbreakControlsMenu::Open(AsShared()); });
 	Action(Label(TEXT("EXIT")), [this]() { UKismetSystemLibrary::QuitGame(Controller.Get(), Controller.Get(), EQuitPreference::Quit, false); });
 }
 
@@ -260,33 +289,15 @@ FString SShieldbreakMainMenu::GetJoinAddress() const
 	return AddressBox.IsValid() ? AddressBox->GetText().ToString() : FString();
 }
 
-FText SShieldbreakMainMenu::QualityLabel() const
-{
-	const UGameUserSettings* Config = GEngine ? GEngine->GetGameUserSettings() : nullptr;
-	const int32 Quality = Config ? Config->GetOverallScalabilityLevel() : -1;
-	const TCHAR* Names[] = { TEXT("LOW"), TEXT("MEDIUM"), TEXT("HIGH"), TEXT("EPIC") };
-	return ShieldbreakMenuPrivate::Label(FString(TEXT("GRAPHICS   /   ")) + (Quality >= 0 && Quality < 4 ? Names[Quality] : TEXT("CUSTOM")));
-}
-
 void SShieldbreakMainMenu::Settings()
 {
-	using namespace ShieldbreakMenuPrivate;
-	Page = 3; Heading(TEXT("SETTINGS"));
-	GraphicsText = Action(QualityLabel(), [this]() {
-		if (UGameUserSettings* Config = GEngine ? GEngine->GetGameUserSettings() : nullptr)
-		{
-			Config->SetOverallScalabilityLevel((Config->GetOverallScalabilityLevel() + 1) % 4);
-			Config->ApplySettings(false); Config->SaveSettings();
-			GraphicsText->SetText(QualityLabel());
-		}
-	});
-	Action(Label(TEXT("BACK")), [this]() { Home(); });
-	Note(Label(TEXT("Select a graphics preset. Changes apply and save immediately.")));
+	SShieldbreakSettingsMenu::Open(AsShared());
 }
 
 FReply SShieldbreakMainMenu::OnKeyDown(const FGeometry& Geometry, const FKeyEvent& KeyEvent)
 {
-	if (KeyEvent.GetKey() == EKeys::Escape)
+	const FKey Key = KeyEvent.GetKey();
+	if (Key == EKeys::Escape || Key == EKeys::Gamepad_Special_Right || Key == EKeys::Gamepad_FaceButton_Right)
 	{
 		if (Page == 5) { Play(); }
 		else if (Page != 0) { Home(); }

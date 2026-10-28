@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.8",
 	"Category": "",
-	"Description": "Shieldbreak: a code-only Halo-style arena FPS prototype with recharging shields and shield-based mastery mechanics.",
+	"Description": "Shieldbreak: a 4v4 arena FPS with recharging shields, built in C++ on Unreal Engine 5.8.",
 	"Modules": [
 		{
 			"Name": "Shieldbreak",
