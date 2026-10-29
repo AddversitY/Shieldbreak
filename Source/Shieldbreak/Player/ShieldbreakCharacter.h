@@ -102,6 +102,11 @@ public:
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
 
+	/** Local player: turns the view by Kick (shot recoil), eased in over about 50 ms instead of in one frame. */
+	void AddViewKick(const FRotator& Kick) { PendingViewKick += Kick; }
+	/** Recoil still to be applied to the view (for the self-test). */
+	FRotator GetPendingViewKick() const { return PendingViewKick; }
+
 	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
 	void NotifyGamepadLook();
 	float GetAimAssistStrength() const { return AimAssistStrength; }
@@ -321,6 +326,7 @@ private:
 	float LastServerMeleeTime = -100.f;
 	float LastShieldValue = -1.f;
 	float CrouchCameraOffset = 0.f;
+	FRotator PendingViewKick = FRotator::ZeroRotator;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;

@@ -63,6 +63,14 @@ private:
 	float AimPitch = 0.f;
 	float TargetAimPitch = 0.f;
 	FVector AimAxis = FVector::RightVector;
+	/** Shot recoil on the upper body: extra spine pitch (degrees) springing back to 0. */
+	float KickPitch = 0.f;
+	float KickVelocity = 0.f;
+	float SeenKickTotal = 0.f;
+	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
+	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
+	TArray<FTransform> LastBasePose;
+	bool bFadeFromSnapshot = false;
 };
 
 UCLASS(Transient, NotBlueprintable)
@@ -84,6 +92,9 @@ public:
 	float GetAimPitch() const { return AimPitch; }
 	/** Diagnostic snapshot; completes any in-flight animation work before reading. */
 	float GetLocomotionPhase() const { return GetProxyOnGameThread<FShieldbreakBodyAnimProxy>().GetCyclePhase(); }
+
+	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
+	void AddFireKick(float Strength) { KickTotal += Strength; }
 
 	/** Plays Animation once over the upper body, from StartTime (s) at PlayRate, then fades back to the pose. */
 	void PlayAction(UAnimSequenceBase* Animation, float StartTime = 0.f, float InPlayRate = 1.f);
@@ -119,4 +130,6 @@ private:
 	float PlayRate = 1.f;
 	float AimPitch = 0.f;
 	FVector AimAxis = FVector::RightVector;
+	/** Sum of every AddFireKick strength; the proxy applies the difference since its last update. */
+	float KickTotal = 0.f;
 };

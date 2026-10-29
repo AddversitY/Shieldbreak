@@ -65,6 +65,15 @@ public:
 	/** True when the arms are on screen and the equipped gun should go in their hand. */
 	bool HasFirstPersonArms() const;
 
+	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
+	 *  weapon's recoil (degrees), so heavier guns kick harder. */
+	void AddFirstPersonKick(float Strength);
+	/** Everyone else's view: a shot rocks the third-person upper body back for a moment. */
+	void AddBodyKick(float Strength);
+	/** The procedural first-person motion (walk bob, look sway, strafe lean, sprint pose, jump and landing, shot
+	 *  kick) applied around the gun hand on top of the arms' placement. Identity when still. */
+	const FTransform& GetFirstPersonMotion() const { return FirstPersonMotion; }
+
 	/** Every machine, on death: ragdoll the body with an initial velocity change. */
 	void StartRagdoll(const FVector& Impulse);
 
@@ -139,6 +148,22 @@ private:
 	float SwapLower = 0.f;
 	float AppliedSwapLower = 0.f;
 	void ApplyFirstPersonArmsTransform(float Dip);
+	/** Steps the first-person motion springs and writes FirstPersonMotion. */
+	void UpdateFirstPersonMotion(float DeltaSeconds);
+	/** Spring state, camera space: offset in cm (X forward, Y right, Z up), rotation in degrees (pitch, yaw, roll). */
+	FVector MotionOffset = FVector::ZeroVector;
+	FVector MotionOffsetVelocity = FVector::ZeroVector;
+	FVector MotionRotation = FVector::ZeroVector;
+	FVector MotionRotationVelocity = FVector::ZeroVector;
+	float BobPhase = 0.f;
+	float BobAmount = 0.f;
+	float SprintBlend = 0.f;
+	float MotionScale = 1.f;
+	FRotator LastViewRotation = FRotator::ZeroRotator;
+	bool bHasLastViewRotation = false;
+	bool bWasFalling = false;
+	float LastFallSpeed = 0.f;
+	FTransform FirstPersonMotion = FTransform::Identity;
 	/** Dynamic instances of the armor's team-colored slots (plates and glow strips). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorTeamMIDs;

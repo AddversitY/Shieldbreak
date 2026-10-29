@@ -2028,6 +2028,148 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			}
 			return false;
 		}, 4.f });
+
+	// ---- First-person feel: shot kick, walk bob, eased recoil; third-person interrupted fades ----
+	Steps.Add({ TEXT("First-person gun kicks on a shot and settles"),
+		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
+		[this](float Elapsed)
+		{
+			UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			if (!Animator) { Check(TEXT("First-person kick has a body animator"), false); return true; }
+			if (Phase == 0 && Elapsed > 1.f)
+			{
+				Check(TEXT("The local player has first-person arms"), Animator->HasFirstPersonArms());
+				Value0 = static_cast<float>(Animator->GetFirstPersonMotion().GetTranslation().Size());
+				Animator->AddFirstPersonKick(1.8f);
+				Value1 = 0.f;
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1)
+			{
+				const FTransform& Motion = Animator->GetFirstPersonMotion();
+				Value1 = FMath::Max(Value1, static_cast<float>(Motion.Rotator().Pitch));
+				if (Now() - Mark > 0.8f)
+				{
+					Check(TEXT("A shot tips the first-person gun up"), Value1 > 1.f,
+						FString::Printf(TEXT("peak pitch %s deg (still: offset %s cm)"), *ShieldbreakSelfTestPrivate::Num(Value1), *ShieldbreakSelfTestPrivate::Num(Value0)));
+					Check(TEXT("...and it springs back to rest"), Motion.GetTranslation().Size() < 0.2f && FMath::Abs(Motion.Rotator().Pitch) < 0.25f,
+						FString::Printf(TEXT("offset %s cm, pitch %s deg after 0.8 s"), *ShieldbreakSelfTestPrivate::Num(static_cast<float>(Motion.GetTranslation().Size())),
+							*ShieldbreakSelfTestPrivate::Num(static_cast<float>(Motion.Rotator().Pitch))));
+					return true;
+				}
+			}
+			return false;
+		}, 4.f });
+
+	Steps.Add({ TEXT("Walking bobs the first-person gun; standing does not"),
+		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
+		[this](float Elapsed)
+		{
+			UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			if (!Animator) { Check(TEXT("Walk bob has a body animator"), false); return true; }
+			const float Z = static_cast<float>(Animator->GetFirstPersonMotion().GetTranslation().Z);
+			if (Phase == 0 && Elapsed > 1.f) { Value0 = Z; Value1 = Z; Phase = 1; Mark = Now(); }
+			else if (Phase == 1)
+			{
+				Value0 = FMath::Min(Value0, Z); Value1 = FMath::Max(Value1, Z);
+				if (Now() - Mark > 0.6f)
+				{
+					Check(TEXT("Standing still keeps the gun steady"), Value1 - Value0 < 0.1f,
+						FString::Printf(TEXT("height range %s cm"), *ShieldbreakSelfTestPrivate::Num(Value1 - Value0)));
+					Value0 = Z; Value1 = Z; Phase = 2; Mark = Now();
+				}
+			}
+			else if (Phase == 2)
+			{
+				// Strafe so the view (and so the sway) doesn't change while the feet move.
+				A->AddMovementInput(A->GetActorRightVector(), 1.f);
+				if (Now() - Mark > 0.4f) { Value0 = FMath::Min(Value0, Z); Value1 = FMath::Max(Value1, Z); }
+				if (Now() - Mark > 1.6f)
+				{
+					Check(TEXT("Walking bobs the gun with the steps"), Value1 - Value0 > 0.3f,
+						FString::Printf(TEXT("height range %s cm at %s uu/s"), *ShieldbreakSelfTestPrivate::Num(Value1 - Value0),
+							*ShieldbreakSelfTestPrivate::Num(static_cast<float>(A->GetVelocity().Size2D()))));
+					return true;
+				}
+			}
+			return false;
+		}, 5.f });
+
+	Steps.Add({ TEXT("Shot recoil eases into the view"),
+		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
+		[this](float Elapsed)
+		{
+			const AController* Controller = A ? A->GetController() : nullptr;
+			if (!Controller) { Check(TEXT("Recoil has a local controller"), false); return true; }
+			const float Pitch = static_cast<float>(FRotator::NormalizeAxis(Controller->GetControlRotation().Pitch));
+			if (Phase == 0 && Elapsed > 0.5f)
+			{
+				Value0 = Pitch;
+				A->AddViewKick(FRotator(2.f, 0.f, 0.f));
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1)
+			{
+				// The first frame after the kick: some of it applied, not all.
+				const float Applied = Pitch - Value0;
+				Check(TEXT("Recoil is spread over more than one frame"), (Applied > 0.f && Applied < 1.99f) || GetWorld()->GetDeltaSeconds() > 0.08f,
+					FString::Printf(TEXT("%s of 2 deg in the first %s s"), *ShieldbreakSelfTestPrivate::Num(Applied), *ShieldbreakSelfTestPrivate::Num(Now() - Mark)));
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > 0.3f)
+			{
+				Check(TEXT("...and the full kick lands within 0.3 s"), FMath::Abs(Pitch - Value0 - 2.f) < 0.03f && A->GetPendingViewKick().IsNearlyZero(0.01f),
+					FString::Printf(TEXT("turned %s deg"), *ShieldbreakSelfTestPrivate::Num(Pitch - Value0)));
+				return true;
+			}
+			return false;
+		}, 3.f });
+
+	Steps.Add({ TEXT("An interrupted locomotion fade does not pop"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA, 0.f, false);
+			if (A && A->GetBodyAnimator())
+			{
+				A->GetBodyAnimator()->SetComponentTickEnabled(false);
+				A->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			}
+		},
+		[this](float Elapsed)
+		{
+			auto* Instance = A ? Cast<UShieldbreakBodyAnimInstance>(A->GetMesh()->GetAnimInstance()) : nullptr;
+			if (!Instance) { Check(TEXT("Interrupted fade has an animation instance"), false); return true; }
+			auto Clip = [](const TCHAR* Name)
+			{
+				const FString Asset = FString(TEXT("MM_Rifle_")) + Name;
+				const FString Path = FString(TEXT("/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Rifle/")) + Asset + TEXT(".") + Asset;
+				return ShieldbreakArt::Load<UAnimSequenceBase>(*Path);
+			};
+			const FVector Hand = A->GetMesh()->GetSocketTransform(TEXT("hand_r"), RTS_Component).GetLocation();
+			if (Phase == 0) { Instance->PlayPose(Clip(TEXT("Idle_Hipfire")), true); Mark = Now(); Phase = 1; }
+			else if (Phase == 1 && Now() - Mark > 0.5f) { Instance->PlayPose(Clip(TEXT("Jog_Fwd")), true); Mark = Now(); Phase = 2; }
+			else if (Phase == 2 && Now() - Mark > 0.07f)
+			{
+				// Halfway through that fade, switch again (a stop-start or a jump straight after starting to run).
+				Instance->PlayPose(Clip(TEXT("Jump_Apex")), false);
+				Value0 = 0.f; Value1 = 0.f; Mark = Now(); Phase = 3;
+				LastHand = Hand;
+			}
+			else if (Phase == 3)
+			{
+				const float Dt = GetWorld()->GetDeltaSeconds();
+				if (Dt > 0.f) { Value0 = FMath::Max(Value0, static_cast<float>(FVector::Dist(Hand, LastHand)) / Dt); }
+				LastHand = Hand;
+				if (Now() - Mark > 0.25f)
+				{
+					Check(TEXT("The gun hand moves smoothly through an interrupted fade"), Value0 < 400.f,
+						FString::Printf(TEXT("fastest hand movement %s cm/s"), *ShieldbreakSelfTestPrivate::Num(Value0)));
+					return true;
+				}
+			}
+			return false;
+		}, 3.f });
 }
 
 void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)

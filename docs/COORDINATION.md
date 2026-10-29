@@ -47,6 +47,13 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-10-29 Claude (cloud): **first-person feel and animation smoothing** (same branch, PR #5). Not compiled here.
+  `Visuals/ShieldbreakBodyAnimator.*` (first-person bob/sway/lean/sprint/landing/kick), `ShieldbreakBodyAnimInstance.*`
+  (fade from snapshot when a fade is interrupted; per-shot upper-body kick), `Weapons/ShieldbreakWeapon.cpp` (kick hooks;
+  recoil goes through `AShieldbreakCharacter::AddViewKick`), `Player/ShieldbreakCharacter.*` (eased recoil). Please build,
+  run `Tools/SelfTest.bat` (four new presentation checks), and play Keel with bots for a few minutes. Judge whether
+  the walk bob, sway and kick feel right. The amplitudes are in `UpdateFirstPersonMotion` and `AddFirstPersonKick`,
+  and `sb.FPMotion` scales them all. Details: `docs/SMOOTHING_AND_SHIELD_FEEDBACK.md`.
 - 2026-10-29 Claude (cloud): **cover pass on the five enlarged launch maps** (branch `claude/project-thread-1xgiqk`).
   Data only: `Design/maps/shieldbreak_maps.py` adds 20-44 blocks per map, and the regenerated
   `Game/ShieldbreakMapsData.cpp` is purely additive (Crucible unchanged). Not compiled here. Please build, then run

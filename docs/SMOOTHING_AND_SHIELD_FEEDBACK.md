@@ -52,6 +52,38 @@ the pulse. First-person forearms receive the owner's feedback too.
 Regenerate the material with Unreal's Python commandlet and
 `Tools/create_shield_material.py`. It uses no downloaded textures or models.
 
+## First-person feel pass (2026-10-29, cloud, not yet built)
+
+The first-person arms used to be locked rigidly to the camera: the gun never moved
+while walking, turning or shooting, and each shot's recoil turned the view in a
+single frame. `UShieldbreakBodyAnimator::UpdateFirstPersonMotion` now adds a
+procedural layer, pivoting around the gun hand on top of the calibrated placement:
+
+- **Walk bob:** one small dip per footstep plus a sideways sway and roll, scaled by
+  speed (crouched 60%), eased in and out. No bob in the air or while sliding.
+- **Look sway:** the gun trails fast turns by up to 4° and settles on a damped spring.
+- **Strafe lean:** up to 2.5° of roll into a strafe; forward running pulls it in 0.5 cm.
+- **Sprint pose:** gun lowered and turned inward, blended over ~0.1 s.
+- **Jump and landing:** the gun lags the jump and dips on landing, scaled by fall speed.
+- **Shot kick:** every local shot kicks the gun back and up (scaled by the weapon's
+  `RecoilPitch`, so the Rail Lance and rockets kick harder than the BR) and it springs home.
+- Scoped aim cuts all of it to 30%. `sb.FPMotion 0` turns it off, and `0.5` halves it.
+
+All springs are sub-stepped at 240 Hz, so they behave the same at 15 FPS and 144 FPS.
+
+Camera recoil is now eased in: `AShieldbreakCharacter::AddViewKick` applies it with a
+20 ms time constant (about 90% within 50 ms). The total turn per shot is unchanged.
+
+Third person: other players' upper bodies now rock back with each shot (an 8 Hz spine
+spring driven from `MulticastShotFX`). A locomotion change that interrupts a
+cross-fade in progress (stop then start, or starting to run then jumping at once) now
+fades from the pose that was on screen. Before, it dropped the half-faded pose and
+popped.
+
+Self-test (presentation suite): shot kick peaks and settles, walking bobs and standing
+doesn't, recoil spreads over more than one frame and lands in full within 0.3 s, and the
+gun hand moves under 400 cm/s through an interrupted fade.
+
 ## Verification
 
 `Tools/SelfTest.bat` includes gait-phase continuity, interrupted-action hand
