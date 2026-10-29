@@ -884,8 +884,17 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 
 	const uint8 MyTeam = ShieldbreakTeams::GetTeam(Bot);
 	const AShieldbreakCarriable* Carried = Bot->GetCarriedObjective();
-	// Half the team attacks, half defends (stable per bot).
-	const bool bAttacker = (GetUniqueID() % 2) == 0;
+	// Half the team attacks, half defends (stable per bot). Alternate by rank among this team's bots: splitting on
+	// the object id's parity could make every bot on both teams a defender, and then nobody left their base.
+	int32 Rank = 0;
+	for (TActorIterator<AShieldbreakBotController> It(World); It; ++It)
+	{
+		if (*It != this && It->GetUniqueID() < GetUniqueID() && ShieldbreakTeams::AreTeammates(*It, this))
+		{
+			++Rank;
+		}
+	}
+	const bool bAttacker = (Rank % 2) == 0;
 
 	switch (GameState->GetGameType())
 	{
