@@ -27,6 +27,7 @@
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Game/ShieldbreakGravLift.h"
+#include "Game/ShieldbreakMapArt.h"
 #include "Visuals/ShieldbreakArt.h"
 
 namespace ShieldbreakArenaPrivate
@@ -181,6 +182,7 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 		BuildGeometry();
 		BuildTrim();
 		BuildSpireArt();
+		BuildMapArt();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -513,6 +515,77 @@ void AShieldbreakArena::BuildSpireArt()
 		Collectors ? Collectors->GetInstanceCount() : 0, Panels ? Panels->GetInstanceCount() : 0, Collars ? Collars->GetInstanceCount() : 0);
 }
 
+void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbreakMapLook& Look) const
+{
+	const UStaticMeshComponent* StaticMesh = Cast<UStaticMeshComponent>(Mesh);
+	const UStaticMesh* Asset = StaticMesh ? StaticMesh->GetStaticMesh() : nullptr;
+	if (!Asset)
+	{
+		return;
+	}
+	// Palette slot (Art/blender/sb_kit.py PALETTE) -> world surface kind and this map's tint for it.
+	struct FSlotLook { const TCHAR* Prefix; const TCHAR* Kind; FLinearColor Tint; };
+	const FSlotLook SlotLooks[] = {
+		{ TEXT("M_Steel"), TEXT("Panel"), Look.Metal }, { TEXT("M_Gunmetal"), TEXT("Panel"), Look.DarkMetal },
+		{ TEXT("M_Ivory"), TEXT("Stone"), Look.Carved }, { TEXT("M_Sand"), TEXT("Stone"), Look.Rock },
+		{ TEXT("M_Bark"), TEXT("Stone"), Look.Bark }, { TEXT("M_Olive"), TEXT("Grass"), Look.Foliage } };
+	const TArray<FStaticMaterial>& Slots = Asset->GetStaticMaterials();
+	for (int32 Index = 0; Index < Slots.Num(); ++Index)
+	{
+		const FString Slot = Slots[Index].MaterialSlotName.ToString();
+		for (const FSlotLook& Entry : SlotLooks)
+		{
+			if (!Slot.StartsWith(Entry.Prefix))
+			{
+				continue;
+			}
+			const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(FName(Entry.Kind));
+			if (World && *World)
+			{
+				Mesh->SetMaterial(Index, *World);
+				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+				{
+					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Tint);
+				}
+			}
+			break;
+		}
+	}
+}
+
+void AShieldbreakArena::BuildMapArt()
+{
+	// -SBNoMapArt drops the set pieces, for before/after shots and performance comparisons.
+	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
+	{
+		return;
+	}
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	int32 Pieces = 0, Placed = 0;
+	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Plan(MapId, Layout))
+	{
+		const FString Name = TEXT("SM_SB_Kit_") + Group.Piece.ToString();
+		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *Name, *Name)) : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+		// One instanced component per piece: a draw call or two per kind, however many stand around the map.
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
+		Instances->SetCastShadow(false);
+		ApplyKitSurfaces(Instances, Look);
+		for (const FTransform& Instance : Group.Instances)
+		{
+			Instances->AddInstance(Instance);
+		}
+		Instances->RegisterComponent();
+		AddInstanceComponent(Instances);
+		++Pieces;
+		Placed += Group.Instances.Num();
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Pieces, Placed);
+}
+
 void AShieldbreakArena::BuildBackdrop()
 {
 	if (!CubeMesh)
@@ -523,7 +596,8 @@ void AShieldbreakArena::BuildBackdrop()
 	// The same scenery on every machine for a map, so seed from its id.
 	FRandomStream Random(static_cast<int32>(GetTypeHash(MapId.ToString())));
 	const float Reach = static_cast<float>(FMath::Max(Layout.HalfExtent.X, Layout.HalfExtent.Y));
-	const FLinearColor GroundColor(0.20f, 0.27f, 0.15f), RockColor(0.30f, 0.29f, 0.27f);
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	const FLinearColor GroundColor = Look.Ground, RockColor = Look.Rock;
 
 	// Ground out to the horizon, a few metres below the map floor so the arena reads as a raised platform.
 	UStaticMeshComponent* Ground = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), CubeMesh);
@@ -532,7 +606,7 @@ void AShieldbreakArena::BuildBackdrop()
 	Ground->SetRelativeScale3D(FVector(2000.f, 2000.f, 1.f));
 	Ground->RegisterComponent();
 	AddInstanceComponent(Ground);
-	ApplySurface(Ground, TEXT("grass"), GroundColor, 6.f);
+	ApplySurface(Ground, Look.GroundStyle, GroundColor, 6.f);
 
 	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
 	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
@@ -732,8 +806,9 @@ void AShieldbreakArena::SpawnLighting()
 		if (UExponentialHeightFogComponent* FogComponent = Fog->GetComponent())
 		{
 			FogComponent->SetFogDensity(Layout.FogDensity);
-			// Bright blue-white haze, starting past the arena so the playspace stays crisp and the backdrop fades.
-			FogComponent->SetFogInscatteringColor(FLinearColor(0.32f, 0.43f, 0.6f));
+			// Haze starting past the arena so the playspace stays crisp and the backdrop fades.
+			// Each map's own haze colour (ShieldbreakMapArt::GetLook).
+			FogComponent->SetFogInscatteringColor(ShieldbreakMapArt::GetLook(MapId).Haze);
 			FogComponent->SetFogHeightFalloff(0.08f);
 			FogComponent->SetStartDistance(4000.f);
 		}

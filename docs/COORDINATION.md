@@ -40,13 +40,18 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-10-29 Claude (cloud): map cover pass, PR from `claude/project-thread-1xgiqk`. Touches only
-  `Design/maps/`, `Design/map-planner/` outputs, the generated maps data and docs.
+- 2026-10-29 Claude (cloud, branch `claude/project-thread-km43pg`): map art kit outside the walls for all five
+  launch maps, per-map ground/rock/haze colours (`Game/ShieldbreakMapArt.*`, `BuildMapArt`, `BuildBackdrop`, fog
+  colour in `ShieldbreakArena.cpp`), `Art/blender/build_map_kit.py`, `Tools/ImportMapArt.bat`. See
+  `docs/MAP_ART_STYLE.md`. Next: one map at a time (Sanctum first) for scale, layout and inside detail.
 - 2026-10-27 Codex: map expansion/Spire modules/planner and the subsequent
   animation/movement-presentation/shield-hit pass are complete. See desktop
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- Map art kit (branch `claude/project-thread-km43pg`): build, run `Tools\ImportMapArt.bat` (expects `RESULT OK, 10
+  meshes` in `Saved\Logs\MapArtImport.txt`), then the self-test and map tours; screenshot every launch map with
+  `Tools\VisualShots.bat`. Commit `Content/Shieldbreak/Art/MapKit` and the touched materials from the desktop.
 - 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
   compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
   after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid
