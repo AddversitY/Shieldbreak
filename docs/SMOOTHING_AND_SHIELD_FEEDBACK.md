@@ -84,6 +84,15 @@ Self-test (presentation suite): shot kick peaks and settles, walking bobs and st
 doesn't, recoil spreads over more than one frame and lands in full within 0.3 s, and the
 gun hand moves under 400 cm/s through an interrupted fade.
 
+## Skipping fix (2026-10-29, cloud, not yet built)
+
+Characters skipped as they moved. The anim proxy samples clips without extracting root motion, and the Lyra
+locomotion clips can carry it, so the root bone travelled with each stride: the body slid ahead of the capsule and
+snapped back each time the cycle looped or a fade started. `FShieldbreakBodyAnimProxy::LockRoot` now pins the root
+bone to its ref pose after every sample (the capsule already moves the character). Bots also stopped turning back
+toward a waypoint behind them on each repath, and they ease round corners near a node instead of snapping to the
+new heading. Self-test: "Locomotion plays in place".
+
 ## Verification
 
 `Tools/SelfTest.bat` includes gait-phase continuity, interrupted-action hand

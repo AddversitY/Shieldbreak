@@ -41,6 +41,8 @@ private:
 
 	static void Advance(FTrack& Track, float DeltaSeconds);
 	static void Sample(const FTrack& Track, FPoseContext& Output);
+	/** Holds the root bone at its ref pose, so clips with root motion play in place. */
+	static void LockRoot(FPoseContext& Output);
 	void ApplyAction(FPoseContext& Output) const;
 	void ApplyAimPitch(FPoseContext& Output) const;
 

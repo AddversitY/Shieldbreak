@@ -2170,6 +2170,49 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			}
 			return false;
 		}, 3.f });
+
+	Steps.Add({ TEXT("Locomotion plays in place (no root motion drift)"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA, 0.f, false);
+			if (A && A->GetBodyAnimator())
+			{
+				A->GetBodyAnimator()->SetComponentTickEnabled(false);
+				A->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			}
+		},
+		[this](float Elapsed)
+		{
+			auto* Instance = A ? Cast<UShieldbreakBodyAnimInstance>(A->GetMesh()->GetAnimInstance()) : nullptr;
+			if (!Instance) { Check(TEXT("Locomotion test has an animation instance"), false); return true; }
+			auto Clip = [](const TCHAR* Name)
+			{
+				const FString Asset = FString(TEXT("MM_Rifle_")) + Name;
+				const FString Path = FString(TEXT("/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Rifle/")) + Asset + TEXT(".") + Asset;
+				return ShieldbreakArt::Load<UAnimSequenceBase>(*Path);
+			};
+			// The capsule stands still, so the pelvis should only sway around the capsule, never travel with the
+			// stride and snap back when the cycle loops.
+			const FVector Pelvis = A->GetMesh()->GetSocketTransform(TEXT("pelvis"), RTS_Component).GetLocation();
+			if (Phase == 0)
+			{
+				Instance->PlayDirectionalPose(Clip(TEXT("Jog_Fwd")), Clip(TEXT("Jog_Bwd")), Clip(TEXT("Jog_Left")), Clip(TEXT("Jog_Right")), FVector2D(1.0, 0.0));
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.3f) { LastHand = Pelvis; Value0 = 0.f; Mark = Now(); Phase = 2; }
+			else if (Phase == 2)
+			{
+				Value0 = FMath::Max(Value0, static_cast<float>(FVector::Dist2D(Pelvis, LastHand)));
+				if (Now() - Mark > 1.5f)
+				{
+					Check(TEXT("The jogging body stays over its capsule"), Value0 < 25.f,
+						FString::Printf(TEXT("pelvis wandered %s cm"), *ShieldbreakSelfTestPrivate::Num(Value0)));
+					return true;
+				}
+			}
+			return false;
+		}, 3.f });
 }
 
 void AShieldbreakSelfTest::BuildMapSteps(const AShieldbreakArena* Arena)

@@ -371,15 +371,18 @@ void AShieldbreakBotController::FollowPathTo(const FVector& Goal, float DeltaSec
 		{
 			Path.Reset();
 		}
-		// Skip the first node if we're already past it toward the second.
-		if (Path.Num() > 1)
+		// Skip the nodes we're already past. The nearest waypoint is often behind the bot, and each repath (once a
+		// second) used to turn it back toward that node for a moment, which read as skipping on the spot.
+		const TArray<FVector>& Nodes = Arena->GetWaypoints();
+		while (Path.IsValidIndex(PathIndex + 1) && PathIndex < 3)
 		{
-			const FVector First = Arena->GetWaypoints()[Path[0]];
-			const FVector Second = Arena->GetWaypoints()[Path[1]];
-			if (FVector::Dist2D(BotLocation, Second) < FVector::Dist2D(First, Second))
+			const FVector Here = Nodes[Path[PathIndex]];
+			const FVector There = Nodes[Path[PathIndex + 1]];
+			if (FVector::Dist2D(BotLocation, There) >= FVector::Dist2D(Here, There) || FMath::Abs(BotLocation.Z - Here.Z) > 160.f)
 			{
-				PathIndex = 1;
+				break;
 			}
+			++PathIndex;
 		}
 	}
 
@@ -397,7 +400,15 @@ void AShieldbreakBotController::FollowPathTo(const FVector& Goal, float DeltaSec
 		}
 	}
 
-	MoveToward(Next);
+	// Round the corner: close to a node on the same level, start turning toward the one after it instead of running
+	// straight through and snapping to the new heading.
+	FVector Steer = Next;
+	const float ToNext = static_cast<float>(FVector::Dist2D(BotLocation, Next));
+	if (AfterNext != Next && ToNext < 220.f && FMath::Abs(Next.Z - AfterNext.Z) < 60.f && FMath::Abs(BotLocation.Z - Next.Z) < 60.f)
+	{
+		Steer = Next + (AfterNext - Next).GetSafeNormal2D() * (220.f - ToNext) * 0.6f;
+	}
+	MoveToward(Steer);
 
 	// Sprint on long legs; Heroic+ slide down long descents for Momentum Carry.
 	UShieldbreakMovementComponent* Movement = Bot->GetShieldbreakMovement();

@@ -47,6 +47,14 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
+  compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
+  after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid
+  ahead of its capsule and snapped back on each loop and cross-fade. (2) `ShieldbreakBotController.cpp` `FollowPathTo`
+  skips waypoints already passed after each once-a-second repath (bots used to turn back toward the nearest node
+  behind them) and rounds corners near a node. New self-test: "Locomotion plays in place" (pelvis drift under 25 cm
+  while jogging on the spot). **Please report the measured drift before this change if you can.** It shows whether
+  root motion was the cause. If skipping remains, say whether it shows offline with bots or only over the network.
 - 2026-10-29 Claude (cloud): **first-person feel and animation smoothing** (same branch, PR #5). Not compiled here.
   `Visuals/ShieldbreakBodyAnimator.*` (first-person bob/sway/lean/sprint/landing/kick), `ShieldbreakBodyAnimInstance.*`
   (fade from snapshot when a fade is interrupted; per-shot upper-body kick), `Weapons/ShieldbreakWeapon.cpp` (kick hooks;

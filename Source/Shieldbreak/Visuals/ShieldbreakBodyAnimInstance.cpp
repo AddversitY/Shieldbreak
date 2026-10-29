@@ -235,9 +235,23 @@ void FShieldbreakBodyAnimProxy::Sample(const FTrack& Track, FPoseContext& Output
 		}
 		if (TotalWeight == 0.f) { Output.ResetToRefPose(); }
 		Output.Pose.NormalizeRotations();
+		LockRoot(Output);
 		return;
 	}
 	Track.Animation->GetAnimationPose(PoseData, FAnimExtractContext(static_cast<double>(Track.Time), false));
+	LockRoot(Output);
+}
+
+void FShieldbreakBodyAnimProxy::LockRoot(FPoseContext& Output)
+{
+	// Lyra's locomotion clips can carry root motion (the root bone travels through each cycle). Nothing here extracts
+	// it, because the capsule moves the character, so any left in made the body slide ahead of its capsule and snap
+	// back on every loop and cross-fade: characters skipped as they moved. Pin the root to the ref pose instead.
+	const FCompactPoseBoneIndex Root(0);
+	if (Output.Pose.IsValidIndex(Root))
+	{
+		Output.Pose[Root] = Output.Pose.GetRefPose(Root);
+	}
 }
 
 bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
