@@ -283,45 +283,130 @@ def bastion():
 
 
 def sanctum():
-    """Sanctuary / The Pit principles: an open symmetric bowl. Temples at each end with a sniper perch, a sunken
-    courtyard with the rockets on a plinth (crouch-jump or Power Jump to reach), ruined flanks with high walkways."""
-    m = Map("Sanctum", "Sanctum", "Sanctuary / The Pit", 3800, 2600, wall_h=1100)
+    """Sanctuary / The Pit principles, rebuilt at full scale (2026-10-29) with three height layers instead of an open bowl.
+
+    Authored directly at its final 152 x 104 m size (no expand_horizontal). Layers: the sunken courtyard (0), the sand
+    terraces and temple halls (200), the walkway ring and temple upper floors (550) and the sniper perches (900).
+    Each end has a walk-through temple: a colonnaded hall open to the sky in the middle, an upper floor round the
+    atrium reached by a central ramp and an outside balcony ramp, and a stepped perch at the back. A ring of
+    elevated walkways runs along both flanks and crosses the courtyard twice; a shrine sits under each flank with a
+    bridge from its roof to the walkway. The rockets plinth keeps its skill jump (self-test)."""
+    m = Map("Sanctum", "Sanctum", "Sanctuary / The Pit", 7600, 5200, wall_h=1200, max_z=1800)
     m.sun = (-35.0, 70.0)
-    # Raised ground (top 200) everywhere except the courtyard (2800 x 2000).
-    m.block((-3800, -2600, 0), (-1400, 2600, 200), "sand", sym=True)
-    m.block((-1400, 1000, 0), (1400, 2600, 200), "sand", sym=True)
-    # Courtyard steps: wide ramps from each end and each flank.
-    m.ramp((-1400, 0, 200), (-900, 0, 0), 500, "stone", sym=True)
-    m.ramp((0, 1000, 200), (0, 600, 0), 500, "stone", sym=True)
-    # Plinth (top 320): rockets on top. Falling characters step up ledges within 45, so a plain jump reaches ~303
-    # (can't make it), a crouch-jump ~337 and a Power Jump ~430 can.
-    m.block((-150, -150, 0), (150, 150, 320), "stone")
-    # Courtyard cover.
-    m.block((-900, 600, 0), (-750, 850, 160), "rock", sym=True)
-    m.block((500, 450, 0), (750, 520, 120), "rock", sym=True)
-    # Temples (top 550) with two side ramps and a sniper perch (top 800, two 125 steps).
-    m.block((-3800, -800, 200), (-3000, 800, 550), "red")
-    m.block((3800, 800, 200), (3000, -800, 550), "blue")
-    m.ramp((-2300, 650, 200), (-3000, 650, 550), 250, sym=True)
-    m.ramp((-2300, -650, 200), (-3000, -650, 550), 250, sym=True)
-    m.block((-3750, -200, 550), (-3450, 200, 800), "stone", sym=True)
-    m.block((-3450, -200, 550), (-3300, 200, 675), "stone", sym=True)
-    m.block((-3040, -300, 550), (-3000, 300, 640), "stone", sym=True)
-    # Ruined flanks: broken walls along the +Y edge (mirrored onto -Y) and a high walkway with a ramp.
-    for x0, x1 in [(-2600, -2000), (-1700, -1100), (-800, -300)]:
-        m.block((x0, 1650, 200), (x1, 1720, 520), "stone", sym=True)
-    m.block((-2200, 2050, 200), (-600, 2450, 450), "stone", sym=True)
-    m.ramp((-600, 2250, 450), (200, 2250, 200), 300, sym=True)
-    # Items.
+    m.fog = 0.010
+    L1, L2, L3 = 200, 550, 900
+    slab = 40
+    # ---- Terrain: sand terraces at L1 everywhere except the sunken courtyard (5600 x 4000) ----
+    m.block((-7600, -5200, 0), (-2800, 5200, L1), "sand", sym=True)
+    m.block((-2800, 2000, 0), (2800, 5200, L1), "sand", sym=True)
+    # Courtyard steps: a wide ramp from each end terrace and each flank.
+    m.ramp((-2800, 0, L1), (-2000, 0, 0), 1000, "stone", sym=True)
+    m.ramp((600, 2000, L1), (600, 1200, 0), 900, "stone", sym=True)
+    # Rockets plinth (top 320, 600 square): a plain jump can't make it, a crouch-jump or Power Jump can.
+    m.block((-300, -300, 0), (300, 300, 320), "stone")
+
+    # ---- Temples (red at -X, mirrored for blue) ----
+    tx0, tx1 = -7600, -5400          # hall footprint along X
+    for side in (1, -1):              # north and south walls, with a side door
+        y0, y1 = sorted((side * 1700, side * 1800))
+        m.block((tx0, y0, L1), (-6700, y1, L2 - slab), "red", sym=True)
+        m.block((-6300, y0, L1), (tx1, y1, L2 - slab), "red", sym=True)
+    # Front colonnade: corner piers and a centre pier, two wide doorways between them.
+    for y0, y1 in ((1200, 1800), (-1800, -1200)):
+        m.block((-5600, y0, L1), (tx1, y1, L2 - slab), "red", sym=True)
+    m.block((-5600, -400, L1), (tx1, 400, L2 - slab), "red", sym=True)
+    # Upper floor round an open atrium: the rear gallery and two side wings.
+    m.block((tx0, -1800, L2 - slab), (-6600, 1800, L2), "stone", sym=True)
+    m.block((-6600, 1000, L2 - slab), (tx1, 1800, L2), "stone", sym=True)
+    m.block((-6600, -1800, L2 - slab), (tx1, -1000, L2), "stone", sym=True)
+    # Outside balcony off the north wing, reached by a ramp from the sand.
+    m.block((-6000, 1800, L2 - slab), (tx1, 2400, L2), "stone", sym=True)
+    m.ramp((-4300, 2150, L1), (tx1, 2150, L2), 400, sym=True)
+    # Central ramp up through the atrium to the rear gallery.
+    m.ramp((-5650, 0, L1), (-6600, 0, L2), 360, sym=True)
+    # Parapets along the wings' inner and front edges (waist high).
+    m.block((-6600, 1000, L2), (-5600, 1050, L2 + 110), "stone", sym=True)
+    m.block((-6600, -1050, L2), (-5600, -1000, L2 + 110), "stone", sym=True)
+    m.block((-5440, -1800, L2), (tx1, -1000, L2 + 110), "stone", sym=True)
+    # Corner spires on the temple: tall, unwalkable mass that marks each base from across the map.
+    for y0, y1 in ((1200, 1800), (-1800, -1200)):
+        m.block((-5600, y0, L2), (tx1, y1, 1500), "red", sym=True)
+    # Sniper perch at the back of the gallery: two 175 steps.
+    m.block((-7500, -500, L2), (-7000, 500, L3), "tower", sym=True)
+    m.block((-7000, -500, L2), (-6800, 500, L2 + 175), "tower", sym=True)
+
+    # ---- Walkway ring at L2 ----
+    # Flank walkway (red builds the north one; the mirror is blue's south one), with a waist-high rail.
+    m.block((-4800, 3800, L2 - slab), (2000, 4400, L2), "bridge", sym=True)
+    m.block((-4800, 4360, L2), (2000, 4400, L2 + 110), "bridge", sym=True)
+    # Courtyard crossing: flank to flank over the courtyard, on two pairs of piers.
+    m.block((-1900, -3800, L2 - slab), (-1300, 3800, L2), "bridge", sym=True)
+    for py in (-1000, 1000):
+        m.block((-1700, py - 100, 0), (-1500, py + 100, L2 - slab), "dark", sym=True)
+    # Ramps between the terraces and the walkway: off the temple end and down the courtyard side.
+    m.ramp((-4800, 4100, L2), (-6000, 4100, L1), 500, sym=True)
+    m.ramp((-3300, 3800, L2), (-3300, 2700, L1), 400, sym=True)
+
+    # ---- Flank shrines (north and its mirror): a roofed room on the sand with a bridge to the walkway ----
+    m.block((-800, 2600, L1), (-200, 2700, L2 - slab), "stone", sym=True)
+    m.block((200, 2600, L1), (800, 2700, L2 - slab), "stone", sym=True)
+    m.block((-800, 3300, L1), (800, 3400, L2 - slab), "stone", sym=True)
+    m.block((-800, 2700, L1), (-700, 3300, L2 - slab), "stone", sym=True)
+    m.block((700, 2700, L1), (800, 3100, L2 - slab), "stone", sym=True)
+    m.block((-800, 2600, L2 - slab), (800, 3400, L2), "stone", sym=True)
+    m.block((-300, 3400, L2 - slab), (300, 3800, L2), "bridge", sym=True)
+
+    # ---- Corner annex (red's south-west; the mirror is blue's north-east): a ruined two-storey hall whose roof
+    # deck bridges onto the far flank walkway, closing the L2 ring at both ends ----
+    m.block((-5400, -4800, L1), (-5300, -3500, L2 - slab), "stone", sym=True)
+    m.block((-5400, -3600, L1), (-4700, -3500, L2 - slab), "stone", sym=True)
+    m.block((-4300, -3600, L1), (-3600, -3500, L2 - slab), "stone", sym=True)
+    m.block((-3700, -4800, L1), (-3600, -4500, L2 - slab), "stone", sym=True)
+    m.block((-5400, -4800, L2 - slab), (-3600, -3500, L2), "stone", sym=True)
+    m.block((-5400, -3540, L2), (-4400, -3500, L2 + 110), "stone", sym=True)
+    m.block((-3600, -4300, L2 - slab), (-2000, -3900, L2), "bridge", sym=True)
+    m.ramp((-6500, -4000, L1), (-5400, -4000, L2), 400, sym=True)
+
+    # ---- Courtyard colossi: four tall pillars round the plinth (above head height; they break the long
+    # diagonal lines across the courtyard without walling it in) ----
+    for px_, py_ in ((-900, 1400), (900, 1400)):
+        m.block((px_ - 200, py_ - 200, 0), (px_ + 200, py_ + 200, 1300), "tower", sym=True)
+
+    # ---- Cover: mid-field ruins between each temple and the courtyard, courtyard rocks, flank clutter ----
+    m.cover((-4700, -1500, L1), (-4300, -900, 1100), "stone", sym=True)       # obelisk pair: blocks the
+    m.cover((-4700, 900, L1), (-4300, 1500, 800), "stone", sym=True)          # temple-to-temple line
+    m.cover((-3900, -300, L1), (-3500, 300, 330), "rock", sym=True)
+    m.cover((-5000, -2900, L1), (-4300, -2780, 520), "stone", sym=True)
+    m.cover((-3800, -2500, L1), (-3500, -2200, 330), "rock", sym=True)
+    m.cover((-6400, -3300, L1), (-6100, -3000, 330), "rock", sym=True)
+    m.cover((-2500, -4950, L1), (-2200, -4650, 330), "rock", sym=True)
+    m.cover((-6800, 3200, L1), (-6500, 3500, 330), "rock", sym=True)
+    m.cover((-4500, 3000, L1), (-4200, 3300, 330), "rock", sym=True)
+    m.cover((-2300, 3000, L1), (-2000, 3300, 330), "rock", sym=True)
+    m.cover((2200, 2900, L1), (2500, 3200, 330), "rock", sym=True)
+    m.cover((-1000, -4800, L1), (-700, -4500, 330), "rock", sym=True)
+    m.cover((2200, -4700, L1), (2500, -4400, 330), "rock", sym=True)
+    # Courtyard floor (keeping the plinth's run-up along -X clear).
+    m.cover((-2600, -1700, 0), (-2300, -1400, 130), "rock", sym=True)
+    m.cover((1400, -1800, 0), (1700, -1500, 130), "rock", sym=True)
+    m.cover((1000, -600, 0), (1300, -300, 130), "rock", sym=True)
+    m.cover((-2500, 1000, 0), (-2200, 1300, 130), "rock", sym=True)
+    # Temple hall floor and the gallery.
+    m.cover((-6300, -800, L1), (-6000, -500, 330), "stone", sym=True)
+    m.cover((-7300, -1400, L2), (-7000, -1100, L2 + 130), "stone", sym=True)
+    m.keepout.append(((-900, -500), (900, 500)))  # self-test run-up and landing around the rockets plinth
+
+    # ---- Items and objectives ----
     m.weapon("rockets", (0, 0, 390))
-    m.weapon("sniper", (-3600, 0, 870), sym=True)
-    m.weapon("rail", (-1400, 2250, 520), sym=True)
-    m.powerup("overshield", (0, -1800, 270))
-    for s in [(-3400, 500, 550), (-3400, -500, 550), (-2600, 1200, 200), (-2600, -1300, 200), (-1800, 0, 200), (-1600, 2250, 450)]:
+    m.weapon("sniper", (-7250, 0, L3 + 70), sym=True)
+    m.weapon("rail", (-3800, 4100, L2 + 70), sym=True)
+    m.powerup("overshield", (0, -3000, L1 + 70))
+    m.powerup("aegis", (-1600, 0, L2 + 70), sym=True)
+    for s in [(-6900, 1300, L1), (-6900, -1300, L1), (-7200, 1300, L2), (-5000, 3200, L1), (-5000, -3300, L1), (-4300, 0, L1)]:
         m.spawn(s)
-    m.flag((-3200, 0, 640))
-    m.hills = [(0, 600, 220), (-3400, 0, 770), (0, -600, 220), (3400, 0, 770), (-1400, 2250, 670)]
-    m.ball = (0, -600, 90)
+    m.flag((-6100, 1350, L1 + 90))
+    m.hills = [(0, 1200, 220), (-1600, 2600, L2 + 220), (0, -1200, 220), (1600, -2600, L2 + 220), (0, 3000, L1 + 220)]
+    m.ball = (0, -1300, 90)
     return m
 
 
@@ -511,34 +596,6 @@ def fill_bastion(m):
     m.cover((-500, -2200, 0), (-200, -1900, 140), "rock")
 
 
-def fill_sanctum(m):
-    # Mid-field ruins between each temple and the courtyard: a broken pillar pair that blocks the straight
-    # temple-to-temple line (snipers still see the courtyard), and low walls to cross the open sand.
-    m.cover((-4300, -900, 200), (-4000, -500, 700), "stone", sym=True)
-    m.cover((-4300, 500, 200), (-4000, 900, 700), "stone", sym=True)
-    m.cover((-4700, 1800, 200), (-4300, 2100, 330), "rock", sym=True)
-    m.cover((-3700, -2900, 200), (-3300, -2600, 330), "rock", sym=True)
-    m.cover((-6000, 2900, 200), (-5700, 3200, 330), "rock", sym=True)
-    m.cover((-6100, -3600, 200), (-5900, -2800, 600), "stone", sym=True)
-    m.cover((-3200, 2400, 200), (-2900, 2700, 330), "rock", sym=True)
-    # Courtyard rim: cover on the sand above the courtyard edge, leaving the step ramps clear.
-    m.cover((-2300, 2200, 200), (-1900, 2500, 330), "rock", sym=True)
-    m.cover((900, 2300, 200), (1300, 2600, 330), "rock", sym=True)
-    # Courtyard floor: low rocks in the quarters, clear of the plinth's run-up.
-    m.cover((-2400, -1500, 0), (-2100, -1200, 130), "rock", sym=True)
-    m.cover((900, -1800, 0), (1200, -1500, 130), "rock", sym=True)
-    # Behind the flank walkways and the long sand flank under them.
-    m.cover((1600, 3900, 200), (1900, 4200, 330), "rock", sym=True)
-    m.cover((-800, 3700, 200), (-600, 4100, 650), "stone", sym=True)
-    # The -Y quarter on each team's side had no flank walls (the originals mirror onto the other team's side).
-    m.cover((-5400, -3300, 200), (-4600, -3170, 520), "stone", sym=True)
-    m.cover((-5000, -3900, 200), (-4700, -3600, 330), "rock", sym=True)
-    m.cover((-3800, -4700, 200), (-3500, -4400, 330), "rock", sym=True)
-    m.cover((-2200, -2700, 200), (-1900, -2400, 330), "rock", sym=True)
-    m.cover((-700, -3000, 200), (-400, -2700, 330), "rock", sym=True)
-    m.keepout.append(((-900, -500), (900, 500)))  # self-test run-up and landing around the rockets plinth
-
-
 def fill_creekbed(m):
     # Banks: more rocks between the huts and the creek so the approaches are short hops, not open lawns.
     m.cover((-2400, -700, 0), (-2100, -400, 140), "rock", sym=True)
@@ -584,7 +641,7 @@ def fill_spire(m):
     m.cover((-2300, -400, 600), (-2100, -150, 710), "metal", sym=True)
 
 
-FILLS = {"Keel": fill_keel, "Bastion": fill_bastion, "Sanctum": fill_sanctum, "Creekbed": fill_creekbed, "Spire": fill_spire}
+FILLS = {"Keel": fill_keel, "Bastion": fill_bastion, "Creekbed": fill_creekbed, "Spire": fill_spire}
 
 
 def expand_and_fill(m):
@@ -594,7 +651,7 @@ def expand_and_fill(m):
     return m
 
 
-MAPS = [expand_and_fill(m) for m in (keel(), bastion(), sanctum(), creekbed(), spire())] + [crucible()]
+MAPS = [expand_and_fill(keel()), expand_and_fill(bastion()), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
 DEFAULT_MAP = "Keel"
 
 
@@ -769,7 +826,8 @@ def openness(m, step=250.0, near=800.0):
                         t0, t1 = max(t0, min(a, b)), min(t1, max(a, b))
                 if ok and t1 > 0 and t1 >= t0:
                     hit = min(hit, max(t0, 0.0))
-            total += hit
+            # From the top of a tall unwalkable piece the ray can clear the walls: cap it at the map's diagonal.
+            total += min(hit, 2.0 * math.hypot(m.half_x, m.half_y))
         sights.append(total / 16)
     sights.sort()
     return {"points": len(points), "exposed": exposed / max(1, len(points)),
