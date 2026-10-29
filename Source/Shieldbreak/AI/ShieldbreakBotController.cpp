@@ -926,7 +926,9 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 		}
 		if (OurFlag)
 		{
-			OutGoal = OurFlag->GetHomeLocation() + FVector(FMath::Sin(static_cast<float>(GetUniqueID())) * 400.f, FMath::Cos(static_cast<float>(GetUniqueID())) * 400.f, 0.f);
+			// Guard the flag from a spot 4 m out, moving to another one every 6 s rather than standing still.
+			const float Angle = static_cast<float>(GetUniqueID()) + 2.1f * FMath::FloorToFloat(static_cast<float>(World->GetTimeSeconds()) / 6.f);
+			OutGoal = OurFlag->GetHomeLocation() + FVector(FMath::Sin(Angle) * 400.f, FMath::Cos(Angle) * 400.f, 0.f);
 			return true;
 		}
 		return false;
