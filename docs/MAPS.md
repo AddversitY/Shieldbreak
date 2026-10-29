@@ -14,6 +14,30 @@ playable expansion; cover density and encounter pacing can still be revised
 from playtesting and user sketches. Use `Design/map-planner/index.html` to draw
 routes and direct further dimensions.
 
+## Cover pass (2026-10-29)
+
+The 2× size pass stretched each layout but kept its original handful of cover pieces, so a third to a half of
+every launch map's floor had nothing chest-high within 8 m. The generator now adds a cover pass per map
+(`fill_<map>()` in the script, applied after `expand_horizontal`): low cover (110–140 cm, shoot over it, crouch
+behind it), tall walls (450–500 cm) that split the long lanes, and cover on the base and balcony tops.
+The validator checks every cover-pass piece: it stands on a surface, stays off ramps and lift paths, keeps 2 m
+from spawns, pickups, flags, the ball and lift ends, leaves no gap under 2 m (players and bots snag in those),
+leaves standing room under overhangs and stays out of keep-out areas (Sanctum's plinth run-up). It also fails a
+launch map with more than 20% exposed floor. Each run prints the numbers:
+
+| Map | Exposed floor: original / after 2× / now | Average view distance: original / after 2× / now |
+|---|---|---|
+| Keel | 8% / 35% / 10% | 21 / 43 / 37 m |
+| Bastion | 23% / 48% / 18% | 23 / 45 / 41 m |
+| Sanctum | 19% / 43% / 12% | 21 / 43 / 38 m |
+| Creekbed | 1% / 31% / 16% | 18 / 37 / 35 m |
+| Spire | 8% / 43% / 11% | 19 / 38 / 36 m |
+
+"Exposed" is the share of standing points (a 2.5 m grid, highest surface) with no geometry at chest height
+within 8 m. "Average view" is the mean length of 16 eye-height rays from each point, so it mostly tracks map
+size. Elevated spots (tower tops, Keel's deck, Spire's bridge) stay exposed on purpose. These are layout
+metrics, not playtest results: route timing and spawn fairness still need bot and human matches.
+
 - **Source:** `Design/maps/shieldbreak_maps.py`. It validates every map (ramps ≤ 30°, spawns standing on surfaces with
   headroom, items and objectives above a surface, at least 4 spawns per team), generates
   `Source/Shieldbreak/Game/ShieldbreakMapsData.cpp`, and renders the previews below. Edit the script, run it, commit

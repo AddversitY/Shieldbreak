@@ -40,11 +40,22 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-29 Claude (cloud): map cover pass, PR from `claude/project-thread-1xgiqk`. Touches only
+  `Design/maps/`, `Design/map-planner/` outputs, the generated maps data and docs.
 - 2026-10-27 Codex: map expansion/Spire modules/planner and the subsequent
   animation/movement-presentation/shield-hit pass are complete. See desktop
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-10-29 Claude (cloud): **cover pass on the five enlarged launch maps** (branch `claude/project-thread-1xgiqk`).
+  Data only: `Design/maps/shieldbreak_maps.py` adds 20-44 blocks per map, and the regenerated
+  `Game/ShieldbreakMapsData.cpp` is purely additive (Crucible unchanged). Not compiled here. Please build, then run
+  `Tools/SelfTest.bat` and the map tours (`Tools/MapTour.bat` for Keel, Bastion, Sanctum, Creekbed, Spire, plus
+  Keel CTF and Bastion KOTH). Watch for: bots stuck on the new cover, the Sanctum plinth jump checks, Spire's four
+  lift landings, and any spawn reported blocked. Screenshot one lane per map. Cover placement rules and the
+  before/after openness numbers are in `docs/MAPS.md`.
+  The cloud can't push LFS objects, so `Design/maps/*.png` still show the stretched layouts: run
+  `python Design/maps/shieldbreak_maps.py` on the desktop and commit the regenerated previews.
 - Full manual Settings/Controls/music walkthrough of the merged menu is still
   separate from the automated gameplay and networking results below.
 - Further human playtesting should judge movement feel, bespoke FPS poses,
