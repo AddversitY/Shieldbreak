@@ -149,6 +149,26 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-29 Claude, driving the desktop (`desktop-888hmr5`) remotely: **PR #5 built and tested**. The editor build
+  compiled first time (only the existing `RemoteViewPitch` deprecation warning). Full gameplay suite **124/126**.
+  All new presentation checks pass:
+  - shot kick peaks at 1.33 deg and settles
+  - recoil is spread (0.65 of 2 deg in the first frame), with the full 2 deg in 0.3 s
+  - interrupted fade: hand peaks at 279 cm/s
+  - jogging in place: the pelvis wanders 6.3 cm
+
+  The two failures are both "...and launches you upward" in the Rocket jump step (peak up-velocity 0.00; the
+  damage itself is right, health 27). **This is not from PR #5.** Main (`eec415c`) and the cover-pass commit fail
+  identically when built today (115/117), although Codex recorded 117/117 for `eec415c` on 10-27. The grenade jump
+  on an uncontrolled dummy still launches (526 uu/s). The shooter in this step is an AI-controlled dummy whose
+  controller tick the test freezes. Still open: work out whether real rocket jumps are broken or only the fixture.
+
+  Map tours: Keel 23/23 (92 FPS), Bastion 23/23, Sanctum 25/25, Creekbed 23/23, Spire 27/27, Bastion KOTH 27/27.
+  Keel CTF first failed 31/33: all four bots stood on their own bases for the whole match with 0 kills. It fails
+  the same way before PR #5's bot change. CTF bots split attack/defend on their object id's parity, and this match
+  made all four defenders. Fixed in `ae0ef76`, which alternates by rank within the team, and `9a413cd`, where
+  defenders move between guard spots every 6 s. Keel CTF is now **33/33** (12 kills, 0 stuck).
+  With 4 bots, FPS ran 84-117 across the tours.
 - 2026-10-27 Codex desktop: **smoother presentation and visible shield hits**.
   Built on Claude's native animation/first-person rig. Ground movement now blends
   four directional clips continuously, preserves gait phase through turns and
