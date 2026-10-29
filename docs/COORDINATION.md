@@ -161,7 +161,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   damage itself is right, health 27). **This is not from PR #5.** Main (`eec415c`) and the cover-pass commit fail
   identically when built today (115/117), although Codex recorded 117/117 for `eec415c` on 10-27. The grenade jump
   on an uncontrolled dummy still launches (526 uu/s). The shooter in this step is an AI-controlled dummy whose
-  controller tick the test freezes. Still open: work out whether real rocket jumps are broken or only the fixture.
+  controller tick the test freezes. Moot since then: Vincent dropped rocket jumps (2026-10-29), so own rockets no longer knock you back and the step now checks that.
 
   Map tours: Keel 23/23 (92 FPS), Bastion 23/23, Sanctum 25/25, Creekbed 23/23, Spire 27/27, Bastion KOTH 27/27.
   Keel CTF first failed 31/33: all four bots stood on their own bases for the whole match with 0 kills. It fails

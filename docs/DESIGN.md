@@ -34,7 +34,7 @@ weapon placement), never copied geometry or art. See `ART_DIRECTION.md`.
 | **Overcharge Vent** | Tap Reload/Vent while the marker is in the sweet spot during recharge: instant full shield plus a small overshield. A miss restarts the recharge from empty. | Push them while they're recharging |
 | **Break Pulse** | Melee within 0.15 s of your shield popping: short-range shockwave that knocks back and strips shields | Keep your distance; it costs a longer recharge |
 | **Momentum Carry** | Sprint, crouch to slide, jump out of it: keeps the slide speed in the air; downhill slides speed up; slides chain | Shots get less accurate in the air |
-| **Grenade / rocket jumps** | Your own explosions launch you (rockets do 0.4× damage to you) | They cost shields and health |
+| **Grenade jumps** | Your own grenades launch you (no rocket jumps: your rockets hurt you, 0.4×, but don't launch you) | They cost shields and health |
 | **Crouch-jump** | Crouch mid-air to clear higher ledges | — |
 | **Radar discipline** | Crouch-walking keeps you off the enemy motion tracker | Allies always show |
 
@@ -46,7 +46,7 @@ weapon placement), never copied geometry or art. See `ART_DIRECTION.md`.
 | **Battle Rifle** | Spawn | 3-round burst; headshot kills an unshielded target; 4-burst kill |
 | **Sidearm** | Spawn | Semi-auto precision pistol: fast swap, finishing shots, headshot kills an unshielded target |
 | **Sniper Rifle** | Map, usually one per side | 2 body shots kill; a headshot kills through shields |
-| **Rocket Launcher** | Map, neutral and most contested | The best weapon: lethal splash, rocket jumps |
+| **Rocket Launcher** | Map, neutral and most contested | The best weapon: lethal splash |
 | **Rail Lance** | Map, medium power | Hold to charge (~0.8 s, glow + sound tell), release for a one-hit-kill bolt. Released early it does about a third of the damage. 3 charges per pickup. |
 | **Aegis Shield** | Map item (equipment), light power | Hold Use Equipment to raise a frontal barrier that blocks bullets and Rail Lance bolts but **not** rockets, grenades or melee. You can't fire while it's raised. 200 hit points or 6 s of uptime per pickup. |
 | **Frag grenades** | 2 on spawn | Bounce, 1.1 s fuse after the first bounce |

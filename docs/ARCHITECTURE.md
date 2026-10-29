@@ -258,7 +258,7 @@ Death visuals run on all machines from `OnDeath`: body/head become physics-simul
 
 ### `ShieldbreakDamageTypes.h`
 `UDamageType_Ballistic` (shield ×1.0, health ×1.0), `UDamageType_BallisticLight` (shield ×0.8, health ×1.25),
-`UDamageType_Plasma` (shield ×1.6, health ×0.5, RechargeDelayExtension 1.0), `UDamageType_Explosive` (splash; the thrower takes scaled self-damage so rocket jumps are survivable), `UDamageType_Melee` (neutral). All subclass `UShieldbreakDamageType` and set their values
+`UDamageType_Plasma` (shield ×1.6, health ×0.5, RechargeDelayExtension 1.0), `UDamageType_Explosive` (splash; the shooter takes scaled self-damage; your own rockets don't knock you back), `UDamageType_Melee` (neutral). All subclass `UShieldbreakDamageType` and set their values
 in constructors. `EShieldbreakFireMode` includes `Charge` for the Rail Lance.
 
 ### `AShieldbreakWeapon` : AActor (`Weapons/ShieldbreakWeapon.h`, Abstract)

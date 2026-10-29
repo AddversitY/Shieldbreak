@@ -1184,7 +1184,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			return false;
 		}, 6.f });
 
-	Steps.Add({ TEXT("Rocket jump"),
+	Steps.Add({ TEXT("A rocket at your own feet (no rocket jumps)"),
 		[this]()
 		{
 			ClearDummies();
@@ -1204,7 +1204,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			AimAt(A, A->GetActorLocation() + FVector(5.f, 0.f, -500.f)); // straight at the feet
 			Value0 = FMath::Max(Value0, static_cast<float>(A->GetVelocity().Z));
 
-			// Pass 1 with a plain shield (is it survivable?), pass 2 with an overshield for the knockback check.
+			// Pass 1 with a plain shield (is it survivable?), pass 2 with an overshield.
 			if ((Phase == 0 || Phase == 3) && Elapsed > (Phase == 0 ? 1.0f : 0.f) && (Phase == 0 || Now() - Mark > 1.0f))
 			{
 				if (Phase == 3)
@@ -1224,19 +1224,19 @@ void AShieldbreakSelfTest::BuildSteps()
 				{
 					Rockets += FString::Printf(TEXT(" (%s)"), *It->GetActorLocation().ToCompactString());
 				}
-				Lines.Add(FString::Printf(TEXT("INFO  rocket jump pass %d: shooter at %s, aim pitch %s, ammo %d, rockets:%s"), Phase == 1 ? 1 : 2,
+				Lines.Add(FString::Printf(TEXT("INFO  own-rocket pass %d: shooter at %s, aim pitch %s, ammo %d, rockets:%s"), Phase == 1 ? 1 : 2,
 					*A->GetActorLocation().ToCompactString(), *Num(A->GetAimRotation().Pitch),
 					A->GetCurrentWeapon() ? A->GetCurrentWeapon()->GetAmmoInMagazine() : -1, Rockets.IsEmpty() ? TEXT(" none") : *Rockets));
 				++Phase;
 			}
 			else if (Phase == 2 && Now() - Mark > 1.2f)
 			{
-				// 458b8d7: own rockets do 0.4x (88 at point blank) with 0.65x knockback.
-				Check(TEXT("A rocket jump from full shield is survivable"), A->IsAlive(),
+				// 458b8d7: own rockets do 0.4x (88 at point blank); since 2026-10-29 they don't knock you back.
+				Check(TEXT("A rocket at your feet from full shield is survivable"), A->IsAlive(),
 					FString::Printf(TEXT("shield %s health %s"), *Num(ShieldOf(A)), *Num(HealthOf(A))));
 				Check(TEXT("...leaves 20-40 health"), A->IsAlive() && HealthOf(A) >= 20.f && HealthOf(A) <= 40.f,
 					FString::Printf(TEXT("health %s"), *Num(HealthOf(A))));
-				Check(TEXT("...and launches you upward"), Value0 > 400.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
+				Check(TEXT("...and does not launch you (no rocket jumps)"), Value0 < 100.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
 				// Fresh shooter for the overshield pass.
 				ClearDummies();
 				A = SpawnDummy(RangeA, 0.f, true);
@@ -1252,7 +1252,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				Check(TEXT("With an overshield, a rocket at your feet is survivable"), A->IsAlive(),
 					FString::Printf(TEXT("overshield %s shield %s health %s"), *Num(A->GetShieldHealth()->GetOvershield()), *Num(ShieldOf(A)), *Num(HealthOf(A))));
-				Check(TEXT("...and launches you upward (rocket jump)"), Value0 > 400.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
+				Check(TEXT("...and with an overshield it does not launch you either"), Value0 < 100.f, FString::Printf(TEXT("peak up-velocity %s"), *Num(Value0)));
 				return true;
 			}
 			return false;
