@@ -371,15 +371,18 @@ void AShieldbreakBotController::FollowPathTo(const FVector& Goal, float DeltaSec
 		{
 			Path.Reset();
 		}
-		// Skip the first node if we're already past it toward the second.
-		if (Path.Num() > 1)
+		// Skip the nodes we're already past. The nearest waypoint is often behind the bot, and each repath (once a
+		// second) used to turn it back toward that node for a moment, which read as skipping on the spot.
+		const TArray<FVector>& Nodes = Arena->GetWaypoints();
+		while (Path.IsValidIndex(PathIndex + 1) && PathIndex < 3)
 		{
-			const FVector First = Arena->GetWaypoints()[Path[0]];
-			const FVector Second = Arena->GetWaypoints()[Path[1]];
-			if (FVector::Dist2D(BotLocation, Second) < FVector::Dist2D(First, Second))
+			const FVector Here = Nodes[Path[PathIndex]];
+			const FVector There = Nodes[Path[PathIndex + 1]];
+			if (FVector::Dist2D(BotLocation, There) >= FVector::Dist2D(Here, There) || FMath::Abs(BotLocation.Z - Here.Z) > 160.f)
 			{
-				PathIndex = 1;
+				break;
 			}
+			++PathIndex;
 		}
 	}
 
@@ -397,7 +400,15 @@ void AShieldbreakBotController::FollowPathTo(const FVector& Goal, float DeltaSec
 		}
 	}
 
-	MoveToward(Next);
+	// Round the corner: close to a node on the same level, start turning toward the one after it instead of running
+	// straight through and snapping to the new heading.
+	FVector Steer = Next;
+	const float ToNext = static_cast<float>(FVector::Dist2D(BotLocation, Next));
+	if (AfterNext != Next && ToNext < 220.f && FMath::Abs(Next.Z - AfterNext.Z) < 60.f && FMath::Abs(BotLocation.Z - Next.Z) < 60.f)
+	{
+		Steer = Next + (AfterNext - Next).GetSafeNormal2D() * (220.f - ToNext) * 0.6f;
+	}
+	MoveToward(Steer);
 
 	// Sprint on long legs; Heroic+ slide down long descents for Momentum Carry.
 	UShieldbreakMovementComponent* Movement = Bot->GetShieldbreakMovement();
@@ -873,8 +884,17 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 
 	const uint8 MyTeam = ShieldbreakTeams::GetTeam(Bot);
 	const AShieldbreakCarriable* Carried = Bot->GetCarriedObjective();
-	// Half the team attacks, half defends (stable per bot).
-	const bool bAttacker = (GetUniqueID() % 2) == 0;
+	// Half the team attacks, half defends (stable per bot). Alternate by rank among this team's bots: splitting on
+	// the object id's parity could make every bot on both teams a defender, and then nobody left their base.
+	int32 Rank = 0;
+	for (TActorIterator<AShieldbreakBotController> It(World); It; ++It)
+	{
+		if (*It != this && It->GetUniqueID() < GetUniqueID() && ShieldbreakTeams::AreTeammates(*It, this))
+		{
+			++Rank;
+		}
+	}
+	const bool bAttacker = (Rank % 2) == 0;
 
 	switch (GameState->GetGameType())
 	{
@@ -906,7 +926,9 @@ bool AShieldbreakBotController::GetObjectiveGoal(FVector& OutGoal, bool& bOutUrg
 		}
 		if (OurFlag)
 		{
-			OutGoal = OurFlag->GetHomeLocation() + FVector(FMath::Sin(static_cast<float>(GetUniqueID())) * 400.f, FMath::Cos(static_cast<float>(GetUniqueID())) * 400.f, 0.f);
+			// Guard the flag from a spot 4 m out, moving to another one every 6 s rather than standing still.
+			const float Angle = static_cast<float>(GetUniqueID()) + 2.1f * FMath::FloorToFloat(static_cast<float>(World->GetTimeSeconds()) / 6.f);
+			OutGoal = OurFlag->GetHomeLocation() + FVector(FMath::Sin(Angle) * 400.f, FMath::Cos(Angle) * 400.f, 0.f);
 			return true;
 		}
 		return false;

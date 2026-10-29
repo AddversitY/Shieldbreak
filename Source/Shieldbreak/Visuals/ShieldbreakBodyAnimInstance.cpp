@@ -102,6 +102,8 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 		Current.Time = Previous.bDirectional && Current.bDirectional && Current.Animation
 			? Phase * Current.Animation->GetPlayLength() : 0.f;
 		if (!Previous.bDirectional) { Current.Weights = Instance->DirectionWeights; }
+		// Interrupting a cross-fade (stop, start, jump in quick succession) would drop the half-faded pose at once.
+		bFadeFromSnapshot = !bFirst && BlendAlpha < 1.f && LastBasePose.Num() > 0;
 		BlendAlpha = bFirst ? 1.f : 0.f;
 	}
 	TargetWeights = Instance->DirectionWeights;
@@ -117,6 +119,9 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 		Action.bLoop = false;
 		// Keep the layer's weight, but cross-fade the old and new actions instead of cutting.
 	}
+	// Shot kicks arrive as a running total; each one is an impulse on the kick spring.
+	KickVelocity += (Instance->KickTotal - SeenKickTotal) * 250.f;
+	SeenKickTotal = Instance->KickTotal;
 	TargetAimPitch = FMath::Clamp(Instance->AimPitch, -ShieldbreakBodyAnimPrivate::MaxAimPitch, ShieldbreakBodyAnimPrivate::MaxAimPitch);
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 }
@@ -154,6 +159,17 @@ void FShieldbreakBodyAnimProxy::Update(float DeltaSeconds)
 	Current.Weights = FMath::Lerp(Current.Weights, TargetWeights, Follow);
 	Current.PlayRate = FMath::Lerp(Current.PlayRate, TargetPlayRate, Follow);
 	AimPitch = FMath::Lerp(AimPitch, TargetAimPitch, Follow);
+	{
+		// Kick spring (8 Hz, lightly damped), sub-stepped for low frame rates.
+		constexpr float Omega = 2.f * UE_PI * 8.f;
+		const int32 Steps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds * 240.f), 1, 16);
+		const float Step = FMath::Max(0.f, DeltaSeconds) / Steps;
+		for (int32 Index = 0; Index < Steps; ++Index)
+		{
+			KickVelocity += (-(Omega * Omega) * KickPitch - 2.f * 0.6f * Omega * KickVelocity) * Step;
+			KickPitch += KickVelocity * Step;
+		}
+	}
 
 	Advance(Current, DeltaSeconds);
 	if (BlendAlpha < 1.f)
@@ -219,14 +235,29 @@ void FShieldbreakBodyAnimProxy::Sample(const FTrack& Track, FPoseContext& Output
 		}
 		if (TotalWeight == 0.f) { Output.ResetToRefPose(); }
 		Output.Pose.NormalizeRotations();
+		LockRoot(Output);
 		return;
 	}
 	Track.Animation->GetAnimationPose(PoseData, FAnimExtractContext(static_cast<double>(Track.Time), false));
+	LockRoot(Output);
+}
+
+void FShieldbreakBodyAnimProxy::LockRoot(FPoseContext& Output)
+{
+	// Lyra's locomotion clips can carry root motion (the root bone travels through each cycle). Nothing here extracts
+	// it, because the capsule moves the character, so any left in made the body slide ahead of its capsule and snap
+	// back on every loop and cross-fade: characters skipped as they moved. Pin the root to the ref pose instead.
+	const FCompactPoseBoneIndex Root(0);
+	if (Output.Pose.IsValidIndex(Root))
+	{
+		Output.Pose[Root] = Output.Pose.GetRefPose(Root);
+	}
 }
 
 bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 {
-	if (BlendAlpha >= 1.f || !Previous.Animation)
+	const bool bSnapshotFits = bFadeFromSnapshot && LastBasePose.Num() == Output.Pose.GetNumBones();
+	if (BlendAlpha >= 1.f || (!Previous.Animation && !bSnapshotFits))
 	{
 		Sample(Current, Output);
 	}
@@ -235,13 +266,30 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 		FPoseContext CurrentPose(Output);
 		FPoseContext FadingPose(Output);
 		Sample(Current, CurrentPose);
-		Sample(Previous, FadingPose);
+		if (bSnapshotFits)
+		{
+			for (FCompactPoseBoneIndex Bone : FadingPose.Pose.ForEachBoneIndex())
+			{
+				FadingPose.Pose[Bone] = LastBasePose[Bone.GetInt()];
+			}
+			FadingPose.Curve = CurrentPose.Curve;
+		}
+		else
+		{
+			Sample(Previous, FadingPose);
+		}
 		const FAnimationPoseData CurrentData(CurrentPose);
 		const FAnimationPoseData FadingData(FadingPose);
 		FAnimationPoseData OutputData(Output);
 		// Ease in/out so the fade doesn't start or stop abruptly.
 		FAnimationRuntime::BlendTwoPosesTogether(CurrentData, FadingData, FMath::SmoothStep(0.f, 1.f, BlendAlpha), OutputData);
 		Output.Pose.NormalizeRotations();
+	}
+
+	LastBasePose.SetNum(Output.Pose.GetNumBones(), EAllowShrinking::No);
+	for (FCompactPoseBoneIndex Bone : Output.Pose.ForEachBoneIndex())
+	{
+		LastBasePose[Bone.GetInt()] = Output.Pose[Bone];
 	}
 
 	ApplyAction(Output);
@@ -291,7 +339,8 @@ void FShieldbreakBodyAnimProxy::ApplyAction(FPoseContext& Output) const
 void FShieldbreakBodyAnimProxy::ApplyAimPitch(FPoseContext& Output) const
 {
 	using namespace ShieldbreakBodyAnimPrivate;
-	if (FMath::IsNearlyZero(AimPitch, 0.5f) || AimAxis.IsNearlyZero())
+	const float TotalPitch = AimPitch + KickPitch;
+	if (FMath::IsNearlyZero(TotalPitch, 0.5f) || AimAxis.IsNearlyZero())
 	{
 		return;
 	}
@@ -299,7 +348,7 @@ void FShieldbreakBodyAnimProxy::ApplyAimPitch(FPoseContext& Output) const
 	FCompactPose& Pose = Output.Pose;
 	const FBoneContainer& Bones = Pose.GetBoneContainer();
 	// Pitch up is a rotation about -right (UE's FRotator convention); each spine bone takes an equal share.
-	const FQuat Delta(AimAxis, -FMath::DegreesToRadians(AimPitch / UE_ARRAY_COUNT(AimBones)));
+	const FQuat Delta(AimAxis, -FMath::DegreesToRadians(TotalPitch / UE_ARRAY_COUNT(AimBones)));
 
 	for (const TCHAR* BoneName : AimBones)
 	{

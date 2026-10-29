@@ -13,6 +13,7 @@
 #include "HAL/IConsoleManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/ShieldbreakCharacter.h"
+#include "Player/ShieldbreakMovementComponent.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimInstance.h"
 #include "Weapons/ShieldbreakWeapon.h"
@@ -514,8 +515,11 @@ void UShieldbreakBodyAnimator::ApplyFirstPersonArmsTransform(float Dip)
 	const float Pitch = CVarThrowDip.GetValueOnGameThread() * Dip;
 	// Eased so the rise at the end of a swap starts quickly and settles softly.
 	const float Lower = FMath::InterpEaseOut(0.f, 1.f, SwapLower, 2.f) * 45.f;
+	// The procedural motion pivots around the gun hand, so sway and kick turn the gun rather than swing the whole rig.
+	const FVector Grip(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
+	const FTransform Motion = FTransform(-Grip) * FirstPersonMotion * FTransform(Grip);
 	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f))
-		* FTransform(FVector(0.f, 0.f, -Lower)));
+		* Motion * FTransform(FVector(0.f, 0.f, -Lower)));
 	AppliedThrowDip = Dip;
 	AppliedSwapLower = SwapLower;
 }
@@ -648,9 +652,138 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	}
 	const bool bSwapping = Now < FirstPersonEquipEnd || (CalibratedIdle && CalibratedIdle != Idle);
 	SwapLower = bSwapping ? 1.f : FMath::Max(0.f, SwapLower - World->GetDeltaSeconds() / 0.25f);
-	if (CalibratedIdle && (Dip > 0.f || AppliedThrowDip > 0.f || SwapLower > 0.f || AppliedSwapLower > 0.f))
+	if (CalibratedIdle)
 	{
+		UpdateFirstPersonMotion(World->GetDeltaSeconds());
 		ApplyFirstPersonArmsTransform(Dip);
+	}
+}
+
+namespace ShieldbreakBodyAnimatorPrivate
+{
+	TAutoConsoleVariable<float> CVarFPMotion(TEXT("sb.FPMotion"), 1.f, TEXT("First-person gun motion (bob, sway, kick, landing): 0 off, 1 normal."));
+
+	/** Damped spring toward Target, sub-stepped so it behaves the same at 15 and 240 FPS. */
+	void StepSpring(FVector& Value, FVector& Velocity, const FVector& Target, float Frequency, float Damping, float DeltaSeconds)
+	{
+		const float Omega = 2.f * UE_PI * Frequency;
+		const int32 Steps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds * 240.f), 1, 16);
+		const float Step = DeltaSeconds / Steps;
+		for (int32 Index = 0; Index < Steps; ++Index)
+		{
+			Velocity += (-(Omega * Omega) * (Value - Target) - 2.f * Damping * Omega * Velocity) * Step;
+			Value += Velocity * Step;
+		}
+	}
+
+	/** Moves Value toward Target with a time constant of 1 / Rate seconds. */
+	float Follow(float Value, float Target, float Rate, float DeltaSeconds)
+	{
+		return FMath::Lerp(Value, Target, 1.f - FMath::Exp(-Rate * DeltaSeconds));
+	}
+}
+
+void UShieldbreakBodyAnimator::UpdateFirstPersonMotion(float DeltaSeconds)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const UShieldbreakMovementComponent* Movement = OwnerCharacter ? OwnerCharacter->GetShieldbreakMovement() : nullptr;
+	const AController* Controller = OwnerCharacter ? OwnerCharacter->GetController() : nullptr;
+	const float Dt = FMath::Clamp(DeltaSeconds, 0.f, 0.05f);
+	if (!Movement || !Controller || Dt <= 0.f)
+	{
+		return;
+	}
+
+	// Look sway: the gun trails the view a little when turning, then settles.
+	const FRotator View = Controller->GetControlRotation();
+	float PitchSpeed = 0.f, YawSpeed = 0.f; // degrees per second
+	if (bHasLastViewRotation)
+	{
+		const FRotator Delta = (View - LastViewRotation).GetNormalized();
+		PitchSpeed = static_cast<float>(Delta.Pitch) / Dt;
+		YawSpeed = static_cast<float>(Delta.Yaw) / Dt;
+	}
+	LastViewRotation = View;
+	bHasLastViewRotation = true;
+
+	const FVector Velocity = OwnerCharacter->GetVelocity();
+	const FVector Local = OwnerCharacter->GetActorRotation().UnrotateVector(Velocity);
+	const float WalkSpeed = FMath::Max(1.f, Movement->MaxWalkSpeed);
+	const bool bGrounded = Movement->IsMovingOnGround() && !Movement->IsSliding();
+	const bool bFalling = Movement->IsFalling();
+
+	FVector TargetOffset = FVector::ZeroVector;
+	FVector TargetRotation = FVector::ZeroVector;
+	TargetRotation.X = FMath::Clamp(-PitchSpeed * 0.006f, -3.f, 3.f);
+	TargetRotation.Y = FMath::Clamp(-YawSpeed * 0.006f, -4.f, 4.f);
+	TargetRotation.Z = FMath::Clamp(-YawSpeed * 0.004f, -3.f, 3.f);
+	TargetOffset.Y = FMath::Clamp(-YawSpeed * 0.0025f, -1.2f, 1.2f);
+	TargetOffset.Z = FMath::Clamp(-PitchSpeed * 0.0025f, -1.f, 1.f);
+
+	// Strafing leans the gun into the move; running forward pulls it in slightly.
+	const float Strafe = FMath::Clamp(static_cast<float>(Local.Y) / WalkSpeed, -1.f, 1.f);
+	const float Forward = FMath::Clamp(static_cast<float>(Local.X) / WalkSpeed, -1.f, 1.f);
+	TargetRotation.Z += Strafe * 2.5f;
+	TargetOffset.Y -= Strafe * 0.4f;
+	TargetOffset.X -= Forward * 0.5f;
+
+	// Sprint: gun down and turned in.
+	SprintBlend = Follow(SprintBlend, Movement->IsSprinting() ? 1.f : 0.f, 10.f, Dt);
+	TargetRotation += FVector(-10.f, -12.f, 6.f) * SprintBlend;
+	TargetOffset += FVector(-2.f, -2.f, -3.f) * SprintBlend;
+
+	// In the air the gun lags the jump: it sits low on the way up and floats up on the way down.
+	if (bFalling)
+	{
+		TargetOffset.Z += FMath::Clamp(static_cast<float>(-Velocity.Z) * 0.003f, -2.5f, 2.5f);
+		LastFallSpeed = FMath::Max(0.f, static_cast<float>(-Velocity.Z));
+	}
+	else if (bWasFalling)
+	{
+		// Landing: a dip that scales with the fall.
+		MotionOffsetVelocity.Z -= FMath::Clamp(LastFallSpeed * 0.06f, 0.f, 90.f);
+		MotionRotationVelocity.X -= FMath::Clamp(LastFallSpeed * 0.02f, 0.f, 30.f);
+		LastFallSpeed = 0.f;
+	}
+	bWasFalling = bFalling;
+
+	StepSpring(MotionOffset, MotionOffsetVelocity, TargetOffset, 9.f, 0.75f, Dt);
+	StepSpring(MotionRotation, MotionRotationVelocity, TargetRotation, 9.f, 0.75f, Dt);
+
+	// Walk bob, one dip per footstep, eased in and out with speed.
+	const float Speed = static_cast<float>(Velocity.Size2D());
+	BobAmount = Follow(BobAmount, bGrounded ? FMath::Clamp(Speed / WalkSpeed, 0.f, 1.6f) : 0.f, 8.f, Dt);
+	if (bGrounded && Speed > 10.f)
+	{
+		BobPhase = FMath::Fmod(BobPhase + Dt * 2.f * UE_PI * Speed / 520.f, 2.f * UE_PI);
+	}
+	const float BobScale = BobAmount * (OwnerCharacter->bIsCrouched ? 0.6f : 1.f);
+	const FVector Bob(0.f, 0.5f * FMath::Sin(BobPhase), -0.6f * 0.5f * (1.f - FMath::Cos(2.f * BobPhase)));
+	const float BobRoll = 0.6f * FMath::Sin(BobPhase);
+
+	// Scoped aim keeps the gun steady; sb.FPMotion scales everything.
+	MotionScale = Follow(MotionScale, OwnerCharacter->IsZoomed() ? 0.3f : 1.f, 12.f, Dt);
+	const float Scale = MotionScale * FMath::Max(0.f, CVarFPMotion.GetValueOnGameThread());
+	const FVector Offset = (MotionOffset + Bob * BobScale) * Scale;
+	const FVector Rotation = (MotionRotation + FVector(0.f, 0.f, BobRoll * BobScale)) * Scale;
+	FirstPersonMotion = FTransform(FRotator(Rotation.X, Rotation.Y, Rotation.Z), Offset);
+}
+
+void UShieldbreakBodyAnimator::AddFirstPersonKick(float Strength)
+{
+	// Even the light rifle should read on screen; heavy guns kick up to about three times as hard.
+	const float Kick = FMath::Clamp(0.6f + Strength * 0.5f, 0.6f, 2.f);
+	MotionOffsetVelocity += FVector(-140.f, 0.f, 20.f) * Kick;
+	MotionRotationVelocity += FVector(160.f, FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(-20.f, 20.f)) * Kick;
+}
+
+void UShieldbreakBodyAnimator::AddBodyKick(float Strength)
+{
+	if (UShieldbreakBodyAnimInstance* Instance = bHasBodyArt && !bRagdoll && GetBodyMesh()
+		? Cast<UShieldbreakBodyAnimInstance>(GetBodyMesh()->GetAnimInstance()) : nullptr)
+	{
+		Instance->AddFireKick(FMath::Clamp(0.6f + Strength * 0.5f, 0.6f, 2.f));
 	}
 }
 

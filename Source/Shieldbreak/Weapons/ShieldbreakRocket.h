@@ -1,5 +1,5 @@
 // Rocket Launcher projectile: flies straight, explodes on impact (or after MaxLifetime) with heavy splash
-// damage and knockback strong enough for rocket jumps. Server-authoritative; clients see the replicated flight.
+// damage and knockback on everyone but the shooter. Server-authoritative; clients see the replicated flight.
 
 #pragma once
 
@@ -40,10 +40,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Rocket") float OuterRadius = 520.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Rocket") float KnockbackStrength = 1400.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Rocket") float KnockbackUp = 700.f;
-	/** Your own rockets hurt you less, so a rocket jump from full shields is survivable but costly. */
+	/** Your own rockets hurt you less than they hurt enemies. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rocket") float SelfDamageScale = 0.4f;
-	/** ...and launch you less violently than they launch enemies. */
-	UPROPERTY(EditDefaultsOnly, Category = "Rocket") float SelfKnockbackScale = 0.65f;
 
 private:
 	UFUNCTION() void HandleStop(const FHitResult& ImpactResult);

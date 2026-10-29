@@ -499,16 +499,13 @@ void AShieldbreakWeapon::FireShotLocal()
 void AShieldbreakWeapon::ApplyRecoil()
 {
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
-	AController* OwnerController = OwnerCharacter ? OwnerCharacter->GetController() : nullptr;
-	if (!OwnerController || Stats.RecoilPitch <= 0.f)
+	if (!OwnerCharacter || !OwnerCharacter->GetController() || Stats.RecoilPitch <= 0.f)
 	{
 		return;
 	}
-
-	FRotator Rotation = OwnerController->GetControlRotation();
-	Rotation.Pitch += Stats.RecoilPitch * FMath::FRandRange(0.8f, 1.2f);
-	Rotation.Yaw += Stats.RecoilPitch * FMath::FRandRange(-0.25f, 0.25f);
-	OwnerController->SetControlRotation(Rotation);
+	// Eased in over a few frames by the character, rather than a one-frame jump of the view.
+	OwnerCharacter->AddViewKick(FRotator(Stats.RecoilPitch * FMath::FRandRange(0.8f, 1.2f),
+		Stats.RecoilPitch * FMath::FRandRange(-0.25f, 0.25f), 0.f));
 }
 
 // ---- Server ----
@@ -792,6 +789,18 @@ FVector AShieldbreakWeapon::GetBarrelDirection() const
 void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 {
 	const FVector Muzzle = GetMuzzleLocation();
+	// The shooter sees the gun kick on screen; everyone else sees the body rock with the shot.
+	if (UShieldbreakBodyAnimator* Animator = GetOwningCharacter() ? GetOwningCharacter()->GetBodyAnimator() : nullptr)
+	{
+		if (bLocalView)
+		{
+			Animator->AddFirstPersonKick(Stats.RecoilPitch);
+		}
+		else
+		{
+			Animator->AddBodyKick(Stats.RecoilPitch);
+		}
+	}
 	if (bHasArt && !Stats.MuzzleFlash.IsNull())
 	{
 		UNiagaraComponent* Flash = ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());

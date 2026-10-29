@@ -17,6 +17,8 @@ Design rules enforced by validate():
     - every spawn stands on a surface, with a clear 80 x 184 capsule above it;
     - every item / objective floats 40-120 above a surface;
     - everything sits inside the map walls.
+    - cover-pass pieces (Map.cover) keep clear of ramps, lifts, spawns, items and objectives, leave no gap under 2 m,
+      and the launch maps keep at most 20% of their floor without nearby cover (validate_fill, openness).
 Jump reference: normal jump apex ~258, crouch-jump ~290, full Power Jump ~390 (use these for skill ledges).
 """
 
@@ -58,6 +60,8 @@ class Map:
         self.sun = (-48.0, 35.0)
         self.fog = 0.008
         self.notes = []
+        self.fill = []      # indices into self.blocks added by the cover pass (checked by validate_fill)
+        self.keepout = []   # (min_xy, max_xy) rectangles the cover pass must leave empty (self-test run-ups, etc.)
         # Floor slab + perimeter walls.
         hx, hy, t = half_x, half_y, 100.0
         self.block((-hx - t, -hy - t, floor_z - 100), (hx + t, hy + t, floor_z), "floor")
@@ -74,6 +78,12 @@ class Map:
         if sym:
             ma, mb = mirror(mn), mirror(mx)
             self.block(ma, mb, color)
+
+    def cover(self, a, b, color="cover", sym=False):
+        """A cover-pass block: same as block(), but validate_fill() checks its clearances."""
+        first = len(self.blocks)
+        self.block(a, b, color, sym)
+        self.fill.extend(range(first, len(self.blocks)))
 
     def ramp(self, start, end, width, color="ramp", sym=False, thickness=40.0):
         self.ramps.append((start, end, width, color, thickness))
@@ -422,7 +432,169 @@ def expand_horizontal(m, factor=2.0):
     return m
 
 
-MAPS = [expand_horizontal(m) for m in (keel(), bastion(), sanctum(), creekbed(), spire())] + [crucible()]
+# =====================================================================================================
+# Cover pass (2026-10-29): the 2x expansion kept the original handful of cover pieces, so the larger floors were
+# mostly open ground (see openness() below). These add human-scale cover, sightline breakers and small
+# high-ground pieces in the expanded coordinates. Heights: low cover 110-140 (shoot over it, crouch behind it),
+# tall walls 450-500 (break a lane's sightline). validate_fill() keeps them off ramps, lift paths, spawns,
+# items and objectives, and forbids gaps a player could snag in (anything between 0 and 2 m).
+# =====================================================================================================
+
+def fill_keel(m):
+    # Side lanes: a tall wall halfway down each lane so the lane is two fights, not one 100 m sightline,
+    # plus low cover to strafe between.
+    m.cover((-2100, 3400, 0), (-1900, 4400, 500), "wall", sym=True)
+    m.cover((-4300, -4400, 0), (-4100, -3400, 500), "wall", sym=True)
+    m.cover((-4400, 2100, 0), (-4000, 2400, 130), sym=True)
+    m.cover((-1700, 2300, 0), (-1300, 2600, 130), sym=True)
+    m.cover((-3200, -3900, 0), (-2900, -3600, 130), sym=True)
+    m.cover((-1200, -2700, 0), (-900, -2400, 500), "wall", sym=True)
+    # Base approach: crates flanking the long deck ramp so pushing out of base has somewhere to go.
+    m.cover((-3000, 700, 0), (-2600, 1000, 130), sym=True)
+    m.cover((-3000, -1100, 0), (-2600, -800, 130), sym=True)
+    m.cover((-5000, -300, 0), (-4800, 300, 140), sym=True)
+    m.cover((-3700, 1300, 0), (-3500, 1800, 450), "wall", sym=True)
+    m.cover((-2300, -1000, 0), (-2100, -500, 450), "wall", sym=True)
+    # Balcony and base tops (280): low cover so defenders aren't standing on an open slab.
+    m.cover((-6800, 2400, 280), (-6500, 2700, 410), "metal", sym=True)
+    m.cover((-5600, 3800, 280), (-5300, 4100, 410), "metal", sym=True)
+    m.cover((-7000, -1400, 280), (-6800, -1100, 410), "metal", sym=True)
+    m.cover((-7000, 1100, 280), (-6800, 1400, 410), "metal", sym=True)
+    # Back corner of the -Y lane.
+    m.cover((-6600, -3400, 0), (-6300, -3100, 130), sym=True)
+    m.cover((-5600, -4000, 0), (-5300, -3700, 130), sym=True)
+    # Under the deck: low walls to fight around the Overshield (the deck is 360 up, so plenty of headroom).
+    m.cover((-800, -300, 0), (-600, 300, 120), "dark", sym=True)
+    m.cover((-200, 600, 0), (200, 800, 120), "dark", sym=True)
+    # Deck top: two low barriers so the rockets fight isn't a flat open slab.
+    m.cover((-1100, 300, 400), (-1000, 900, 510), "metal", sym=True)
+    m.cover((300, 300, 400), (700, 400, 510), "metal", sym=True)
+
+
+def fill_bastion(m):
+    # Asymmetric, so both halves are placed by hand. Plateau top is 300.
+    # South plateau (red's home) and north plateau (blue's home).
+    m.cover((-100, -4700, 300), (100, -3500, 800), "stone")
+    m.cover((-100, 3500, 300), (100, 4700, 800), "stone")
+    m.cover((2000, -3300, 300), (2400, -3000, 430), "rock")
+    m.cover((-2100, 2900, 300), (-1800, 3200, 430), "rock")
+    m.cover((3800, -4900, 300), (4200, -4500, 430), "rock")
+    m.cover((-1400, 4300, 300), (-1000, 4700, 430), "rock")
+    m.cover((-1500, -3400, 300), (-1100, -3100, 430), "rock")
+    m.cover((1100, 3100, 300), (1500, 3400, 430), "rock")
+    m.cover((1800, -5400, 300), (2000, -4600, 750), "stone")
+    m.cover((-2000, 5000, 300), (-1800, 5800, 750), "stone")
+    # West and east bands beside the flags.
+    m.cover((-3300, -1700, 300), (-3000, -1400, 430), "rock")
+    m.cover((-3300, 1300, 300), (-3000, 1600, 430), "rock")
+    m.cover((3000, 1400, 300), (3300, 1700, 430), "rock")
+    m.cover((3000, -1600, 300), (3300, -1300, 430), "rock")
+    m.cover((-5300, 2000, 300), (-5100, 2500, 750), "stone")
+    m.cover((5100, -2900, 300), (5300, -2400, 750), "stone")
+    # Sniper-tower and battle-tower approaches, and the plateau rim around the pit.
+    m.cover((2400, 2500, 300), (2700, 2800, 430), "rock")
+    m.cover((3000, 3500, 300), (3200, 4100, 750), "stone")
+    m.cover((4600, 2600, 300), (4900, 2900, 430), "rock")
+    m.cover((-2600, -4100, 300), (-2300, -3800, 430), "rock")
+    m.cover((-800, -5600, 300), (-500, -5300, 430), "rock")
+    m.cover((-900, -2900, 300), (-600, -2600, 430), "rock")
+    m.cover((600, 2600, 300), (900, 2900, 430), "rock")
+    m.cover((3000, -4200, 300), (3300, -3900, 430), "rock")
+    m.cover((-4000, -200, 300), (-3700, 100, 430), "rock")
+    m.cover((3700, -100, 300), (4000, 200, 430), "rock")
+    # Bridge: one more waist-high post near each end.
+    m.cover((-1700, -300, 300), (-1600, -50, 410), "bridge")
+    m.cover((1600, 50, 300), (1700, 300, 410), "bridge")
+    # Pit: two more boulders so crossing under the bridge has cover.
+    m.cover((1500, 300, 0), (1800, 600, 140), "rock")
+    m.cover((-2100, 600, 0), (-1800, 900, 140), "rock")
+    m.cover((-500, -2200, 0), (-200, -1900, 140), "rock")
+
+
+def fill_sanctum(m):
+    # Mid-field ruins between each temple and the courtyard: a broken pillar pair that blocks the straight
+    # temple-to-temple line (snipers still see the courtyard), and low walls to cross the open sand.
+    m.cover((-4300, -900, 200), (-4000, -500, 700), "stone", sym=True)
+    m.cover((-4300, 500, 200), (-4000, 900, 700), "stone", sym=True)
+    m.cover((-4700, 1800, 200), (-4300, 2100, 330), "rock", sym=True)
+    m.cover((-3700, -2900, 200), (-3300, -2600, 330), "rock", sym=True)
+    m.cover((-6000, 2900, 200), (-5700, 3200, 330), "rock", sym=True)
+    m.cover((-6100, -3600, 200), (-5900, -2800, 600), "stone", sym=True)
+    m.cover((-3200, 2400, 200), (-2900, 2700, 330), "rock", sym=True)
+    # Courtyard rim: cover on the sand above the courtyard edge, leaving the step ramps clear.
+    m.cover((-2300, 2200, 200), (-1900, 2500, 330), "rock", sym=True)
+    m.cover((900, 2300, 200), (1300, 2600, 330), "rock", sym=True)
+    # Courtyard floor: low rocks in the quarters, clear of the plinth's run-up.
+    m.cover((-2400, -1500, 0), (-2100, -1200, 130), "rock", sym=True)
+    m.cover((900, -1800, 0), (1200, -1500, 130), "rock", sym=True)
+    # Behind the flank walkways and the long sand flank under them.
+    m.cover((1600, 3900, 200), (1900, 4200, 330), "rock", sym=True)
+    m.cover((-800, 3700, 200), (-600, 4100, 650), "stone", sym=True)
+    # The -Y quarter on each team's side had no flank walls (the originals mirror onto the other team's side).
+    m.cover((-5400, -3300, 200), (-4600, -3170, 520), "stone", sym=True)
+    m.cover((-5000, -3900, 200), (-4700, -3600, 330), "rock", sym=True)
+    m.cover((-3800, -4700, 200), (-3500, -4400, 330), "rock", sym=True)
+    m.cover((-2200, -2700, 200), (-1900, -2400, 330), "rock", sym=True)
+    m.cover((-700, -3000, 200), (-400, -2700, 330), "rock", sym=True)
+    m.keepout.append(((-900, -500), (900, 500)))  # self-test run-up and landing around the rockets plinth
+
+
+def fill_creekbed(m):
+    # Banks: more rocks between the huts and the creek so the approaches are short hops, not open lawns.
+    m.cover((-2400, -700, 0), (-2100, -400, 140), "rock", sym=True)
+    m.cover((-3700, 300, 0), (-3400, 600, 140), "rock", sym=True)
+    m.cover((-2600, 1700, 0), (-2300, 2000, 140), "rock", sym=True)
+    m.cover((-3500, -1500, 0), (-3300, -900, 400), "rock", sym=True)
+    m.cover((-4600, 2400, 0), (-4300, 2800, 140), "rock", sym=True)
+    m.cover((-4700, -2900, 0), (-4400, -2500, 140), "rock", sym=True)
+    m.cover((-2300, -2400, 0), (-2000, -2100, 140), "rock", sym=True)
+    # Creek: boulders either side of the mid-creek rock (the creek bed is about -60 to -120 here).
+    m.cover((-1200, 1200, -140), (-900, 1500, 60), "rock", sym=True)
+    m.cover((-1300, -1500, -140), (-1000, -1200, 60), "rock", sym=True)
+    m.cover((-500, 2000, -140), (-300, 2200, 60), "rock", sym=True)
+
+
+def fill_spire(m):
+    # Lower level: tall fins break the full-length lanes on both sides; low cover between them.
+    m.cover((-3700, -3200, 0), (-3500, -2500, 500), "metal", sym=True)
+    m.cover((-1800, 2700, 0), (-1600, 3200, 500), "metal", sym=True)
+    m.cover((-600, -3200, 0), (-400, -2600, 500), "metal", sym=True)
+    m.cover((-900, 2600, 0), (-600, 2900, 130), sym=True)
+    m.cover((-2800, -900, 0), (-2500, -600, 130), sym=True)
+    m.cover((-4700, 600, 0), (-4400, 900, 130), sym=True)
+    m.cover((-1900, -2400, 0), (-1600, -2100, 130), sym=True)
+    m.cover((-300, 1600, 0), (200, 1700, 120), sym=True)
+    m.cover((-3400, 1100, 0), (-3000, 1400, 130), sym=True)
+    m.cover((-1700, 1100, 0), (-1400, 1400, 130), sym=True)
+    m.cover((-700, 600, 0), (-400, 900, 130), sym=True)
+    # Mid platform (top 300): a low wall at its back edge.
+    m.cover((-3600, 2600, 300), (-3200, 2800, 410), "metal", sym=True)
+    # Base tops (600): the bases were 28 x 64 m of open floor. Low cover around the flag and spawns,
+    # and a front lip either side of the bridge.
+    m.cover((-7700, -2400, 600), (-7300, -2000, 730), "metal", sym=True)
+    m.cover((-7700, 2000, 600), (-7300, 2400, 730), "metal", sym=True)
+    m.cover((-6400, -1100, 600), (-6100, -800, 730), "metal", sym=True)
+    m.cover((-6400, 800, 600), (-6100, 1100, 730), "metal", sym=True)
+    m.cover((-5800, -1200, 600), (-5700, -700, 710), "metal", sym=True)
+    m.cover((-5800, 700, 600), (-5700, 1200, 710), "metal", sym=True)
+    m.cover((-7000, -3000, 600), (-6800, -2600, 1100), "metal", sym=True)
+    m.cover((-7000, 2600, 600), (-6800, 3000, 1100), "metal", sym=True)
+    # Bridge: two more staggered barriers, still leaving it the exposed route.
+    m.cover((-4500, 150, 600), (-4300, 400, 710), "metal", sym=True)
+    m.cover((-2300, -400, 600), (-2100, -150, 710), "metal", sym=True)
+
+
+FILLS = {"Keel": fill_keel, "Bastion": fill_bastion, "Sanctum": fill_sanctum, "Creekbed": fill_creekbed, "Spire": fill_spire}
+
+
+def expand_and_fill(m):
+    expand_horizontal(m)
+    FILLS[m.id](m)
+    m.notes.append(f"cover pass: {len(m.fill)} pieces")
+    return m
+
+
+MAPS = [expand_and_fill(m) for m in (keel(), bastion(), sanctum(), creekbed(), spire())] + [crucible()]
 DEFAULT_MAP = "Keel"
 
 
@@ -472,11 +644,136 @@ def validate(m):
         supported(base, -2, 25, "lift base")
         supported(target, -2, 25, "lift target")
 
+    errors.extend(validate_fill(m))
+    if m.fill:
+        exposed = openness(m)["exposed"]
+        if exposed > MAX_EXPOSED:
+            errors.append(f"{exposed * 100:.1f}% of the walkable floor has no cover within 8 m (max {MAX_EXPOSED * 100:.0f}%)")
+
     reds = [s for s in m.spawns if s[0] < 0]
     blues = [s for s in m.spawns if s[0] > 0]
     if len(reds) < 4 or len(blues) < 4:
         errors.append(f"needs >= 4 spawns per side (red {len(reds)}, blue {len(blues)})")
     return errors
+
+
+def rect_gap(amn, amx, bmn, bmx):
+    """Horizontal gap between two XY rectangles (0 when they touch or overlap)."""
+    dx = max(bmn[0] - amx[0], amn[0] - bmx[0], 0.0)
+    dy = max(bmn[1] - amx[1], amn[1] - bmx[1], 0.0)
+    return math.hypot(dx, dy)
+
+
+def rect_segment_distance(mn, mx, a, b):
+    """Horizontal distance from an XY rectangle to segment a-b (sampled; fine at authoring scale)."""
+    steps = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 25))
+    best = float("inf")
+    for i in range(steps + 1):
+        t = i / steps
+        x, y = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+        best = min(best, rect_gap(mn, mx, (x, y), (x, y)))
+    return best
+
+
+MIN_GAP = 200.0       # a gap narrower than this between cover and other geometry snags players and bots
+ANCHOR_CLEAR = 200.0  # cover keeps this far from spawns, pickups, flags, the ball and lift ends
+TERRAIN_RAMP_WIDTH = 2000.0  # ramps at least this wide are ground slopes, not walkways
+HEADROOM = 200.0      # cover under an overhang leaves standing room above it, or meets it
+
+
+def validate_fill(m):
+    errors = []
+    anchors = [("spawn", s) for s in m.spawns]
+    anchors += [(f"weapon {k}", at) for k, at, _ in m.weapons] + [(f"power-up {k}", at) for k, at, _ in m.powerups]
+    anchors += [("flag", at) for at in m.flags if at] + ([("ball", m.ball)] if m.ball else [])
+    anchors += [("lift end", p) for lift in m.lifts for p in lift]
+    fill = set(m.fill)
+    for i in m.fill:
+        mn, mx, _ = m.blocks[i]
+        name = f"cover {tuple(round(v) for v in mn)}..{tuple(round(v) for v in mx)}"
+        if mn[0] < -m.half_x or mx[0] > m.half_x or mn[1] < -m.half_y or mx[1] > m.half_y:
+            errors.append(f"{name} is outside the walls")
+        cx, cy = (mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2
+        # Rests on a top surface, or is sunk into a slope with most of its height above it.
+        if not any(abs(z - mn[2]) <= 5 or mn[2] < z < mx[2] - 100 for z in m.surfaces_at(cx, cy)):
+            errors.append(f"{name} does not stand on a surface")
+        for start, end, width, _, _ in m.ramps:
+            if width >= TERRAIN_RAMP_WIDTH:
+                continue  # a terrain slope (Creekbed's creek), not a walkway: cover may stand on it
+            lo, hi = min(start[2], end[2]) - 40, max(start[2], end[2]) + HEADROOM
+            if mn[2] < hi and mx[2] > lo and rect_segment_distance(mn, mx, start, end) < width / 2 + 100:
+                errors.append(f"{name} blocks the ramp {start}->{end}")
+        for what, p in anchors:
+            if mn[2] < p[2] + 200 and mx[2] > p[2] - 150 and rect_gap(mn, mx, p, p) < ANCHOR_CLEAR:
+                errors.append(f"{name} is within {ANCHOR_CLEAR:.0f} of the {what} at {p}")
+        for base, target in m.lifts:
+            if mx[2] > min(base[2], target[2]) + 5 and rect_segment_distance(mn, mx, base, target) < ANCHOR_CLEAR:
+                errors.append(f"{name} is in the path of the lift {base}->{target}")
+        for kmn, kmx in m.keepout:
+            if rect_gap(mn, mx, kmn, kmx) == 0.0:
+                errors.append(f"{name} is in a keep-out area {kmn}..{kmx}")
+        for j, (omn, omx, _) in enumerate(m.blocks):
+            if j == i:
+                continue
+            if omn[2] < mx[2] and omx[2] > mn[2] + 5:
+                gap = rect_gap(mn, mx, omn, omx)
+                if omn[0] < mx[0] and omx[0] > mn[0] and omn[1] < mx[1] and omx[1] > mn[1] and not (j in fill and j < i):
+                    errors.append(f"{name} overlaps the block {omn}..{omx} (place it beside, not inside)")
+                if 0.0 < gap < MIN_GAP and not (j in fill and j < i):
+                    errors.append(f"{name} leaves a {gap:.0f} gap to the block {omn}..{omx}")
+            elif omn[2] >= mx[2] and rect_gap(mn, mx, omn, omx) == 0.0 and (omn[0] < mx[0] and omx[0] > mn[0] and omn[1] < mx[1] and omx[1] > mn[1]):
+                clearance = omn[2] - mx[2]
+                if 0.0 < clearance < HEADROOM:
+                    errors.append(f"{name} leaves only {clearance:.0f} headroom under {omn}..{omx}")
+    return errors
+
+
+MAX_EXPOSED = 0.20  # share of walkable floor allowed with no cover within 8 m (pre-expansion maps were 1-23%)
+
+
+def openness(m, step=250.0, near=800.0):
+    """Coarse cover metrics on a grid of standing points (the highest surface at each point).
+
+    exposed: share of points with no chest-high geometry (top >= feet + 100) within `near` cm.
+    sight_mean / sight_p90: the average of 16 horizontal eye-height (150) rays per point (how far you can see,
+    on average, from where you stand), in metres; walls end every ray, so it is finite.
+    Ramps are ignored as blockers, so these slightly overstate openness.
+    """
+    points = []
+    x = -m.half_x + step / 2
+    while x < m.half_x:
+        y = -m.half_y + step / 2
+        while y < m.half_y:
+            zs = m.surfaces_at(x, y)
+            if zs:
+                points.append((x, y, max(zs)))
+            y += step
+        x += step
+    exposed, sights = 0, []
+    for x, y, z in points:
+        covered = any(mn[2] <= z + 100 < mx[2] and 0.0 < rect_gap(mn, mx, (x, y), (x, y)) <= near for mn, mx, _ in m.blocks)
+        exposed += 0 if covered else 1
+        eye, total = z + 150, 0.0
+        for k in range(16):
+            dx, dy = math.cos(k * math.pi / 8), math.sin(k * math.pi / 8)
+            hit = float("inf")
+            for mn, mx, _ in m.blocks:
+                if not (mn[2] < eye < mx[2]):
+                    continue
+                t0, t1, ok = -float("inf"), float("inf"), True
+                for o, d, lo, hi in ((x, dx, mn[0], mx[0]), (y, dy, mn[1], mx[1])):
+                    if abs(d) < 1e-9:
+                        ok = ok and lo <= o <= hi
+                    else:
+                        a, b = (lo - o) / d, (hi - o) / d
+                        t0, t1 = max(t0, min(a, b)), min(t1, max(a, b))
+                if ok and t1 > 0 and t1 >= t0:
+                    hit = min(hit, max(t0, 0.0))
+            total += hit
+        sights.append(total / 16)
+    sights.sort()
+    return {"points": len(points), "exposed": exposed / max(1, len(points)),
+            "sight_mean": sum(sights) / max(1, len(sights)) / 100, "sight_p90": sights[int(len(sights) * 0.9)] / 100}
 
 
 # =====================================================================================================
@@ -656,7 +953,9 @@ def main():
     for m in MAPS:
         errors = validate(m)
         status = "OK" if not errors else f"{len(errors)} problem(s)"
-        print(f"{m.id:10s} {status}  ({len(m.blocks)} blocks, {len(m.ramps)} ramps, {len(m.lifts)} lifts, {len(m.spawns)} spawns)")
+        o = openness(m)
+        print(f"{m.id:10s} {status}  ({len(m.blocks)} blocks, {len(m.fill)} cover-pass, {len(m.ramps)} ramps, {len(m.lifts)} lifts, "
+              f"{len(m.spawns)} spawns; {o['exposed'] * 100:.0f}% exposed, average view {o['sight_mean']:.0f} m, p90 {o['sight_p90']:.0f} m)")
         for e in errors:
             print("    -", e)
         failed = failed or bool(errors)

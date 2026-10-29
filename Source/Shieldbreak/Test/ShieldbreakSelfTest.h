@@ -100,5 +100,6 @@ private:
 	float Mark = -1.f;
 	float Value0 = 0.f;
 	float Value1 = 0.f;
+	FVector LastHand = FVector::ZeroVector;
 	int32 Phase = 0;
 };

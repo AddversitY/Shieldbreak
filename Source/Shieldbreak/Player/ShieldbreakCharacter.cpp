@@ -575,6 +575,15 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
 	if (bLocalPlayerView)
 	{
+		// Shot recoil eases into the view (a 20 ms time constant: ~90% within 50 ms), so bursts read as a kick
+		// rather than a frame-to-frame jump. The total turn is unchanged.
+		if (!PendingViewKick.IsNearlyZero(0.001f))
+		{
+			const float Portion = DeltaSeconds > 0.f ? 1.f - FMath::Exp(-DeltaSeconds / 0.02f) : 0.f;
+			const FRotator Step = PendingViewKick.IsNearlyZero(0.01f) ? PendingViewKick : PendingViewKick * Portion;
+			PendingViewKick -= Step;
+			Controller->SetControlRotation(Controller->GetControlRotation() + Step);
+		}
 		UpdateAimAssist(DeltaSeconds);
 		if (!bDeathHandled) { UpdateCrouchCamera(DeltaSeconds); }
 	}

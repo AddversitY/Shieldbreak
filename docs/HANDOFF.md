@@ -47,6 +47,12 @@ and a shadowed wall.
   commands are in `SMOOTHING_AND_SHIELD_FEEDBACK.md`. Complete AAA presentation,
   FPS-specific animation authoring, foot IK and more environment art remain ahead.
 
+## Latest cloud pass (2026-10-29)
+
+- Cover pass on the five enlarged maps: low cover, lane-splitting walls and base-top cover, placed by
+  `fill_<map>()` in `Design/maps/shieldbreak_maps.py` and checked by its validator (exposed floor now 10-18%,
+  down from 31-48% after the 2× stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
+
 ## Still open
 
 - All five launch maps have a first expansion to 2x X/Y (4x ground area), keeping

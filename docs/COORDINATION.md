@@ -40,11 +40,37 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-10-29 Claude (cloud): map cover pass, PR from `claude/project-thread-1xgiqk`. Touches only
+  `Design/maps/`, `Design/map-planner/` outputs, the generated maps data and docs.
 - 2026-10-27 Codex: map expansion/Spire modules/planner and the subsequent
   animation/movement-presentation/shield-hit pass are complete. See desktop
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
+  compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
+  after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid
+  ahead of its capsule and snapped back on each loop and cross-fade. (2) `ShieldbreakBotController.cpp` `FollowPathTo`
+  skips waypoints already passed after each once-a-second repath (bots used to turn back toward the nearest node
+  behind them) and rounds corners near a node. New self-test: "Locomotion plays in place" (pelvis drift under 25 cm
+  while jogging on the spot). **Please report the measured drift before this change if you can.** It shows whether
+  root motion was the cause. If skipping remains, say whether it shows offline with bots or only over the network.
+- 2026-10-29 Claude (cloud): **first-person feel and animation smoothing** (same branch, PR #5). Not compiled here.
+  `Visuals/ShieldbreakBodyAnimator.*` (first-person bob/sway/lean/sprint/landing/kick), `ShieldbreakBodyAnimInstance.*`
+  (fade from snapshot when a fade is interrupted; per-shot upper-body kick), `Weapons/ShieldbreakWeapon.cpp` (kick hooks;
+  recoil goes through `AShieldbreakCharacter::AddViewKick`), `Player/ShieldbreakCharacter.*` (eased recoil). Please build,
+  run `Tools/SelfTest.bat` (four new presentation checks), and play Keel with bots for a few minutes. Judge whether
+  the walk bob, sway and kick feel right. The amplitudes are in `UpdateFirstPersonMotion` and `AddFirstPersonKick`,
+  and `sb.FPMotion` scales them all. Details: `docs/SMOOTHING_AND_SHIELD_FEEDBACK.md`.
+- 2026-10-29 Claude (cloud): **cover pass on the five enlarged launch maps** (branch `claude/project-thread-1xgiqk`).
+  Data only: `Design/maps/shieldbreak_maps.py` adds 20-44 blocks per map, and the regenerated
+  `Game/ShieldbreakMapsData.cpp` is purely additive (Crucible unchanged). Not compiled here. Please build, then run
+  `Tools/SelfTest.bat` and the map tours (`Tools/MapTour.bat` for Keel, Bastion, Sanctum, Creekbed, Spire, plus
+  Keel CTF and Bastion KOTH). Watch for: bots stuck on the new cover, the Sanctum plinth jump checks, Spire's four
+  lift landings, and any spawn reported blocked. Screenshot one lane per map. Cover placement rules and the
+  before/after openness numbers are in `docs/MAPS.md`.
+  The cloud can't push LFS objects, so `Design/maps/*.png` still show the stretched layouts: run
+  `python Design/maps/shieldbreak_maps.py` on the desktop and commit the regenerated previews.
 - Full manual Settings/Controls/music walkthrough of the merged menu is still
   separate from the automated gameplay and networking results below.
 - Further human playtesting should judge movement feel, bespoke FPS poses,
@@ -123,6 +149,26 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-10-29 Claude, driving the desktop (`desktop-888hmr5`) remotely: **PR #5 built and tested**. The editor build
+  compiled first time (only the existing `RemoteViewPitch` deprecation warning). Full gameplay suite **124/126**.
+  All new presentation checks pass:
+  - shot kick peaks at 1.33 deg and settles
+  - recoil is spread (0.65 of 2 deg in the first frame), with the full 2 deg in 0.3 s
+  - interrupted fade: hand peaks at 279 cm/s
+  - jogging in place: the pelvis wanders 6.3 cm
+
+  The two failures are both "...and launches you upward" in the Rocket jump step (peak up-velocity 0.00; the
+  damage itself is right, health 27). **This is not from PR #5.** Main (`eec415c`) and the cover-pass commit fail
+  identically when built today (115/117), although Codex recorded 117/117 for `eec415c` on 10-27. The grenade jump
+  on an uncontrolled dummy still launches (526 uu/s). The shooter in this step is an AI-controlled dummy whose
+  controller tick the test freezes. Moot since then: Vincent dropped rocket jumps (2026-10-29), so own rockets no longer knock you back and the step now checks that.
+
+  Map tours: Keel 23/23 (92 FPS), Bastion 23/23, Sanctum 25/25, Creekbed 23/23, Spire 27/27, Bastion KOTH 27/27.
+  Keel CTF first failed 31/33: all four bots stood on their own bases for the whole match with 0 kills. It fails
+  the same way before PR #5's bot change. CTF bots split attack/defend on their object id's parity, and this match
+  made all four defenders. Fixed in `ae0ef76`, which alternates by rank within the team, and `9a413cd`, where
+  defenders move between guard spots every 6 s. Keel CTF is now **33/33** (12 kills, 0 stuck).
+  With 4 bots, FPS ran 84-117 across the tours.
 - 2026-10-27 Codex desktop: **smoother presentation and visible shield hits**.
   Built on Claude's native animation/first-person rig. Ground movement now blends
   four directional clips continuously, preserves gait phase through turns and

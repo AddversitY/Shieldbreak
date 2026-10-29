@@ -26,7 +26,7 @@ public:
 	AWeapon_SniperRifle();
 };
 
-/** Power weapon: slow rockets with lethal splash and rocket-jump knockback. */
+/** Power weapon: slow rockets with lethal splash and knockback. */
 UCLASS()
 class SHIELDBREAK_API AWeapon_RocketLauncher : public AShieldbreakWeapon
 {
