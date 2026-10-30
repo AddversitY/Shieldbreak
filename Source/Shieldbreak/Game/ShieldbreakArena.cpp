@@ -747,7 +747,10 @@ void AShieldbreakArena::SpawnLighting()
 	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
 	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
 	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
-	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
+	// Lumen (on by default since the desktop's RTX 2080 Ti became the build machine; -SBNoLumen for the old look) bounces
+	// the sun itself, so the fill light goes and the sky light drops to a natural level.
+	const bool bLumen = !FParse::Param(FCommandLine::Get(), TEXT("SBNoLumen"));
+	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 1.5f : 6.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
@@ -836,12 +839,20 @@ void AShieldbreakArena::SpawnLighting()
 	}
 
 	// A light grade: some bloom for the trim and glow, a touch more saturation and contrast, and a soft vignette.
-	if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
+	// The same unbound volume switches on Lumen bounce light and reflections (the project default is off).
+	if (APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
 	{
-		if (APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
+		Grade->bUnbound = true;
+		FPostProcessSettings& Settings = Grade->Settings;
+		if (bLumen)
 		{
-			Grade->bUnbound = true;
-			FPostProcessSettings& Settings = Grade->Settings;
+			Settings.bOverride_DynamicGlobalIlluminationMethod = true;
+			Settings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
+			Settings.bOverride_ReflectionMethod = true;
+			Settings.ReflectionMethod = EReflectionMethod::Lumen;
+		}
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
+		{
 			Settings.bOverride_BloomIntensity = true;
 			Settings.BloomIntensity = 0.9f;
 			Settings.bOverride_BloomThreshold = true;
