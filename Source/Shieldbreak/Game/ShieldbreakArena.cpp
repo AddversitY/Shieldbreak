@@ -75,10 +75,17 @@ namespace ShieldbreakArenaPrivate
 	const FLinearColor TrimRed(1.f, 0.22f, 0.12f);
 	const FLinearColor TrimBlue(0.2f, 0.45f, 1.f);
 
+	/** Lumen bounce light and reflections are on unless -SBNoLumen (see SpawnLighting). */
+	bool UsesLumen()
+	{
+		return !FParse::Param(FCommandLine::Get(), TEXT("SBNoLumen"));
+	}
+
 	/** Emissive share of the mountain ring's colour; -SBMountainLight=<x> overrides it for comparisons. */
 	float MountainSelfLight()
 	{
-		float Value = 0.35f;
+		// Lumen's sky light reaches less of the far ring than the old flat sky light did.
+		float Value = UsesLumen() ? 0.6f : 0.35f;
 		FParse::Value(FCommandLine::Get(), TEXT("SBMountainLight="), Value);
 		return FMath::Max(0.f, Value);
 	}
@@ -574,9 +581,9 @@ void AShieldbreakArena::BuildMapArt()
 		// One instanced component per piece: a draw call or two per kind, however many stand around the map.
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
 		Instances->SetCastShadow(false);
-		// Like the backdrop mountains: in distance-field lighting the kit came out near black up close (sunlit tops
-		// included) and only lit beyond its range, so keep it to the shadow maps and the sky light.
-		Instances->bAffectDistanceFieldLighting = false;
+		// Without Lumen, distance-field sky occlusion left the kit near black up close (sunlit tops included), so it
+		// stays out of the distance fields. Lumen needs them to light it, so with Lumen it stays in.
+		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
 		// Pieces laid a few centimetres proud of a block (reliefs, edge bands, the floor inlay) sit inside the block's
 		// distance field, so the sky light's occlusion blacks them out; a little self light keeps them reading.
 		const bool bFlush = Group.Piece == TEXT("Relief") || Group.Piece == TEXT("Fascia") || Group.Piece == TEXT("Inlay");
@@ -749,8 +756,8 @@ void AShieldbreakArena::SpawnLighting()
 	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
 	// Lumen (on by default since the desktop's RTX 2080 Ti became the build machine; -SBNoLumen for the old look) bounces
 	// the sun itself, so the fill light goes and the sky light drops to a natural level.
-	const bool bLumen = !FParse::Param(FCommandLine::Get(), TEXT("SBNoLumen"));
-	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 1.5f : 6.f;
+	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
+	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 3.f : 6.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
