@@ -94,7 +94,9 @@ def import_fbx(fbx):
     data.combine_meshes = True
     data.auto_generate_collision = False
     data.generate_lightmap_u_vs = False
-    data.normal_import_method = unreal.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS
+    # Let Unreal compute the normals from the triangle winding. The exported normals come through export_fbx's mirror
+    # pointing inward, which lit the kit from behind (sunlit tops rendered black).
+    data.normal_import_method = unreal.FBXNormalImportMethod.FBXNIM_COMPUTE_NORMALS
     data.import_uniform_scale = 1.0
     task.options = ui
     tools.import_asset_tasks([task])
