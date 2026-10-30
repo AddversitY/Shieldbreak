@@ -644,7 +644,8 @@ void AShieldbreakArena::BuildCladding()
 				? Instances->CreateDynamicMaterialInstance(Slot) : nullptr;
 			if (MID)
 			{
-				MID->SetVectorParameterValue(TEXT("Tint"), Look.CladTint);
+				// A group's own colour (sandstone paving) overrides the map's metal.
+				MID->SetVectorParameterValue(TEXT("Tint"), Group.TeamTint.A > 0.f ? Group.TeamTint : Look.CladTint);
 				MID->SetVectorParameterValue(TEXT("AccentColor"), Look.CladAccent);
 			}
 		}

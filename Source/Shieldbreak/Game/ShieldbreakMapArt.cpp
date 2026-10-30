@@ -212,16 +212,20 @@ namespace ShieldbreakMapArtPrivate
 		const TCHAR* Top;
 		const TCHAR* Edge;
 		const TCHAR* Floor[2];
+		/** Tint for the plates instead of the map's (alpha 0: the map's CladTint). */
+		FLinearColor FloorTint = FLinearColor::Transparent;
 	};
 
 	const FCladRecipe& CladRecipe(FName Style)
 	{
 		struct FEntry { const TCHAR* Style; FCladRecipe Recipe; };
 		static const FEntry Entries[] = {
-			{ TEXT("stone"), { TEXT("BandPlates"), { TEXT("WallMetal"), TEXT("WallBand") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorMetal"), TEXT("FloorSimple") } } },
-			{ TEXT("floor"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorSquares"), TEXT("FloorMetal2") } } },
+			{ TEXT("stone"), { TEXT("BandPlates"), { TEXT("WallMetal"), TEXT("WallBand") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorMetal"), TEXT("FloorMetal") } } },
+			{ TEXT("floor"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorMetal2"), TEXT("FloorMetal2") } } },
 			{ TEXT("wall"), { TEXT("BandTriangles"), { TEXT("WallDark"), TEXT("WallMetal") }, TEXT("BandAccent"), TEXT("BandAccent"), { nullptr, nullptr } } },
-			{ TEXT("sand"), { TEXT("BandTriangles"), { TEXT("WallMetal"), TEXT("WallMetal") }, TEXT("BandPlates"), TEXT("BandPlates"), { nullptr, nullptr } } },
+			// The plateaus are paved in sandstone-tinted plates, so the courtyards read as built, not as greybox.
+			{ TEXT("sand"), { TEXT("BandTriangles"), { TEXT("WallMetal"), TEXT("WallMetal") }, TEXT("BandPlates"), TEXT("BandPlates"),
+				{ TEXT("FloorSquares"), TEXT("FloorSquares") }, FLinearColor(0.64f, 0.55f, 0.42f) } },
 			{ TEXT("red"), { TEXT("BandDark"), { TEXT("WallPlate"), TEXT("WallPlate") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorCenter"), TEXT("FloorCenter") } } },
 			{ TEXT("blue"), { TEXT("BandDark"), { TEXT("WallPlate"), TEXT("WallPlate") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorCenter"), TEXT("FloorCenter") } } },
 			{ TEXT("tower"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallMetal") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorX"), TEXT("FloorX") } } },
@@ -297,9 +301,12 @@ namespace ShieldbreakMapArtPrivate
 	}
 
 	/** Plates over a block's top, Lift above it, run along its long side and checkered between the recipe's two. */
-	void CladTop(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector& Min, const FVector& Max)
+	void CladTop(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector& Min, const FVector& Max,
+		const TCHAR* Piece = nullptr, double Z = 0.0)
 	{
+		// The plates are two-sided (M_SB_Trim), so the same piece also lines an underside.
 		constexpr double Lift = 1.0, TileSize = 400.0;
+		const bool bUnder = Piece != nullptr;
 		const FVector Size = Max - Min;
 		const bool bAlongX = Size.X >= Size.Y;
 		const double Long = bAlongX ? Size.X : Size.Y, Short = bAlongX ? Size.Y : Size.X;
@@ -312,8 +319,9 @@ namespace ShieldbreakMapArtPrivate
 			{
 				const double U = -Long * 0.5 + TileLong * (I + 0.5), V = -Short * 0.5 + TileShort * (J + 0.5);
 				const FVector2D Offset = bAlongX ? FVector2D(U, V) : FVector2D(V, U);
-				Group(Groups, Recipe.Floor[(I + J) % 2]).Add(FTransform(FRotator(0.f, bAlongX ? 0.f : 90.f, 0.f),
-					FVector(Center.X + Offset.X, Center.Y + Offset.Y, Max.Z + Lift), FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
+				Group(Groups, bUnder ? Piece : Recipe.Floor[(I + J) % 2], bUnder ? FLinearColor::Transparent : Recipe.FloorTint).Add(
+					FTransform(FRotator(0.f, bAlongX ? 0.f : 90.f, 0.f),
+					FVector(Center.X + Offset.X, Center.Y + Offset.Y, bUnder ? Z - Lift : Max.Z + Lift), FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
 			}
 		}
 	}
@@ -420,6 +428,11 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 		{
 			CladTop(Groups, Recipe, Block.Min, Block.Max);
 		}
+		// Raised slabs (roofs, walkways) are seen from below too.
+		if (Inside(Center) && Block.Min.Z - Layout.FloorZ >= 150.0 && Size.Z <= 100.0)
+		{
+			CladTop(Groups, Recipe, Block.Min, Block.Max, TEXT("FloorDark"), Block.Min.Z);
+		}
 	}
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
@@ -441,8 +454,21 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 		{
 			for (int32 J = 0; J < ShortTiles; ++J)
 			{
-				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Across * (-Ramp.Width * 0.5 + TileShort * (J + 0.5)) + Up * Lift;
-				Group(Groups, Recipe.Floor[(I + J) % 2]).Add(FTransform(Rotation, P, FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
+				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Across * (-Ramp.Width * 0.5 + TileShort * (J + 0.5));
+				const FVector Scale(TileLong / TileSize, TileShort / TileSize, 1.0);
+				Group(Groups, Recipe.Floor[(I + J) % 2], Recipe.FloorTint).Add(FTransform(Rotation, P + Up * Lift, Scale));
+				Group(Groups, TEXT("FloorDark")).Add(FTransform(Rotation, P - Up * (Ramp.Thickness + Lift), Scale));
+			}
+		}
+		// Both edges: one band row, standing on the slab's underside and tilted with it.
+		for (const double Side : { -1.0, 1.0 })
+		{
+			const FVector Normal = Across * Side;
+			const FRotator EdgeRotation = FRotationMatrix::MakeFromXZ(Normal, Up).Rotator();
+			for (int32 I = 0; I < LongTiles; ++I)
+			{
+				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Normal * (Ramp.Width * 0.5 + 2.0) - Up * Ramp.Thickness;
+				Group(Groups, Recipe.Edge).Add(FTransform(EdgeRotation, P, FVector(1.0, TileLong / TileSize, Ramp.Thickness / 100.0)));
 			}
 		}
 	}
