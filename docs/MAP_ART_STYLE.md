@@ -55,7 +55,7 @@ skyline landmark.
   (`Saved/Logs/MapArtImport.txt`).
 - `ShieldbreakMapArt::Plan` (`Source/Shieldbreak/Game/ShieldbreakMapArt.cpp`) places it per map, seeded by map id.
   `AShieldbreakArena::BuildMapArt` draws one instanced component per piece with no collision, no navigation and no
-  shadows. Solid slots keep their flat palette surface, tinted with the map's colours; `M_Glow*` slots keep their emissive. `-SBNoMapArt` turns
+  shadows. Solid slots get the tinted world materials; `M_Glow*` slots keep their emissive. `-SBNoMapArt` turns
   it off for before/after shots.
 - `ShieldbreakMapArt::GetLook` holds each map's ground, rock, metal, carved-stone, foliage and haze colours.
 
