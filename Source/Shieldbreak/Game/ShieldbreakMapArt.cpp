@@ -137,6 +137,51 @@ namespace ShieldbreakMapArtPrivate
 		}
 	}
 
+	/** Inside-the-map dressing for built structures of the given styles: a carved relief panel stretched over each
+	 *  wall face (6 cm proud, so it never changes what you can stand on or shoot past), and a crown on every
+	 *  unwalkably tall block. Faces looking out of the map are skipped, as BuildTrim does. */
+	void DressStructures(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout, std::initializer_list<const TCHAR*> Styles,
+		float CrownAbove)
+	{
+		constexpr float Margin = 40.f, MinWidth = 220.f, MinHeight = 250.f;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			bool bStyled = false;
+			for (const TCHAR* Style : Styles)
+			{
+				bStyled = bStyled || Block.Style == FName(Style);
+			}
+			const FVector Size = Block.Max - Block.Min;
+			if (!bStyled || Size.Z < MinHeight)
+			{
+				continue;
+			}
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			struct FFace { FVector2D Normal; double Offset; double Width; };
+			const FFace Faces[4] = { { FVector2D(1.0, 0.0), Size.X * 0.5, Size.Y }, { FVector2D(-1.0, 0.0), Size.X * 0.5, Size.Y },
+				{ FVector2D(0.0, 1.0), Size.Y * 0.5, Size.X }, { FVector2D(0.0, -1.0), Size.Y * 0.5, Size.X } };
+			for (const FFace& Face : Faces)
+			{
+				const FVector2D At = FVector2D(Center.X, Center.Y) + Face.Normal * Face.Offset;
+				if (Face.Width < MinWidth || FMath::Abs(At.X) > Layout.HalfExtent.X + 1.0 || FMath::Abs(At.Y) > Layout.HalfExtent.Y + 1.0)
+				{
+					continue;
+				}
+				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X));
+				Group(Groups, TEXT("Relief")).Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(At.X, At.Y, Block.Min.Z + Margin),
+					FVector(1.0, (Face.Width - 2.0 * Margin) / 100.0, (Size.Z - 2.0 * Margin) / 100.0)));
+			}
+			const bool bOnEdge = FMath::Abs(Center.X) + Size.X * 0.5 > Layout.HalfExtent.X || FMath::Abs(Center.Y) + Size.Y * 0.5 > Layout.HalfExtent.Y;
+			if (Block.Max.Z - Layout.FloorZ >= CrownAbove && !bOnEdge)
+			{
+				// The crown is authored on a 100 cm footprint and 206 cm tall; keep it under about 6 m on wide blocks.
+				const double Height = FMath::Min(FMath::Min(Size.X, Size.Y) / 100.0, 3.0);
+				Group(Groups, TEXT("Crown")).Add(FTransform(FRotator::ZeroRotator, FVector(Center.X, Center.Y, Block.Max.Z),
+					FVector(Size.X / 100.0, Size.Y / 100.0, Height)));
+			}
+		}
+	}
+
 	/** A pylon at each of the given corners (signs of X and Y), Distance outside the walls diagonally. */
 	void CornerPylons(TArray<FShieldbreakArtGroup>& Groups, FRandomStream& Random, const FShieldbreakMapLayout& Layout,
 		std::initializer_list<FVector2D> Corners, float Distance, float ScaleMin, float ScaleMax)
@@ -277,6 +322,8 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		Rocks(TEXT("RockShelf"), { 18, 2000.f, 10000.f, 1.2f, 2.4f, 2000.f });
 		Rocks(TEXT("RockBoulder"), { 26, 1200.f, 9000.f, 0.7f, 1.5f, 1000.f });
 		Rocks(TEXT("RockTall"), { 8, 4000.f, 10000.f, 1.4f, 2.2f, 1200.f });
+		// Inside: carved reliefs on the temples, shrines, annexes and ruins; crowns on the spires, colossi and obelisks.
+		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower") }, 1050.f);
 	}
 	else if (Id == TEXT("Creekbed"))
 	{

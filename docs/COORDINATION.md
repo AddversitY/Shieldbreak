@@ -49,7 +49,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
-- Map art kit (branch `claude/project-thread-km43pg`): build, run `Tools\ImportMapArt.bat` (expects `RESULT OK, 10
+- Map art kit (branch `claude/project-thread-km43pg`): build, run `Tools\ImportMapArt.bat` (expects `RESULT OK, 12
   meshes` in `Saved\Logs\MapArtImport.txt`), then the self-test and map tours; screenshot every launch map with
   `Tools\VisualShots.bat`. Commit `Content/Shieldbreak/Art/MapKit` and the touched materials from the desktop.
 - 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not

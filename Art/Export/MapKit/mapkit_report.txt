@@ -5,6 +5,8 @@ SM_SB_Kit_Monument: 344 tris, X -1683.0..1683.0 Y -5317.5..5317.5 Z 0.0..9287.5,
 SM_SB_Kit_Monolith: 188 tris, X -445.8..445.8 Y -345.8..345.8 Z 0.0..2811.9, slots M_Ivory, M_GlowAmber
 SM_SB_Kit_Arch: 320 tris, X -320.0..787.1 Y -1100.0..1100.0 Z -30.0..1950.0, slots M_Ivory, M_Sand, M_GlowAmber
 SM_SB_Kit_Pine: 164 tris, X -560.0..560.0 Y -560.0..560.0 Z 0.0..2074.4, slots M_Bark, M_Olive
+SM_SB_Kit_Crown: 352 tris, X -57.9..57.9 Y -57.9..57.9 Z 0.0..206.0, slots M_Ivory, M_GlowAmber
+SM_SB_Kit_Relief: 156 tris, X 0.0..6.0 Y -50.0..50.0 Z 0.0..100.0, slots M_Ivory, M_Sand, M_GlowAmber
 SM_SB_Kit_RockTall: 320 tris, X -499.1..461.3 Y -409.9..442.9 Z -20.0..2064.0, slots M_Sand
 SM_SB_Kit_RockBoulder: 320 tris, X -547.7..562.2 Y -550.5..498.3 Z -20.0..620.5, slots M_Sand
 SM_SB_Kit_RockShelf: 320 tris, X -1413.4..1362.9 Y -794.3..761.0 Z -20.0..793.1, slots M_Sand

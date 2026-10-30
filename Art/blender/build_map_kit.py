@@ -15,6 +15,8 @@ Pieces (theme in brackets; see docs/MAP_ART_STYLE.md):
   Monolith   chamfered, leaning obelisk split by a glowing seam                [Sanctum]
   Arch       broken temple arch                                                [Sanctum]
   Pine       low-poly conifer                                                  [Creekbed]
+  Crown      pointed cap with an amber band for tall unwalkable blocks (inside the map) [Sanctum]
+  Relief     carved facade panel stretched over wall faces, 6 cm proud (inside the map) [Sanctum]
   RockTall / RockBoulder / RockShelf   faceted rocks and cliff chunks          [all maps]
 
 Exported to Art/Export/MapKit for Tools/ImportMapArt.bat.
@@ -221,6 +223,40 @@ def monument():
     return sb_kit.join("SM_SB_Kit_Monument", parts)
 
 
+def crown():
+    """A pointed cap for tall, unwalkable blocks (temple spires, colossi): a chamfered collar, four leaning fins and a
+    glowing band. Authored on a 100 x 100 footprint so the game scales it to the block it caps."""
+    parts = [frustum("collar", (0, 0, 0), (112, 112), (104, 104), 18, "Ivory", bevel=1.5),
+             frustum("band", (0, 0, 18), (100, 100), (100, 100), 8, "GlowAmber", bevel=0.0),
+             frustum("roof", (0, 0, 26), (104, 104), (40, 40), 70, "Ivory", bevel=1.5),
+             frustum("tip", (0, 0, 96), (40, 40), (6, 6), 110, "Ivory", bevel=0.8)]
+    for a in range(4):
+        ang = math.radians(90 * a)
+        fin = prism_xz("fin", [(-6, 0), (14, 0), (6, 60), (-10, 150), (-14, 150)], -4, 4, "Ivory", bevel=0.6)
+        placed(fin, (math.cos(ang) * 44, math.sin(ang) * 44, 26), (0, 0, math.degrees(ang)))
+        parts.append(fin)
+    return sb_kit.join("SM_SB_Kit_Crown", parts)
+
+
+def relief():
+    """A carved facade panel for a wall face: a frame, stepped chevron plates and an amber seam, standing 6 cm proud
+    of the face (+X). Authored 100 wide (Y) and 100 high so the game stretches it over a face, minus a margin."""
+    parts = [sb_kit.box("frame_l", (2, -46, 50), (4, 8, 88), "Ivory", bevel=0.0),
+             sb_kit.box("frame_r", (2, 46, 50), (4, 8, 88), "Ivory", bevel=0.0),
+             sb_kit.box("frame_b", (2, 0, 3), (4, 100, 6), "Ivory", bevel=0.0),
+             sb_kit.box("frame_t", (2, 0, 97), (4, 100, 6), "Ivory", bevel=0.0),
+             sb_kit.box("plate", (1, 0, 50), (2, 84, 88), "Sand", bevel=0.0)]
+    for i, z in enumerate((22, 46, 70)):
+        # Chevron: two plates angled up toward the centre line.
+        for side in (-1, 1):
+            plate = sb_kit.box("chev", (0, 0, 0), (3, 38, 9), "Ivory", bevel=0.0)
+            placed(plate, (4, side * 19, z), (side * -18, 0, 0))
+            parts.append(plate)
+    parts.append(sb_kit.box("seam", (4.5, 0, 86), (3, 60, 2.5), "GlowAmber", bevel=0.0))
+    parts.append(sb_kit.box("seam_v", (4.5, 0, 50), (3, 2.5, 60), "GlowAmber", bevel=0.0))
+    return sb_kit.join("SM_SB_Kit_Relief", parts)
+
+
 def pine():
     """A 2200 cm low-poly conifer: a bark trunk and five stacked, slightly twisted cones."""
     parts = [sb_kit.cyl("trunk", (0, 0, 450), 55, 900, "Bark", axis="Z", verts=7, bevel=0.0, radius2=35)]
@@ -245,7 +281,7 @@ def rocks():
     ]
 
 
-PIECES = (rib, gantry, pylon, monument, monolith, arch, pine)
+PIECES = (rib, gantry, pylon, monument, monolith, arch, pine, crown, relief)
 
 
 def build(render=None):
