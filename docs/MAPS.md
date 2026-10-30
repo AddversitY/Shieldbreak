@@ -29,7 +29,7 @@ launch map with more than 20% exposed floor. Each run prints the numbers:
 |---|---|---|
 | Keel | 8% / 35% / 10% | 21 / 43 / 37 m |
 | Bastion | 23% / 48% / 18% | 23 / 45 / 41 m |
-| Sanctum | 19% / 43% / 12% | 21 / 43 / 38 m |
+| Sanctum | 19% / 43% / 12% (rebuilt: 12%) | 21 / 43 / 38 m (rebuilt: 36 m) |
 | Creekbed | 1% / 31% / 16% | 18 / 37 / 35 m |
 | Spire | 8% / 43% / 11% | 19 / 38 / 36 m |
 
@@ -51,7 +51,7 @@ metrics, not playtest results: route timing and spawn fairness still need bot an
 |---|---|---|---|---|
 | **Keel** (default) | Midship | 144 × 88 m | Rockets on the deck, Overshield under it, Rail Lance per lane, Aegis per balcony | CTF, Slayer |
 | **Bastion** | Lockout | 120 × 120 m (asymmetric) | Sniper on the tall tower, Rockets in the pit, Rail Lance on the battle tower, Camo in the library, Aegis on the east wall | KOTH, Oddball, Slayer |
-| **Sanctum** | Sanctuary / The Pit | 152 × 104 m | Rockets on the courtyard plinth (crouch-jump or Power Jump), Sniper per temple perch, Rail Lance per flank walkway, Overshield on the south flank | CTF, Slayer |
+| **Sanctum** | Sanctuary / The Pit | 152 × 104 m | Rockets on the courtyard plinth (crouch-jump or Power Jump), Sniper per temple perch, Rail Lance per flank walkway, Aegis per courtyard crossing, Overshield in the south shrine | CTF, Slayer |
 | **Creekbed** | Beaver Creek | 112 × 72 m | Rockets on the mid-creek rock, Aegis in the north cave, Rail Lance in the south cave | Slayer, CTF |
 | **Spire** | Narrows / Construct | 168 × 64 m | Rockets under the bridge, Camo out on the bridge, Sniper per base perch, Rail Lance per mid platform; 4 gravity lifts | CTF, KOTH |
 
@@ -68,8 +68,14 @@ battle tower stand in opposite corners, and there is an enclosed library. Teams 
 ![Bastion](../Design/maps/Bastion.png)
 
 ## Sanctum
-An open, symmetric bowl. Each end has a temple with a sniper perch; in the sunken courtyard, the rockets sit on a
-plinth that takes skill to reach. Ruined flanks carry high walkways.
+Rebuilt on 2026-10-29 at its full 152 x 104 m size with three height layers: the sunken courtyard (0), the sand
+terraces and temple halls (2 m), a walkway ring and the temple upper floors (5.5 m), and sniper perches (9 m).
+Each end has a walk-through temple with a colonnaded hall, an upper floor round an open atrium (central ramp and an
+outside balcony ramp) and tall corner spires. Elevated walkways run along both flanks and cross the courtyard twice;
+a roofed shrine sits under each flank with a bridge from its roof, and a ruined two-storey annex in each corner
+closes the walkway ring. Four colossal pillars stand round the rockets plinth, which still needs a crouch-jump or
+Power Jump. The layout is original; it borrows Sanctuary's principles (symmetric temples, a central low ground,
+high flank routes), not its geometry.
 
 ![Sanctum](../Design/maps/Sanctum.png)
 

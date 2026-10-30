@@ -27,6 +27,7 @@
 #include "Weapons/ShieldbreakWeaponPickup.h"
 #include "Weapons/ShieldbreakPowerup.h"
 #include "Game/ShieldbreakGravLift.h"
+#include "Game/ShieldbreakMapArt.h"
 #include "Visuals/ShieldbreakArt.h"
 
 namespace ShieldbreakArenaPrivate
@@ -74,10 +75,17 @@ namespace ShieldbreakArenaPrivate
 	const FLinearColor TrimRed(1.f, 0.22f, 0.12f);
 	const FLinearColor TrimBlue(0.2f, 0.45f, 1.f);
 
+	/** Lumen bounce light and reflections are on unless -SBNoLumen (see SpawnLighting). */
+	bool UsesLumen()
+	{
+		return !FParse::Param(FCommandLine::Get(), TEXT("SBNoLumen"));
+	}
+
 	/** Emissive share of the mountain ring's colour; -SBMountainLight=<x> overrides it for comparisons. */
 	float MountainSelfLight()
 	{
-		float Value = 0.35f;
+		// Lumen's sky light reaches less of the far ring than the old flat sky light did.
+		float Value = UsesLumen() ? 0.6f : 0.35f;
 		FParse::Value(FCommandLine::Get(), TEXT("SBMountainLight="), Value);
 		return FMath::Max(0.f, Value);
 	}
@@ -181,6 +189,8 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 		BuildGeometry();
 		BuildTrim();
 		BuildSpireArt();
+		BuildMapArt();
+		BuildCladding();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -513,6 +523,149 @@ void AShieldbreakArena::BuildSpireArt()
 		Collectors ? Collectors->GetInstanceCount() : 0, Panels ? Panels->GetInstanceCount() : 0, Collars ? Collars->GetInstanceCount() : 0);
 }
 
+void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbreakMapLook& Look, float SelfLight) const
+{
+	const UStaticMeshComponent* StaticMesh = Cast<UStaticMeshComponent>(Mesh);
+	const UStaticMesh* Asset = StaticMesh ? StaticMesh->GetStaticMesh() : nullptr;
+	if (!Asset)
+	{
+		return;
+	}
+	// Palette slot (Art/blender/sb_kit.py PALETTE) -> world surface kind and this map's tint for it.
+	struct FSlotLook { const TCHAR* Prefix; const TCHAR* Kind; FLinearColor Tint; };
+	const FSlotLook SlotLooks[] = {
+		{ TEXT("M_Steel"), TEXT("Panel"), Look.Metal }, { TEXT("M_Gunmetal"), TEXT("Panel"), Look.DarkMetal },
+		{ TEXT("M_Ivory"), TEXT("Stone"), Look.Carved }, { TEXT("M_Sand"), TEXT("Stone"), Look.Rock },
+		{ TEXT("M_Bark"), TEXT("Stone"), Look.Bark }, { TEXT("M_Olive"), TEXT("Grass"), Look.Foliage } };
+	const TArray<FStaticMaterial>& Slots = Asset->GetStaticMaterials();
+	for (int32 Index = 0; Index < Slots.Num(); ++Index)
+	{
+		const FString Slot = Slots[Index].MaterialSlotName.ToString();
+		for (const FSlotLook& Entry : SlotLooks)
+		{
+			if (!Slot.StartsWith(Entry.Prefix))
+			{
+				continue;
+			}
+			const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(FName(Entry.Kind));
+			if (World && *World)
+			{
+				Mesh->SetMaterial(Index, *World);
+				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+				{
+					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Tint);
+					MID->SetScalarParameterValue(TEXT("SelfLight"), SelfLight);
+				}
+			}
+			break;
+		}
+	}
+}
+
+void AShieldbreakArena::BuildMapArt()
+{
+	// -SBNoMapArt drops the set pieces, for before/after shots and performance comparisons.
+	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
+	{
+		return;
+	}
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	int32 Kinds = 0, Placed = 0;
+	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Plan(MapId, Layout))
+	{
+		const FString Name = TEXT("SM_SB_Kit_") + Group.Piece.ToString();
+		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *Name, *Name)) : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+		// One instanced component per piece: a draw call or two per kind, however many stand around the map.
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
+		Instances->SetCastShadow(false);
+		// Without Lumen, distance-field sky occlusion left the kit near black up close (sunlit tops included), so it
+		// stays out of the distance fields. Lumen needs them to light it, so with Lumen it stays in.
+		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
+		// Pieces laid a few centimetres proud of a block (reliefs, edge bands, the floor inlay) sit inside the block's
+		// distance field, so the sky light's occlusion blacks them out; a little self light keeps them reading.
+		const bool bFlush = Group.Piece == TEXT("Relief") || Group.Piece == TEXT("Fascia") || Group.Piece == TEXT("Inlay");
+		ApplyKitSurfaces(Instances, Look, bFlush ? 0.35f : 0.f);
+		if (Group.TeamTint.A > 0.f)
+		{
+			const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+			for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+			{
+				UMaterialInstanceDynamic* MID = Slots[Slot].MaterialSlotName.ToString().StartsWith(TEXT("M_TeamGlow"))
+					? Instances->CreateDynamicMaterialInstance(Slot) : nullptr;
+				if (MID)
+				{
+					MID->SetVectorParameterValue(TEXT("BaseColor"), Group.TeamTint * 0.2f);
+					MID->SetVectorParameterValue(TEXT("EmissiveColor"), Group.TeamTint);
+				}
+			}
+		}
+		for (const FTransform& Instance : Group.Instances)
+		{
+			Instances->AddInstance(Instance);
+		}
+		Instances->RegisterComponent();
+		AddInstanceComponent(Instances);
+		++Kinds;
+		Placed += Group.Instances.Num();
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
+}
+
+void AShieldbreakArena::BuildCladding()
+{
+	// -SBNoCladding leaves the blocks bare, for before/after shots and performance comparisons.
+	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoCladding")))
+	{
+		return;
+	}
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	int32 Kinds = 0, Placed = 0;
+	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Cladding(MapId, Layout))
+	{
+		const FString Name = TEXT("SM_Q_") + Group.Piece.ToString();
+		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/SciFiKit/%s.%s"), *Name, *Name)) : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Cladding"), Mesh);
+		// The blocks underneath already cast the shadows; the panels sit 1-2 cm off them.
+		Instances->SetCastShadow(false);
+		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
+		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
+		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+		{
+			UMaterialInstanceDynamic* MID = Slots[Slot].MaterialSlotName.ToString().StartsWith(TEXT("M_Trim"))
+				? Instances->CreateDynamicMaterialInstance(Slot) : nullptr;
+			if (MID)
+			{
+				// A group's own colour (sandstone paving) overrides the map's metal.
+				MID->SetVectorParameterValue(TEXT("Tint"), Group.TeamTint.A > 0.f ? Group.TeamTint : Look.CladTint);
+				MID->SetVectorParameterValue(TEXT("AccentColor"), Look.CladAccent);
+				// Floor plates keep their accent lines painted but barely lit, or the whole floor reads as a glowing grid.
+				if (Group.Piece.ToString().StartsWith(TEXT("Floor")))
+				{
+					MID->SetScalarParameterValue(TEXT("AccentGlow"), 0.6f);
+				}
+			}
+		}
+		for (const FTransform& Instance : Group.Instances)
+		{
+			Instances->AddInstance(Instance);
+		}
+		Instances->RegisterComponent();
+		AddInstanceComponent(Instances);
+		++Kinds;
+		Placed += Group.Instances.Num();
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s cladding: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
+}
+
 void AShieldbreakArena::BuildBackdrop()
 {
 	if (!CubeMesh)
@@ -523,7 +676,8 @@ void AShieldbreakArena::BuildBackdrop()
 	// The same scenery on every machine for a map, so seed from its id.
 	FRandomStream Random(static_cast<int32>(GetTypeHash(MapId.ToString())));
 	const float Reach = static_cast<float>(FMath::Max(Layout.HalfExtent.X, Layout.HalfExtent.Y));
-	const FLinearColor GroundColor(0.20f, 0.27f, 0.15f), RockColor(0.30f, 0.29f, 0.27f);
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	const FLinearColor GroundColor = Look.Ground, RockColor = Look.Rock;
 
 	// Ground out to the horizon, a few metres below the map floor so the arena reads as a raised platform.
 	UStaticMeshComponent* Ground = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), CubeMesh);
@@ -532,7 +686,7 @@ void AShieldbreakArena::BuildBackdrop()
 	Ground->SetRelativeScale3D(FVector(2000.f, 2000.f, 1.f));
 	Ground->RegisterComponent();
 	AddInstanceComponent(Ground);
-	ApplySurface(Ground, TEXT("grass"), GroundColor, 6.f);
+	ApplySurface(Ground, Look.GroundStyle, GroundColor, 6.f);
 
 	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
 	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
@@ -652,7 +806,10 @@ void AShieldbreakArena::SpawnLighting()
 	// Light levels, overridable on the command line (-SBSun= -SBFill= -SBSky=) so the PC can compare settings in one batch.
 	// PC comparison (2026-10-22, Keel): sky 6 lifted the shaded walls from black to readable grey; a stronger fill (5) made
 	// them darker (exposure adapts to the brighter lit faces), so the sky light carries the ambient.
-	float SunIntensity = 8.f, FillIntensity = 1.5f, SkyIntensity = 6.f;
+	// Lumen (on by default since the desktop's RTX 2080 Ti became the build machine; -SBNoLumen for the old look) bounces
+	// the sun itself, so the fill light goes and the sky light drops to a natural level.
+	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
+	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 3.f : 6.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
@@ -732,20 +889,29 @@ void AShieldbreakArena::SpawnLighting()
 		if (UExponentialHeightFogComponent* FogComponent = Fog->GetComponent())
 		{
 			FogComponent->SetFogDensity(Layout.FogDensity);
-			// Bright blue-white haze, starting past the arena so the playspace stays crisp and the backdrop fades.
-			FogComponent->SetFogInscatteringColor(FLinearColor(0.32f, 0.43f, 0.6f));
+			// Haze starting past the arena so the playspace stays crisp and the backdrop fades.
+			// Each map's own haze colour (ShieldbreakMapArt::GetLook).
+			FogComponent->SetFogInscatteringColor(ShieldbreakMapArt::GetLook(MapId).Haze);
 			FogComponent->SetFogHeightFalloff(0.08f);
 			FogComponent->SetStartDistance(4000.f);
 		}
 	}
 
 	// A light grade: some bloom for the trim and glow, a touch more saturation and contrast, and a soft vignette.
-	if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
+	// The same unbound volume switches on Lumen bounce light and reflections (the project default is off).
+	if (APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
 	{
-		if (APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, Params))
+		Grade->bUnbound = true;
+		FPostProcessSettings& Settings = Grade->Settings;
+		if (bLumen)
 		{
-			Grade->bUnbound = true;
-			FPostProcessSettings& Settings = Grade->Settings;
+			Settings.bOverride_DynamicGlobalIlluminationMethod = true;
+			Settings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
+			Settings.bOverride_ReflectionMethod = true;
+			Settings.ReflectionMethod = EReflectionMethod::Lumen;
+		}
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
+		{
 			Settings.bOverride_BloomIntensity = true;
 			Settings.BloomIntensity = 0.9f;
 			Settings.bOverride_BloomThreshold = true;

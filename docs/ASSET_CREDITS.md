@@ -21,6 +21,7 @@ world/surface materials. See `SPIRE_ART_PASS.md` for placement and limitations.
 | Source | Publisher | License | Where it lives |
 |---|---|---|---|
 | Shieldbreak originals: menu music (`Art/audio/make_music.py`), textures, weapon/armor/environment meshes (`Art/blender/`) | Shieldbreak (synthesized/scripted from scratch, no samples) | Ours | `Art/Export/`, imported to `/Game/Shieldbreak/Art/` |
+| Modular Sci-Fi MegaKit, free Standard edition (itch.io `quaternius.itch.io/modular-sci-fi-megakit`, fetched by `Tools/GetSciFiKit.ps1`) | Quaternius | CC0 1.0 (public domain; credit given as a courtesy) | 27 pieces converted by `Art/blender/build_scifi_kit.py` to `Art/Export/SciFiKit`, imported with the kit's trim-sheet textures to `/Game/Shieldbreak/Art/SciFiKit` (material `M_SB_Trim`) |
 | Lyra Starter Game (Fab listing `93faede1-4434-47c0-85f1-bf27c0820ad0`, UE 5.8 build, published 2026-09-30) | Epic Games | Fab Standard License, "UE-Only Content": licensed for use only in Unreal Engine-based products | `Content/Characters/Heroes/`, `Content/Weapons/`, `Content/Effects/`, `Content/Audio/`, `Content/PhysicsMaterials/` |
 
 Phase 1 note: the assets were copied file-for-file from the Lyra download **at their original Lyra
