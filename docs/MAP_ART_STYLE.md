@@ -39,7 +39,7 @@ trace or copy Halo files, models, textures, names or exact layouts, and there is
 |---|---|---|
 | Keel | An orbital drydock: the arena is a ship's deck in its cradle | Hull ribs over the long walls, gantry cranes over the ends, corner beacon pylons, concrete apron |
 | Bastion | A cliff fortress in cold high country | Heavy buttresses on every wall, crags, two beacon pylons, cold blue-white haze |
-| Sanctum | A sun temple in a desert basin | Monoliths with amber seams along the long walls, broken arches behind each temple, sand and warm haze. Inside: carved reliefs on tall walls, crowns on spires and colossi, amber edge bands on raised walkways, a glowing floor inlay and a hanging amber beacon over the centre, each team's sigil floating over its temple atrium |
+| Sanctum | A sun temple in a desert basin | Monoliths with amber seams along the long walls, broken arches behind each temple, sand and warm haze. Inside: sci-fi kit cladding on every wall, top and ramp (pale Forerunner metal, amber accents), crowns on spires and colossi, a glowing floor inlay and a hanging amber beacon over the centre, each team's sigil floating over its temple atrium |
 | Creekbed | A forest valley | Pines crowding the walls, boulders, crags, green-grey haze |
 | Spire | A storm-harvesting exchange above a basalt caldera | Collector fins and service panels (Spire pass), a line of tall pylons on each side, stormy blue haze |
 
@@ -57,7 +57,24 @@ skyline landmark.
   `AShieldbreakArena::BuildMapArt` draws one instanced component per piece with no collision, no navigation and no
   shadows. Solid slots get the tinted world materials; `M_Glow*` slots keep their emissive. `-SBNoMapArt` turns
   it off for before/after shots.
-- `ShieldbreakMapArt::GetLook` holds each map's ground, rock, metal, carved-stone, foliage and haze colours.
+- `ShieldbreakMapArt::GetLook` holds each map's ground, rock, metal, carved-stone, foliage and haze colours, and
+  whether the sci-fi kit clads it (`bClad`, with `CladTint` and `CladAccent`).
+
+### Inside the walls: the sci-fi kit cladding (Sanctum first, 2026-10-30)
+
+Cubes alone read as greybox however they're lit, so the blocks inside the map are clad with real modular panels:
+27 pieces of Quaternius' CC0 **Modular Sci-Fi MegaKit** (walls 400 cm wide in 100 cm bands and 200 cm panels,
+400 x 400 cm floor plates, a few columns and props), which share four PBR trim sheets.
+
+- `Tools/GetSciFiKit.ps1` downloads the free kit into `Saved/Quaternius/kit`; `Art/blender/build_scifi_kit.py <kit>`
+  converts the chosen pieces to our axes (walls face +X on X = 0, floors face +Z on Z = 0) into `Art/Export/SciFiKit`;
+  `Tools/ImportSciFiKit.bat` imports them and the textures and rebuilds `M_SB_Trim` (sheet colour x `Tint`, detail
+  mask painted and lit in `AccentColor`, normal and packed AO/roughness/metal).
+- `ShieldbreakMapArt::Cladding` covers every wall face that looks into the map with rows (a base band, alternating
+  panels, a top band) stretched a little to fit whole tiles, 2 cm proud; tops and ramps get plates 1 cm up, laid
+  along the long side. Recipes per block style (temples: white plates; towers: dark and metal; walkways: plated
+  decks; cover: dark bands); Sanctum's sand plateau tops stay sand. Nothing is added to collision, so routes,
+  cover and sight lines stay exactly as authored. `-SBNoCladding` turns it off for comparisons.
 
 ## Next
 
