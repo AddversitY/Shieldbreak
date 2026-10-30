@@ -573,6 +573,9 @@ void AShieldbreakArena::BuildMapArt()
 		// One instanced component per piece: a draw call or two per kind, however many stand around the map.
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
 		Instances->SetCastShadow(false);
+		// Like the backdrop mountains: in distance-field lighting the kit came out near black up close (sunlit tops
+		// included) and only lit beyond its range, so keep it to the shadow maps and the sky light.
+		Instances->bAffectDistanceFieldLighting = false;
 		ApplyKitSurfaces(Instances, Look);
 		if (Group.TeamTint.A > 0.f)
 		{
