@@ -515,7 +515,7 @@ void AShieldbreakArena::BuildSpireArt()
 		Collectors ? Collectors->GetInstanceCount() : 0, Panels ? Panels->GetInstanceCount() : 0, Collars ? Collars->GetInstanceCount() : 0);
 }
 
-void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbreakMapLook& Look) const
+void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbreakMapLook& Look, float SelfLight) const
 {
 	const UStaticMeshComponent* StaticMesh = Cast<UStaticMeshComponent>(Mesh);
 	const UStaticMesh* Asset = StaticMesh ? StaticMesh->GetStaticMesh() : nullptr;
@@ -546,6 +546,7 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
 				{
 					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Tint);
+					MID->SetScalarParameterValue(TEXT("SelfLight"), SelfLight);
 				}
 			}
 			break;
@@ -576,7 +577,10 @@ void AShieldbreakArena::BuildMapArt()
 		// Like the backdrop mountains: in distance-field lighting the kit came out near black up close (sunlit tops
 		// included) and only lit beyond its range, so keep it to the shadow maps and the sky light.
 		Instances->bAffectDistanceFieldLighting = false;
-		ApplyKitSurfaces(Instances, Look);
+		// Pieces laid a few centimetres proud of a block (reliefs, edge bands, the floor inlay) sit inside the block's
+		// distance field, so the sky light's occlusion blacks them out; a little self light keeps them reading.
+		const bool bFlush = Group.Piece == TEXT("Relief") || Group.Piece == TEXT("Fascia") || Group.Piece == TEXT("Inlay");
+		ApplyKitSurfaces(Instances, Look, bFlush ? 0.35f : 0.f);
 		if (Group.TeamTint.A > 0.f)
 		{
 			const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();

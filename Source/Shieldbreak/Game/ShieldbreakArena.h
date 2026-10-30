@@ -72,7 +72,7 @@ private:
 	/** The map's own set pieces outside the walls (ShieldbreakMapArt::Plan, Art/blender/build_map_kit.py). Visual only. */
 	void BuildMapArt();
 	/** Puts the tinted world materials on a kit mesh's solid slots by palette slot name; M_Glow* slots keep their emissive. */
-	void ApplyKitSurfaces(UMeshComponent* Mesh, const struct FShieldbreakMapLook& Look) const;
+	void ApplyKitSurfaces(UMeshComponent* Mesh, const struct FShieldbreakMapLook& Look, float SelfLight = 0.f) const;
 	/** Ground and mountains outside the walls. Visual only. */
 	void BuildBackdrop();
 
