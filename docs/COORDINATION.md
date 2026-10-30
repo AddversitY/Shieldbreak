@@ -50,9 +50,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
-- Map art kit (branch `claude/project-thread-km43pg`): build, run `Tools\ImportMapArt.bat` (expects `RESULT OK, 16
-  meshes` in `Saved\Logs\MapArtImport.txt`), then the self-test and map tours; screenshot every launch map with
-  `Tools\VisualShots.bat`. Commit `Content/Shieldbreak/Art/MapKit` and the touched materials from the desktop.
+- Map art kit (branch `claude/project-thread-km43pg`): verified on the desktop 2026-10-30. Build OK, import
+  `RESULT OK, 16 meshes`, self-test 126/126, every map tour passes (Sanctum 25/25), Sanctum shots in
+  `Saved/Screenshots/Shots`. The imported kit and `Design/maps/Sanctum.png` are committed on the branch. Kit lighting
+  notes: the kit ISMs stay out of distance-field lighting (they rendered near black inside its range), and pieces
+  laid flush on blocks (Relief, Fascia, Inlay) get `SelfLight` 0.35.
 - 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
   compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
   after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid
