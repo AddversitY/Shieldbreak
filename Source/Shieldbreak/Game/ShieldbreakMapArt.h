@@ -22,6 +22,12 @@ struct FShieldbreakMapLook
 	FLinearColor Foliage = FLinearColor(0.10f, 0.22f, 0.08f);
 	/** Height-fog inscattering colour. */
 	FLinearColor Haze = FLinearColor(0.32f, 0.43f, 0.6f);
+	/** Sci-fi kit cladding over the blocks inside the walls (ShieldbreakMapArt::Cladding): off on maps still greyboxed. */
+	bool bClad = false;
+	/** Multiplies the kit's neutral trim-sheet metal (0.5 keeps it as authored). */
+	FLinearColor CladTint = FLinearColor(0.5f, 0.5f, 0.5f);
+	/** The kit's accent stripes and small lights. */
+	FLinearColor CladAccent = FLinearColor(1.0f, 0.5f, 0.12f);
 };
 
 /** One kit mesh (SM_SB_Kit_<Piece> in /Game/Shieldbreak/Art/MapKit) and where it stands, in arena-local space. */
@@ -41,6 +47,11 @@ namespace ShieldbreakMapArt
 	/** Where the kit pieces go for a built layout. Deterministic per map id, so every machine gets the same scenery.
 	 *  Everything is outside the playable area, except rib tops that lean over the perimeter walls' own footprint. */
 	SHIELDBREAK_API TArray<FShieldbreakArtGroup> Plan(FName MapId, const FShieldbreakMapLayout& Layout);
+
+	/** Sci-fi kit pieces (SM_Q_<Piece> in /Game/Shieldbreak/Art/SciFiKit, Art/blender/build_scifi_kit.py) cladding the
+	 *  map's own blocks and ramps: panels 2 cm proud of each wall face that looks into the map, plates 1 cm over each
+	 *  top. Visual only, so routes, cover and sight lines stay authored. Empty unless the map's look has bClad. */
+	SHIELDBREAK_API TArray<FShieldbreakArtGroup> Cladding(FName MapId, const FShieldbreakMapLayout& Layout);
 
 	/** Top of the perimeter walls above the floor (the tallest wall block on the edge). */
 	SHIELDBREAK_API float PerimeterWallHeight(const FShieldbreakMapLayout& Layout);

@@ -190,6 +190,7 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 		BuildTrim();
 		BuildSpireArt();
 		BuildMapArt();
+		BuildCladding();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -612,6 +613,51 @@ void AShieldbreakArena::BuildMapArt()
 		Placed += Group.Instances.Num();
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
+}
+
+void AShieldbreakArena::BuildCladding()
+{
+	// -SBNoCladding leaves the blocks bare, for before/after shots and performance comparisons.
+	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoCladding")))
+	{
+		return;
+	}
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	int32 Kinds = 0, Placed = 0;
+	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Cladding(MapId, Layout))
+	{
+		const FString Name = TEXT("SM_Q_") + Group.Piece.ToString();
+		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/SciFiKit/%s.%s"), *Name, *Name)) : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Cladding"), Mesh);
+		// The blocks underneath already cast the shadows; the panels sit 1-2 cm off them.
+		Instances->SetCastShadow(false);
+		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
+		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
+		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+		{
+			UMaterialInstanceDynamic* MID = Slots[Slot].MaterialSlotName.ToString().StartsWith(TEXT("M_Trim"))
+				? Instances->CreateDynamicMaterialInstance(Slot) : nullptr;
+			if (MID)
+			{
+				MID->SetVectorParameterValue(TEXT("Tint"), Look.CladTint);
+				MID->SetVectorParameterValue(TEXT("AccentColor"), Look.CladAccent);
+			}
+		}
+		for (const FTransform& Instance : Group.Instances)
+		{
+			Instances->AddInstance(Instance);
+		}
+		Instances->RegisterComponent();
+		AddInstanceComponent(Instances);
+		++Kinds;
+		Placed += Group.Instances.Num();
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s cladding: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
 }
 
 void AShieldbreakArena::BuildBackdrop()

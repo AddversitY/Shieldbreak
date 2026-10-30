@@ -142,7 +142,7 @@ namespace ShieldbreakMapArtPrivate
 	 *  wall face (6 cm proud, so it never changes what you can stand on or shoot past), and a crown on every
 	 *  unwalkably tall block. Faces looking out of the map are skipped, as BuildTrim does. */
 	void DressStructures(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout, std::initializer_list<const TCHAR*> Styles,
-		float CrownAbove)
+		float CrownAbove, bool bFaces = true)
 	{
 		constexpr float Margin = 40.f, MinWidth = 220.f, MinHeight = 250.f;
 		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
@@ -163,7 +163,7 @@ namespace ShieldbreakMapArtPrivate
 				{ FVector2D(0.0, 1.0), Size.Y * 0.5, Size.X }, { FVector2D(0.0, -1.0), Size.Y * 0.5, Size.X } };
 			for (const FFace& Face : Faces)
 			{
-				if (Size.Z < MinHeight)
+				if (Size.Z < MinHeight || !bFaces)
 				{
 					break;
 				}
@@ -177,7 +177,7 @@ namespace ShieldbreakMapArtPrivate
 					FVector(1.0, (Face.Width - 2.0 * Margin) / 100.0, (Size.Z - 2.0 * Margin) / 100.0)));
 			}
 			// Thin slabs (floors, walkways) get an edge band instead of a relief.
-			if (Size.Z <= 60.0 && Block.Max.Z - Layout.FloorZ >= 400.0)
+			if (bFaces && Size.Z <= 60.0 && Block.Max.Z - Layout.FloorZ >= 400.0)
 			{
 				for (const FFace& Face : Faces)
 				{
@@ -198,6 +198,122 @@ namespace ShieldbreakMapArtPrivate
 				const double Height = FMath::Min(FMath::Min(Size.X, Size.Y) / 100.0, 3.0);
 				Group(Groups, TEXT("Crown")).Add(FTransform(FRotator::ZeroRotator, FVector(Center.X, Center.Y, Block.Max.Z),
 					FVector(Size.X / 100.0, Size.Y / 100.0, Height)));
+			}
+		}
+	}
+
+	/** The kit pieces that clad one block style: the bottom band, the two main panels (alternating up the face), the
+	 *  top band, the band for thin slab edges and the two plates (checkered) over the top; no plates leaves the top
+	 *  bare. Bands are 100 cm tall, panels 200 cm, plates 400 x 400 cm (Art/blender/build_scifi_kit.py). */
+	struct FCladRecipe
+	{
+		const TCHAR* Base;
+		const TCHAR* Main[2];
+		const TCHAR* Top;
+		const TCHAR* Edge;
+		const TCHAR* Floor[2];
+	};
+
+	const FCladRecipe& CladRecipe(FName Style)
+	{
+		struct FEntry { const TCHAR* Style; FCladRecipe Recipe; };
+		static const FEntry Entries[] = {
+			{ TEXT("stone"), { TEXT("BandPlates"), { TEXT("WallMetal"), TEXT("WallBand") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorMetal"), TEXT("FloorSimple") } } },
+			{ TEXT("floor"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorSquares"), TEXT("FloorMetal2") } } },
+			{ TEXT("wall"), { TEXT("BandTriangles"), { TEXT("WallDark"), TEXT("WallMetal") }, TEXT("BandAccent"), TEXT("BandAccent"), { nullptr, nullptr } } },
+			{ TEXT("sand"), { TEXT("BandTriangles"), { TEXT("WallMetal"), TEXT("WallMetal") }, TEXT("BandPlates"), TEXT("BandPlates"), { nullptr, nullptr } } },
+			{ TEXT("red"), { TEXT("BandDark"), { TEXT("WallPlate"), TEXT("WallPlate") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorCenter"), TEXT("FloorCenter") } } },
+			{ TEXT("blue"), { TEXT("BandDark"), { TEXT("WallPlate"), TEXT("WallPlate") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorCenter"), TEXT("FloorCenter") } } },
+			{ TEXT("tower"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallMetal") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorX"), TEXT("FloorX") } } },
+			{ TEXT("dark"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorDark"), TEXT("FloorDark") } } },
+			{ TEXT("bridge"), { TEXT("BandPlates"), { TEXT("WallMetal"), TEXT("WallMetal") }, TEXT("BandAccent"), TEXT("BandAccent"), { TEXT("FloorPlates"), TEXT("FloorPlates") } } },
+			{ TEXT("rock"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandTriangles"), TEXT("BandDark"), { TEXT("FloorDark"), TEXT("FloorDark") } } },
+			{ TEXT("ramp"), { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") }, TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorMetal2"), TEXT("FloorMetal2") } } },
+		};
+		for (const FEntry& Entry : Entries)
+		{
+			if (Style == FName(Entry.Style))
+			{
+				return Entry.Recipe;
+			}
+		}
+		return Entries[0].Recipe; // anything else clads like stone
+	}
+
+	double CladRowHeight(const TCHAR* Piece) { return FCString::Strncmp(Piece, TEXT("Band"), 4) == 0 ? 100.0 : 200.0; }
+
+	/** Panels over one wall face (At: the face's centre on the ground plan, Normal: out of the face), in rows from
+	 *  Bottom up, stretched a little so whole rows and whole tiles fill the face exactly. */
+	void CladFace(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector2D& At, const FVector2D& Normal,
+		double Width, double Bottom, double Height)
+	{
+		constexpr double Proud = 2.0, TileWidth = 400.0;
+		TArray<const TCHAR*, TInlineAllocator<12>> Rows;
+		if (Height <= 70.0)
+		{
+			Rows.Add(Recipe.Edge);
+		}
+		else if (Height <= 150.0)
+		{
+			Rows.Add(Recipe.Top);
+		}
+		else if (Height <= 250.0)
+		{
+			Rows.Add(Recipe.Base);
+			Rows.Add(Recipe.Top);
+		}
+		else
+		{
+			Rows.Add(Recipe.Base);
+			const int32 Panels = FMath::Max(1, FMath::RoundToInt((Height - 200.0) / 200.0));
+			for (int32 Index = 0; Index < Panels; ++Index)
+			{
+				Rows.Add(Recipe.Main[Index % 2]);
+			}
+			Rows.Add(Recipe.Top);
+		}
+		double Nominal = 0.0;
+		for (const TCHAR* Row : Rows)
+		{
+			Nominal += CladRowHeight(Row);
+		}
+		const double Stretch = Height / Nominal;
+		const int32 Tiles = FMath::Max(1, FMath::RoundToInt(Width / TileWidth));
+		const double Tile = Width / Tiles;
+		const FVector2D Tangent(-Normal.Y, Normal.X);
+		const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Normal.Y, Normal.X));
+		double Z = Bottom;
+		for (const TCHAR* Row : Rows)
+		{
+			const double RowHeight = CladRowHeight(Row) * Stretch;
+			TArray<FTransform>& Instances = Group(Groups, Row);
+			for (int32 Index = 0; Index < Tiles; ++Index)
+			{
+				const FVector2D P = At + Normal * Proud + Tangent * (-Width * 0.5 + Tile * (Index + 0.5));
+				Instances.Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(P.X, P.Y, Z), FVector(1.0, Tile / TileWidth, Stretch)));
+			}
+			Z += RowHeight;
+		}
+	}
+
+	/** Plates over a block's top, Lift above it, run along its long side and checkered between the recipe's two. */
+	void CladTop(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector& Min, const FVector& Max)
+	{
+		constexpr double Lift = 1.0, TileSize = 400.0;
+		const FVector Size = Max - Min;
+		const bool bAlongX = Size.X >= Size.Y;
+		const double Long = bAlongX ? Size.X : Size.Y, Short = bAlongX ? Size.Y : Size.X;
+		const int32 LongTiles = FMath::Max(1, FMath::RoundToInt(Long / TileSize)), ShortTiles = FMath::Max(1, FMath::RoundToInt(Short / TileSize));
+		const double TileLong = Long / LongTiles, TileShort = Short / ShortTiles;
+		const FVector Center = (Min + Max) * 0.5;
+		for (int32 I = 0; I < LongTiles; ++I)
+		{
+			for (int32 J = 0; J < ShortTiles; ++J)
+			{
+				const double U = -Long * 0.5 + TileLong * (I + 0.5), V = -Short * 0.5 + TileShort * (J + 0.5);
+				const FVector2D Offset = bAlongX ? FVector2D(U, V) : FVector2D(V, U);
+				Group(Groups, Recipe.Floor[(I + J) % 2]).Add(FTransform(FRotator(0.f, bAlongX ? 0.f : 90.f, 0.f),
+					FVector(Center.X + Offset.X, Center.Y + Offset.Y, Max.Z + Lift), FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
 			}
 		}
 	}
@@ -243,6 +359,9 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Sanctum.Rock = FLinearColor(0.46f, 0.36f, 0.25f);
 		Sanctum.Carved = FLinearColor(0.62f, 0.56f, 0.46f);
 		Sanctum.Haze = FLinearColor(0.62f, 0.52f, 0.40f);
+		Sanctum.bClad = true;
+		Sanctum.CladTint = FLinearColor(0.56f, 0.53f, 0.48f);
+		Sanctum.CladAccent = FLinearColor(1.0f, 0.52f, 0.12f);
 		// Creekbed: a forest valley. Green banks, pines, mossy rock, soft green-grey haze.
 		FShieldbreakMapLook& Creekbed = Out.Add(FName(TEXT("Creekbed")));
 		Creekbed.Ground = FLinearColor(0.17f, 0.27f, 0.11f);
@@ -262,6 +381,72 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 	static const FShieldbreakMapLook Default;
 	const FShieldbreakMapLook* Look = Looks.Find(MapId);
 	return Look ? *Look : Default;
+}
+
+TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShieldbreakMapLayout& Layout)
+{
+	using namespace ShieldbreakMapArtPrivate;
+	TArray<FShieldbreakArtGroup> Groups;
+	if (!GetLook(MapId).bClad)
+	{
+		return Groups;
+	}
+	const FVector2D Half = Layout.HalfExtent;
+	auto Inside = [&Half](const FVector2D& P) { return FMath::Abs(P.X) < Half.X - 1.0 && FMath::Abs(P.Y) < Half.Y - 1.0; };
+	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+	{
+		const FCladRecipe& Recipe = CladRecipe(Block.Style);
+		const FVector Size = Block.Max - Block.Min;
+		const FVector2D Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5);
+		const double Bottom = FMath::Max(Block.Min.Z, static_cast<double>(Layout.FloorZ));
+		const double Height = Block.Max.Z - Bottom;
+		struct FFace { FVector2D Normal; double Offset; double Width; };
+		const FFace Faces[4] = { { FVector2D(1.0, 0.0), Size.X * 0.5, Size.Y }, { FVector2D(-1.0, 0.0), Size.X * 0.5, Size.Y },
+			{ FVector2D(0.0, 1.0), Size.Y * 0.5, Size.X }, { FVector2D(0.0, -1.0), Size.Y * 0.5, Size.X } };
+		for (const FFace& Face : Faces)
+		{
+			const FVector2D At = Center + Face.Normal * Face.Offset;
+			// Faces inside the map, and the perimeter walls' inner faces (on the edge, looking in). Not the backs of the
+			// walls, nor block faces pressed against them.
+			const bool bOnEdge = FMath::Abs(At.X) <= Half.X + 1.0 && FMath::Abs(At.Y) <= Half.Y + 1.0 && !Inside(At);
+			const bool bLooksIn = FVector2D::DotProduct(Face.Normal, At) < 0.0;
+			if (Height < 25.0 || Face.Width < 30.0 || !(Inside(At) || (bOnEdge && bLooksIn)))
+			{
+				continue;
+			}
+			CladFace(Groups, Recipe, At, Face.Normal, Face.Width, Bottom, Height);
+		}
+		if (Recipe.Floor[0] && Inside(Center))
+		{
+			CladTop(Groups, Recipe, Block.Min, Block.Max);
+		}
+	}
+	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+	{
+		const FCladRecipe& Recipe = CladRecipe(Ramp.Style);
+		if (!Recipe.Floor[0])
+		{
+			continue;
+		}
+		// The ramp's top surface runs along the centreline from Start to End (AShieldbreakArena::AddRamp).
+		constexpr double Lift = 1.0, TileSize = 400.0;
+		const FVector Delta = Ramp.End - Ramp.Start;
+		const double Length = Delta.Size();
+		const FRotator Rotation = Delta.Rotation();
+		const FRotationMatrix Axes(Rotation);
+		const FVector Along = Axes.GetUnitAxis(EAxis::X), Across = Axes.GetUnitAxis(EAxis::Y), Up = Axes.GetUnitAxis(EAxis::Z);
+		const int32 LongTiles = FMath::Max(1, FMath::RoundToInt(Length / TileSize)), ShortTiles = FMath::Max(1, FMath::RoundToInt(Ramp.Width / TileSize));
+		const double TileLong = Length / LongTiles, TileShort = Ramp.Width / ShortTiles;
+		for (int32 I = 0; I < LongTiles; ++I)
+		{
+			for (int32 J = 0; J < ShortTiles; ++J)
+			{
+				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Across * (-Ramp.Width * 0.5 + TileShort * (J + 0.5)) + Up * Lift;
+				Group(Groups, Recipe.Floor[(I + J) % 2]).Add(FTransform(Rotation, P, FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
+			}
+		}
+	}
+	return Groups;
 }
 
 float ShieldbreakMapArt::PerimeterWallHeight(const FShieldbreakMapLayout& Layout)
@@ -342,8 +527,10 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		Rocks(TEXT("RockShelf"), { 18, 2000.f, 10000.f, 1.2f, 2.4f, 2000.f });
 		Rocks(TEXT("RockBoulder"), { 26, 1200.f, 9000.f, 0.7f, 1.5f, 1000.f });
 		Rocks(TEXT("RockTall"), { 8, 4000.f, 10000.f, 1.4f, 2.2f, 1200.f });
-		// Inside: carved reliefs on the temples, shrines, annexes and ruins; crowns on the spires, colossi and obelisks.
-		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower"), TEXT("bridge") }, 1050.f);
+		// Inside: crowns on the spires, colossi and obelisks, and carved reliefs on the temples, shrines, annexes and
+		// ruins unless the sci-fi kit clads them (Cladding).
+		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower"), TEXT("bridge") }, 1050.f,
+			!GetLook(MapId).bClad);
 		// A glowing diamond inlaid round the rockets plinth, an amber prism hung high above it, and each team's
 		// cracked-shield sigil floating over its temple atrium.
 		const float Floor = Layout.FloorZ;
