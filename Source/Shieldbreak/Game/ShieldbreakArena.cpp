@@ -561,7 +561,7 @@ void AShieldbreakArena::BuildMapArt()
 		return;
 	}
 	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
-	int32 Pieces = 0, Placed = 0;
+	int32 Kinds = 0, Placed = 0;
 	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Plan(MapId, Layout))
 	{
 		const FString Name = TEXT("SM_SB_Kit_") + Group.Piece.ToString();
@@ -580,10 +580,10 @@ void AShieldbreakArena::BuildMapArt()
 		}
 		Instances->RegisterComponent();
 		AddInstanceComponent(Instances);
-		++Pieces;
+		++Kinds;
 		Placed += Group.Instances.Num();
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Pieces, Placed);
+	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
 }
 
 void AShieldbreakArena::BuildBackdrop()
