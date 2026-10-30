@@ -523,12 +523,11 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 	{
 		return;
 	}
-	// Palette slot (Art/blender/sb_kit.py PALETTE) -> world surface kind and this map's tint for it.
-	struct FSlotLook { const TCHAR* Prefix; const TCHAR* Kind; FLinearColor Tint; };
+	// Palette slot (Art/blender/sb_kit.py PALETTE) -> this map's colour for it.
+	struct FSlotLook { const TCHAR* Prefix; FLinearColor Tint; };
 	const FSlotLook SlotLooks[] = {
-		{ TEXT("M_Steel"), TEXT("Panel"), Look.Metal }, { TEXT("M_Gunmetal"), TEXT("Panel"), Look.DarkMetal },
-		{ TEXT("M_Ivory"), TEXT("Stone"), Look.Carved }, { TEXT("M_Sand"), TEXT("Stone"), Look.Rock },
-		{ TEXT("M_Bark"), TEXT("Stone"), Look.Bark }, { TEXT("M_Olive"), TEXT("Grass"), Look.Foliage } };
+		{ TEXT("M_Steel"), Look.Metal }, { TEXT("M_Gunmetal"), Look.DarkMetal }, { TEXT("M_Ivory"), Look.Carved },
+		{ TEXT("M_Sand"), Look.Rock }, { TEXT("M_Bark"), Look.Bark }, { TEXT("M_Olive"), Look.Foliage } };
 	const TArray<FStaticMaterial>& Slots = Asset->GetStaticMaterials();
 	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
@@ -539,14 +538,11 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			{
 				continue;
 			}
-			const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(FName(Entry.Kind));
-			if (World && *World)
+			// Tint the imported palette instance (M_SB_Surface). The triplanar world material rendered black on the
+			// instanced kit meshes, so the kit keeps its own flat-colour surface and takes only this map's colour.
+			if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
 			{
-				Mesh->SetMaterial(Index, *World);
-				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
-				{
-					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Tint);
-				}
+				MID->SetVectorParameterValue(TEXT("BaseColor"), Entry.Tint);
 			}
 			break;
 		}
