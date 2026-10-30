@@ -102,18 +102,19 @@ namespace ShieldbreakMapArtPrivate
 		}
 	}
 
-	TArray<FTransform>& Group(TArray<FShieldbreakArtGroup>& Groups, const TCHAR* Piece)
+	TArray<FTransform>& Group(TArray<FShieldbreakArtGroup>& Groups, const TCHAR* Piece, const FLinearColor& TeamTint = FLinearColor::Transparent)
 	{
 		const FName Name(Piece);
 		for (FShieldbreakArtGroup& Existing : Groups)
 		{
-			if (Existing.Piece == Name)
+			if (Existing.Piece == Name && Existing.TeamTint == TeamTint)
 			{
 				return Existing.Instances;
 			}
 		}
 		FShieldbreakArtGroup& Added = Groups.AddDefaulted_GetRef();
 		Added.Piece = Name;
+		Added.TeamTint = TeamTint;
 		return Added.Instances;
 	}
 
@@ -152,7 +153,7 @@ namespace ShieldbreakMapArtPrivate
 				bStyled = bStyled || Block.Style == FName(Style);
 			}
 			const FVector Size = Block.Max - Block.Min;
-			if (!bStyled || Size.Z < MinHeight)
+			if (!bStyled)
 			{
 				continue;
 			}
@@ -162,6 +163,10 @@ namespace ShieldbreakMapArtPrivate
 				{ FVector2D(0.0, 1.0), Size.Y * 0.5, Size.X }, { FVector2D(0.0, -1.0), Size.Y * 0.5, Size.X } };
 			for (const FFace& Face : Faces)
 			{
+				if (Size.Z < MinHeight)
+				{
+					break;
+				}
 				const FVector2D At = FVector2D(Center.X, Center.Y) + Face.Normal * Face.Offset;
 				if (Face.Width < MinWidth || FMath::Abs(At.X) > Layout.HalfExtent.X + 1.0 || FMath::Abs(At.Y) > Layout.HalfExtent.Y + 1.0)
 				{
@@ -170,6 +175,21 @@ namespace ShieldbreakMapArtPrivate
 				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X));
 				Group(Groups, TEXT("Relief")).Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(At.X, At.Y, Block.Min.Z + Margin),
 					FVector(1.0, (Face.Width - 2.0 * Margin) / 100.0, (Size.Z - 2.0 * Margin) / 100.0)));
+			}
+			// Thin slabs (floors, walkways) get an edge band instead of a relief.
+			if (Size.Z <= 60.0 && Block.Max.Z - Layout.FloorZ >= 400.0)
+			{
+				for (const FFace& Face : Faces)
+				{
+					const FVector2D At = FVector2D(Center.X, Center.Y) + Face.Normal * Face.Offset;
+					if (Face.Width < 300.0 || FMath::Abs(At.X) > Layout.HalfExtent.X + 1.0 || FMath::Abs(At.Y) > Layout.HalfExtent.Y + 1.0)
+					{
+						continue;
+					}
+					const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X));
+					Group(Groups, TEXT("Fascia")).Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(At.X, At.Y, Block.Min.Z - 10.0),
+						FVector(1.0, (Face.Width - 20.0) / 100.0, (Size.Z + 20.0) / 100.0)));
+				}
 			}
 			const bool bOnEdge = FMath::Abs(Center.X) + Size.X * 0.5 > Layout.HalfExtent.X || FMath::Abs(Center.Y) + Size.Y * 0.5 > Layout.HalfExtent.Y;
 			if (Block.Max.Z - Layout.FloorZ >= CrownAbove && !bOnEdge)
@@ -323,7 +343,17 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		Rocks(TEXT("RockBoulder"), { 26, 1200.f, 9000.f, 0.7f, 1.5f, 1000.f });
 		Rocks(TEXT("RockTall"), { 8, 4000.f, 10000.f, 1.4f, 2.2f, 1200.f });
 		// Inside: carved reliefs on the temples, shrines, annexes and ruins; crowns on the spires, colossi and obelisks.
-		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower") }, 1050.f);
+		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower"), TEXT("bridge") }, 1050.f);
+		// A glowing diamond inlaid round the rockets plinth, an amber prism hung high above it, and each team's
+		// cracked-shield sigil floating over its temple atrium.
+		const float Floor = Layout.FloorZ;
+		Group(Groups, TEXT("Inlay")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Floor), FVector(18.0, 18.0, 1.0)));
+		Group(Groups, TEXT("Beacon")).Add(FTransform(FRotator(0.f, 45.f, 0.f), FVector(0.0, 0.0, Floor + 1700.0), FVector(1.6)));
+		for (const float Side : { -1.f, 1.f })
+		{
+			const FLinearColor Tint = Side < 0.f ? FLinearColor(1.f, 0.22f, 0.12f) : FLinearColor(0.2f, 0.45f, 1.f);
+			Group(Groups, TEXT("Sigil"), Tint).Add(FTransform(FRotator::ZeroRotator, FVector(Side * 6000.0, 0.0, Floor + 1250.0), FVector(1.5)));
+		}
 	}
 	else if (Id == TEXT("Creekbed"))
 	{

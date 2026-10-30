@@ -574,6 +574,20 @@ void AShieldbreakArena::BuildMapArt()
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
 		Instances->SetCastShadow(false);
 		ApplyKitSurfaces(Instances, Look);
+		if (Group.TeamTint.A > 0.f)
+		{
+			const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+			for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+			{
+				UMaterialInstanceDynamic* MID = Slots[Slot].MaterialSlotName.ToString().StartsWith(TEXT("M_TeamGlow"))
+					? Instances->CreateDynamicMaterialInstance(Slot) : nullptr;
+				if (MID)
+				{
+					MID->SetVectorParameterValue(TEXT("BaseColor"), Group.TeamTint * 0.2f);
+					MID->SetVectorParameterValue(TEXT("EmissiveColor"), Group.TeamTint);
+				}
+			}
+		}
 		for (const FTransform& Instance : Group.Instances)
 		{
 			Instances->AddInstance(Instance);

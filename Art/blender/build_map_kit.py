@@ -17,6 +17,10 @@ Pieces (theme in brackets; see docs/MAP_ART_STYLE.md):
   Pine       low-poly conifer                                                  [Creekbed]
   Crown      pointed cap with an amber band for tall unwalkable blocks (inside the map) [Sanctum]
   Relief     carved facade panel stretched over wall faces, 6 cm proud (inside the map) [Sanctum]
+  Fascia     chamfered edge band with an amber line for slab and walkway edges (inside) [Sanctum]
+  Inlay      2 cm glowing diamond floor inlay, stretched over open floor (inside)      [Sanctum]
+  Sigil      floating hard-light cracked-shield team sigil (team-tinted M_TeamGlow)     [Sanctum temples]
+  Beacon     floating amber hard-light prism hung over a map's centre                   [Sanctum]
   RockTall / RockBoulder / RockShelf   faceted rocks and cliff chunks          [all maps]
 
 Exported to Art/Export/MapKit for Tools/ImportMapArt.bat.
@@ -257,6 +261,55 @@ def relief():
     return sb_kit.join("SM_SB_Kit_Relief", parts)
 
 
+def fascia():
+    """An edge band for floor slabs and walkways: a chamfered lip with a recessed amber line, 8 cm proud of the
+    face (+X). Authored 100 wide and 100 high so it stretches over a slab edge."""
+    parts = [prism_xz("lip", [(0, 0), (6, 0), (8, 18), (8, 82), (6, 100), (0, 100)], -50, 50, "Ivory", bevel=0.0),
+             sb_kit.box("line", (8.5, 0, 50), (2, 96, 10), "GlowAmber", bevel=0.0)]
+    return sb_kit.join("SM_SB_Kit_Fascia", parts)
+
+
+def inlay():
+    """A floor inlay, 2 cm high on a 100 x 100 footprint: a diamond of glowing lines round a solid centre stone.
+    Stretched over open floor (Sanctum's courtyard) to draw the eye to the centre."""
+    parts = [sb_kit.box("centre", (0, 0, 1), (16, 16, 2), "Ivory", bevel=0.0)]
+    for a in range(4):
+        # Edge of the diamond: a thin bar from one tip to the next.
+        ang = math.radians(45 + 90 * a)
+        bar = sb_kit.box("edge", (0, 0, 0), (48, 2.4, 2), "GlowAmber", bevel=0.0)
+        parts.append(placed(bar, (math.cos(ang) * 24, math.sin(ang) * 24, 1), (0, 0, math.degrees(ang) + 90)))
+        spoke = sb_kit.box("spoke", (0, 0, 0), (16, 1.6, 2), "GlowAmber", bevel=0.0)
+        parts.append(placed(spoke, (math.cos(math.radians(90 * a)) * 42, math.sin(math.radians(90 * a)) * 42, 1), (0, 0, 90 * a)))
+    return sb_kit.join("SM_SB_Kit_Inlay", parts)
+
+
+def sigil():
+    """A floating hard-light team sigil: a cracked kite-shield outline split by a gap, made only of glowing bars, in
+    the team-tinted slot. 400 cm tall, centred on the origin, facing +X (both sides read). Original to Shieldbreak."""
+    outline = [(0, 200), (150, 140), (130, -40), (0, -200), (-130, -40), (-150, 140)]
+    parts = []
+    for i in range(len(outline)):
+        (y0, z0), (y1, z1) = outline[i], outline[(i + 1) % len(outline)]
+        length = math.hypot(y1 - y0, z1 - z0)
+        bar = sb_kit.box("bar", (0, 0, 0), (10, length - 14, 14), "TeamGlow", bevel=0.0)
+        parts.append(placed(bar, (0, (y0 + y1) / 2, (z0 + z1) / 2), (math.degrees(math.atan2(z1 - z0, y1 - y0)), 0, 0)))
+    # The crack: a jagged gap line down the middle, offset bars.
+    for (y0, z0), (y1, z1) in (((-10, 170), (20, 60)), ((20, 60), (-15, -40)), ((-15, -40), (8, -160))):
+        length = math.hypot(y1 - y0, z1 - z0)
+        bar = sb_kit.box("crack", (0, 0, 0), (8, length, 8), "TeamGlow", bevel=0.0)
+        parts.append(placed(bar, (0, (y0 + y1) / 2, (z0 + z1) / 2), (math.degrees(math.atan2(z1 - z0, y1 - y0)), 0, 0)))
+    return sb_kit.join("SM_SB_Kit_Sigil", parts)
+
+
+def beacon():
+    """A floating hard-light prism (two pyramids base to base) with a slow-reading amber core: a landmark hung high
+    over a map's centre. 300 cm tall, centred on the origin."""
+    parts = [frustum("upper", (0, 0, 0), (140, 140), (2, 2), 160, "GlowAmber", bevel=0.0),
+             frustum("lower", (0, 0, 0), (140, 140), (2, 2), -140, "GlowAmber", bevel=0.0),
+             frustum("collar", (0, 0, -10), (190, 190), (190, 190), 20, "Ivory", bevel=1.0)]
+    return sb_kit.join("SM_SB_Kit_Beacon", parts)
+
+
 def pine():
     """A 2200 cm low-poly conifer: a bark trunk and five stacked, slightly twisted cones."""
     parts = [sb_kit.cyl("trunk", (0, 0, 450), 55, 900, "Bark", axis="Z", verts=7, bevel=0.0, radius2=35)]
@@ -281,7 +334,7 @@ def rocks():
     ]
 
 
-PIECES = (rib, gantry, pylon, monument, monolith, arch, pine, crown, relief)
+PIECES = (rib, gantry, pylon, monument, monolith, arch, pine, crown, relief, fascia, inlay, sigil, beacon)
 
 
 def build(render=None):

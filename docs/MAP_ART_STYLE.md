@@ -39,7 +39,7 @@ trace or copy Halo files, models, textures, names or exact layouts, and there is
 |---|---|---|
 | Keel | An orbital drydock: the arena is a ship's deck in its cradle | Hull ribs over the long walls, gantry cranes over the ends, corner beacon pylons, concrete apron |
 | Bastion | A cliff fortress in cold high country | Heavy buttresses on every wall, crags, two beacon pylons, cold blue-white haze |
-| Sanctum | A sun temple in a desert basin | Monoliths with amber seams along the long walls, broken arches behind each temple, sand and warm haze |
+| Sanctum | A sun temple in a desert basin | Monoliths with amber seams along the long walls, broken arches behind each temple, sand and warm haze. Inside: carved reliefs on tall walls, crowns on spires and colossi, amber edge bands on raised walkways, a glowing floor inlay and a hanging amber beacon over the centre, each team's sigil floating over its temple atrium |
 | Creekbed | A forest valley | Pines crowding the walls, boulders, crags, green-grey haze |
 | Spire | A storm-harvesting exchange above a basalt caldera | Collector fins and service panels (Spire pass), a line of tall pylons on each side, stormy blue haze |
 
@@ -48,7 +48,8 @@ skyline landmark.
 
 ## How it's built
 
-- `Art/blender/build_map_kit.py` makes the kit: Rib, Gantry, Pylon, Monument, Monolith, Arch, Pine and three rocks,
+- `Art/blender/build_map_kit.py` makes the kit: Rib, Gantry, Pylon, Monument, Monolith, Arch, Pine, Crown, Relief,
+  Fascia (walkway edge band), Inlay (floor diamond), Sigil (team-tinted cracked shield), Beacon and three rocks,
   exported to `Art/Export/MapKit`. `--render=<folder>` writes Cycles previews.
 - `Tools/ImportMapArt.bat` imports only the kit into `/Game/Shieldbreak/Art/MapKit` and checks sizes and pivots
   (`Saved/Logs/MapArtImport.txt`).

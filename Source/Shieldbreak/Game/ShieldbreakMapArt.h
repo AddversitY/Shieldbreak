@@ -29,6 +29,8 @@ struct FShieldbreakArtGroup
 {
 	FName Piece;
 	TArray<FTransform> Instances;
+	/** Colour for the mesh's M_TeamGlow slots (team sigils); alpha 0 keeps the imported glow. */
+	FLinearColor TeamTint = FLinearColor::Transparent;
 };
 
 namespace ShieldbreakMapArt
