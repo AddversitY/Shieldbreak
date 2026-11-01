@@ -29,9 +29,9 @@ lines = []
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
     "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1)),
-    "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.62, desat=0.35, tint=(0.95, 0.93, 0.88)),
+    "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.3, desat=0.35, tint=(0.95, 0.93, 0.88)),
     "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.35, tint=(0.9, 0.88, 0.84)),
-    "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.75, coverage=0.85, desat=0.6, tint=(0.62, 0.62, 0.6)),
+    "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.75, coverage=0.4, desat=0.6, tint=(0.62, 0.62, 0.6)),
 }
 TOP_DEFAULT = "MossyGrass"
 ROOTS = ["/Game/Megascans", "/Game/MSPresets", "/Game/Custom", "/Game/PhysicalMaterials", "/Game/Meshes"]

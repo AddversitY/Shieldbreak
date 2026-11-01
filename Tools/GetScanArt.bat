@@ -31,6 +31,8 @@ for %%F in (Custom\CustomMaterials Custom\Materials\Functions PhysicalMaterials 
 )
 rem Textures the shared master materials name as defaults (only those, not the plants they belong to).
 robocopy "%ED%\Megascans\3D_Plants\AlexandraPalm" "%SB%\Megascans\3D_Plants\AlexandraPalm" T_*.uasset /NFL /NDL /NJH /NP >> "%LOG%"
+robocopy "%ED%\Megascans\3D_Assets\DryRiverBed" "%SB%\Megascans\3D_Assets\DryRiverBed" T_*.uasset /NFL /NDL /NJH /NP >> "%LOG%"
+robocopy "%ED%\Megascans\Decals\AridDebris" "%SB%\Megascans\Decals\AridDebris" T_*.uasset /NFL /NDL /NJH /NP >> "%LOG%"
 robocopy "%ED%\Megascans\3D_Plants\CustomMoss" "%SB%\Megascans\3D_Plants\CustomMoss" T_*.uasset /NFL /NDL /NJH /NP >> "%LOG%"
 echo COPYDONE >> "%LOG%"
 endlocal
