@@ -54,6 +54,10 @@ public:
 	const TArray<FVector>& GetPickupLocations() const { return PickupLocations; }
 	/** The floor, wall and ramp pieces (net addressable; see EnsureLocal). */
 	const TArray<TObjectPtr<UStaticMeshComponent>>& GetPieces() const { return Pieces; }
+	/** Enclosed maps (FShieldbreakMapLayout::bIndoor) have a ceiling over the whole map. */
+	bool IsIndoor() const { return Layout.bIndoor; }
+	/** Hide or show the ceiling of an enclosed map (overhead screenshots look in through it). No-op outdoors. */
+	void SetCeilingHidden(bool bHidden);
 
 protected:
 	virtual void BeginPlay() override;
@@ -97,6 +101,8 @@ private:
 	T* AddDecoration(const TCHAR* BaseName, UStaticMesh* Mesh);
 
 	bool IsLinkWalkable(const FVector& From, const FVector& To) const;
+	/** Enclosed maps: a grid of lamps under the ceiling (no sun or sky reaches the floor). -SBNoInteriorLights to compare. */
+	void BuildInteriorLights();
 	/** One-way: dropping off a ledge from From lands at To. */
 	bool IsDropLink(const FVector& From, const FVector& To) const;
 	void AddLink(int32 From, int32 To);
@@ -106,6 +112,10 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> Pieces;
+
+	/** The ceiling piece of an enclosed map (null outdoors). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> Ceiling;
 
 	UPROPERTY(Transient) TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> BaseMaterial;

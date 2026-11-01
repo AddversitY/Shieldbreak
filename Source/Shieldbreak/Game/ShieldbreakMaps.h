@@ -63,6 +63,9 @@ struct FShieldbreakMapLayout
 	float MaxZ = 1600.f;
 	FRotator SunRotation = FRotator(-48.f, 35.f, 0.f);
 	float FogDensity = 0.008f;
+	/** Enclosed map: a ceiling block spans the whole map; no sun or sky reach the floor, so the arena lights it
+	 *  from inside (AShieldbreakArena::SpawnLighting) and skips the outside scenery. */
+	bool bIndoor = false;
 
 	TArray<FShieldbreakMapBlock> Blocks;
 	TArray<FShieldbreakMapRamp> Ramps;

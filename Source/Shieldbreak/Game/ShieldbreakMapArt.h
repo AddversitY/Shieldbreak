@@ -31,6 +31,8 @@ struct FShieldbreakMapLook
 	/** Scanned art (AShieldbreakArena::BuildScanArt): Megascans stone, moss and earth on the blocks, a canyon of
 	 *  cliffs round the walls, boulders for rock cover, ferns and trees. Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
 	bool bScan = false;
+	/** Enclosed maps: the colour of the lamps under the ceiling (AShieldbreakArena::BuildInteriorLights). */
+	FLinearColor InteriorLight = FLinearColor(1.f, 0.93f, 0.84f);
 };
 
 /** One kit mesh (SM_SB_Kit_<Piece> in /Game/Shieldbreak/Art/MapKit) and where it stands, in arena-local space. */

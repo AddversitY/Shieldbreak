@@ -62,6 +62,8 @@ class Map:
         self.notes = []
         self.fill = []      # indices into self.blocks added by the cover pass (checked by validate_fill)
         self.keepout = []   # (min_xy, max_xy) rectangles the cover pass must leave empty (self-test run-ups, etc.)
+        self.indoor = False  # enclosed: a ceiling over the whole map and interior lighting (set by roof())
+        self.check_reach = False  # reachability() errors fail validation (the 2026-11 redesigned maps)
         # Floor slab + perimeter walls.
         hx, hy, t = half_x, half_y, 100.0
         self.block((-hx - t, -hy - t, floor_z - 100), (hx + t, hy + t, floor_z), "floor")
@@ -71,6 +73,39 @@ class Map:
         self.block((-hx - t, -hy, floor_z), (-hx, hy, floor_z + wall_h), "wall")
 
     # -- authoring --
+    def roof(self, thickness=100.0):
+        """Enclose the map: a ceiling at the top of the perimeter walls. Bots scan for floors below it."""
+        hx, hy, t = self.half_x, self.half_y, 100.0
+        self.block((-hx - t, -hy - t, self.floor_z + self.wall_h), (hx + t, hy + t, self.floor_z + self.wall_h + thickness), "dark")
+        self.indoor = True
+        self.max_z = min(self.max_z, self.floor_z + self.wall_h - 60.0)
+
+    def wall_x(self, x0, x1, y, z0, z1, gaps=(), t=60.0, color="wall", sym=False):
+        """A wall along X at y (thickness t), from x0 to x1, with openings: gaps = [(xa, xb, z_lo, z_hi)].
+        Each opening cuts the wall between z_lo and z_hi (a door: z_lo = floor, z_hi = lintel)."""
+        self._wall(0, x0, x1, y, z0, z1, gaps, t, color, sym)
+
+    def wall_y(self, y0, y1, x, z0, z1, gaps=(), t=60.0, color="wall", sym=False):
+        """A wall along Y at x; see wall_x."""
+        self._wall(1, y0, y1, x, z0, z1, gaps, t, color, sym)
+
+    def _wall(self, axis, a0, a1, c, z0, z1, gaps, t, color, sym):
+        def box(u0, u1, za, zb):
+            if u1 - u0 < 1 or zb - za < 1:
+                return
+            if axis == 0:
+                self.block((u0, c - t / 2, za), (u1, c + t / 2, zb), color, sym)
+            else:
+                self.block((c - t / 2, u0, za), (c + t / 2, u1, zb), color, sym)
+        cuts = sorted(gaps)
+        u = a0
+        for ga, gb, zl, zh in cuts:
+            box(u, ga, z0, z1)
+            box(ga, gb, z0, max(z0, zl))   # sill under the opening
+            box(ga, gb, min(z1, zh), z1)   # lintel over it
+            u = gb
+        box(u, a1, z0, z1)
+
     def block(self, a, b, color, sym=False):
         mn = tuple(min(a[i], b[i]) for i in range(3))
         mx = tuple(max(a[i], b[i]) for i in range(3))
@@ -118,7 +153,10 @@ class Map:
     def surfaces_at(self, x, y, pad=0.0):
         """All walkable top surfaces (z) over (x, y)."""
         out = []
+        roof_z = self.floor_z + self.wall_h if self.indoor else math.inf
         for mn, mx, _ in self.blocks:
+            if mn[2] >= roof_z:
+                continue  # the ceiling of an enclosed map is not a floor
             if mn[0] - pad <= x <= mx[0] + pad and mn[1] - pad <= y <= mx[1] + pad:
                 out.append(mx[2])
         for start, end, width, _, _ in self.ramps:
@@ -180,47 +218,108 @@ def crucible():
 
 
 def keel():
-    """Midship principles: two bases face each other across a raised central deck you can also fight under.
-    Four ramps climb the deck (two from the ends, two from the side lanes); balconies overlook the lanes."""
-    m = Map("Keel", "Keel", "Midship", 3600, 2200, wall_h=1000)
+    """Keel (2026-11 redesign): the inside of a derelict warship, fully enclosed. Vertical control is the theme.
+
+    Each team's hangar (deck at 3 m, gantry at 6.5 m) faces down the reactor hall. The rockets sit on top of the reactor
+    core (6.5 m) in the middle of the hall: two bridges and two gravity lifts reach it, all in view of each other.
+    The Overshield sits under the core on its own timer. Each flank is a cargo hold (ground floor, crates, with a
+    6.5 m catwalk along the hull: fast but exposed) at one end and an engine deck (6.5 m, machinery cover) over an
+    enclosed maintenance tunnel (protected, but cut off from teammates) at the other. Point-symmetric: red's
+    north hold mirrors into blue's south hold, red's south engine deck into blue's north one.
+    Levels: hold/hall floor 0, decks 300, catwalks/gantries/core 650, ceiling 1500."""
+    m = Map("Keel", "Keel", "Midship", 6800, 4400, wall_h=1500, max_z=1600)
     m.sun = (-52.0, 120.0)
-    # Bases: platform (top 280) against each end wall, low lip cover, two ramps down to the floor.
-    m.block((-3600, -900, 0), (-2700, 900, 280), "red")
-    m.block((3600, 900, 0), (2700, -900, 280), "blue")
-    m.block((-2740, -350, 280), (-2700, 350, 390), "red")
-    m.block((2740, 350, 280), (2700, -350, 390), "blue")
-    m.ramp((-2700, 700, 280), (-2100, 700, 0), 300, sym=True)
-    m.ramp((-2700, -700, 280), (-2100, -700, 0), 300, sym=True)
-    # Base balcony over the +Y lane (red) / -Y lane (blue): joined to the platform, low wall to fight from.
-    m.block((-3600, 900, 0), (-2400, 2200, 280), "red")
-    m.block((3600, -900, 0), (2400, -2200, 280), "blue")
-    m.block((-2440, 1150, 280), (-2400, 1950, 360), "red")
-    m.block((2440, -1150, 280), (2400, -1950, 360), "blue")
-    # Central deck: floating slab (top 400) on four pillars; open underneath (360 clearance).
-    m.block((-800, -600, 360), (800, 600, 400), "metal")
-    for px, py in [(-750, -550), (750, -550), (-750, 550), (750, 550)]:
-        m.block((px - 50, py - 50, 0), (px + 50, py + 50, 360), "dark")
-    # Deck ramps: from each end lane up the long axis, and from each side lane.
-    m.ramp((-1700, 0, 0), (-800, 0, 400), 260, sym=True)
-    m.ramp((-300, 1500, 0), (-300, 600, 400), 260, sym=True)
-    # Deck rail cover.
-    m.block((-500, -620, 400), (-200, -600, 470), "metal", sym=True)
-    # Side lanes: crates and a long low wall, plus tall pillars that break the lane sightline.
-    m.block((-1500, 1300, 0), (-1300, 1500, 150), "cover", sym=True)
-    m.block((-1000, -1700, 0), (-800, -1500, 150), "cover", sym=True)
-    m.block((-1900, -1250, 0), (-1300, -1200, 110), "cover", sym=True)
-    m.block((-600, 1850, 0), (-450, 2000, 500), "wall", sym=True)
-    m.block((-2100, -300, 0), (-1950, -150, 500), "wall", sym=True)
-    # Items: rockets on the deck, overshield under it, a Rail Lance in each side lane, Aegis by each balcony stairs.
-    m.weapon("rockets", (0, 0, 470))
+    m.fog = 0.004
+    m.check_reach = True
+    m.roof()
+    L1, L2, S = 300, 650, 40
+    WY = 2630  # hall / flank dividing walls (60 thick, y 2600..2660)
+
+    # ---- Hangars (red at -X): deck at L1, gantry at L2 behind the flag, ramps down into the hall ----
+    m.block((-6800, -2600, 0), (-5300, 2600, L1), "red", sym=True)
+    m.block((-6800, -2600, L2 - S), (-6300, 2600, L2), "metal", sym=True)
+    m.block((-6360, -900, L2), (-6300, 900, L2 + 110), "metal", sym=True)          # gantry rail
+    m.ramp((-5400, 2250, L1), (-6300, 2250, L2), 400, sym=True)
+    m.ramp((-5400, -2250, L1), (-6300, -2250, L2), 400, sym=True)
+    m.ramp((-5300, 1500, L1), (-4600, 1500, 0), 500, sym=True)
+    m.ramp((-5300, -1500, L1), (-4600, -1500, 0), 500, sym=True)
+    # Blast wall across the hangar mouth: the hangar sees the hall only through its three doors (gangway, two ramps),
+    # so the flag room is defended from inside and the hall is not one 130 m sightline from hangar to hangar.
+    m.wall_y(-2600, 2600, -5270, 0, 1500, [(-350, 350, L1, 900), (1200, 1800, 0, 800), (-1800, -1200, 0, 800)],
+             color="red", sym=True)
+    # Gangway: the fast, exposed lane from the deck to the hall's loading platform (L1).
+    m.block((-5300, -350, L1 - S), (-3400, 350, L1), "bridge", sym=True)
+    # Loading platform in the hall (L1): ramps down toward the core and back toward the hangar.
+    m.block((-3400, -1100, 0), (-2300, 1100, L1), "metal", sym=True)
+    m.ramp((-2300, 850, L1), (-1700, 850, 0), 400, sym=True)
+    m.ramp((-3400, -850, L1), (-4000, -850, 0), 400, sym=True)
+
+    # ---- Reactor core: slab at L2 over a reactor housing (a small room with doors on the north and south sides,
+    # so the hall's long axis is blocked at every height). The Overshield is inside the housing. ----
+    m.block((-600, -600, L2 - S), (600, 600, L2), "metal")
+    m.wall_y(-450, 450, -420, 0, L2 - S, t=60, color="dark", sym=True)
+    m.wall_x(-450, 450, 420, 0, L2 - S, [(-250, 250, 0, 400)], t=60, color="dark", sym=True)
+    m.block((-250, 600, L2 - S), (250, 3800, L2), "bridge", sym=True)   # red's bridge to its north catwalk
+    m.lift((-1500, 0, 0), (-400, 0, L2), sym=True)
+
+    # ---- Hall / flank walls, full height, with doors (x0, x1, z_lo, z_hi) ----
+    m.wall_x(-6800, 0, WY, 0, 1500, [(-6000, -5500, L1, 700), (-4300, -3800, 0, 400), (-2000, -1500, 0, 400),
+                                    (-300, 0, 0, 1000)], sym=True)
+    m.block((-6000, 2600, 0), (-5500, 2660, L1), "red", sym=True)  # under the hangar door: deck height
+    m.wall_x(-6800, 0, -WY, 0, 1500, [(-6000, -5500, L1, 700), (-4700, -4200, 0, 400), (-2700, -2200, 0, 400),
+                                     (-300, 0, 0, 1000)], sym=True)
+    m.block((-6000, -2660, 0), (-5500, -2600, L1), "red", sym=True)
+
+    # ---- North flank, red end: cargo hold with a catwalk along the hull ----
+    m.block((-6800, 2660, 0), (-5000, 4400, L1), "red", sym=True)                 # dock (L1)
+    m.ramp((-5000, 3400, L1), (-4300, 3400, 0), 600, sym=True)
+    m.ramp((-6300, 4100, L1), (-5300, 4100, L2), 500, sym=True)                   # dock -> catwalk landing
+    m.block((-5300, 3800, L2 - S), (-4400, 4400, L2), "metal", sym=True)
+    m.block((-4400, 3800, L2 - S), (300, 4400, L2), "metal", sym=True)            # catwalk
+    m.lift((-2200, 3150, 0), (-2200, 4100, L2), sym=True)
+
+    # ---- South flank, red end: engine deck (L2) over an enclosed maintenance tunnel ----
+    m.block((-6800, -4400, 0), (-5000, -2660, L1), "red", sym=True)               # dock (L1)
+    m.ramp((-5000, -3300, L1), (-4300, -3300, 0), 600, sym=True)
+    m.block((-4400, -4400, L2 - S), (-1600, -3200, L2), "metal", sym=True)        # engine deck
+    m.block((-1900, -3200, L2 - S), (-1600, -2700, L2), "metal", sym=True)        # its east landing
+    m.ramp((-5050, -4000, L1), (-4400, -4000, L2), 400, sym=True)                 # dock -> deck
+    m.ramp((-400, -2900, 0), (-1600, -2900, L2), 400, sym=True)                   # hall side -> deck
+    m.wall_x(-4400, -1600, -3230, 0, L2 - S, [(-3300, -2800, 0, 400)], sym=True)  # tunnel's inner wall
+    m.wall_y(-4400, -3260, -3900, 0, L2 - S, [(-3800, -3260, 0, 400)], sym=True)   # bulkheads: the tunnel doglegs,
+    m.wall_y(-4400, -3260, -2000, 0, L2 - S, [(-4400, -3860, 0, 400)], sym=True)   # no straight shot through it
+
+    # ---- Cover: sightline breakers in the hall, low cover on every deck and catwalk ----
+    m.cover((-2100, 1250, 0), (-1500, 2000, 1500), "metal", sym=True)      # coolant tanks: break hall diagonals
+    m.cover((-2100, -2000, 0), (-1500, -1250, 1500), "metal", sym=True)
+    m.cover((-4200, 1000, 0), (-3900, 1300, 130), sym=True)
+    m.cover((-1100, -1600, 0), (-800, -1300, 130), sym=True)
+    m.cover((-3000, 1800, 0), (-2700, 2100, 130), sym=True)
+    m.cover((-3000, -2000, 0), (-2600, -1800, 130), sym=True)
+    m.cover((-1000, 1200, 0), (-700, 1500, 130), sym=True)
+    m.cover((-3000, -600, L1), (-2700, 600, 1500), "metal", sym=True)       # loading platform: crane column
+    m.cover((-450, 250, L2), (-350, 450, L2 + 110), "metal", sym=True)      # core top
+    m.cover((-5800, 700, L1), (-5600, 1000, L1 + 110), "metal", sym=True)   # hangar deck
+    m.cover((-5800, -1000, L1), (-5600, -700, L1 + 110), "metal", sym=True)
+    m.cover((-3600, 2900, 0), (-3300, 3400, 450), "metal", sym=True)        # hold: container + crates
+    m.cover((-3000, 3700, 0), (-2700, 4000, 130), sym=True)
+    m.cover((-1600, 3250, 0), (-1100, 3750, 450), "metal", sym=True)
+    m.cover((-3600, 3800, L2), (-3400, 3950, L2 + 110), "metal", sym=True)  # catwalk
+    m.cover((-1400, 4250, L2), (-1200, 4400, L2 + 110), "metal", sym=True)
+    m.cover((-3700, -4100, L2), (-3300, -3700, 1100), "metal", sym=True)    # engine deck machinery
+    m.cover((-2600, -3600, L2), (-2400, -3300, L2 + 110), "metal", sym=True)
+    m.cover((-3600, -4100, 0), (-3400, -3900, 130), sym=True)               # tunnel
+
+    # ---- Items and objectives ----
+    m.weapon("rockets", (0, 0, L2 + 70))
     m.powerup("overshield", (0, 0, 70))
-    m.weapon("rail", (-1200, -1700, 70), sym=True)
-    m.powerup("aegis", (-1700, 1650, 70), sym=True)
-    for s in [(-3200, 500, 280), (-3200, -500, 280), (-3000, 1600, 280), (-2300, -1500, 0), (-1900, 1200, 0), (-2000, 300, 0)]:
-        m.spawn(s)
-    m.flag((-3300, 0, 370))
-    m.hills = [(0, 0, 620), (-2900, 1700, 500), (0, 0, 220), (2900, -1700, 500)]
-    m.ball = (0, 900, 90)
+    m.weapon("rail", (-700, 3300, 70), sym=True)
+    m.powerup("aegis", (-1800, -3700, 70), sym=True)
+    for sp in [(-6000, 1300, L1), (-6000, -1300, L1), (-6300, 3300, L1), (-6300, -3400, L1), (-6600, 1500, L2)]:
+        m.spawn(sp)
+    m.flag((-6050, 0, L1 + 90))
+    m.hills = [(0, 0, L2 + 220), (-2850, 850, L1 + 220), (-2700, 3300, 220), (2850, -850, L1 + 220), (2700, -3300, 220)]
+    m.ball = (0, 1500, 90)
     return m
 
 
@@ -525,37 +624,6 @@ def expand_horizontal(m, factor=2.0):
 # items and objectives, and forbids gaps a player could snag in (anything between 0 and 2 m).
 # =====================================================================================================
 
-def fill_keel(m):
-    # Side lanes: a tall wall halfway down each lane so the lane is two fights, not one 100 m sightline,
-    # plus low cover to strafe between.
-    m.cover((-2100, 3400, 0), (-1900, 4400, 500), "wall", sym=True)
-    m.cover((-4300, -4400, 0), (-4100, -3400, 500), "wall", sym=True)
-    m.cover((-4400, 2100, 0), (-4000, 2400, 130), sym=True)
-    m.cover((-1700, 2300, 0), (-1300, 2600, 130), sym=True)
-    m.cover((-3200, -3900, 0), (-2900, -3600, 130), sym=True)
-    m.cover((-1200, -2700, 0), (-900, -2400, 500), "wall", sym=True)
-    # Base approach: crates flanking the long deck ramp so pushing out of base has somewhere to go.
-    m.cover((-3000, 700, 0), (-2600, 1000, 130), sym=True)
-    m.cover((-3000, -1100, 0), (-2600, -800, 130), sym=True)
-    m.cover((-5000, -300, 0), (-4800, 300, 140), sym=True)
-    m.cover((-3700, 1300, 0), (-3500, 1800, 450), "wall", sym=True)
-    m.cover((-2300, -1000, 0), (-2100, -500, 450), "wall", sym=True)
-    # Balcony and base tops (280): low cover so defenders aren't standing on an open slab.
-    m.cover((-6800, 2400, 280), (-6500, 2700, 410), "metal", sym=True)
-    m.cover((-5600, 3800, 280), (-5300, 4100, 410), "metal", sym=True)
-    m.cover((-7000, -1400, 280), (-6800, -1100, 410), "metal", sym=True)
-    m.cover((-7000, 1100, 280), (-6800, 1400, 410), "metal", sym=True)
-    # Back corner of the -Y lane.
-    m.cover((-6600, -3400, 0), (-6300, -3100, 130), sym=True)
-    m.cover((-5600, -4000, 0), (-5300, -3700, 130), sym=True)
-    # Under the deck: low walls to fight around the Overshield (the deck is 360 up, so plenty of headroom).
-    m.cover((-800, -300, 0), (-600, 300, 120), "dark", sym=True)
-    m.cover((-200, 600, 0), (200, 800, 120), "dark", sym=True)
-    # Deck top: two low barriers so the rockets fight isn't a flat open slab.
-    m.cover((-1100, 300, 400), (-1000, 900, 510), "metal", sym=True)
-    m.cover((300, 300, 400), (700, 400, 510), "metal", sym=True)
-
-
 def fill_bastion(m):
     # Asymmetric, so both halves are placed by hand. Plateau top is 300.
     # South plateau (red's home) and north plateau (blue's home).
@@ -641,7 +709,7 @@ def fill_spire(m):
     m.cover((-2300, -400, 600), (-2100, -150, 710), "metal", sym=True)
 
 
-FILLS = {"Keel": fill_keel, "Bastion": fill_bastion, "Creekbed": fill_creekbed, "Spire": fill_spire}
+FILLS = {"Bastion": fill_bastion, "Creekbed": fill_creekbed, "Spire": fill_spire}
 
 
 def expand_and_fill(m):
@@ -651,7 +719,7 @@ def expand_and_fill(m):
     return m
 
 
-MAPS = [expand_and_fill(keel()), expand_and_fill(bastion()), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
+MAPS = [keel(), expand_and_fill(bastion()), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
 DEFAULT_MAP = "Keel"
 
 
@@ -707,6 +775,8 @@ def validate(m):
         if exposed > MAX_EXPOSED:
             errors.append(f"{exposed * 100:.1f}% of the walkable floor has no cover within 8 m (max {MAX_EXPOSED * 100:.0f}%)")
 
+    if m.check_reach:
+        errors.extend(reachability(m)[0])
     reds = [s for s in m.spawns if s[0] < 0]
     blues = [s for s in m.spawns if s[0] > 0]
     if len(reds) < 4 or len(blues) < 4:
@@ -835,6 +905,195 @@ def openness(m, step=250.0, near=800.0):
 
 
 # =====================================================================================================
+# Reachability (2026-11-01): can a bot walk from the spawns to every part of the map and back?
+# Bots walk (step-ups up to 45 cm, ramps), drop off ledges up to 7 m and ride lifts; they never jump. So a raised
+# area a bot can't reach has no ramp, stair or lift up to it. Players can also jump, so tops of cover and
+# skill ledges are fine as "jump-only" islands as long as they are small.
+# =====================================================================================================
+
+REACH_STEP = 50.0      # grid spacing (walls must be at least this thick so the walk can't pass through them)
+STEP_UP = 45.0         # the character's step height
+RAMP_STEP = 75.0       # rise between neighbouring points when either one is on a ramp
+MAX_DROP = 700.0       # matches ShieldbreakArenaPrivate::MaxDropHeight
+STAND_H = 184.0        # standing capsule height
+ISLAND_OK = 30.0       # m2: unreachable standable patches up to this size are jump-only spots (cover tops, perches)
+
+
+class _Index:
+    def __init__(self, m, cell=500.0):
+        self.m, self.cell, self.cells = m, cell, {}
+        for i, (mn, mx, _) in enumerate(m.blocks):
+            for cx in range(int(math.floor(mn[0] / cell)), int(math.floor(mx[0] / cell)) + 1):
+                for cy in range(int(math.floor(mn[1] / cell)), int(math.floor(mx[1] / cell)) + 1):
+                    self.cells.setdefault((cx, cy), []).append(i)
+
+    def blocks_at(self, x, y):
+        for i in self.cells.get((int(math.floor(x / self.cell)), int(math.floor(y / self.cell))), ()):
+            mn, mx, _ = self.m.blocks[i]
+            if mn[0] <= x <= mx[0] and mn[1] <= y <= mx[1]:
+                yield mn, mx
+
+    def stands(self, x, y):
+        """Standable surfaces at (x, y): [(z, on_ramp)] with a free standing capsule above each."""
+        cols = list(self.blocks_at(x, y))
+        roof_z = self.m.floor_z + self.m.wall_h if self.m.indoor else math.inf
+        tops = [(mx[2], False) for mn, mx in cols if mn[2] < roof_z]
+        for start, end, width, _, _ in self.m.ramps:
+            dx, dy = end[0] - start[0], end[1] - start[1]
+            l2 = dx * dx + dy * dy
+            t = ((x - start[0]) * dx + (y - start[1]) * dy) / l2
+            if 0.0 <= t <= 1.0 and abs((x - start[0]) * dy - (y - start[1]) * dx) / math.sqrt(l2) <= width / 2:
+                tops.append((start[2] + (end[2] - start[2]) * t, True))
+        out = []
+        for z, ramp in tops:
+            if any(mn[2] < z + STAND_H and mx[2] > z + 5 for mn, mx in cols):
+                continue
+            out.append((z, ramp))
+        out.sort()
+        merged = []
+        for z, ramp in out:
+            if merged and abs(merged[-1][0] - z) < 5:
+                merged[-1] = (max(z, merged[-1][0]), ramp or merged[-1][1])
+            else:
+                merged.append((z, ramp))
+        return merged
+
+
+class WalkGraph:
+    """Bot walk graph over a REACH_STEP grid of standable points: nodes (i, j, z, on_ramp), fwd/back edges."""
+    pass
+
+
+def walk_graph(m):
+    idx = _Index(m)
+    s = REACH_STEP
+    nx, ny = int(2 * m.half_x / s), int(2 * m.half_y / s)
+    grid = {}
+    for i in range(nx):
+        x = -m.half_x + (i + 0.5) * s
+        for j in range(ny):
+            y = -m.half_y + (j + 0.5) * s
+            st = idx.stands(x, y)
+            if st:
+                grid[(i, j)] = st
+    nodes, node_of = [], {}
+    for (i, j), st in grid.items():
+        for k, (z, ramp) in enumerate(st):
+            node_of[(i, j, k)] = len(nodes)
+            nodes.append((i, j, z, ramp))
+    fwd = [[] for _ in nodes]
+    back = [[] for _ in nodes]
+    for n, (i, j, z, ramp) in enumerate(nodes):
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            st = grid.get((i + di, j + dj))
+            if not st:
+                continue
+            for k, (z2, ramp2) in enumerate(st):
+                dz = z2 - z
+                limit = RAMP_STEP if (ramp or ramp2) else STEP_UP
+                if dz <= limit and dz >= -MAX_DROP:
+                    t = node_of[(i + di, j + dj, k)]
+                    fwd[n].append(t)
+                    back[t].append(n)
+    def nearest(p):
+        i, j = int((p[0] + m.half_x) / s), int((p[1] + m.half_y) / s)
+        best, bd = None, 1e18
+        for di in range(-2, 3):
+            for dj in range(-2, 3):
+                for k, (z, _) in enumerate(grid.get((i + di, j + dj), ())):
+                    d = abs(z - p[2]) + 10 * (abs(di) + abs(dj))
+                    if d < bd:
+                        best, bd = node_of[(i + di, j + dj, k)], d
+        return best
+    for base, target in m.lifts:
+        a, b = nearest(base), nearest(target)
+        if a is not None and b is not None:
+            fwd[a].append(b)
+            back[b].append(a)
+    g = WalkGraph()
+    g.m, g.idx, g.step, g.grid, g.nodes, g.node_of, g.fwd, g.back, g.nearest = m, idx, s, grid, nodes, node_of, fwd, back, nearest
+    g.pos = lambda n: (-m.half_x + (nodes[n][0] + 0.5) * s, -m.half_y + (nodes[n][1] + 0.5) * s, nodes[n][2])
+    return g
+
+
+def reachability(m, g=None):
+    """Returns (errors, stats): every spawn, pickup and objective in one walkable network; no big unreachable areas."""
+    g = g or walk_graph(m)
+    s, grid, nodes, node_of, fwd, back, nearest = g.step, g.grid, g.nodes, g.node_of, g.fwd, g.back, g.nearest
+    def flood(start, edges):
+        seen = bytearray(len(nodes))
+        stack = [start]
+        seen[start] = 1
+        while stack:
+            n = stack.pop()
+            for t in edges[n]:
+                if not seen[t]:
+                    seen[t] = 1
+                    stack.append(t)
+        return seen
+    errors = []
+    root = nearest(m.spawns[0])
+    there, home = flood(root, fwd), flood(root, back)
+    main = [there[n] and home[n] for n in range(len(nodes))]
+    # Anchors: every spawn, pickup, objective must be in the main walkable network.
+    anchors = [("spawn", p) for p in m.spawns] + [(f"weapon {k}", p) for k, p, _ in m.weapons]
+    anchors += [(f"power-up {k}", p) for k, p, _ in m.powerups] + [("flag", p) for p in m.flags if p]
+    anchors += [("ball", m.ball)] if m.ball else []
+    anchors += [("hill", (h[0], h[1], h[2] - 220)) for h in m.hills]
+    for what, p in anchors:
+        n = nearest((p[0], p[1], p[2] - (0 if what in ("spawn", "hill") else 70)))
+        if n is None:
+            errors.append(f"{what} at {p}: no standable point near it")
+        elif not there[n]:
+            errors.append(f"{what} at {p}: bots can't walk there from the spawns")
+        elif not home[n]:
+            errors.append(f"{what} at {p}: bots can't walk back out (a trap)")
+    # Large patches outside the main network.
+    cell_area = (s / 100.0) ** 2
+    off = [n for n in range(len(nodes)) if not main[n]]
+    seen = set()
+    islands = []
+    by_pos = {}
+    for n in off:
+        i, j, z, _ = nodes[n]
+        by_pos.setdefault((i, j), []).append(n)
+    for n in off:
+        if n in seen:
+            continue
+        comp, stack = [], [n]
+        seen.add(n)
+        while stack:
+            a = stack.pop()
+            comp.append(a)
+            i, j, z, _ = nodes[a]
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                for b in by_pos.get((i + di, j + dj), ()):
+                    if b not in seen and abs(nodes[b][2] - z) <= RAMP_STEP:
+                        seen.add(b)
+                        stack.append(b)
+        area = len(comp) * cell_area
+        if area > ISLAND_OK:
+            i, j, z, _ = nodes[comp[0]]
+            xs = [nodes[c][0] for c in comp]
+            ys = [nodes[c][1] for c in comp]
+            cx = -m.half_x + (sum(xs) / len(xs) + 0.5) * s
+            cy = -m.half_y + (sum(ys) / len(ys) + 0.5) * s
+            reach_in = any(there[c] for c in comp)
+            islands.append((area, cx, cy, z, reach_in))
+    for area, cx, cy, z, reach_in in sorted(islands, reverse=True):
+        kind = "a one-way trap (no way back out)" if reach_in else "unreachable without jumping"
+        errors.append(f"{area:.0f} m2 around ({cx:.0f}, {cy:.0f}, z {z:.0f}) is {kind}")
+    total = len(nodes) * cell_area
+    walk = sum(main) * cell_area
+    levels = {}
+    for n in range(len(nodes)):
+        if main[n]:
+            band = int(nodes[n][2] // 250) * 250
+            levels[band] = levels.get(band, 0) + cell_area
+    return errors, {"standable_m2": total, "network_m2": walk, "levels": levels}
+
+
+# =====================================================================================================
 # C++ generation
 # =====================================================================================================
 
@@ -878,6 +1137,8 @@ def generate_cpp():
         lines.append(f"\t\tL.MaxZ = {f(m.max_z)};")
         lines.append(f"\t\tL.SunRotation = FRotator({f(m.sun[0])}, {f(m.sun[1])}, 0.f);")
         lines.append(f"\t\tL.FogDensity = {m.fog:.4f}f;")
+        if m.indoor:
+            lines.append("\t\tL.bIndoor = true;")
         for mn, mx, c in m.blocks:
             lines.append(f"\t\tL.Blocks.Add({{ {vec(mn)}, {vec(mx)}, {col(c)}, {style(c)} }});")
         for start, end, width, c, thick in m.ramps:
@@ -952,14 +1213,16 @@ def render_png(m, path):
     def px(x, y):
         return (pad + (x + m.half_x + 100) * scale, pad + 70 + (m.half_y + 100 - y) * scale)
 
-    zmin, zmax = m.floor_z, max([b[1][2] for b in m.blocks if b[2] != "wall"] + [m.floor_z + 1])
+    roof_z = m.floor_z + m.wall_h if m.indoor else math.inf
+    shown = [b for b in m.blocks if b[0][2] < roof_z]  # an enclosed map's ceiling would hide everything
+    zmin, zmax = m.floor_z, max([b[1][2] for b in shown if b[2] != "wall"] + [m.floor_z + 1])
 
     def shade(color, z):
         r, g, b = C[color]
         t = 0.45 + 0.55 * (z - zmin) / max(1.0, zmax - zmin)
         return tuple(int(min(255, 255 * min(1.0, c * 1.6 + 0.08) * t)) for c in (r, g, b))
 
-    for mn, mx, c in sorted(m.blocks, key=lambda b: b[1][2]):
+    for mn, mx, c in sorted(shown, key=lambda b: b[1][2]):
         a, b = px(mn[0], mx[1]), px(mx[0], mn[1])
         d.rectangle([a, b], fill=shade(c, mx[2]), outline=(0, 0, 0))
     for start, end, width, c, _ in m.ramps:
@@ -998,7 +1261,7 @@ def render_png(m, path):
     marker(m.ball, (255, 240, 120), "BALL", 6)
 
     d.text((pad, 18), f"{m.name}", fill=(255, 255, 255), font=big)
-    d.text((pad + 170, 24), f"inspired by {m.inspired}   |   {2 * m.half_x / 100:.0f} m x {2 * m.half_y / 100:.0f} m   |   brighter = higher   red spawns -X, blue +X",
+    d.text((pad + 170, 24), f"{'enclosed   |   ' if m.indoor else ''}inspired by {m.inspired}   |   {2 * m.half_x / 100:.0f} m x {2 * m.half_y / 100:.0f} m   |   brighter = higher   red spawns -X, blue +X",
            fill=(190, 190, 190), font=font)
     d.text((pad, h - 22), "yellow = weapons   green = power-ups / equipment   purple squares = hills   white line = ramp (dot = top)   cyan = gravity lift",
            fill=(160, 160, 160), font=font)

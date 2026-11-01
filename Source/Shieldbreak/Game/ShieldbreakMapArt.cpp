@@ -352,6 +352,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Metal = FLinearColor(0.34f, 0.38f, 0.42f);
 		Keel.DarkMetal = FLinearColor(0.11f, 0.13f, 0.16f);
 		Keel.Haze = FLinearColor(0.34f, 0.42f, 0.54f);
+		Keel.InteriorLight = FLinearColor(1.f, 0.84f, 0.66f); // sodium-warm work lamps inside the hull
 		// Bastion: a cliff fortress in cold, high country. Pale rock, cold blue-white haze.
 		FShieldbreakMapLook& Bastion = Out.Add(FName(TEXT("Bastion")));
 		Bastion.GroundStyle = TEXT("stone");

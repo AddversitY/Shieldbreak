@@ -211,7 +211,14 @@ void AShieldbreakArena::BeginPlay()
 	if (GetNetMode() != NM_DedicatedServer)
 	{
 		SpawnLighting();
-		BuildBackdrop();
+		if (Layout.bIndoor)
+		{
+			BuildInteriorLights();
+		}
+		else
+		{
+			BuildBackdrop();
+		}
 	}
 
 	// Bots and pickups only in a match. The front end does not build an arena; this also covers a backdrop.
@@ -384,7 +391,13 @@ void AShieldbreakArena::BuildGeometry()
 {
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		AddBlock(Block.Min, Block.Max, Block.Color, Block.Style);
+		UStaticMeshComponent* Piece = AddBlock(Block.Min, Block.Max, Block.Color, Block.Style);
+		// An enclosed map's ceiling: the block that spans the whole map well above the floor.
+		if (Layout.bIndoor && Block.Min.Z > Layout.FloorZ + 300.0 && Block.Min.X <= -Layout.HalfExtent.X && Block.Max.X >= Layout.HalfExtent.X
+			&& Block.Min.Y <= -Layout.HalfExtent.Y && Block.Max.Y >= Layout.HalfExtent.Y)
+		{
+			Ceiling = Piece;
+		}
 	}
 	for (const FShieldbreakMapRamp& RampData : Layout.Ramps)
 	{
@@ -598,7 +611,8 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 void AShieldbreakArena::BuildMapArt()
 {
 	// -SBNoMapArt drops the set pieces, for before/after shots and performance comparisons.
-	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
+	// Enclosed maps have no outside to dress.
+	if (GetNetMode() == NM_DedicatedServer || Layout.bIndoor || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
 	{
 		return;
 	}
@@ -774,6 +788,63 @@ void AShieldbreakArena::BuildBackdrop()
 		AddInstanceComponent(Peak);
 		ApplySurface(Peak, TEXT("rock"), RockColor * Random.FRandRange(0.85f, 1.15f));
 	}
+}
+
+void AShieldbreakArena::SetCeilingHidden(bool bHidden)
+{
+	if (Ceiling)
+	{
+		Ceiling->SetVisibility(!bHidden);
+	}
+}
+
+void AShieldbreakArena::BuildInteriorLights()
+{
+	if (!Ceiling || FParse::Param(FCommandLine::Get(), TEXT("SBNoInteriorLights")))
+	{
+		return;
+	}
+	// A regular grid of soft, unshadowed lamps a little under the ceiling, skipping any spot inside a block. Spacing
+	// and strength are overridable (-SBLampSpacing= -SBLampCd=) so the PC can compare settings in one batch.
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	float Spacing = 1300.f, Candelas = 90.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBLampSpacing="), Spacing);
+	FParse::Value(FCommandLine::Get(), TEXT("SBLampCd="), Candelas);
+	Spacing = FMath::Max(Spacing, 400.f);
+	const float LampZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z) - 120.f;
+	const int32 CountX = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.X / Spacing));
+	const int32 CountY = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.Y / Spacing));
+	int32 Lamps = 0;
+	for (int32 IX = 0; IX < CountX; ++IX)
+	{
+		for (int32 IY = 0; IY < CountY; ++IY)
+		{
+			const FVector At(-Layout.HalfExtent.X + (IX + 0.5) * 2.0 * Layout.HalfExtent.X / CountX,
+				-Layout.HalfExtent.Y + (IY + 0.5) * 2.0 * Layout.HalfExtent.Y / CountY, LampZ);
+			const bool bInside = Layout.Blocks.ContainsByPredicate([&At](const FShieldbreakMapBlock& Block)
+			{
+				return At.X > Block.Min.X - 50.0 && At.X < Block.Max.X + 50.0 && At.Y > Block.Min.Y - 50.0 && At.Y < Block.Max.Y + 50.0
+					&& At.Z > Block.Min.Z - 50.0 && At.Z < Block.Max.Z + 50.0;
+			});
+			if (bInside)
+			{
+				continue;
+			}
+			UPointLightComponent* Lamp = NewObject<UPointLightComponent>(this);
+			Lamp->SetupAttachment(Root);
+			Lamp->SetMobility(EComponentMobility::Movable);
+			Lamp->SetRelativeLocation(At);
+			Lamp->SetIntensityUnits(ELightUnits::Candelas);
+			Lamp->SetIntensity(Candelas);
+			Lamp->SetAttenuationRadius(Spacing * 1.9f);
+			Lamp->SetSourceRadius(120.f);
+			Lamp->SetLightColor(Look.InteriorLight);
+			Lamp->SetCastShadows(false);
+			Lamp->RegisterComponent();
+			++Lamps;
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: enclosed, %d interior lamps (%.0f cm grid, %.0f cd)."), *Layout.DisplayName, Lamps, Spacing, Candelas);
 }
 
 void AShieldbreakArena::BuildSpawnPoints()

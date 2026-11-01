@@ -2821,6 +2821,11 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					{
 						Viewer->SetViewTarget(ChaseCamera);
 					}
+					// Enclosed maps: the overhead views look in through a hidden ceiling; ground views keep it.
+					if (AShieldbreakArena* ViewArena = AShieldbreakArena::Find(GetWorld()))
+					{
+						ViewArena->SetCeilingHidden(View.Key.EndsWith(TEXT("corner")) || View.Key.EndsWith(TEXT("top")));
+					}
 					Phase = 0;
 				},
 				[this, View](float Elapsed)
