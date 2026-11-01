@@ -1800,6 +1800,32 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
+	// Angled crowns (the Blender Cap) on the tops of the tall blocks, high out of reach: towers, temple fins, the
+	// tall stones. They break the flat box tops into Forerunner-style silhouettes. Visual only. -SBNoCaps.
+	int32 CapCount = 0;
+	if (UStaticMesh* CapMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoCaps")) ? nullptr : Kit(TEXT("Cap")))
+	{
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const FVector Size = Block.Max - Block.Min;
+			const bool bGround = Block.Style == Floor || Block.Style == Sand || Block.Style == Grass || Block.Style == FName(TEXT("glow"));
+			if (bGround || IsPerimeter(Layout, Block) || Block.Max.Z < Layout.FloorZ + 1050.0 || FMath::Max(Size.X, Size.Y) > 800.0
+				|| FMath::Min(Size.X, Size.Y) < 150.0)
+			{
+				continue;
+			}
+			// The blades run along the cap's X: turn it so they follow the block's long side.
+			const bool bAlongY = Size.Y > Size.X;
+			const double Long = bAlongY ? Size.Y : Size.X, Short = bAlongY ? Size.X : Size.Y;
+			const double Height = FMath::Clamp(Short * 1.1, 180.0, 360.0);
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			PlaceHero(CapMesh, FTransform(FRotator(0.f, bAlongY ? 90.f : 0.f, 0.f), FVector(Center.X, Center.Y, Block.Max.Z - 4.0),
+				FVector(Long / 100.0, Short / 100.0, Height / 100.0)));
+			++CapCount;
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d angled caps."), *Layout.DisplayName, CapCount);
+
 	for (const int32 Index : AltarBlocks)
 	{
 		const FShieldbreakMapBlock& Block = Layout.Blocks[Index];

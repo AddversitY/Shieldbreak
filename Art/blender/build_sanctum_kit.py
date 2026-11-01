@@ -12,6 +12,8 @@ Pieces:
   Gate     a 3400 cm wide gateway: two battered three-tier pylons with fins, a notched lintel, a floating keystone
   Shard    a 4600 cm levitating obelisk: five stone segments hung apart on a hard-light core over a stepped plinth
   Terrace  a 4000 cm long, three-step battered retaining wall with a light channel per step, to stand in the canyon
+  Cap      an angled crown for the tops of tall blocks (towers, temple fins), on a 100 x 100 cm footprint that the
+           game scales to each block: a cut plinth, two inward-leaning blades with a light seam, and a hard-light shard
   Altar    the shell over the centre plinth (600 x 600 x 320 cm of collision): battered stone with light channels, and a
            crown of hard-light stones hanging high above it, out of reach
 
@@ -188,7 +190,25 @@ def altar():
     return sb_kit.join("SM_SB_Kit_Altar", parts)
 
 
-PIECES = (gate, shard, terrace, altar)
+def cap():
+    """A crown for a block's top, 100 x 100 cm footprint (pivot at the centre of the footprint, on the block's top),
+    about 100 cm tall unscaled. The game stretches it to the block's footprint and sets the height."""
+    parts = [battered("plinth", (0, 0, 0), (104, 104), (88, 88), 18, "Ivory", bevel=1.5, chamfer=0.12)]
+    # Two blades rising from the front and back edges, leaning in toward the centre line and swept up at the tips.
+    for side in (-1, 1):
+        outline = [(-46, 0), (46, 0), (30, 70), (8, 96), (-10, 82), (-40, 26)]
+        blade = prism_xz("blade", outline, -9, 9, "Ivory", bevel=1.2)
+        placed(blade, (0, side * 30, 16), (side * 10, 0, 0))
+        parts.append(blade)
+    # The light seam between the blades, and a small shard of hard-light stone hanging above them.
+    parts.append(sb_kit.box("seam", (0, 0, 40), (70, 6, 40), "GlowCyan", bevel=0.0))
+    parts.append(placed(frustum("shard_hi", (0, 0, 0), (22, 22), (2, 2), 34, "Ivory", bevel=0.8), (0, 0, 118), (0, 0, 0)))
+    parts.append(placed(frustum("shard_lo", (0, 0, 0), (22, 22), (2, 2), -24, "Ivory", bevel=0.8), (0, 0, 116), (0, 0, 0)))
+    parts.append(placed(frustum("shard_core", (0, 0, 0), (10, 10), (1, 1), 12, "GlowCyan", bevel=0.0), (0, 0, 112), (0, 0, 0)))
+    return sb_kit.join("SM_SB_Kit_Cap", parts)
+
+
+PIECES = (gate, shard, terrace, altar, cap)
 
 
 def build(render=None):
