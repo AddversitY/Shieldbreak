@@ -1982,7 +1982,7 @@ void AShieldbreakArena::BuildScanArt()
 		for (int32 Drift = 0; Drift < Drifts; ++Drift)
 		{
 			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
-			const int32 Tufts = Random.RandRange(14, 26);
+			const int32 Tufts = Random.RandRange(22, 36);
 			for (int32 Tuft = 0; Tuft < Tufts; ++Tuft)
 			{
 				const FVector2D At = Middle + FVector2D(Random.FRandRange(-1.f, 1.f), Random.FRandRange(-1.f, 1.f)) * Random.FRandRange(40.f, 320.f);
@@ -2064,9 +2064,9 @@ void AShieldbreakArena::BuildScanArt()
 				{
 					continue;
 				}
-				const double Rise = Random.FRandRange(3.f, 7.f);
+				const double Rise = Random.FRandRange(1.5f, 3.5f);
 				const FVector Size(Tile - Joint, Tile - Joint, Rise + 10.0);
-				const FRotator Tilt(Random.FRandRange(-0.6f, 0.6f), Random.FRandRange(-2.f, 2.f), Random.FRandRange(-0.6f, 0.6f));
+				const FRotator Tilt(Random.FRandRange(-0.3f, 0.3f), Random.FRandRange(-2.f, 2.f), Random.FRandRange(-0.3f, 0.3f));
 				Slabs->AddInstance(FTransform(Tilt, FVector(X, Y, GroundZ + Rise - Size.Z * 0.5), Size / 100.0));
 				++SlabCount;
 			}
