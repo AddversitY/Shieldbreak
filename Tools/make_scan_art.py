@@ -249,7 +249,7 @@ def scan_material():
     link(patch_sample, "RGB", patch_tex, "")
     # Or (PatchNoise 1) broad world-space noise, for a top layer whose height map is too even to break up: the
     # ground's grass, which otherwise flips from all grass to all earth at one coverage value.
-    noise = node(unreal.MaterialExpressionNoise, -1700, 4200, scale=0.0012, levels=3, output_min=0.0, output_max=1.0, quality=1)
+    noise = node(unreal.MaterialExpressionNoise, -1700, 4200, scale=0.0005, levels=3, output_min=0.0, output_max=1.0, quality=1)
     link(position, "", noise, "Position")
     patch_h = node(unreal.MaterialExpressionLinearInterpolate, -1400, 3900)
     link(patch_tex, "", patch_h, "A")

@@ -2014,7 +2014,7 @@ void AShieldbreakArena::BuildScanArt()
 		for (int32 Drift = 0; Drift < Drifts; ++Drift)
 		{
 			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
-			const int32 Tufts = Random.RandRange(22, 36);
+			const int32 Tufts = Random.RandRange(12, 22);
 			for (int32 Tuft = 0; Tuft < Tufts; ++Tuft)
 			{
 				const FVector2D At = Middle + FVector2D(Random.FRandRange(-1.f, 1.f), Random.FRandRange(-1.f, 1.f)) * Random.FRandRange(40.f, 320.f);
