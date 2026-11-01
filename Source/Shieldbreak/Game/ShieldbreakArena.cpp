@@ -705,6 +705,11 @@ void AShieldbreakArena::BuildBackdrop()
 
 	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
 	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
+	// With the scanned look the far crags (BuildScanArt) are the skyline.
+	if (Look.bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan")))
+	{
+		return;
+	}
 	if (UStaticMesh* Ring = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/Environment/SM_SB_Mountains.SM_SB_Mountains")))
 	{
 		UStaticMeshComponent* Mountains = AddDecoration<UStaticMeshComponent>(TEXT("Backdrop"), Ring);
@@ -1697,16 +1702,18 @@ void AShieldbreakArena::BuildScanArt()
 		for (int32 SideIndex = 0; SideIndex < 4; ++SideIndex)
 		{
 			const FSide& Side = Sides[SideIndex];
-			for (int32 Row = 0; Row < 2; ++Row)
+			// Three rows: on the barrier, just behind it, and a far ring of giant crags that is the skyline.
+			for (int32 Row = 0; Row < 3; ++Row)
 			{
-				const double Gap = Row == 0 ? 10.0 : 1500.0;
-				const double Reach = Side.Length + (Row == 0 ? 1800.0 : 3500.0);
+				const double Gap = Row == 0 ? 10.0 : Row == 1 ? 1500.0 : 6500.0;
+				const double Reach = Side.Length + (Row == 0 ? 1800.0 : Row == 1 ? 3500.0 : 9000.0);
 				double Along = -Reach;
 				while (Along < Reach)
 				{
 					UStaticMesh* Mesh = Cliffs[Random.RandRange(0, Cliffs.Num() - 1)];
 					const FVector Extent = Mesh->GetBoundingBox().GetSize();
-					const double Height = Row == 0 ? Random.FRandRange(2200.f, 3400.f) : Random.FRandRange(3200.f, 5200.f);
+					const double Height = Row == 0 ? Random.FRandRange(2200.f, 3400.f) : Row == 1 ? Random.FRandRange(3200.f, 5200.f)
+						: Random.FRandRange(7000.f, 11000.f);
 					const double Scale = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.5, 40.0);
 					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 					const FBox Placed = PlacedBounds(Mesh, Transform);
@@ -1729,7 +1736,7 @@ void AShieldbreakArena::BuildScanArt()
 						++CliffCount;
 					}
 					// The near row overlaps well so no gap shows the outside through it.
-					Along += FMath::Max(Spread * (Row == 0 ? 0.45 : 0.62), 500.0);
+					Along += FMath::Max(Spread * (Row == 0 ? 0.45 : Row == 1 ? 0.62 : 0.7), 500.0);
 				}
 			}
 		}
