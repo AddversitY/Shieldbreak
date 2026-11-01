@@ -5,6 +5,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
@@ -1805,6 +1806,46 @@ void AShieldbreakArena::BuildScanArt()
 		const FVector Center = (Block.Min + Block.Max) * 0.5;
 		PlaceHero(AltarFor(Layout, Block), FTransform(FVector(Center.X, Center.Y, Block.Min.Z)));
 	}
+
+	// Lamps under the roofs over spawns: the temple interiors are lit only by bounce, so the eye adapted to them
+	// blew the sunlit courts outside to white. A soft unshadowed light under each roof evens that out.
+	// -SBNoRoofLights turns them off.
+	int32 RoofLights = 0;
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoRoofLights")))
+	{
+		TArray<FVector> Lamps;
+		for (const FVector& Feet : Layout.Spawns)
+		{
+			double Roof = TNumericLimits<double>::Max();
+			for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+			{
+				if (Feet.X > Block.Min.X && Feet.X < Block.Max.X && Feet.Y > Block.Min.Y && Feet.Y < Block.Max.Y
+					&& Block.Min.Z >= Feet.Z + 220.0 && Block.Min.Z <= Feet.Z + 900.0)
+				{
+					Roof = FMath::Min(Roof, Block.Min.Z);
+				}
+			}
+			const FVector At(Feet.X, Feet.Y, Roof - 80.0);
+			if (Roof == TNumericLimits<double>::Max() || Lamps.ContainsByPredicate([&At](const FVector& Other) { return FVector::Dist(Other, At) < 800.0; }))
+			{
+				continue;
+			}
+			Lamps.Add(At);
+			UPointLightComponent* Lamp = NewObject<UPointLightComponent>(this);
+			Lamp->SetupAttachment(Root);
+			Lamp->SetMobility(EComponentMobility::Movable);
+			Lamp->SetWorldLocation(At);
+			Lamp->SetIntensityUnits(ELightUnits::Candelas);
+			Lamp->SetIntensity(60.f);
+			Lamp->SetAttenuationRadius(1500.f);
+			Lamp->SetSourceRadius(150.f);
+			Lamp->SetLightColor(FLinearColor(1.f, 0.92f, 0.82f));
+			Lamp->SetCastShadows(false);
+			Lamp->RegisterComponent();
+			++RoofLights;
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d roof lights over spawns."), *Layout.DisplayName, RoofLights);
 
 	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_"), { 1, 2, 3 });
 	Cliffs.Append(Family(TEXT("3D_Assets/ForestRockFormation"), TEXT("SM_ForestRockFormation_"), { 1, 2, 4, 5, 6 }));
