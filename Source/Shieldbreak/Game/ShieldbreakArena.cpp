@@ -948,6 +948,15 @@ void AShieldbreakArena::SpawnLighting()
 			Settings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
 			Settings.bOverride_ReflectionMethod = true;
 			Settings.ReflectionMethod = EReflectionMethod::Lumen;
+			// Scanned maps: more bounce light, so the ground under walkways and overhangs reads as shade rather than
+			// black (and the eye does not adapt so far that the daylight blows out). -SBIndirect=<scale> to tune.
+			if (ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan")))
+			{
+				float Indirect = 1.8f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBIndirect="), Indirect);
+				Settings.bOverride_IndirectLightingIntensity = true;
+				Settings.IndirectLightingIntensity = Indirect;
+			}
 		}
 		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoGrade")))
 		{
