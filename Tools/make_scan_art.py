@@ -291,6 +291,12 @@ def scan_material():
     mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     mel.connect_material_property(roughness, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.set_material_usage(mat, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES)
+    # The scanned rocks, cliffs and stones are Nanite meshes: without this flag they fall back to the default material.
+    nanite = getattr(unreal.MaterialUsage, "MATUSAGE_NANITE", None)
+    if nanite is not None:
+        mel.set_material_usage(mat, nanite)
+    else:
+        mat.set_editor_property("used_with_nanite", True)
     mel.recompile_material(mat)
     eal.save_asset(path)
     log("built %s (%d expressions)" % (path, mel.get_num_material_expressions(mat)))
