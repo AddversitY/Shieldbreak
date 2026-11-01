@@ -1421,21 +1421,30 @@ namespace ShieldbreakScanPrivate
 	 * A carved block mesh (local space, origin at the block's centre), flat-shaded. Each face is emitted in both
 	 * windings with its outward normal, so it renders right whichever winding the renderer treats as front.
 	 */
-	void BuildCarvedBlock(UProceduralMeshComponent* Mesh, const FVector& Size)
+	/** Carved blocks sharing one material, merged into one mesh section (one draw per material, not per block). */
+	struct FCarvedMesh
 	{
-		const FVector Half = Size * 0.5;
-		const double Chamfer = FMath::Clamp(FMath::Min(Size.X, Size.Y) * 0.12, 6.0, 35.0);
-		const TArray<FRing> Rings = CarvedProfile(Size);
 		TArray<FVector> Vertices;
 		TArray<int32> Triangles;
 		TArray<FVector> Normals;
 		TArray<FVector2D> UVs;
+	};
+
+	void AppendCarvedBlock(FCarvedMesh& Out, const FVector& Size, const FVector& Center)
+	{
+		const FVector Half = Size * 0.5;
+		const double Chamfer = FMath::Clamp(FMath::Min(Size.X, Size.Y) * 0.12, 6.0, 35.0);
+		const TArray<FRing> Rings = CarvedProfile(Size);
+		TArray<FVector>& Vertices = Out.Vertices;
+		TArray<int32>& Triangles = Out.Triangles;
+		TArray<FVector>& Normals = Out.Normals;
+		TArray<FVector2D>& UVs = Out.UVs;
 		auto Face = [&](TConstArrayView<FVector> Corners, const FVector& Outward)
 		{
 			const int32 First = Vertices.Num();
 			for (const FVector& Corner : Corners)
 			{
-				Vertices.Add(Corner);
+				Vertices.Add(Corner + Center);
 				Normals.Add(Outward);
 				UVs.Add(FVector2D(Corner.X + Corner.Y, Corner.Z) / 100.0);
 			}
@@ -1473,15 +1482,13 @@ namespace ShieldbreakScanPrivate
 		}
 		Outline(Half, Rings.Last().Out, Chamfer, Upper);
 		Outline(Half, Rings[0].Out, Chamfer, Lower);
-		TArray<FVector, TInlineAllocator<8>> Top, Bottom;
+		// The top only: the foot stands on the ground and is never seen.
+		TArray<FVector, TInlineAllocator<8>> Top;
 		for (int32 Side = 0; Side < 8; ++Side)
 		{
 			Top.Add(FVector(Upper[Side], Half.Z));
-			Bottom.Add(FVector(Lower[7 - Side], -Half.Z));
 		}
 		Face(Top, FVector(0, 0, 1));
-		Face(Bottom, FVector(0, 0, -1));
-		Mesh->CreateMeshSection(0, Vertices, Triangles, Normals, UVs, TArray<FColor>(), TArray<FProcMeshTangent>(), false);
 	}
 }
 
@@ -1521,6 +1528,7 @@ void AShieldbreakArena::BuildScanArt()
 	// -SBScanRockOwn keeps the scanned rocks' own materials (they come out black; see Place).
 	const bool bRockOverride = !FParse::Param(FCommandLine::Get(), TEXT("SBScanRockOwn"));
 	int32 CarvedCount = 0;
+	TMap<TPair<UMaterialInterface*, int32>, FCarvedMesh> CarvedMeshes;
 	for (int32 Index = 0; Index < Pieces.Num(); ++Index)
 	{
 		UStaticMeshComponent* Piece = Pieces[Index];
@@ -1555,22 +1563,14 @@ void AShieldbreakArena::BuildScanArt()
 			const FVector Size = Block.Max - Block.Min;
 			if (Size.Z >= 120.0 && FMath::Min(Size.X, Size.Y) >= 40.0)
 			{
-				// Carved stone in place of the box; the box stays as the (hidden) collision and Lumen occluder.
-				UProceduralMeshComponent* Carved = NewObject<UProceduralMeshComponent>(this, FName(TEXT("Carved"), Index + 1), RF_Transient);
-				Carved->SetNetAddressable();
-				Carved->SetMobility(EComponentMobility::Static);
-				Carved->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-				Carved->SetCanEverAffectNavigation(false);
-				Carved->SetupAttachment(Root);
-				Carved->SetRelativeLocation((Block.Min + Block.Max) * 0.5);
-				BuildCarvedBlock(Carved, Size);
-				Carved->RegisterComponent();
-				AddInstanceComponent(Carved);
-				Decorations.Add(Carved);
+				// Carved stone in place of the box; the box stays as the (hidden) collision and Lumen occluder. Blocks
+				// are merged per material (team tint included) and built as one mesh after this loop.
+				const int32 Tint = Style == Red ? 1 : Style == Blue ? 2 : 0;
+				AppendCarvedBlock(CarvedMeshes.FindOrAdd(TPair<UMaterialInterface*, int32>(Surface, Tint)), Size, (Block.Min + Block.Max) * 0.5);
 				Piece->bAffectIndirectLightingWhileHidden = true;
 				Piece->SetVisibility(false);
-				Shown = Carved;
 				++CarvedCount;
+				continue;
 			}
 		}
 		Shown->SetMaterial(0, Surface);
@@ -1582,6 +1582,36 @@ void AShieldbreakArena::BuildScanArt()
 				MID->SetVectorParameterValue(TEXT("Tint"), Style == Red ? FLinearColor(1.02f, 0.86f, 0.8f) : FLinearColor(0.82f, 0.9f, 1.0f));
 			}
 		}
+	}
+
+	// The merged carved stone: one component, one section per material.
+	if (CarvedMeshes.Num() > 0)
+	{
+		UProceduralMeshComponent* Carved = NewObject<UProceduralMeshComponent>(this, TEXT("Carved"), RF_Transient);
+		Carved->SetNetAddressable();
+		Carved->SetMobility(EComponentMobility::Static);
+		Carved->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Carved->SetCanEverAffectNavigation(false);
+		Carved->SetupAttachment(Root);
+		int32 Section = 0;
+		for (const TPair<TPair<UMaterialInterface*, int32>, FCarvedMesh>& Entry : CarvedMeshes)
+		{
+			const FCarvedMesh& Mesh = Entry.Value;
+			Carved->CreateMeshSection(Section, Mesh.Vertices, Mesh.Triangles, Mesh.Normals, Mesh.UVs, TArray<FColor>(), TArray<FProcMeshTangent>(), false);
+			Carved->SetMaterial(Section, Entry.Key.Key);
+			if (Entry.Key.Value != 0)
+			{
+				// The temples keep a hint of their team: warm or cool stone (the trim lines carry the colour).
+				if (UMaterialInstanceDynamic* MID = Carved->CreateDynamicMaterialInstance(Section))
+				{
+					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Key.Value == 1 ? FLinearColor(1.02f, 0.86f, 0.8f) : FLinearColor(0.82f, 0.9f, 1.0f));
+				}
+			}
+			++Section;
+		}
+		Carved->RegisterComponent();
+		AddInstanceComponent(Carved);
+		Decorations.Add(Carved);
 	}
 
 	auto Instanced = [this, bLumen](UStaticMesh* Mesh, bool bShadow)
