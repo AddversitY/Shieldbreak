@@ -376,6 +376,13 @@ namespace ShieldbreakMapsData
 			Mirrored(-1900.0f, -3250.0f, 550.0f, -1600.0f, -3150.0f, 700.0f);
 			Mirrored(1300.0f, 2000.0f, 550.0f, 1600.0f, 2100.0f, 700.0f);
 			Mirrored(1600.0f, -2100.0f, 550.0f, 1900.0f, -2000.0f, 700.0f);
+			// Chicanes: two overlapping full-height walls on each long stretch, so no sightline runs the walkway's length.
+			Mirrored(-1900.0f, 1450.0f, 550.0f, -1550.0f, 1550.0f, 900.0f);
+			Mirrored(-1650.0f, 1750.0f, 550.0f, -1300.0f, 1850.0f, 900.0f);
+			Mirrored(1300.0f, 1450.0f, 550.0f, 1650.0f, 1550.0f, 900.0f);
+			Mirrored(1550.0f, 1750.0f, 550.0f, 1900.0f, 1850.0f, 900.0f);
+			Mirrored(-2450.0f, 3800.0f, 550.0f, -2350.0f, 4150.0f, 900.0f);
+			Mirrored(-2150.0f, 4050.0f, 550.0f, -2050.0f, 4400.0f, 900.0f);
 			// Arches over the walkways where the dark pillars hold them up (y = +-1000): two posts and a lintel.
 			for (const float X : { -1600.0f, 1600.0f })
 			{
