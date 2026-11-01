@@ -22,6 +22,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "ProceduralMeshComponent.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
@@ -413,6 +414,8 @@ void AShieldbreakArena::BuildTrim()
 	}
 
 	constexpr float StripHeight = 14.f, StripDepth = 6.f, TopInset = 30.f, FootHeight = 60.f, EndInset = 30.f;
+	const bool bCarvedStone = ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan"))
+		&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoCarve"));
 	const FVector2D Half = Layout.HalfExtent;
 	int32 Count = 0;
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
@@ -425,7 +428,8 @@ void AShieldbreakArena::BuildTrim()
 		UInstancedStaticMeshComponent* Strip = Strips[Block.Style == RedStyle ? 1 : Block.Style == BlueStyle ? 2 : 0];
 		TArray<float, TInlineAllocator<2>> Heights;
 		Heights.Add(static_cast<float>(Block.Max.Z) - TopInset);
-		if (Size.Z >= 400.f)
+		// Carved scanned stone (BuildScanArt) leans out at the foot over where this line would sit: top line only.
+		if (Size.Z >= 400.f && !bCarvedStone)
 		{
 			Heights.Add(static_cast<float>(Block.Min.Z) + FootHeight);
 		}
@@ -1324,6 +1328,127 @@ namespace ShieldbreakScanPrivate
 	}
 }
 
+namespace ShieldbreakScanPrivate
+{
+	/** One horizontal ring of a carved block's outline: height above the block's foot and how far the face sits out
+	 *  from the collision box (negative = inset). */
+	struct FRing { double Z; double Out; };
+
+	/**
+	 * The profile of a Forerunner-style carved block of Size (cm): a raised base, walls that lean in over the lower
+	 * half (a battered wall), a recessed channel under the top where the light trim sits (Arena BuildTrim puts it
+	 * 30 cm below the top), and a bevelled cap. Features shrink on thin or short blocks so they never eat the shape.
+	 */
+	TArray<FRing> CarvedProfile(const FVector& Size)
+	{
+		const double H = Size.Z;
+		const double S = FMath::Clamp(FMath::Min(Size.X, Size.Y) / 150.0, 0.35, 1.0);
+		const double Batter = FMath::Clamp(H * 0.05, 0.0, 30.0) * S;
+		const double Plinth = 14.0 * S;
+		const double Bevel = FMath::Min(10.0 * S, H * 0.08);
+		TArray<FRing> Rings;
+		Rings.Add({ 0.0, Plinth + Batter });
+		if (H >= 160.0)
+		{
+			Rings.Add({ 40.0, Plinth + Batter });
+			Rings.Add({ 55.0, Batter });
+			Rings.Add({ FMath::Max(H * 0.55, 60.0), 0.0 });
+			const double Depth = 7.0 * S;
+			const double Low = H - 30.0 - 11.0, High = H - 30.0 + 11.0;
+			Rings.Add({ Low, 0.0 });
+			Rings.Add({ Low, -Depth });
+			Rings.Add({ High, -Depth });
+			Rings.Add({ High, 0.0 });
+		}
+		else
+		{
+			Rings.Add({ FMath::Min(25.0, H * 0.2), Plinth * 0.5 + Batter });
+			Rings.Add({ FMath::Min(45.0, H * 0.35), 0.0 });
+		}
+		Rings.Add({ H - Bevel, 0.0 });
+		Rings.Add({ H, -Bevel });
+		return Rings;
+	}
+
+	/** The eight corners of a box outline Out cm proud of the half extents, the vertical edges cut by Chamfer. */
+	void Outline(const FVector& Half, double Out, double Chamfer, FVector2D (&Points)[8])
+	{
+		const double X = Half.X + Out, Y = Half.Y + Out;
+		const double C = FMath::Min(Chamfer, FMath::Min(X, Y) * 0.45);
+		Points[0] = FVector2D(X, -Y + C); Points[1] = FVector2D(X, Y - C);
+		Points[2] = FVector2D(X - C, Y); Points[3] = FVector2D(-X + C, Y);
+		Points[4] = FVector2D(-X, Y - C); Points[5] = FVector2D(-X, -Y + C);
+		Points[6] = FVector2D(-X + C, -Y); Points[7] = FVector2D(X - C, -Y);
+	}
+
+	/**
+	 * A carved block mesh (local space, origin at the block's centre), flat-shaded. Each face is emitted in both
+	 * windings with its outward normal, so it renders right whichever winding the renderer treats as front.
+	 */
+	void BuildCarvedBlock(UProceduralMeshComponent* Mesh, const FVector& Size)
+	{
+		const FVector Half = Size * 0.5;
+		const double Chamfer = FMath::Clamp(FMath::Min(Size.X, Size.Y) * 0.12, 6.0, 35.0);
+		const TArray<FRing> Rings = CarvedProfile(Size);
+		TArray<FVector> Vertices;
+		TArray<int32> Triangles;
+		TArray<FVector> Normals;
+		TArray<FVector2D> UVs;
+		auto Face = [&](TConstArrayView<FVector> Corners, const FVector& Outward)
+		{
+			const int32 First = Vertices.Num();
+			for (const FVector& Corner : Corners)
+			{
+				Vertices.Add(Corner);
+				Normals.Add(Outward);
+				UVs.Add(FVector2D(Corner.X + Corner.Y, Corner.Z) / 100.0);
+			}
+			for (int32 Index = 1; Index + 1 < Corners.Num(); ++Index)
+			{
+				Triangles.Append({ First, First + Index, First + Index + 1 });
+				Triangles.Append({ First, First + Index + 1, First + Index });
+			}
+		};
+		FVector2D Lower[8], Upper[8];
+		for (int32 Ring = 0; Ring + 1 < Rings.Num(); ++Ring)
+		{
+			Outline(Half, Rings[Ring].Out, Chamfer, Lower);
+			Outline(Half, Rings[Ring + 1].Out, Chamfer, Upper);
+			const double Z0 = Rings[Ring].Z - Half.Z, Z1 = Rings[Ring + 1].Z - Half.Z;
+			for (int32 Side = 0; Side < 8; ++Side)
+			{
+				const int32 Next = (Side + 1) % 8;
+				const FVector A(Lower[Side], Z0), B(Lower[Next], Z0), C(Upper[Next], Z1), D(Upper[Side], Z1);
+				const FVector2D Edge = (Lower[Next] - Lower[Side]).GetSafeNormal();
+				// The band's plane normal, turned to face out of the block; a ledge (both rings at one height) faces up
+				// where the outline steps in going up (the channel's lower lip) and down where it steps out.
+				const FVector Horizontal(Edge.Y, -Edge.X, 0.0);
+				FVector Outward = FVector::CrossProduct(B - A, D - A).GetSafeNormal();
+				if (FMath::IsNearlyEqual(Z0, Z1))
+				{
+					Outward = FVector(0, 0, Rings[Ring + 1].Out < Rings[Ring].Out ? 1.0 : -1.0);
+				}
+				else if (FVector::DotProduct(Outward, Horizontal) < 0.0)
+				{
+					Outward = -Outward;
+				}
+				Face({ A, B, C, D }, Outward);
+			}
+		}
+		Outline(Half, Rings.Last().Out, Chamfer, Upper);
+		Outline(Half, Rings[0].Out, Chamfer, Lower);
+		TArray<FVector, TInlineAllocator<8>> Top, Bottom;
+		for (int32 Side = 0; Side < 8; ++Side)
+		{
+			Top.Add(FVector(Upper[Side], Half.Z));
+			Bottom.Add(FVector(Lower[7 - Side], -Half.Z));
+		}
+		Face(Top, FVector(0, 0, 1));
+		Face(Bottom, FVector(0, 0, -1));
+		Mesh->CreateMeshSection(0, Vertices, Triangles, Normals, UVs, TArray<FColor>(), TArray<FProcMeshTangent>(), false);
+	}
+}
+
 void AShieldbreakArena::BuildScanArt()
 {
 	using namespace ShieldbreakScanPrivate;
@@ -1355,6 +1480,9 @@ void AShieldbreakArena::BuildScanArt()
 	static const FName RockStyle(TEXT("rock")), DarkStyle(TEXT("dark")), Red(TEXT("red")), Blue(TEXT("blue"));
 	const int32 NumBlocks = Layout.Blocks.Num();
 	TArray<int32> RockBlocks;
+	// -SBNoCarve keeps the plain boxes (with the scanned materials) for comparisons.
+	const bool bCarve = !FParse::Param(FCommandLine::Get(), TEXT("SBNoCarve"));
+	int32 CarvedCount = 0;
 	for (int32 Index = 0; Index < Pieces.Num(); ++Index)
 	{
 		UStaticMeshComponent* Piece = Pieces[Index];
@@ -1374,11 +1502,36 @@ void AShieldbreakArena::BuildScanArt()
 		UMaterialInterface* Surface = (Style == Floor || Style == Sand || Style == Grass) ? Ground
 			: (Style == Bridge || Style == Ramp || Index >= NumBlocks) ? Path
 			: Style == DarkStyle ? Dark : Stone;
-		Piece->SetMaterial(0, Surface);
+		UMeshComponent* Shown = Piece;
+		if (Index < NumBlocks && Surface != Ground && Surface != Path && bCarve)
+		{
+			const FShieldbreakMapBlock& Block = Layout.Blocks[Index];
+			const FVector Size = Block.Max - Block.Min;
+			if (Size.Z >= 120.0 && FMath::Min(Size.X, Size.Y) >= 40.0)
+			{
+				// Carved stone in place of the box; the box stays as the (hidden) collision and Lumen occluder.
+				UProceduralMeshComponent* Carved = NewObject<UProceduralMeshComponent>(this, FName(TEXT("Carved"), Index + 1), RF_Transient);
+				Carved->SetNetAddressable();
+				Carved->SetMobility(EComponentMobility::Static);
+				Carved->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Carved->SetCanEverAffectNavigation(false);
+				Carved->SetupAttachment(Root);
+				Carved->SetRelativeLocation((Block.Min + Block.Max) * 0.5);
+				BuildCarvedBlock(Carved, Size);
+				Carved->RegisterComponent();
+				AddInstanceComponent(Carved);
+				Decorations.Add(Carved);
+				Piece->bAffectIndirectLightingWhileHidden = true;
+				Piece->SetVisibility(false);
+				Shown = Carved;
+				++CarvedCount;
+			}
+		}
+		Shown->SetMaterial(0, Surface);
 		if (Style == Red || Style == Blue)
 		{
 			// The temples keep a hint of their team: warm or cool stone (the trim lines carry the colour).
-			if (UMaterialInstanceDynamic* MID = Piece->CreateDynamicMaterialInstance(0))
+			if (UMaterialInstanceDynamic* MID = Shown->CreateDynamicMaterialInstance(0))
 			{
 				MID->SetVectorParameterValue(TEXT("Tint"), Style == Red ? FLinearColor(1.02f, 0.86f, 0.8f) : FLinearColor(0.82f, 0.9f, 1.0f));
 			}
@@ -1529,7 +1682,7 @@ void AShieldbreakArena::BuildScanArt()
 						continue;
 					}
 					const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
-					const FVector Foot = FVector(Center.X, Center.Y, Block.Min.Z) + Normal * (Offset + Random.FRandRange(15.f, 70.f)) + Tangent * (Along + Random.FRandRange(-50.f, 50.f));
+					const FVector Foot = FVector(Center.X, Center.Y, Block.Min.Z) + Normal * (Offset + Random.FRandRange(35.f, 85.f)) + Tangent * (Along + Random.FRandRange(-50.f, 50.f));
 					if (FMath::Abs(Foot.X) > Half.X - 30.0 || FMath::Abs(Foot.Y) > Half.Y - 30.0)
 					{
 						continue;
@@ -1581,7 +1734,7 @@ void AShieldbreakArena::BuildScanArt()
 					{
 						continue;
 					}
-					const FVector Lip = FVector(Center.X, Center.Y, Block.Max.Z) + Normal * (Offset + 2.0) + Tangent * (Along + Random.FRandRange(-60.f, 60.f));
+					const FVector Lip = FVector(Center.X, Center.Y, Block.Max.Z - 4.0) + Normal * (Offset + 2.0) + Tangent * (Along + Random.FRandRange(-60.f, 60.f));
 					// Only faces that open onto the map: not outside the walls, not pressed against another block.
 					if (FMath::Abs(Lip.X) > Half.X - 20.0 || FMath::Abs(Lip.Y) > Half.Y - 20.0
 						|| InsideBlock(Layout, Lip + Normal * 40.0 - FVector(0, 0, 60.0)))
@@ -1642,6 +1795,6 @@ void AShieldbreakArena::BuildScanArt()
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d ivy, %d grass, %d meshes."),
-		*Layout.DisplayName, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, IvyCount, GrassCount, Groups.Num());
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d carved blocks, %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d ivy, %d grass, %d meshes."),
+		*Layout.DisplayName, CarvedCount, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, IvyCount, GrassCount, Groups.Num());
 }
