@@ -384,9 +384,11 @@ def leaf_instance():
         mi = tools.create_asset("MI_SB_Leaves", MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
     mel.set_material_instance_parent(mi, parent)
     mel.clear_all_material_instance_parameters(mi)
-    for name, value in (("LightInfluence Subsurface Strength", 1.2), ("LightInfluence BaseColor Strength", 1.4)):
+    for name, value in (("LightInfluence Subsurface Strength", 1.2), ("LightInfluence BaseColor Strength", 1.4),
+                        ("Specular Leaves", 0.5), ("Backside Specular", 0.3)):
         mel.set_material_instance_scalar_parameter_value(mi, name, value)
-    for name, (r, g, b) in (("Albedo Controls", (1.5, 1.15, 1.0)), ("Translucency Controls", (1.6, 1.3, 1.0))):
+    for name, (r, g, b) in (("Albedo Controls", (1.5, 1.15, 1.0)), ("Translucency Controls", (1.6, 1.3, 1.0)),
+                            ("Albedo Tint Leaves", (1.25, 1.4, 1.05))):
         mel.set_material_instance_vector_parameter_value(mi, name, unreal.LinearColor(r, g, b, 1.0))
     eal.save_asset(path)
     log("%s: parent %s" % (path, parent.get_path_name()))
