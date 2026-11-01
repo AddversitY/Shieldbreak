@@ -1771,8 +1771,10 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
-	// 5. Ferns and stones at the foot of the walls and structures, where the ground meets the stone.
-	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/BeechFern"), TEXT("SM_BeechFern_"), { 1, 2, 3, 4, 8, 13, 15 });
+	// 5. Long grass and loose stones at the foot of the walls and structures, where the ground meets the stone. (The
+	// fern scans read as solid green mounds at this size, and the stones' own material as moss blobs: grass, and the
+	// stones take the dark scanned stone.)
+	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_"), { 1, 2, 3, 4, 5, 6, 7 });
 	int32 PlantCount = 0;
 	if (Plants.Num() > 0)
@@ -1811,12 +1813,12 @@ void AShieldbreakArena::BuildScanArt()
 					const bool bStone = Stones.Num() > 0 && Random.FRand() < 0.25f;
 					UStaticMesh* Mesh = bStone ? Stones[Random.RandRange(0, Stones.Num() - 1)] : Plants[Random.RandRange(0, Plants.Num() - 1)];
 					const FVector Extent = Mesh->GetBoundingBox().GetSize();
-					const double Target = bStone ? Random.FRandRange(50.f, 90.f) : Random.FRandRange(70.f, 120.f);
+					const double Target = bStone ? Random.FRandRange(22.f, 48.f) : Random.FRandRange(45.f, 75.f);
 					const double Scale = FMath::Clamp(Target / FMath::Max(bStone ? FMath::Max(Extent.X, Extent.Y) : Extent.Z, 1.0), 0.05, 8.0);
 					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 					const FBox Placed = PlacedBounds(Mesh, Transform);
-					Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - (bStone ? 10.0 : 3.0)));
-					Place(Mesh, Transform, !bStone);
+					Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - (bStone ? 6.0 : 2.0)));
+					Place(Mesh, Transform, false, bStone ? 0 : 6000, bStone ? Dark : nullptr);
 					++PlantCount;
 				}
 			}

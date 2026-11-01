@@ -330,10 +330,48 @@ def scan_instances(master):
         log("%s: %s; %s" % (path, ", ".join(used), ", ".join("%s %s" % kv for kv in look.items() if kv[0] not in ("side", "top"))))
 
 
+def describe_foliage():
+    """Lists the tree leaf materials' parameters and values (the leaves render very dark under Lumen)."""
+    for path in ("/Game/Megascans/3D_Plants/EuropeanHornbeam/MI_EuropeanHornbeam_01",
+                 "/Game/Megascans/3D_Plants/EuropeanHornbeam/MI_EuropeanHornbeam_TwoSided"):
+        if not eal.does_asset_exist(path):
+            found = [a for a in eal.list_assets("/Game/Megascans/3D_Plants/EuropeanHornbeam", recursive=True) if a.split(".")[0].endswith(path.rsplit("/", 1)[1])]
+            if not found:
+                log("FOLIAGE %s not found" % path)
+                continue
+            path = found[0].split(".")[0]
+        mi = unreal.load_asset(path)
+        for getter, kind in ((mel.get_scalar_parameter_names, "scalar"), (mel.get_vector_parameter_names, "vector"),
+                             (mel.get_texture_parameter_names, "texture"), (mel.get_static_switch_parameter_names, "switch")):
+            try:
+                names = getter(mi)
+            except Exception as error:  # noqa: BLE001
+                log("FOLIAGE %s %s: %s" % (path, kind, error))
+                continue
+            values = []
+            for name in names:
+                try:
+                    if kind == "scalar":
+                        value = "%.3f" % mel.get_material_instance_scalar_parameter_value(mi, name)
+                    elif kind == "vector":
+                        c = mel.get_material_instance_vector_parameter_value(mi, name)
+                        value = "(%.2f %.2f %.2f)" % (c.r, c.g, c.b)
+                    elif kind == "texture":
+                        t = mel.get_material_instance_texture_parameter_value(mi, name)
+                        value = t.get_name() if t else "-"
+                    else:
+                        value = str(mel.get_material_instance_static_switch_parameter_value(mi, name))
+                except Exception:  # noqa: BLE001
+                    value = "?"
+                values.append("%s=%s" % (name, value))
+            log("FOLIAGE %s %s: %s" % (path, kind, ", ".join(values)))
+
+
 def main():
     try:
         assets = check_dependencies()
         describe_meshes(assets)
+        describe_foliage()
         scan_instances(scan_material())
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads
