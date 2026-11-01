@@ -1913,11 +1913,69 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
+	// 8. Old paving: worn stone slabs round the middle of the map, thinning out toward the edges with grass between
+	// and gaps where slabs are missing. Visual only and 5 cm proud, so movement is untouched.
+	int32 SlabCount = 0;
+	if (CubeMesh)
+	{
+		UInstancedStaticMeshComponent* Slabs = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Scan"), CubeMesh);
+		Slabs->SetCastShadow(false);
+		Slabs->bAffectDistanceFieldLighting = false;
+		Slabs->SetMaterial(0, Path);
+		constexpr double Tile = 190.0, Joint = 14.0;
+		const double Radius = FMath::Min(Half.X, Half.Y) * 0.75;
+		for (double X = -Half.X + Tile; X < Half.X - Tile; X += Tile)
+		{
+			for (double Y = -Half.Y + Tile; Y < Half.Y - Tile; Y += Tile)
+			{
+				// Denser near the middle, broken up by a coarse pattern of patches so it reads as worn, not tiled.
+				const double Falloff = 1.0 - FVector2D(X / Half.X, Y / Half.Y).Size() * 0.85;
+				const double Patch = FMath::PerlinNoise2D(FVector2D(X, Y) / 1700.0) * 0.9;
+				if (Falloff + Patch < 0.45 || Random.FRand() < 0.12f)
+				{
+					continue;
+				}
+				double GroundZ = Layout.FloorZ;
+				for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+				{
+					if ((Block.Style == Floor || Block.Style == Sand || Block.Style == Grass) && X > Block.Min.X && X < Block.Max.X
+						&& Y > Block.Min.Y && Y < Block.Max.Y)
+					{
+						GroundZ = FMath::Max(GroundZ, Block.Max.Z);
+					}
+				}
+				// Clear of every block's footprint (with a margin), so slabs never poke out of a wall's foot.
+				const FVector Probe(X, Y, GroundZ + 20.0);
+				bool bClear = true;
+				for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+				{
+					if (Probe.Z > Block.Min.Z && Probe.Z < Block.Max.Z + 30.0 && X > Block.Min.X - Tile && X < Block.Max.X + Tile
+						&& Y > Block.Min.Y - Tile && Y < Block.Max.Y + Tile && Block.Style != Floor && Block.Style != Sand && Block.Style != Grass)
+					{
+						bClear = false;
+						break;
+					}
+				}
+				if (!bClear)
+				{
+					continue;
+				}
+				const double Rise = Random.FRandRange(3.f, 7.f);
+				const FVector Size(Tile - Joint, Tile - Joint, Rise + 10.0);
+				const FRotator Tilt(Random.FRandRange(-0.6f, 0.6f), Random.FRandRange(-2.f, 2.f), Random.FRandRange(-0.6f, 0.6f));
+				Slabs->AddInstance(FTransform(Tilt, FVector(X, Y, GroundZ + Rise - Size.Z * 0.5), Size / 100.0));
+				++SlabCount;
+			}
+		}
+		Slabs->RegisterComponent();
+		AddInstanceComponent(Slabs);
+	}
+
 	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d carved blocks, %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d ivy, %d grass, %d meshes."),
-		*Layout.DisplayName, CarvedCount, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, IvyCount, GrassCount, Groups.Num());
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d carved blocks, %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d ivy, %d grass, %d paving slabs, %d meshes."),
+		*Layout.DisplayName, CarvedCount, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, IvyCount, GrassCount, SlabCount, Groups.Num());
 }
