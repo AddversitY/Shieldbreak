@@ -415,6 +415,14 @@ namespace ShieldbreakMapsData
 			// The platforms over the overshield / its twin: two low blocks each.
 			Mirrored(-500.0f, -3100.0f, 550.0f, -300.0f, -2900.0f, 700.0f);
 			Mirrored(300.0f, -3100.0f, 550.0f, 500.0f, -2900.0f, 700.0f);
+			// The last open stretches (a cover-density pass over the ground): the plateau edge in front of each temple,
+			// the pit under the cross walkways, and the far corners of the temple courts.
+			Mirrored(-3300.0f, -150.0f, 200.0f, -3000.0f, 150.0f, 520.0f);
+			Mirrored(-3300.0f, 700.0f, 200.0f, -2950.0f, 800.0f, 330.0f);
+			Mirrored(-2650.0f, -950.0f, 0.0f, -2350.0f, -650.0f, 240.0f);
+			Mirrored(-2550.0f, 150.0f, 0.0f, -2450.0f, 650.0f, 120.0f);
+			Mirrored(-7300.0f, -4600.0f, 200.0f, -6900.0f, -4300.0f, 560.0f);
+			Mirrored(-6700.0f, -5000.0f, 200.0f, -6600.0f, -4500.0f, 330.0f);
 		}
 		// More ways up: ramps from the side courts onto the cross walkways and the corner decks, grav lifts from the middle.
 		L.Ramps.Add({ FVector(-1900.0f, 2600.0f, 550.0f), FVector(-3000.0f, 2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
