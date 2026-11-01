@@ -423,6 +423,10 @@ namespace ShieldbreakMapsData
 			Mirrored(-2550.0f, 150.0f, 0.0f, -2450.0f, 650.0f, 120.0f);
 			Mirrored(-7300.0f, -4600.0f, 200.0f, -6900.0f, -4300.0f, 560.0f);
 			Mirrored(-6700.0f, -5000.0f, 200.0f, -6600.0f, -4500.0f, 330.0f);
+			// The strips between the outer walkways and the canyon wall.
+			Mirrored(-6000.0f, 4400.0f, 200.0f, -5700.0f, 4700.0f, 560.0f);
+			Mirrored(-1000.0f, 4650.0f, 200.0f, -700.0f, 4950.0f, 560.0f);
+			Mirrored(1500.0f, 4500.0f, 200.0f, 1800.0f, 4600.0f, 330.0f);
 		}
 		// More ways up: ramps from the side courts onto the cross walkways and the corner decks, grav lifts from the middle.
 		L.Ramps.Add({ FVector(-1900.0f, 2600.0f, 550.0f), FVector(-3000.0f, 2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
