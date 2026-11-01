@@ -1494,6 +1494,8 @@ void AShieldbreakArena::BuildScanArt()
 	TArray<int32> RockBlocks;
 	// -SBNoCarve keeps the plain boxes (with the scanned materials) for comparisons.
 	const bool bCarve = !FParse::Param(FCommandLine::Get(), TEXT("SBNoCarve"));
+	// -SBScanRockOwn keeps the scanned rocks' own materials (they come out black; see Place).
+	const bool bRockOverride = !FParse::Param(FCommandLine::Get(), TEXT("SBScanRockOwn"));
 	int32 CarvedCount = 0;
 	for (int32 Index = 0; Index < Pieces.Num(); ++Index)
 	{
@@ -1566,12 +1568,21 @@ void AShieldbreakArena::BuildScanArt()
 		return Instances;
 	};
 	TMap<UStaticMesh*, UInstancedStaticMeshComponent*> Groups;
-	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow = true, int32 CullDistance = 0)
+	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow = true, int32 CullDistance = 0, UMaterialInterface* Override = nullptr)
 	{
 		UInstancedStaticMeshComponent*& Instances = Groups.FindOrAdd(Mesh);
 		if (!Instances)
 		{
 			Instances = Instanced(Mesh, bShadow);
+			if (Override)
+			{
+				// The scanned rocks' own master material renders black in this project: they take the scanned stone
+				// (their modelled shape is what matters; the world-space stone and moss match the structures).
+				for (int32 Slot = 0; Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+				{
+					Instances->SetMaterial(Slot, Override);
+				}
+			}
 			if (CullDistance > 0)
 			{
 				// Small plants fade out past this distance (cm); they are noise from further away.
@@ -1604,7 +1615,7 @@ void AShieldbreakArena::BuildScanArt()
 		const FBox Placed = PlacedBounds(Mesh, Transform);
 		const FVector Center = (Block.Min + Block.Max) * 0.5;
 		Transform.SetTranslation(FVector(Center.X - Placed.GetCenter().X, Center.Y - Placed.GetCenter().Y, Block.Min.Z - 15.0 - Placed.Min.Z));
-		Place(Mesh, Transform);
+		Place(Mesh, Transform, true, 0, bRockOverride ? Dark : nullptr);
 	}
 
 	// 3. The boundary: a canyon. Each short side (a team's back) gets a Forerunner gate standing in the barrier line,
@@ -1714,7 +1725,7 @@ void AShieldbreakArena::BuildScanArt()
 						const double Offset = Side.Wall + Gap - Inner;
 						const FVector At = Side.Out * Offset + Side.Along * (Middle - FVector::DotProduct(Side.Along, Placed.GetCenter()));
 						Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - 350.0 - Placed.Min.Z));
-						Place(Mesh, Transform);
+						Place(Mesh, Transform, true, 0, bRockOverride ? Dark : nullptr);
 						++CliffCount;
 					}
 					// The near row overlaps well so no gap shows the outside through it.
@@ -1864,8 +1875,18 @@ void AShieldbreakArena::BuildScanArt()
 				{
 					continue;
 				}
-				const FVector Foot(At.X, At.Y, Layout.FloorZ);
-				if (InsideBlock(Layout, Foot + FVector(0, 0, 20.0)) || !(OnSurface(Layout, Foot) || FMath::Abs(Foot.Z - Layout.FloorZ) < 5.0))
+				// The ground here: the highest floor, sand or grass top under the point (Sanctum's courts are raised).
+				double GroundZ = Layout.FloorZ;
+				for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+				{
+					if ((Block.Style == Floor || Block.Style == Sand || Block.Style == Grass) && At.X > Block.Min.X && At.X < Block.Max.X
+						&& At.Y > Block.Min.Y && At.Y < Block.Max.Y)
+					{
+						GroundZ = FMath::Max(GroundZ, Block.Max.Z);
+					}
+				}
+				const FVector Foot(At.X, At.Y, GroundZ);
+				if (InsideBlock(Layout, Foot + FVector(0, 0, 20.0)))
 				{
 					continue;
 				}
@@ -1874,7 +1895,7 @@ void AShieldbreakArena::BuildScanArt()
 				const double Scale = FMath::Clamp(Random.FRandRange(25.f, 45.f) / Height, 0.2, 3.0);
 				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 				const FBox Placed = PlacedBounds(Mesh, Transform);
-				Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - Placed.Min.Z - 2.0));
+				Transform.SetTranslation(FVector(At.X, At.Y, GroundZ - Placed.Min.Z - 2.0));
 				Place(Mesh, Transform, false, 5000);
 				++GrassCount;
 			}

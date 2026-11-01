@@ -29,9 +29,9 @@ lines = []
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
     "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1)),
-    "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.3, desat=0.35, tint=(0.95, 0.93, 0.88)),
-    "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.35, tint=(0.9, 0.88, 0.84)),
-    "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.75, coverage=0.4, desat=0.6, tint=(0.62, 0.62, 0.6)),
+    "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.45, desat=0.8, tint=(1.0, 0.98, 0.94)),
+    "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86)),
+    "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.6, coverage=0.9, desat=0.75, tint=(0.7, 0.7, 0.67)),
 }
 TOP_DEFAULT = "MossyGrass"
 ROOTS = ["/Game/Megascans", "/Game/MSPresets", "/Game/Custom", "/Game/PhysicalMaterials", "/Game/Meshes"]
@@ -87,7 +87,13 @@ def describe_meshes(assets):
         box = mesh.get_bounding_box()
         lo, hi = box.min, box.max
         nanite = mesh.get_editor_property("nanite_settings").enabled
-        slots = [str(m.material_slot_name) for m in mesh.static_materials]
+        slots = []
+        for m in mesh.static_materials:
+            chain, mi = [], m.material_interface
+            while mi is not None and len(chain) < 4:
+                chain.append(mi.get_name())
+                mi = mi.get_editor_property("parent") if isinstance(mi, unreal.MaterialInstance) else None
+            slots.append("%s=%s" % (m.material_slot_name, ">".join(chain)))
         log("MESH %s min (%.0f %.0f %.0f) max (%.0f %.0f %.0f) nanite %s slots %s" % (
             path, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z, nanite, ",".join(slots)))
 
