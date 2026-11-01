@@ -1829,6 +1829,8 @@ void AShieldbreakArena::BuildScanArt()
 			{
 				if (UInstancedStaticMeshComponent** Instances = Groups.Find(Mesh))
 				{
+					// Out of the distance fields: a crown's own field shades its leaves near black under Lumen.
+					(*Instances)->bAffectDistanceFieldLighting = false;
 					const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
 					for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
 					{
