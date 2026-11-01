@@ -1999,7 +1999,7 @@ void AShieldbreakArena::BuildScanArt()
 					const double Scale = FMath::Clamp(Target / FMath::Max(bStone ? FMath::Max(Extent.X, Extent.Y) : Extent.Z, 1.0), 0.05, 8.0);
 					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 					const FBox Placed = PlacedBounds(Mesh, Transform);
-					Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - (bStone ? 6.0 : 2.0)));
+					Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - (bStone ? 6.0 : 7.0)));
 					Place(Mesh, Transform, false, bStone ? 0 : 6000, bStone ? Dark : nullptr);
 					++PlantCount;
 				}
@@ -2090,7 +2090,7 @@ void AShieldbreakArena::BuildScanArt()
 				const double Scale = FMath::Clamp(Random.FRandRange(25.f, 45.f) / Height, 0.2, 3.0);
 				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 				const FBox Placed = PlacedBounds(Mesh, Transform);
-				Transform.SetTranslation(FVector(At.X, At.Y, GroundZ - Placed.Min.Z - 2.0));
+				Transform.SetTranslation(FVector(At.X, At.Y, GroundZ - Placed.Min.Z - 7.0));
 				Place(Mesh, Transform, false, 5000);
 				++GrassCount;
 			}

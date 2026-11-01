@@ -473,8 +473,8 @@ def grass_material():
 
     bc = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, 0, parameter_name="Albedo", texture=albedo,
               sampler_type=sampler_for(albedo, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR))
-    tint = node(unreal.MaterialExpressionVectorParameter, -900, 300, parameter_name="Tint", default_value=unreal.LinearColor(1.0, 1.2, 0.75, 1.0))
-    bright = node(unreal.MaterialExpressionScalarParameter, -900, 450, parameter_name="Brightness", default_value=1.3)
+    tint = node(unreal.MaterialExpressionVectorParameter, -900, 300, parameter_name="Tint", default_value=unreal.LinearColor(0.8, 0.95, 0.6, 1.0))
+    bright = node(unreal.MaterialExpressionScalarParameter, -900, 450, parameter_name="Brightness", default_value=0.8)
     tinted = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -600, 100)
     mel.connect_material_expressions(bc, "RGB", tinted, "A")
     mel.connect_material_expressions(tint, "", tinted, "B")
