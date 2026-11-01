@@ -133,7 +133,7 @@ def scan_material():
         link(b, b_out, n, "B")
         return n
 
-    shared = unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SHARED
+    shared = getattr(unreal.SamplerSourceMode, "SSM_WRAP_WORLD_GROUP_SETTINGS", None)
     kinds = (("BC", unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, "BeachCliff", "BC"),
              ("N", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, "BeachCliff", "N"),
              ("ARD", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR, "BeachCliff", "AoRDp"))
@@ -153,7 +153,9 @@ def scan_material():
                 mask = node(unreal.MaterialExpressionComponentMask, -2000, y0 + 120 * i, r=r, g=g, b=b, a=False)
                 link(uvw, "", mask, "")
                 sample = node(unreal.MaterialExpressionTextureSampleParameter2D, -1700, y0 + 300 * (3 * k + i),
-                              parameter_name=layer + suffix, texture=default, sampler_type=sampler, sampler_source=shared)
+                              parameter_name=layer + suffix, texture=default, sampler_type=sampler)
+                if shared is not None:
+                    sample.set_editor_property("sampler_source", shared)
                 link(mask, "", sample, "UVs")
                 out[suffix].append(sample)
         return out

@@ -25,5 +25,9 @@ for %%F in (MossyGrass JungleGround MossyRockyGround BeachCliff NordicMoss) do (
   robocopy "%ED%\Megascans\Surfaces\%%F" "%SB%\Megascans\Surfaces\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
 )
 robocopy "%ED%\MSPresets" "%SB%\MSPresets" /E /NFL /NDL /NJH /NP >> "%LOG%"
+rem Shared master materials, functions and physical materials the scans reference, plus a few stray textures and meshes.
+for %%F in (Custom\CustomMaterials Custom\Materials\Functions PhysicalMaterials Megascans\3D_Assets\ErodedRockyGround Megascans\3D_Assets\HugeNordicCoastalCliff Megascans\3D_Plants\Lichen Megascans\Decals\Leakage Meshes\_GENERATED\RockFormation) do (
+  robocopy "%ED%\%%F" "%SB%\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
+)
 echo COPYDONE >> "%LOG%"
 endlocal

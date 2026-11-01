@@ -40,3 +40,6 @@ __pycache__/
 # Scanned art copied locally from Epic's Electric Dreams sample by Tools/GetScanArt.bat (not redistributed)
 Content/Megascans/
 Content/MSPresets/
+Content/Custom/
+Content/PhysicalMaterials/
+Content/Meshes/
