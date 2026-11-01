@@ -1528,7 +1528,7 @@ void AShieldbreakArena::BuildScanArt()
 	// -SBScanRockOwn keeps the scanned rocks' own materials (they come out black; see Place).
 	const bool bRockOverride = !FParse::Param(FCommandLine::Get(), TEXT("SBScanRockOwn"));
 	int32 CarvedCount = 0;
-	TMap<TPair<UMaterialInterface*, int32>, FCarvedMesh> CarvedMeshes;
+	TMap<int32, TMap<TPair<UMaterialInterface*, int32>, FCarvedMesh>> CarvedMeshes;
 	for (int32 Index = 0; Index < Pieces.Num(); ++Index)
 	{
 		UStaticMeshComponent* Piece = Pieces[Index];
@@ -1565,8 +1565,11 @@ void AShieldbreakArena::BuildScanArt()
 			{
 				// Carved stone in place of the box; the box stays as the (hidden) collision and Lumen occluder. Blocks
 				// are merged per material (team tint included) and built as one mesh after this loop.
+				// Also split into 40 m cells, so each part still culls and gets its own Lumen cards.
+				const FVector Center = (Block.Min + Block.Max) * 0.5;
+				const int32 Cell = (FMath::FloorToInt32(Center.X / 4000.0) + 64) * 128 + FMath::FloorToInt32(Center.Y / 4000.0) + 64;
 				const int32 Tint = Style == Red ? 1 : Style == Blue ? 2 : 0;
-				AppendCarvedBlock(CarvedMeshes.FindOrAdd(TPair<UMaterialInterface*, int32>(Surface, Tint)), Size, (Block.Min + Block.Max) * 0.5);
+				AppendCarvedBlock(CarvedMeshes.FindOrAdd(Cell).FindOrAdd(TPair<UMaterialInterface*, int32>(Surface, Tint)), Size, Center);
 				Piece->bAffectIndirectLightingWhileHidden = true;
 				Piece->SetVisibility(false);
 				++CarvedCount;
@@ -1584,17 +1587,17 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
-	// The merged carved stone: one component, one section per material.
-	if (CarvedMeshes.Num() > 0)
+	// The merged carved stone: one component per cell, one section per material.
+	for (const TPair<int32, TMap<TPair<UMaterialInterface*, int32>, FCarvedMesh>>& CellEntry : CarvedMeshes)
 	{
-		UProceduralMeshComponent* Carved = NewObject<UProceduralMeshComponent>(this, TEXT("Carved"), RF_Transient);
+		UProceduralMeshComponent* Carved = NewObject<UProceduralMeshComponent>(this, FName(TEXT("Carved"), CellEntry.Key), RF_Transient);
 		Carved->SetNetAddressable();
 		Carved->SetMobility(EComponentMobility::Static);
 		Carved->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Carved->SetCanEverAffectNavigation(false);
 		Carved->SetupAttachment(Root);
 		int32 Section = 0;
-		for (const TPair<TPair<UMaterialInterface*, int32>, FCarvedMesh>& Entry : CarvedMeshes)
+		for (const TPair<TPair<UMaterialInterface*, int32>, FCarvedMesh>& Entry : CellEntry.Value)
 		{
 			const FCarvedMesh& Mesh = Entry.Value;
 			Carved->CreateMeshSection(Section, Mesh.Vertices, Mesh.Triangles, Mesh.Normals, Mesh.UVs, TArray<FColor>(), TArray<FProcMeshTangent>(), false);
