@@ -57,7 +57,7 @@ public:
 	/** Enclosed maps (FShieldbreakMapLayout::bIndoor) have a ceiling over the whole map. */
 	bool IsIndoor() const { return Layout.bIndoor; }
 	/** Hide or show the ceiling of an enclosed map (overhead screenshots look in through it). No-op outdoors. */
-	void SetCeilingHidden(bool bHidden);
+	void SetCeilingHidden(bool bHideCeiling);
 
 protected:
 	virtual void BeginPlay() override;

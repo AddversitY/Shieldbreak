@@ -62,6 +62,7 @@ class Map:
         self.notes = []
         self.fill = []      # indices into self.blocks added by the cover pass (checked by validate_fill)
         self.keepout = []   # (min_xy, max_xy) rectangles the cover pass must leave empty (self-test run-ups, etc.)
+        self.reflect = False  # mirror the blue side across x = 0 instead of through the centre (see mir)
         self.indoor = False  # enclosed: a ceiling over the whole map and interior lighting (set by roof())
         self.check_reach = False  # reachability() errors fail validation (the 2026-11 redesigned maps)
         # Floor slab + perimeter walls.
@@ -73,6 +74,11 @@ class Map:
         self.block((-hx - t, -hy, floor_z), (-hx, hy, floor_z + wall_h), "wall")
 
     # -- authoring --
+    def mir(self, p):
+        """The blue-side twin of a red-side point: point symmetry (x, y) -> (-x, -y) by default, or a reflection across
+        x = 0 (x, y) -> (-x, y) on maps with reflect=True (north and south differ, both teams face the same ones)."""
+        return (-p[0], p[1], p[2]) if self.reflect else mirror(p)
+
     def roof(self, thickness=100.0):
         """Enclose the map: a ceiling at the top of the perimeter walls. Bots scan for floors below it."""
         hx, hy, t = self.half_x, self.half_y, 100.0
@@ -111,7 +117,7 @@ class Map:
         mx = tuple(max(a[i], b[i]) for i in range(3))
         self.blocks.append((mn, mx, color))
         if sym:
-            ma, mb = mirror(mn), mirror(mx)
+            ma, mb = self.mir(mn), self.mir(mx)
             self.block(ma, mb, color)
 
     def cover(self, a, b, color="cover", sym=False):
@@ -123,31 +129,31 @@ class Map:
     def ramp(self, start, end, width, color="ramp", sym=False, thickness=40.0):
         self.ramps.append((start, end, width, color, thickness))
         if sym:
-            self.ramps.append((mirror(start), mirror(end), width, color, thickness))
+            self.ramps.append((self.mir(start), self.mir(end), width, color, thickness))
 
     def lift(self, base, target, sym=False):
         self.lifts.append((base, target))
         if sym:
-            self.lifts.append((mirror(base), mirror(target)))
+            self.lifts.append((self.mir(base), self.mir(target)))
 
     def spawn(self, feet, sym=True):
         """Red spawn (and its blue mirror). Yaw faces the map center."""
         self.spawns.append(feet)
         if sym:
-            self.spawns.append(mirror(feet))
+            self.spawns.append(self.mir(feet))
 
     def weapon(self, kind, at, sym=False, respawn=None):
         self.weapons.append((kind, at, respawn or DEFAULT_RESPAWN[kind]))
         if sym:
-            self.weapons.append((kind, mirror(at), respawn or DEFAULT_RESPAWN[kind]))
+            self.weapons.append((kind, self.mir(at), respawn or DEFAULT_RESPAWN[kind]))
 
     def powerup(self, kind, at, sym=False, respawn=None):
         self.powerups.append((kind, at, respawn or DEFAULT_RESPAWN[kind]))
         if sym:
-            self.powerups.append((kind, mirror(at), respawn or DEFAULT_RESPAWN[kind]))
+            self.powerups.append((kind, self.mir(at), respawn or DEFAULT_RESPAWN[kind]))
 
     def flag(self, red_at, blue_at=None):
-        self.flags = [red_at, blue_at or mirror(red_at)]
+        self.flags = [red_at, blue_at or self.mir(red_at)]
 
     # -- geometry queries (for validation) --
     def surfaces_at(self, x, y, pad=0.0):
@@ -324,60 +330,111 @@ def keel():
 
 
 def bastion():
-    """Lockout principles, asymmetric: a sunken pit ringed by plateaus, a tall sniper tower and a shorter battle
-    tower in opposite corners, a bridge across the pit and an enclosed library. Teams start in opposite corners."""
-    m = Map("Bastion", "Bastion", "Lockout", 3000, 3000, wall_h=1300, max_z=1800)
-    m.sun = (-40.0, 210.0)
+    """Bastion (2026-11 redesign): a snowbound fortress, outdoors. North against south: long range against close range.
+
+    Mirror-symmetric across x = 0 (reflect=True): each team holds a keep at its end (flag inside, a rampart roof above
+    reached by two outside ramps) and faces the same map. North: open snowfield with a rock ridge per side and the
+    neutral sniper tower on the centre line (two exposed ramps and a lift). South: a curtain-wall rampart per side and
+    the neutral library (camo inside, close quarters) whose roof is the battle tower (Rail Lance). Middle: the sunken
+    pit (rockets, under the north-south bridge). Levels: pit 0, plateau 300, ridges and ramparts 650, roofs 950 / 900,
+    sniper tower 1000."""
+    m = Map("Bastion", "Bastion", "Lockout", 6400, 5200, wall_h=1300, max_z=1800)
+    m.reflect = True
+    m.check_reach = True
+    m.sun = (-22.0, 200.0)   # low dusk sun
     m.fog = 0.012
-    # Plateau ring (top 300) around a 2400 x 2400 pit.
-    m.block((-3000, 1200, 0), (3000, 3000, 300), "stone")
-    m.block((-3000, -3000, 0), (3000, -1200, 300), "stone")
-    m.block((-3000, -1200, 0), (-1200, 1200, 300), "stone")
-    m.block((1200, -1200, 0), (3000, 1200, 300), "stone")
-    # Pit access: two ramps (NW, SE) plus a jump step on the east side.
-    m.ramp((-600, 500, 0), (-600, 1200, 300), 300)
-    m.ramp((600, -500, 0), (600, -1200, 300), 300)
-    m.block((850, 800, 0), (1200, 1100, 120), "rock")
-    m.block((1050, 400, 0), (1200, 700, 200), "rock")
-    # Bridge across the pit (top 300), open underneath, with two waist-high cover posts.
-    m.block((-1200, -150, 260), (1200, 150, 300), "bridge")
-    m.block((-450, -150, 300), (-400, 0, 390), "bridge")
-    m.block((400, 0, 300), (450, 150, 390), "bridge")
-    # Pit cover.
-    m.block((-200, 500, 0), (200, 900, 260), "rock")
-    m.block((-900, -900, 0), (-650, -650, 150), "cover")
-    m.block((300, -900, 0), (500, -700, 150), "cover")
-    # Sniper tower, NE (top 900): ramp up its west face to 700, then a jump onto the roof.
-    m.block((1800, 1800, 300), (2600, 2600, 900), "tower")
-    m.ramp((1000, 2400, 300), (1800, 2400, 700), 300)
-    m.block((1720, 2250, 700), (1800, 2550, 720), "ramp")
-    # Battle tower, SW (top 700): ramp up its east face.
-    m.block((-2600, -2600, 300), (-1800, -1800, 700), "tower")
-    m.ramp((-1000, -2400, 300), (-1800, -2400, 640), 300)
-    # Library, NW: walled room on the plateau with three doorways and a roof you can crouch-jump onto from a crate.
-    for a, b in [((-2800, 2700, 300), (-1600, 2760, 600)), ((-2800, 1540, 300), (-2300, 1600, 600)),
-                 ((-2100, 1540, 300), (-1600, 1600, 600)), ((-2860, 1540, 300), (-2800, 2760, 600)),
-                 ((-1600, 1540, 300), (-1540, 1950, 600)), ((-1600, 2250, 300), (-1540, 2760, 600))]:
-        m.block(a, b, "stone")
-    m.block((-2860, 1540, 600), (-1540, 2760, 640), "dark")
-    m.block((-1400, 1500, 300), (-1250, 1650, 480), "cover")
-    # East plateau battlements.
-    m.block((2200, -600, 300), (2260, 600, 420), "stone")
-    m.block((-2260, -600, 300), (-2200, 300, 420), "stone")
-    # Items.
-    m.weapon("sniper", (2200, 2200, 970))
-    m.weapon("rockets", (0, -700, 70))
-    m.weapon("rail", (-2200, -2200, 770))
-    m.powerup("camo", (-2200, 2200, 370))
-    m.powerup("aegis", (2600, -400, 370))
-    # Spawns: red in the SW quarter, blue in the NE quarter (not mirrored; Bastion is asymmetric).
-    for s in [(-2600, -1000, 300), (-1500, -2600, 300), (-2600, 600, 300), (-600, -2000, 300), (-2000, -1500, 300)]:
-        m.spawn(s, sym=False)
-    for s in [(2600, 1000, 300), (1500, 2600, 300), (2600, -600, 300), (600, 2000, 300), (2000, 1500, 300)]:
-        m.spawn(s, sym=False)
-    m.flag((-2600, -500, 390), (2600, 500, 390))
-    m.hills = [(0, -500, 220), (-2200, 2150, 520), (0, 0, 520), (2200, 2200, 1120), (-2200, -2200, 920)]
-    m.ball = (0, 0, 390)
+    P = 300
+
+    # ---- Terrain: plateau at P everywhere except the pit (4800 x 4000) ----
+    m.block((-6400, 2000, 0), (6400, 5200, P), "stone")
+    m.block((-6400, -5200, 0), (6400, -2000, P), "stone")
+    m.block((-6400, -2000, 0), (-2400, 2000, P), "stone", sym=True)
+    m.ramp((-2400, 1300, P), (-1600, 1300, 0), 700, "stone", sym=True)        # from each team's side
+    m.ramp((-2400, -1300, P), (-1600, -1300, 0), 700, "stone", sym=True)
+    m.ramp((-1300, 2000, P), (-1300, 1300, 0), 600, "stone", sym=True)        # from the north and south flanks
+    m.ramp((-1300, -2000, P), (-1300, -1300, 0), 600, "stone", sym=True)
+    # North-south bridge over the pit (the exposed rotation between the towers), 2.6 m clear underneath.
+    m.block((-250, -2000, P - 40), (250, 2000, P), "bridge")
+
+    # ---- Keeps (red at -X): a walled hall with the flag, inside a fortress yard. The yard's outer wall has three
+    # gates and a rampart walkway on top (800) that joins the keep roof in a U; defenders climb to it from inside the
+    # yard, attackers from the north and south fields at the wall's ends. ----
+    K0, K1, KR = -6400, -5200, 800
+    m.wall_y(-1200, 1200, K1, P, KR - 40, [(-350, 350, P, P + 400)], color="red", sym=True)
+    m.wall_x(K0, K1 + 30, 1200, P, KR - 40, [(-6000, -5600, P, P + 400)], color="red", sym=True)
+    m.wall_x(K0, K1 + 30, -1200, P, KR - 40, [(-6000, -5600, P, P + 400)], color="red", sym=True)
+    m.block((K0, -1230, KR - 40), (K1 + 30, 1230, KR), "stone", sym=True)                    # keep roof
+    m.wall_y(-2000, 2000, -4000, P, KR, [(-400, 400, P, P + 400), (1050, 1550, P, P + 400), (-1550, -1050, P, P + 400)],
+             t=400, color="red", sym=True)                                                     # outer wall + walkway
+    m.block((K1 + 30, 1200, KR - 40), (-4200, 1700, KR), "stone", sym=True)                   # walkway <-> roof
+    m.block((K1 + 30, -1700, KR - 40), (-4200, -1200, KR), "stone", sym=True)
+    m.ramp((-4450, 350, P), (-4450, 1300, KR), 400, sym=True)                                 # up from the yard
+    m.ramp((-4450, -350, P), (-4450, -1300, KR), 400, sym=True)
+    m.ramp((-4000, 2900, P), (-4000, 2000, KR), 400, sym=True)                                # up from the fields
+    m.ramp((-4000, -2900, P), (-4000, -2000, KR), 400, sym=True)
+    m.block((-3840, -300, KR), (-3800, 300, KR + 110), "stone", sym=True)                     # walkway battlement
+    # Pit-corner crags: frame the pit and cut the corner-to-corner lines across it.
+    m.block((-2900, 1700, P), (-2400, 2300, 1100), "rock", sym=True)
+    m.block((-2900, -2300, P), (-2400, -1700, 1100), "rock", sym=True)
+
+    # ---- North: the ridge per side and the sniper tower on the centre line ----
+    m.block((-3600, 2900, P), (-2700, 3900, 650), "rock", sym=True)
+    m.ramp((-4650, 3400, P), (-3600, 3400, 650), 400, "rock", sym=True)
+    m.ramp((-2700, 3700, 650), (-2100, 3700, P), 300, "rock", sym=True)
+    m.block((-700, 3600, P), (700, 4800, 1000), "tower")
+    m.ramp((-2100, 4200, P), (-700, 4200, 1000), 400, sym=True)
+    m.lift((0, 2800, P), (0, 3800, 1000))
+    m.block((-5300, 3300, P), (-4800, 3800, 1300), "rock", sym=True)                          # ice spires
+    m.block((-2200, 4400, P), (-1700, 4900, 1300), "rock", sym=True)
+
+    # ---- South: curtain-wall rampart per side and the library / battle tower on the centre line ----
+    m.block((-4400, -3200, P), (-2600, -2800, 650), "stone", sym=True)
+    m.ramp((-5050, -3000, P), (-4400, -3000, 650), 400, sym=True)
+    m.ramp((-2600, -3000, 650), (-1950, -3000, P), 400, sym=True)
+    # Ruined barracks per side: roofless walls, a close-quarters shortcut through the south field.
+    m.wall_x(-4800, -3400, -3800, P, 700, [(-4300, -3900, P, 700)], color="stone", sym=True)
+    m.wall_x(-4800, -3400, -4900, P, 700, color="stone", sym=True)
+    m.wall_y(-4900, -3800, -4800, P, 700, [(-4600, -4100, P, 700)], color="stone", sym=True)
+    m.wall_y(-4900, -3800, -3400, P, 700, [(-4600, -4100, P, 700)], color="stone", sym=True)
+    LW = 900
+    m.wall_x(-1600, 1600, -3400, P, LW - 40, [(-1100, -600, P, P + 400), (600, 1100, P, P + 400)])
+    m.wall_x(-1600, 1600, -4800, P, LW - 40, [(-300, 300, P, P + 400)])
+    m.wall_y(-4800, -3400, -1600, P, LW - 40, [(-4300, -3800, P, P + 400)], sym=True)
+    m.block((-1630, -4830, LW - 40), (1630, -3370, LW), "stone")
+    m.ramp((-2900, -3700, P), (-1630, -3700, LW), 400, sym=True)
+    for px_, py_ in ((-900, -4300), (-900, -3900)):
+        m.block((px_ - 100, py_ - 100, P), (px_ + 100, py_ + 100, LW - 40), "stone", sym=True)  # library pillars
+
+    # ---- Cover ----
+    m.cover((-250, 700, P), (-150, 900, P + 110), "bridge", sym=True)        # bridge posts
+    m.cover((-250, -900, P), (-150, -700, P + 110), "bridge", sym=True)
+    m.cover((-1500, -500, 0), (-1200, -200, 140), "rock", sym=True)          # pit
+    m.cover((-950, 400, 0), (-550, 800, 1100), "rock", sym=True)             # ice pillars in the pit
+    m.cover((-950, -900, 0), (-550, -500, 1100), "rock", sym=True)
+    m.cover((-2100, -400, 0), (-1800, 400, 450), "rock", sym=True)
+    m.cover((-800, -1700, 0), (-500, -1400, 140), "rock", sym=True)
+    m.cover((-3300, -200, P), (-3100, 600, P + 450), "stone", sym=True)
+    m.cover((-2000, 2700, P), (-1700, 3000, P + 130), "rock", sym=True)
+    m.cover((-3000, 4500, P), (-2700, 4800, P + 130), "rock", sym=True)
+    m.cover((-5600, 4200, P), (-5000, 4500, P + 450), "rock", sym=True)
+    m.cover((-1500, 4900, P), (-1200, 5200, P + 130), "rock", sym=True)
+    m.cover((-700, 3600, 1000), (-450, 3700, 1110), "stone", sym=True)     # sniper tower parapets
+    m.cover((-3300, 3700, 650), (-3100, 3900, 760), "rock", sym=True)       # ridge top
+    m.cover((-6200, -4600, P), (-5600, -4300, P + 450), "stone", sym=True)
+    m.cover((-2300, -4600, P), (-2000, -4300, P + 130), "stone", sym=True)
+    m.cover((-3500, -2900, 650), (-3300, -2800, 760), "stone", sym=True)    # rampart lip
+
+    # ---- Items and objectives ----
+    m.weapon("rockets", (0, 0, 70))
+    m.weapon("sniper", (0, 4300, 1070))
+    m.weapon("rail", (0, -4300, LW + 70))
+    m.powerup("camo", (0, -4100, P + 70))
+    m.powerup("aegis", (-3000, 1200, P + 70), sym=True)
+    for sp in [(-5800, 500, P), (-4600, 900, P), (-5800, 2000, P), (-5800, -2000, P), (-5800, 600, KR)]:
+        m.spawn(sp)
+    m.flag((-5800, -400, P + 90), (5800, -400, P + 90))
+    m.hills = [(0, 900, 220), (0, 4200, 1220), (0, -4100, P + 220), (-3150, 3400, 870), (3150, 3400, 870)]
+    m.ball = (0, -1000, 90)
     return m
 
 
@@ -624,46 +681,6 @@ def expand_horizontal(m, factor=2.0):
 # items and objectives, and forbids gaps a player could snag in (anything between 0 and 2 m).
 # =====================================================================================================
 
-def fill_bastion(m):
-    # Asymmetric, so both halves are placed by hand. Plateau top is 300.
-    # South plateau (red's home) and north plateau (blue's home).
-    m.cover((-100, -4700, 300), (100, -3500, 800), "stone")
-    m.cover((-100, 3500, 300), (100, 4700, 800), "stone")
-    m.cover((2000, -3300, 300), (2400, -3000, 430), "rock")
-    m.cover((-2100, 2900, 300), (-1800, 3200, 430), "rock")
-    m.cover((3800, -4900, 300), (4200, -4500, 430), "rock")
-    m.cover((-1400, 4300, 300), (-1000, 4700, 430), "rock")
-    m.cover((-1500, -3400, 300), (-1100, -3100, 430), "rock")
-    m.cover((1100, 3100, 300), (1500, 3400, 430), "rock")
-    m.cover((1800, -5400, 300), (2000, -4600, 750), "stone")
-    m.cover((-2000, 5000, 300), (-1800, 5800, 750), "stone")
-    # West and east bands beside the flags.
-    m.cover((-3300, -1700, 300), (-3000, -1400, 430), "rock")
-    m.cover((-3300, 1300, 300), (-3000, 1600, 430), "rock")
-    m.cover((3000, 1400, 300), (3300, 1700, 430), "rock")
-    m.cover((3000, -1600, 300), (3300, -1300, 430), "rock")
-    m.cover((-5300, 2000, 300), (-5100, 2500, 750), "stone")
-    m.cover((5100, -2900, 300), (5300, -2400, 750), "stone")
-    # Sniper-tower and battle-tower approaches, and the plateau rim around the pit.
-    m.cover((2400, 2500, 300), (2700, 2800, 430), "rock")
-    m.cover((3000, 3500, 300), (3200, 4100, 750), "stone")
-    m.cover((4600, 2600, 300), (4900, 2900, 430), "rock")
-    m.cover((-2600, -4100, 300), (-2300, -3800, 430), "rock")
-    m.cover((-800, -5600, 300), (-500, -5300, 430), "rock")
-    m.cover((-900, -2900, 300), (-600, -2600, 430), "rock")
-    m.cover((600, 2600, 300), (900, 2900, 430), "rock")
-    m.cover((3000, -4200, 300), (3300, -3900, 430), "rock")
-    m.cover((-4000, -200, 300), (-3700, 100, 430), "rock")
-    m.cover((3700, -100, 300), (4000, 200, 430), "rock")
-    # Bridge: one more waist-high post near each end.
-    m.cover((-1700, -300, 300), (-1600, -50, 410), "bridge")
-    m.cover((1600, 50, 300), (1700, 300, 410), "bridge")
-    # Pit: two more boulders so crossing under the bridge has cover.
-    m.cover((1500, 300, 0), (1800, 600, 140), "rock")
-    m.cover((-2100, 600, 0), (-1800, 900, 140), "rock")
-    m.cover((-500, -2200, 0), (-200, -1900, 140), "rock")
-
-
 def fill_creekbed(m):
     # Banks: more rocks between the huts and the creek so the approaches are short hops, not open lawns.
     m.cover((-2400, -700, 0), (-2100, -400, 140), "rock", sym=True)
@@ -709,7 +726,7 @@ def fill_spire(m):
     m.cover((-2300, -400, 600), (-2100, -150, 710), "metal", sym=True)
 
 
-FILLS = {"Bastion": fill_bastion, "Creekbed": fill_creekbed, "Spire": fill_spire}
+FILLS = {"Creekbed": fill_creekbed, "Spire": fill_spire}
 
 
 def expand_and_fill(m):
@@ -719,7 +736,7 @@ def expand_and_fill(m):
     return m
 
 
-MAPS = [keel(), expand_and_fill(bastion()), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
+MAPS = [keel(), bastion(), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
 DEFAULT_MAP = "Keel"
 
 

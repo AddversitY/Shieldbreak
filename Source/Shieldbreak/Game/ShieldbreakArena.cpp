@@ -790,11 +790,11 @@ void AShieldbreakArena::BuildBackdrop()
 	}
 }
 
-void AShieldbreakArena::SetCeilingHidden(bool bHidden)
+void AShieldbreakArena::SetCeilingHidden(bool bHideCeiling)
 {
 	if (Ceiling)
 	{
-		Ceiling->SetVisibility(!bHidden);
+		Ceiling->SetVisibility(!bHideCeiling);
 	}
 }
 
