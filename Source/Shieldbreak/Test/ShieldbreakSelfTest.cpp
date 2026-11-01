@@ -2796,6 +2796,9 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		AddView(TEXT("0_corner"), Center + FVector(-Extent.X, -Extent.Y, 0.f) * 1.05f + FVector(0.f, 0.f, Floor - Center.Z + CornerHeight), FVector(Center.X, Center.Y, Floor));
 		AddView(TEXT("1_corner"), Center + FVector(Extent.X, Extent.Y, 0.f) * 1.05f + FVector(0.f, 0.f, Floor - Center.Z + CornerHeight), FVector(Center.X, Center.Y, Floor));
 		AddView(TEXT("2_top"), FVector(Center.X - Extent.X * 0.3f, Center.Y, Floor + Span * 1.6f), FVector(Center.X, Center.Y, Floor));
+		// Player-height views across the map (what someone actually sees), from a side court and along a diagonal.
+		AddView(TEXT("4_ground"), FVector(Center.X - Extent.X * 0.58f, Center.Y + Extent.Y * 0.4f, Floor + 470.f), FVector(Center.X, Center.Y, Floor + 350.f));
+		AddView(TEXT("5_ground"), FVector(Center.X + Extent.X * 0.3f, Center.Y - Extent.Y * 0.62f, Floor + 470.f), FVector(Center.X - Extent.X * 0.2f, Center.Y + Extent.Y * 0.2f, Floor + 350.f));
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{
 			const FTransform& Spawn = Arena->GetSpawnTransforms()[0];
