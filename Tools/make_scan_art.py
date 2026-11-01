@@ -28,7 +28,7 @@ lines = []
 # top coverage (how much of an upward face the top layer takes: 1.5 all of it, 0.5 broken patches), side
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
-    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.05, desat=0.0, tint=(1, 1, 1),
+    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=0.65, desat=0.0, tint=(1, 1, 1),
                    top_desat=0.3, top_tint=(0.64, 0.72, 0.55)),
     "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.45, desat=0.8, tint=(1.0, 0.98, 0.94)),
     "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86),
@@ -340,9 +340,10 @@ def scan_instances(master):
 def describe_foliage():
     """Lists the tree leaf materials' parameters and values (the leaves render very dark under Lumen)."""
     for path in ("/Game/Megascans/3D_Plants/EuropeanHornbeam/MI_EuropeanHornbeam_01",
-                 "/Game/Megascans/3D_Plants/EuropeanHornbeam/MI_EuropeanHornbeam_TwoSided"):
+                 "/Game/Megascans/3D_Plants/EuropeanHornbeam/MI_EuropeanHornbeam_TwoSided",
+                 "/Game/Megascans/3D_Plants/KikuyuGrass/MI_KikuyuGrass_01"):
         if not eal.does_asset_exist(path):
-            found = [a for a in eal.list_assets("/Game/Megascans/3D_Plants/EuropeanHornbeam", recursive=True) if a.split(".")[0].endswith(path.rsplit("/", 1)[1])]
+            found = [a for a in eal.list_assets(path.rsplit("/", 1)[0], recursive=True) if a.split(".")[0].endswith(path.rsplit("/", 1)[1])]
             if not found:
                 log("FOLIAGE %s not found" % path)
                 continue
@@ -400,12 +401,46 @@ def leaf_instance():
     log("%s: parent %s" % (path, parent.get_path_name()))
 
 
+def grass_instance():
+    """MI_SB_Grass: the Kikuyu grass a little lighter and with more light through the blades (it reads dark brown
+    on the ground). Only parameters the parent has are set; the game puts it on the grass tufts."""
+    found = [a for a in eal.list_assets("/Game/Megascans/3D_Plants/KikuyuGrass", recursive=True)
+             if a.split(".")[0].endswith("/MI_KikuyuGrass_01")]
+    if not found:
+        log("MI_SB_Grass: no MI_KikuyuGrass_01")
+        return
+    parent = unreal.load_asset(found[0].split(".")[0])
+    scalars = set(str(n) for n in mel.get_scalar_parameter_names(parent))
+    vectors = set(str(n) for n in mel.get_vector_parameter_names(parent))
+    path = "%s/MI_SB_Grass" % MATERIALS
+    if eal.does_asset_exist(path):
+        mi = unreal.load_asset(path)
+    else:
+        mi = tools.create_asset("MI_SB_Grass", MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+    mel.set_material_instance_parent(mi, parent)
+    mel.clear_all_material_instance_parameters(mi)
+    applied = []
+    for name, value in (("LightInfluence Subsurface Strength", 1.0), ("LightInfluence BaseColor Strength", 1.3),
+                        ("Specular", 0.3), ("Specular Leaves", 0.3)):
+        if name in scalars:
+            mel.set_material_instance_scalar_parameter_value(mi, name, value)
+            applied.append(name)
+    for name, (r, g, b) in (("Albedo Controls", (1.4, 1.2, 1.0)), ("Albedo Tint", (1.15, 1.3, 1.0)),
+                            ("Translucency Controls", (1.5, 1.3, 1.0))):
+        if name in vectors:
+            mel.set_material_instance_vector_parameter_value(mi, name, unreal.LinearColor(r, g, b, 1.0))
+            applied.append(name)
+    eal.save_asset(path)
+    log("%s: parent %s, set %s" % (path, parent.get_path_name(), ", ".join(applied) or "nothing"))
+
+
 def main():
     try:
         assets = check_dependencies()
         describe_meshes(assets)
         describe_foliage()
         leaf_instance()
+        grass_instance()
         scan_instances(scan_material())
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads

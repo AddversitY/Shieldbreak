@@ -2049,6 +2049,25 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
+	// The grass tufts (sections 5 and 7): out of the distance fields, which shade them near black under Lumen like
+	// the tree crowns, and on MakeScanArt's lighter MI_SB_Grass.
+	{
+		UMaterialInterface* GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Grass.MI_SB_Grass"));
+		TSet<UStaticMesh*> GrassSet(GrassMeshes);
+		GrassSet.Append(Plants);
+		for (UStaticMesh* Mesh : GrassSet)
+		{
+			if (UInstancedStaticMeshComponent** Instances = Groups.Find(Mesh))
+			{
+				(*Instances)->bAffectDistanceFieldLighting = false;
+				for (int32 Slot = 0; GrassSurface && Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+				{
+					(*Instances)->SetMaterial(Slot, GrassSurface);
+				}
+			}
+		}
+	}
+
 	// 8. Old paving: worn stone slabs round the middle of the map, thinning out toward the edges with grass between
 	// and gaps where slabs are missing. Visual only and 5 cm proud, so movement is untouched.
 	int32 SlabCount = 0;
