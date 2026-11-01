@@ -7,6 +7,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Components/VolumetricCloudComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/DirectionalLight.h"
@@ -883,6 +884,17 @@ void AShieldbreakArena::SpawnLighting()
 	if (ASkyAtmosphere* Atmosphere = World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, Params))
 	{
 		(void)Atmosphere;
+	}
+
+	// The scanned maps get a sky of real clouds (the engine's volumetric cloud layer) instead of a bare gradient.
+	// -SBNoClouds turns it off for comparisons.
+	if (ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan"))
+		&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoClouds")))
+	{
+		if (AVolumetricCloud* Clouds = World->SpawnActor<AVolumetricCloud>(AVolumetricCloud::StaticClass(), FTransform::Identity, Params))
+		{
+			UE_LOG(LogShieldbreak, Log, TEXT("Sky: volumetric clouds%s."), Clouds->FindComponentByClass<UVolumetricCloudComponent>() ? TEXT("") : TEXT(" (no component)"));
+		}
 	}
 
 	if (ASkyLight* Sky = World->SpawnActor<ASkyLight>(ASkyLight::StaticClass(), FVector(0.f, 0.f, 2000.f), FRotator::ZeroRotator, Params))
