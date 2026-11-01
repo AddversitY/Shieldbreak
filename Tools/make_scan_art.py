@@ -368,11 +368,36 @@ def describe_foliage():
             log("FOLIAGE %s %s: %s" % (path, kind, ", ".join(values)))
 
 
+def leaf_instance():
+    """MI_SB_Leaves: the hornbeam leaves with more light through them and a lighter albedo (the stock ones read near
+    black in shade). The game puts it on the trees' TwoSided slot."""
+    parents = [a for a in eal.list_assets("/Game/Megascans/3D_Plants/EuropeanHornbeam", recursive=True)
+               if a.split(".")[0].endswith("/SimpleWind/MI_EuropeanHornbeam_TwoSided")]
+    if not parents:
+        log("MI_SB_Leaves: no MI_EuropeanHornbeam_TwoSided")
+        return
+    parent = unreal.load_asset(parents[0].split(".")[0])
+    path = "%s/MI_SB_Leaves" % MATERIALS
+    if eal.does_asset_exist(path):
+        mi = unreal.load_asset(path)
+    else:
+        mi = tools.create_asset("MI_SB_Leaves", MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+    mel.set_material_instance_parent(mi, parent)
+    mel.clear_all_material_instance_parameters(mi)
+    for name, value in (("LightInfluence Subsurface Strength", 1.2), ("LightInfluence BaseColor Strength", 1.4)):
+        mel.set_material_instance_scalar_parameter_value(mi, name, value)
+    for name, (r, g, b) in (("Albedo Controls", (1.5, 1.15, 1.0)), ("Translucency Controls", (1.6, 1.3, 1.0))):
+        mel.set_material_instance_vector_parameter_value(mi, name, unreal.LinearColor(r, g, b, 1.0))
+    eal.save_asset(path)
+    log("%s: parent %s" % (path, parent.get_path_name()))
+
+
 def main():
     try:
         assets = check_dependencies()
         describe_meshes(assets)
         describe_foliage()
+        leaf_instance()
         scan_instances(scan_material())
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads

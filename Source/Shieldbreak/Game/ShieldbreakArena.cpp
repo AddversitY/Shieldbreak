@@ -1769,6 +1769,25 @@ void AShieldbreakArena::BuildScanArt()
 			Place(Mesh, Transform);
 			++TreeCount;
 		}
+		// Brighter leaves (MakeScanArt's MI_SB_Leaves: more light through the leaf, lighter albedo); the stock leaf
+		// material reads near black in the shade under Lumen.
+		if (UMaterialInterface* Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Leaves.MI_SB_Leaves")))
+		{
+			for (UStaticMesh* Mesh : Trees)
+			{
+				if (UInstancedStaticMeshComponent** Instances = Groups.Find(Mesh))
+				{
+					const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+					for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+					{
+						if (Slots[Slot].MaterialSlotName == FName(TEXT("TwoSided")))
+						{
+							(*Instances)->SetMaterial(Slot, Leaves);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// 5. Long grass and loose stones at the foot of the walls and structures, where the ground meets the stone. (The
