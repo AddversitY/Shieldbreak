@@ -402,6 +402,16 @@ namespace ShieldbreakMapsData
 			// The corner decks (x = +-4500, y = +-4150): a full-height block and a low wall.
 			Mirrored(-4700.0f, -4400.0f, 550.0f, -4300.0f, -4000.0f, 900.0f);
 			Mirrored(-5000.0f, -4700.0f, 550.0f, -4800.0f, -4450.0f, 680.0f);
+			// Ruins in the open courts: a tall block with a waist-high wall beside it, so no court is one open field.
+			Mirrored(-6600.0f, 2700.0f, 200.0f, -6300.0f, 3000.0f, 600.0f);
+			Mirrored(-6200.0f, 2800.0f, 200.0f, -5800.0f, 2900.0f, 330.0f);
+			Mirrored(-4000.0f, 2300.0f, 200.0f, -3700.0f, 2600.0f, 600.0f);
+			Mirrored(-3200.0f, 4600.0f, 200.0f, -2900.0f, 4900.0f, 520.0f);
+			Mirrored(6600.0f, 2300.0f, 200.0f, 6900.0f, 2600.0f, 600.0f);
+			Mirrored(5800.0f, 2500.0f, 200.0f, 6200.0f, 2600.0f, 330.0f);
+			Mirrored(3100.0f, 3000.0f, 200.0f, 3400.0f, 3300.0f, 600.0f);
+			Mirrored(-1000.0f, 2250.0f, 200.0f, -600.0f, 2350.0f, 330.0f);
+			Mirrored(600.0f, 2250.0f, 200.0f, 1000.0f, 2350.0f, 330.0f);
 			// The platforms over the overshield / its twin: two low blocks each.
 			Mirrored(-500.0f, -3100.0f, 550.0f, -300.0f, -2900.0f, 700.0f);
 			Mirrored(300.0f, -3100.0f, 550.0f, 500.0f, -2900.0f, 700.0f);
