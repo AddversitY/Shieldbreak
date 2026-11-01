@@ -39,7 +39,7 @@ trace or copy Halo files, models, textures, names or exact layouts, and there is
 |---|---|---|
 | Keel | An orbital drydock: the arena is a ship's deck in its cradle | Hull ribs over the long walls, gantry cranes over the ends, corner beacon pylons, concrete apron |
 | Bastion | A cliff fortress in cold high country | Heavy buttresses on every wall, crags, two beacon pylons, cold blue-white haze |
-| Sanctum | A sun temple in a desert basin | Monoliths with amber seams along the long walls, broken arches behind each temple, sand and warm haze. Inside: sci-fi kit cladding on every wall, top and ramp (pale Forerunner metal, amber accents), crowns on spires and colossi, a glowing floor inlay and a hanging amber beacon over the centre, each team's sigil floating over its temple atrium |
+| Sanctum | An overgrown Forerunner-style sanctuary in a canyon (2026-11-01; was a desert sun temple) | Scanned art (below): stone with moss on top, grassy earth underfoot, mossy boulders for the rock cover, ferns and stones at the foot of every wall, a canyon of scanned cliffs round the walls with hornbeams among them, blue-green haze. Kept: the glowing trim lines, the floor inlay and amber beacon over the centre, each team's sigil over its temple |
 | Creekbed | A forest valley | Pines crowding the walls, boulders, crags, green-grey haze |
 | Spire | A storm-harvesting exchange above a basalt caldera | Collector fins and service panels (Spire pass), a line of tall pylons on each side, stormy blue haze |
 
@@ -75,6 +75,29 @@ Cubes alone read as greybox however they're lit, so the blocks inside the map ar
   along the long side. Recipes per block style (temples: white plates; towers: dark and metal; walkways: plated
   decks; cover: dark bands); Sanctum's sand plateau tops stay sand. Nothing is added to collision, so routes,
   cover and sight lines stay exactly as authored. `-SBNoCladding` turns it off for comparisons.
+
+### Scanned art: Megascans from Epic's Electric Dreams sample (Sanctum, 2026-11-01)
+
+Vincent compared Sanctum with Halo's Sanctuary: Forerunner stone sitting inside nature (grass, trees, rock, water),
+not a metal compound on sand. Hand-modelled or kit art couldn't get close, so Sanctum now uses photo-scanned assets
+from Epic's free **Electric Dreams Env** sample (Fab; Epic content, licensed for Unreal Engine projects).
+
+- `Tools/GetScanArt.bat` copies the chosen Megascans folders (mossy boulders and rock faces, forest rock formations,
+  quarry cliffs, small stones, beech ferns, ivy, European hornbeams, and the MossyGrass, JungleGround,
+  MossyRockyGround, BeachCliff and NordicMoss surfaces) plus `MSPresets` out of the sample into `Content/Megascans`
+  and `Content/MSPresets`, keeping their `/Game` paths. They are **not in git** (several GB, and not ours to
+  redistribute): every machine that builds the look runs the script after creating the sample project from Fab.
+- `Tools/MakeScanArt.bat` checks the copied assets' dependencies, lists mesh bounds (`Saved/Logs/ScanArt.txt`) and
+  builds `M_SB_Scan` in `/Game/Shieldbreak/Art/Scan`: two scanned surfaces projected in world space (so stretched
+  cubes keep even texels), the side layer on every face and the top layer on faces that look up, its height map
+  breaking up the edge. Instances: `Ground` (rocky earth, grass on top), `Stone` (cliff rock, moss on top), `Path`
+  (rock, worn rocky ground on top) and `Dark` (rock, deep moss).
+- `AShieldbreakArena::BuildScanArt` (maps whose look has `bScan`): puts those on the blocks and ramps (team temples
+  tinted warm or cool); hides each rock-cover box (its collision stays) under a mossy boulder fitted to it; stands
+  two rows of cliffs round the perimeter, their inner edge behind the walls' faces so nothing reaches into the
+  playable area; roots hornbeams on the ground among them; and scatters ferns and small stones at the foot of the
+  walls and structures, only where there's ground and no block. All visual, no collision. Missing assets fall back
+  to the old surfaces with a warning; `-SBNoScan` turns it off for comparisons.
 
 ## Next
 

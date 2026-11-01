@@ -73,6 +73,9 @@ private:
 	void BuildMapArt();
 	/** Sci-fi kit panels and plates over the map's own blocks and ramps (ShieldbreakMapArt::Cladding). Visual only. */
 	void BuildCladding();
+	/** Scanned materials on the blocks, cliffs, boulders, plants and trees for maps whose look has bScan. Visual only:
+	 *  the blocks keep their collision (rock cover is hidden under its boulder). */
+	void BuildScanArt();
 	/** Puts the tinted world materials on a kit mesh's solid slots by palette slot name; M_Glow* slots keep their emissive. */
 	void ApplyKitSurfaces(UMeshComponent* Mesh, const struct FShieldbreakMapLook& Look, float SelfLight = 0.f) const;
 	/** Ground and mountains outside the walls. Visual only. */

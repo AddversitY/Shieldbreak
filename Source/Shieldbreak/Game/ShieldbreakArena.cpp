@@ -191,6 +191,7 @@ void AShieldbreakArena::OnConstruction(const FTransform& Transform)
 		BuildSpireArt();
 		BuildMapArt();
 		BuildCladding();
+		BuildScanArt();
 		BuildSpawnPoints();
 		UE_LOG(LogShieldbreak, Log, TEXT("Built map %s (%s): %d blocks, %d ramps, %d lifts, %d spawns."), *Layout.DisplayName,
 			*Layout.InspiredBy, Layout.Blocks.Num(), Layout.Ramps.Num(), Layout.Lifts.Num(), Layout.Spawns.Num());
@@ -687,6 +688,11 @@ void AShieldbreakArena::BuildBackdrop()
 	Ground->RegisterComponent();
 	AddInstanceComponent(Ground);
 	ApplySurface(Ground, Look.GroundStyle, GroundColor, 6.f);
+	if (UMaterialInterface* Scanned = Look.bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan"))
+		? ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Scan_Ground.MI_SB_Scan_Ground")) : nullptr)
+	{
+		Ground->SetMaterial(0, Scanned);
+	}
 
 	// A ring of mountains, hazy in the fog: the faceted ring from Art/blender/build_environment.py (inner edge at
 	// 100 m, scaled so it starts just past this map's walls), turned and stretched per map so each skyline differs.
@@ -1259,4 +1265,295 @@ bool AShieldbreakArena::FindPath(int32 FromIndex, int32 ToIndex, TArray<int32>& 
 FVector AShieldbreakArena::GetFlagLocation(uint8 Team) const
 {
 	return Team < 2 ? FlagLocations[Team] : GetActorLocation();
+}
+// ---- Scanned art ----
+
+namespace ShieldbreakScanPrivate
+{
+	/** A Megascans mesh copied by Tools/GetScanArt.bat, e.g. Mesh(TEXT("3D_Assets/MossyForestBoulder"), TEXT("SM_MossyForestBoulder_01")). */
+	UStaticMesh* Mesh(const TCHAR* Folder, const TCHAR* Name)
+	{
+		return ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Megascans/%s/%s.%s"), Folder, Name, Name));
+	}
+
+	/** Every mesh of a numbered family that loaded (Names: "SM_MossyRockFace_%02d" style, numbers First..Last). */
+	TArray<UStaticMesh*> Family(const TCHAR* Folder, const TCHAR* Pattern, std::initializer_list<int32> Numbers)
+	{
+		TArray<UStaticMesh*> Out;
+		for (const int32 Number : Numbers)
+		{
+			if (UStaticMesh* Found = Mesh(Folder, *FString::Printf(Pattern, Number)))
+			{
+				Out.Add(Found);
+			}
+		}
+		return Out;
+	}
+
+	/** The axis-aligned box (arena space) of Mesh's bounds under Transform. */
+	FBox PlacedBounds(const UStaticMesh* Mesh, const FTransform& Transform)
+	{
+		return Mesh->GetBoundingBox().TransformBy(Transform);
+	}
+
+	bool InsideBlock(const FShieldbreakMapLayout& Layout, const FVector& Point)
+	{
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			if (Point.X > Block.Min.X && Point.X < Block.Max.X && Point.Y > Block.Min.Y && Point.Y < Block.Max.Y
+				&& Point.Z > Block.Min.Z && Point.Z < Block.Max.Z)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Something walkable right under Point: the floor or a block top at its height. */
+	bool OnSurface(const FShieldbreakMapLayout& Layout, const FVector& Point)
+	{
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			if (Point.X > Block.Min.X && Point.X < Block.Max.X && Point.Y > Block.Min.Y && Point.Y < Block.Max.Y
+				&& FMath::Abs(Point.Z - Block.Max.Z) < 5.0)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
+void AShieldbreakArena::BuildScanArt()
+{
+	using namespace ShieldbreakScanPrivate;
+	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	// -SBNoScan keeps the old surfaces, for before/after shots and performance comparisons.
+	if (!Look.bScan || GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoScan")))
+	{
+		return;
+	}
+	auto Material = [](const TCHAR* Kind)
+	{
+		return ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Scan_%s.MI_SB_Scan_%s"), Kind, Kind));
+	};
+	UMaterialInterface* Ground = Material(TEXT("Ground"));
+	UMaterialInterface* Stone = Material(TEXT("Stone"));
+	UMaterialInterface* Path = Material(TEXT("Path"));
+	UMaterialInterface* Dark = Material(TEXT("Dark"));
+	if (!Ground || !Stone || !Path || !Dark)
+	{
+		UE_LOG(LogShieldbreak, Warning, TEXT("%s: no scanned materials (run Tools/GetScanArt.bat and Tools/MakeScanArt.bat); keeping the old surfaces."), *Layout.DisplayName);
+		return;
+	}
+	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
+	FRandomStream Random(static_cast<int32>(GetTypeHash(MapId.ToString())) ^ 0x5CA9);
+	const TArray<UStaticMesh*> Boulders = Family(TEXT("3D_Assets/MossyForestBoulder"), TEXT("SM_MossyForestBoulder_%02d"), { 1, 2, 3, 4, 5, 6, 7 });
+
+	// 1. The blocks and ramps: scanned stone with moss on top, earth and grass underfoot, worn paving on walkways.
+	static const FName Floor(TEXT("floor")), Sand(TEXT("sand")), Grass(TEXT("grass")), Bridge(TEXT("bridge")), Ramp(TEXT("ramp"));
+	static const FName RockStyle(TEXT("rock")), DarkStyle(TEXT("dark")), Red(TEXT("red")), Blue(TEXT("blue"));
+	const int32 NumBlocks = Layout.Blocks.Num();
+	TArray<int32> RockBlocks;
+	for (int32 Index = 0; Index < Pieces.Num(); ++Index)
+	{
+		UStaticMeshComponent* Piece = Pieces[Index];
+		const FName Style = Index < NumBlocks ? Layout.Blocks[Index].Style
+			: Layout.Ramps.IsValidIndex(Index - NumBlocks) ? Layout.Ramps[Index - NumBlocks].Style : NAME_None;
+		if (!Piece || Style == FName(TEXT("glow")) || Style == FName(TEXT("water")))
+		{
+			continue;
+		}
+		if (Style == RockStyle && Index < NumBlocks && Boulders.Num() > 0)
+		{
+			// The box keeps its collision; a boulder fitted over it is what players see.
+			Piece->SetVisibility(false);
+			RockBlocks.Add(Index);
+			continue;
+		}
+		UMaterialInterface* Surface = (Style == Floor || Style == Sand || Style == Grass) ? Ground
+			: (Style == Bridge || Style == Ramp || Index >= NumBlocks) ? Path
+			: Style == DarkStyle ? Dark : Stone;
+		Piece->SetMaterial(0, Surface);
+		if (Style == Red || Style == Blue)
+		{
+			// The temples keep a hint of their team: warm or cool stone (the trim lines carry the colour).
+			if (UMaterialInstanceDynamic* MID = Piece->CreateDynamicMaterialInstance(0))
+			{
+				MID->SetVectorParameterValue(TEXT("Tint"), Style == Red ? FLinearColor(1.15f, 0.82f, 0.75f) : FLinearColor(0.78f, 0.88f, 1.1f));
+			}
+		}
+	}
+
+	auto Instanced = [this, bLumen](UStaticMesh* Mesh, bool bShadow)
+	{
+		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Scan"), Mesh);
+		Instances->SetCastShadow(bShadow);
+		Instances->bAffectDistanceFieldLighting = bLumen;
+		return Instances;
+	};
+	TMap<UStaticMesh*, UInstancedStaticMeshComponent*> Groups;
+	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow = true)
+	{
+		UInstancedStaticMeshComponent*& Instances = Groups.FindOrAdd(Mesh);
+		if (!Instances)
+		{
+			Instances = Instanced(Mesh, bShadow);
+		}
+		Instances->AddInstance(Transform);
+	};
+
+	// 2. Boulders over the rock cover, squared to the box (yaw in quarter turns) and a little proud of it.
+	for (const int32 Index : RockBlocks)
+	{
+		const FShieldbreakMapBlock& Block = Layout.Blocks[Index];
+		UStaticMesh* Mesh = Boulders[Random.RandRange(0, Boulders.Num() - 1)];
+		const int32 Quarter = Random.RandRange(0, 3);
+		const FBox Local = Mesh->GetBoundingBox();
+		FVector Extent = Local.GetSize();
+		if (Quarter % 2)
+		{
+			Swap(Extent.X, Extent.Y);
+		}
+		const FVector Size = Block.Max - Block.Min;
+		const FVector Scale(Size.X * 1.12 / FMath::Max(Extent.X, 1.0), Size.Y * 1.12 / FMath::Max(Extent.Y, 1.0), Size.Z * 1.08 / FMath::Max(Extent.Z, 1.0));
+		const FRotator Yaw(0.f, Quarter * 90.f, 0.f);
+		FTransform Transform(Yaw, FVector::ZeroVector, FVector(Scale.X, Scale.Y, Scale.Z));
+		if (Quarter % 2)
+		{
+			Transform.SetScale3D(FVector(Scale.Y, Scale.X, Scale.Z));
+		}
+		const FBox Placed = PlacedBounds(Mesh, Transform);
+		const FVector Center = (Block.Min + Block.Max) * 0.5;
+		Transform.SetTranslation(FVector(Center.X - Placed.GetCenter().X, Center.Y - Placed.GetCenter().Y, Block.Min.Z - 15.0 - Placed.Min.Z));
+		Place(Mesh, Transform);
+	}
+
+	// 3. A canyon: two rows of scanned cliffs round the perimeter walls, the near row's inner edge just behind each
+	// wall's face, the far row taller. Nothing reaches into the playable area.
+	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_%02d"), { 1, 2, 3 });
+	Cliffs.Append(Family(TEXT("3D_Assets/ForestRockFormation"), TEXT("SM_ForestRockFormation_%02d"), { 1, 2, 4, 5, 6 }));
+	Cliffs.Append(Family(TEXT("3D_Assets/QuarryCliff"), TEXT("SM_QuarryCliff_%02d"), { 1, 2 }));
+	int32 CliffCount = 0;
+	if (Cliffs.Num() > 0)
+	{
+		const FVector2D Half = Layout.HalfExtent;
+		struct FSide { FVector Out; FVector Along; double Wall; double Length; };
+		const FSide Sides[4] = {
+			{ FVector(1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y }, { FVector(-1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y },
+			{ FVector(0, 1, 0), FVector(1, 0, 0), Half.Y, Half.X }, { FVector(0, -1, 0), FVector(1, 0, 0), Half.Y, Half.X } };
+		for (const FSide& Side : Sides)
+		{
+			for (int32 Row = 0; Row < 2; ++Row)
+			{
+				const double Gap = Row == 0 ? 120.0 : 1600.0;
+				const double Reach = Side.Length + (Row == 0 ? 1800.0 : 3500.0);
+				double Along = -Reach;
+				while (Along < Reach)
+				{
+					UStaticMesh* Mesh = Cliffs[Random.RandRange(0, Cliffs.Num() - 1)];
+					const FVector Extent = Mesh->GetBoundingBox().GetSize();
+					const double Height = Row == 0 ? Random.FRandRange(2200.f, 3400.f) : Random.FRandRange(3200.f, 5200.f);
+					const double Scale = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.5, 40.0);
+					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+					const FBox Placed = PlacedBounds(Mesh, Transform);
+					// Push out until the side of the rock that faces the arena sits Gap behind the wall's face.
+					const bool bPositive = Side.Out.X + Side.Out.Y > 0.0;
+					const double Inner = FVector::DotProduct(Side.Out, bPositive ? Placed.Min : Placed.Max);
+					const double Offset = Side.Wall + Gap - Inner;
+					const double Spread = FVector::DotProduct(Side.Along, Placed.GetSize());
+					const FVector At = Side.Out * Offset + Side.Along * (Along + Spread * 0.5 - FVector::DotProduct(Side.Along, Placed.GetCenter()));
+					Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - 350.0 - Placed.Min.Z));
+					Place(Mesh, Transform);
+					++CliffCount;
+					Along += FMath::Max(Spread * 0.62, 600.0);
+				}
+			}
+		}
+	}
+
+	// 4. Trees rooted on the ground outside the walls, among the cliffs, tall enough for their crowns to show over the rim.
+	const TArray<UStaticMesh*> Trees = Family(TEXT("3D_Plants/EuropeanHornbeam/Geometry/SimpleWind"), TEXT("SM_EuropeanHornbeam_Forest_%02d"), { 1, 2, 3, 4, 5, 7, 8 });
+	int32 TreeCount = 0;
+	if (Trees.Num() > 0)
+	{
+		for (int32 Index = 0; Index < 90; ++Index)
+		{
+			const double Angle = Random.FRandRange(0.f, static_cast<float>(UE_TWO_PI));
+			const FVector2D Dir(FMath::Cos(Angle), FMath::Sin(Angle));
+			// Out along the direction to just past the walls, then further.
+			const double ToWall = FMath::Min(Layout.HalfExtent.X / FMath::Max(FMath::Abs(Dir.X), 1e-3), Layout.HalfExtent.Y / FMath::Max(FMath::Abs(Dir.Y), 1e-3));
+			const double Distance = ToWall + Random.FRandRange(900.f, 4500.f);
+			UStaticMesh* Mesh = Trees[Random.RandRange(0, Trees.Num() - 1)];
+			const double Height = Random.FRandRange(2600.f, 4000.f);
+			const double Scale = FMath::Clamp(Height / FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0), 0.3, 6.0);
+			FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+			const FBox Placed = PlacedBounds(Mesh, Transform);
+			// The backdrop ground's top, where the cliffs stand too.
+			Transform.SetTranslation(FVector(Dir.X * Distance, Dir.Y * Distance, Layout.FloorZ - 350.0 - Placed.Min.Z));
+			Place(Mesh, Transform);
+			++TreeCount;
+		}
+	}
+
+	// 5. Ferns and stones at the foot of the walls and structures, where the ground meets the stone.
+	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/BeechFern"), TEXT("SM_BeechFern_%02d"), { 1, 2, 3, 4, 8, 13, 15 });
+	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_%02d"), { 1, 2, 3, 4, 5, 6, 7 });
+	int32 PlantCount = 0;
+	if (Plants.Num() > 0)
+	{
+		const FVector2D Half = Layout.HalfExtent;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const FVector Size = Block.Max - Block.Min;
+			if (Size.Z < 120.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")))
+			{
+				continue;
+			}
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			const FVector Normals[4] = { FVector(1, 0, 0), FVector(-1, 0, 0), FVector(0, 1, 0), FVector(0, -1, 0) };
+			for (const FVector& Normal : Normals)
+			{
+				const bool bAlongY = Normal.X != 0.0;
+				const double FaceLength = bAlongY ? Size.Y : Size.X;
+				const double Offset = bAlongY ? Size.X * 0.5 : Size.Y * 0.5;
+				for (double Along = -FaceLength * 0.5 + 60.0; Along < FaceLength * 0.5 - 60.0; Along += 170.0)
+				{
+					if (Random.FRand() > 0.6f)
+					{
+						continue;
+					}
+					const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
+					const FVector Foot = FVector(Center.X, Center.Y, Block.Min.Z) + Normal * (Offset + Random.FRandRange(15.f, 70.f)) + Tangent * (Along + Random.FRandRange(-50.f, 50.f));
+					if (FMath::Abs(Foot.X) > Half.X - 30.0 || FMath::Abs(Foot.Y) > Half.Y - 30.0)
+					{
+						continue;
+					}
+					const FVector Probe(Foot.X, Foot.Y, Foot.Z + 20.0);
+					if (InsideBlock(Layout, Probe) || !(OnSurface(Layout, Foot) || FMath::Abs(Foot.Z - Layout.FloorZ) < 5.0))
+					{
+						continue;
+					}
+					const bool bStone = Stones.Num() > 0 && Random.FRand() < 0.25f;
+					UStaticMesh* Mesh = bStone ? Stones[Random.RandRange(0, Stones.Num() - 1)] : Plants[Random.RandRange(0, Plants.Num() - 1)];
+					const FVector Extent = Mesh->GetBoundingBox().GetSize();
+					const double Target = bStone ? Random.FRandRange(50.f, 90.f) : Random.FRandRange(70.f, 120.f);
+					const double Scale = FMath::Clamp(Target / FMath::Max(bStone ? FMath::Max(Extent.X, Extent.Y) : Extent.Z, 1.0), 0.05, 8.0);
+					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+					const FBox Placed = PlacedBounds(Mesh, Transform);
+					Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - (bStone ? 10.0 : 3.0)));
+					Place(Mesh, Transform, !bStone);
+					++PlantCount;
+				}
+			}
+		}
+	}
+
+	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
+	{
+		Group.Value->RegisterComponent();
+		AddInstanceComponent(Group.Value);
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d meshes."),
+		*Layout.DisplayName, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, Groups.Num());
 }

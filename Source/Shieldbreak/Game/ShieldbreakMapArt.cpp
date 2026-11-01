@@ -360,16 +360,15 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.Metal = FLinearColor(0.30f, 0.33f, 0.38f);
 		Bastion.DarkMetal = FLinearColor(0.13f, 0.14f, 0.17f);
 		Bastion.Haze = FLinearColor(0.55f, 0.62f, 0.72f);
-		// Sanctum: sun temple ruins in a desert basin. Sand, carved ivory stone, warm amber haze.
+		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
+		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
-		Sanctum.GroundStyle = TEXT("sand");
-		Sanctum.Ground = FLinearColor(0.50f, 0.40f, 0.26f);
-		Sanctum.Rock = FLinearColor(0.46f, 0.36f, 0.25f);
+		Sanctum.GroundStyle = TEXT("grass");
+		Sanctum.Ground = FLinearColor(0.20f, 0.26f, 0.13f);
+		Sanctum.Rock = FLinearColor(0.34f, 0.33f, 0.30f);
 		Sanctum.Carved = FLinearColor(0.62f, 0.56f, 0.46f);
-		Sanctum.Haze = FLinearColor(0.62f, 0.52f, 0.40f);
-		Sanctum.bClad = true;
-		Sanctum.CladTint = FLinearColor(0.56f, 0.53f, 0.48f);
-		Sanctum.CladAccent = FLinearColor(1.0f, 0.52f, 0.12f);
+		Sanctum.Haze = FLinearColor(0.50f, 0.58f, 0.62f);
+		Sanctum.bScan = true;
 		// Creekbed: a forest valley. Green banks, pines, mossy rock, soft green-grey haze.
 		FShieldbreakMapLook& Creekbed = Out.Add(FName(TEXT("Creekbed")));
 		Creekbed.Ground = FLinearColor(0.17f, 0.27f, 0.11f);
@@ -529,9 +528,14 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 	}
 	else if (Id == TEXT("Sanctum"))
 	{
-		// A sun temple in a desert basin: monoliths line the long walls, broken arches stand behind each temple end.
+		// A sun temple in a desert basin: monoliths line the long walls, broken arches stand behind each temple end
+		// (not with the scanned canyon, whose cliffs stand right behind the walls).
 		for (const FSide& Side : Sides(Layout))
 		{
+			if (GetLook(MapId).bScan)
+			{
+				break;
+			}
 			if (IsLongSide(Side))
 			{
 				int32 Index = 0;
@@ -550,13 +554,18 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				}
 			}
 		}
-		Rocks(TEXT("RockShelf"), { 18, 2000.f, 10000.f, 1.2f, 2.4f, 2000.f });
-		Rocks(TEXT("RockBoulder"), { 26, 1200.f, 9000.f, 0.7f, 1.5f, 1000.f });
-		Rocks(TEXT("RockTall"), { 8, 4000.f, 10000.f, 1.4f, 2.2f, 1200.f });
-		// Inside: crowns on the spires, colossi and obelisks, and carved reliefs on the temples, shrines, annexes and
-		// ruins unless the sci-fi kit clads them (Cladding).
-		DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower"), TEXT("bridge") }, 1050.f,
-			!GetLook(MapId).bClad);
+		// With the scanned art the canyon cliffs (BuildScanArt) replace the faceted rocks, and the bare scanned stone
+		// replaces the crowns and carved reliefs.
+		if (!GetLook(MapId).bScan)
+		{
+			Rocks(TEXT("RockShelf"), { 18, 2000.f, 10000.f, 1.2f, 2.4f, 2000.f });
+			Rocks(TEXT("RockBoulder"), { 26, 1200.f, 9000.f, 0.7f, 1.5f, 1000.f });
+			Rocks(TEXT("RockTall"), { 8, 4000.f, 10000.f, 1.4f, 2.2f, 1200.f });
+			// Inside: crowns on the spires, colossi and obelisks, and carved reliefs on the temples, shrines, annexes
+			// and ruins unless the sci-fi kit clads them (Cladding).
+			DressStructures(Groups, Layout, { TEXT("red"), TEXT("blue"), TEXT("stone"), TEXT("tower"), TEXT("bridge") }, 1050.f,
+				!GetLook(MapId).bClad);
+		}
 		// A glowing diamond inlaid round the rockets plinth, an amber prism hung high above it, and each team's
 		// cracked-shield sigil floating over its temple atrium.
 		const float Floor = Layout.FloorZ;
@@ -605,6 +614,10 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 	// (red looks toward +X, blue toward -X; the side is picked per map).
 	for (const FSide& Side : Sides(Layout))
 	{
+		if (GetLook(MapId).bScan)
+		{
+			break;
+		}
 		if (!IsLongSide(Side) && (Side.Normal.X > 0.0) == (Random.FRand() < 0.5f))
 		{
 			Group(Groups, TEXT("Monument")).Add(FacingArena(Layout, Side, 3500.f, Random.FRandRange(-0.3f, 0.3f) * Side.Along, FVector(1.f)));

@@ -28,6 +28,9 @@ struct FShieldbreakMapLook
 	FLinearColor CladTint = FLinearColor(0.5f, 0.5f, 0.5f);
 	/** The kit's accent stripes and small lights. */
 	FLinearColor CladAccent = FLinearColor(1.0f, 0.5f, 0.12f);
+	/** Scanned art (AShieldbreakArena::BuildScanArt): Megascans stone, moss and earth on the blocks, a canyon of
+	 *  cliffs round the walls, boulders for rock cover, ferns and trees. Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
+	bool bScan = false;
 };
 
 /** One kit mesh (SM_SB_Kit_<Piece> in /Game/Shieldbreak/Art/MapKit) and where it stands, in arena-local space. */
