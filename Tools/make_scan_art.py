@@ -24,14 +24,17 @@ eal = unreal.EditorAssetLibrary
 registry = unreal.AssetRegistryHelpers.get_asset_registry()
 lines = []
 
-# Kind -> (side surface, top surface, side tile cm, top tile cm, top threshold (normal Z where the top layer starts))
+# Kind -> side surface, top surface, side / top tile (cm), top threshold (normal Z where the top layer starts),
+# top coverage (how much of an upward face the top layer takes: 1.5 all of it, 0.5 broken patches), side
+# desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
-    "Ground": ("MossyRockyGround", "MossyGrass", 400.0, 350.0, 0.35),
-    "Stone": ("BeachCliff", "MossyGrass", 350.0, 300.0, 0.8),
-    "Path": ("BeachCliff", "MossyRockyGround", 350.0, 400.0, 0.8),
-    "Dark": ("BeachCliff", "NordicMoss", 300.0, 300.0, 0.8),
+    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1)),
+    "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.62, desat=0.35, tint=(0.95, 0.93, 0.88)),
+    "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.35, tint=(0.9, 0.88, 0.84)),
+    "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.75, coverage=0.85, desat=0.6, tint=(0.62, 0.62, 0.6)),
 }
-
+TOP_DEFAULT = "MossyGrass"
+ROOTS = ["/Game/Megascans", "/Game/MSPresets", "/Game/Custom", "/Game/PhysicalMaterials", "/Game/Meshes"]
 
 def log(text):
     lines.append(text)
@@ -39,25 +42,37 @@ def log(text):
 
 
 def check_dependencies():
+    """Walks every hard reference out of the copied folders, through to everything they reach, and logs each package
+    that is not there (GetScanArt.bat must copy its folder)."""
     options = unreal.AssetRegistryDependencyOptions(include_soft_package_references=False, include_hard_package_references=True,
                                                     include_searchable_names=False, include_soft_management_references=False,
                                                     include_hard_management_references=False)
-    registry.scan_paths_synchronous(["/Game/Megascans", "/Game/MSPresets"], True)
-    assets = registry.get_assets_by_path("/Game/Megascans", recursive=True) + registry.get_assets_by_path("/Game/MSPresets", recursive=True)
+    roots = [r for r in ROOTS if eal.does_directory_exist(r)]
+    registry.scan_paths_synchronous(roots, True)
+    assets = []
+    for root in roots:
+        assets += registry.get_assets_by_path(root, recursive=True)
     missing = {}
-    for data in assets:
-        package = str(data.package_name)
+    seen = set()
+    queue = [str(data.package_name) for data in assets]
+    while queue:
+        package = queue.pop()
+        if package in seen:
+            continue
+        seen.add(package)
         for dep in registry.get_dependencies(package, options) or []:
             dep = str(dep)
-            if dep.startswith("/Script/") or dep.startswith("/Engine/") or dep.startswith("/Niagara") or dep.startswith("/Paper2D"):
+            if not dep.startswith("/Game/"):
                 continue
-            if not eal.does_asset_exist(dep):
+            if eal.does_asset_exist(dep):
+                queue.append(dep)
+            else:
                 missing.setdefault(dep, []).append(package)
-    log("%d scanned assets" % len(assets))
+    log("%d scanned assets, %d packages reached" % (len(assets), len(seen)))
     for dep, users in sorted(missing.items()):
         log("MISSING %s (used by %s%s)" % (dep, users[0], " and %d more" % (len(users) - 1) if len(users) > 1 else ""))
     log("%d missing packages" % len(missing))
-    return assets
+    return [a for a in assets if str(a.package_name).startswith("/Game/Megascans")]
 
 
 def describe_meshes(assets):
@@ -138,14 +153,16 @@ def scan_material():
              ("N", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, "BeachCliff", "N"),
              ("ARD", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR, "BeachCliff", "AoRDp"))
     position = node(unreal.MaterialExpressionWorldPosition, -2400, 0)
+    tiles = {}
 
     def projected(layer, tile_name, tile_default, projections, y0):
         """Samples a layer's three maps along the given projections (masks of world X, Y, Z); returns {map: [samples]}."""
         tile = scalar(tile_name, tile_default, -2400, y0 + 150)
+        tiles[layer] = tile
         uvw = binary(unreal.MaterialExpressionDivide, position, tile, -2200, y0)
         out = {}
         for k, (suffix, sampler, surface, file_suffix) in enumerate(kinds):
-            default = texture(surface if layer == "Side" else "MossyGrass", file_suffix)
+            default = texture(surface if layer == "Side" else TOP_DEFAULT, file_suffix)
             sampler = sampler_for(default, sampler)
             log("%s%s: %s, sampler %s" % (layer, suffix, default.get_name() if default else None, sampler))
             out[suffix] = []
@@ -162,6 +179,7 @@ def scan_material():
 
     side = projected("Side", "SideTile", 350.0, ((False, True, True), (True, False, True), (True, True, False)), -1500)
     top = projected("Top", "TopTile", 300.0, ((True, True, False),), 1800)
+    top_tile_node = tiles["Top"]
 
     # Side blend weights: |normal|^4, normalized.
     normal = node(unreal.MaterialExpressionVertexNormalWS, -1700, 3000)
@@ -203,8 +221,34 @@ def scan_material():
     link(height, "", centered, "A")
     jitter = binary(unreal.MaterialExpressionMultiply, centered, breakup, -950, 3550)
     raw = binary(unreal.MaterialExpressionAdd, sharp, jitter, -800, 3450)
-    mask = node(unreal.MaterialExpressionSaturate, -650, 3450)
-    link(raw, "", mask, "")
+    facing = node(unreal.MaterialExpressionSaturate, -650, 3450)
+    link(raw, "", facing, "")
+    # Patches: the top layer's height map again at four times its tile, so moss sits in broad drifts on wall tops
+    # instead of carpeting them. TopCoverage 1.5+ covers everything.
+    patch_tile = node(unreal.MaterialExpressionMultiply, -2400, 3900, const_b=4.0)
+    link(top_tile_node, "", patch_tile, "A")
+    patch_uvw = binary(unreal.MaterialExpressionDivide, position, patch_tile, -2200, 3900)
+    patch_xy = node(unreal.MaterialExpressionComponentMask, -2000, 3900, r=True, g=True, b=False, a=False)
+    link(patch_uvw, "", patch_xy, "")
+    top_ard_default = texture(TOP_DEFAULT, "AoRDp")
+    patch_sample = node(unreal.MaterialExpressionTextureSampleParameter2D, -1700, 3900, parameter_name="TopARD",
+                        texture=top_ard_default, sampler_type=sampler_for(top_ard_default, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR))
+    if shared is not None:
+        patch_sample.set_editor_property("sampler_source", shared)
+    link(patch_xy, "", patch_sample, "UVs")
+    patch_h = node(unreal.MaterialExpressionComponentMask, -1400, 3900, r=False, g=False, b=True, a=False)
+    link(patch_sample, "RGB", patch_h, "")
+    coverage = scalar("TopCoverage", 1.6, -1400, 4050)
+    patch_raw = binary(unreal.MaterialExpressionAdd, patch_h, coverage, -1250, 3900)
+    patch_off = node(unreal.MaterialExpressionSubtract, -1100, 3900, const_b=1.0)
+    link(patch_raw, "", patch_off, "A")
+    contrast = scalar("TopContrast", 6.0, -1100, 4050)
+    patch_c = binary(unreal.MaterialExpressionMultiply, patch_off, contrast, -950, 3900)
+    patch_mid = node(unreal.MaterialExpressionAdd, -800, 3900, const_b=0.5)
+    link(patch_c, "", patch_mid, "A")
+    patch = node(unreal.MaterialExpressionSaturate, -650, 3900)
+    link(patch_mid, "", patch, "")
+    mask = binary(unreal.MaterialExpressionMultiply, facing, patch, -500, 3600)
 
     def lerp(a, b, x, y, b_out="RGB"):
         n = node(unreal.MaterialExpressionLinearInterpolate, x, y)
@@ -215,7 +259,10 @@ def scan_material():
 
     tint = node(unreal.MaterialExpressionVectorParameter, -800, -1800, parameter_name="Tint", default_value=unreal.LinearColor(1, 1, 1, 1))
     top_tint = node(unreal.MaterialExpressionVectorParameter, -800, -1950, parameter_name="TopTint", default_value=unreal.LinearColor(1, 1, 1, 1))
-    side_col = binary(unreal.MaterialExpressionMultiply, side_bc, tint, -450, -1600)
+    desat = node(unreal.MaterialExpressionDesaturation, -650, -1500)
+    link(side_bc, "", desat, "")
+    link(scalar("SideDesaturation", 0.0, -800, -1350), "", desat, "Fraction")
+    side_col = binary(unreal.MaterialExpressionMultiply, desat, tint, -450, -1600)
     top_col = binary(unreal.MaterialExpressionMultiply, top["BC"][0], top_tint, -450, -1800, a_out="RGB")
     base = lerp(side_col, top_col, -250, -1600, b_out="")
     normal_out = lerp(side_n, top["N"][0], -250, -600)
@@ -239,23 +286,34 @@ def scan_material():
 
 
 def scan_instances(master):
-    for kind, (side, top, side_tile, top_tile, threshold) in SURFACES.items():
+    defaults = {"Side": "BeachCliff", "Top": TOP_DEFAULT}
+    for kind, look in SURFACES.items():
         path = "%s/MI_SB_Scan_%s" % (MATERIALS, kind)
         if eal.does_asset_exist(path):
             mi = unreal.load_asset(path)
         else:
             mi = tools.create_asset("MI_SB_Scan_" + kind, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
         mel.set_material_instance_parent(mi, master)
-        for layer, surface in (("Side", side), ("Top", top)):
+        mel.clear_all_material_instance_parameters(mi)
+        used = []
+        for layer, surface in (("Side", look["side"]), ("Top", look["top"])):
             for suffix, file_suffix in (("BC", "BC"), ("N", "N"), ("ARD", "AoRDp")):
                 tex = texture(surface, file_suffix)
+                default = texture(defaults[layer], file_suffix)
+                if tex and default and tex.get_editor_property("virtual_texture_streaming") != default.get_editor_property("virtual_texture_streaming"):
+                    log("%s: %s%s %s is %s virtual-textured than the default; keeping %s" % (
+                        kind, layer, suffix, tex.get_name(), "more" if tex.get_editor_property("virtual_texture_streaming") else "less", default.get_name()))
+                    tex = None
                 if tex:
                     mel.set_material_instance_texture_parameter_value(mi, layer + suffix, tex)
-        mel.set_material_instance_scalar_parameter_value(mi, "SideTile", side_tile)
-        mel.set_material_instance_scalar_parameter_value(mi, "TopTile", top_tile)
-        mel.set_material_instance_scalar_parameter_value(mi, "TopThreshold", threshold)
+                used.append(tex.get_name() if tex else "(default %s)" % defaults[layer])
+        for name, value in (("SideTile", look["side_tile"]), ("TopTile", look["top_tile"]), ("TopThreshold", look["threshold"]),
+                            ("TopCoverage", look["coverage"]), ("SideDesaturation", look["desat"])):
+            mel.set_material_instance_scalar_parameter_value(mi, name, value)
+        r, g, b = look["tint"]
+        mel.set_material_instance_vector_parameter_value(mi, "Tint", unreal.LinearColor(r, g, b, 1.0))
         eal.save_asset(path)
-        log("%s: sides %s (%.0f cm), tops %s (%.0f cm) from normal Z %.2f" % (path, side, side_tile, top, top_tile, threshold))
+        log("%s: %s; %s" % (path, ", ".join(used), ", ".join("%s %s" % kv for kv in look.items() if kv[0] not in ("side", "top"))))
 
 
 def main():

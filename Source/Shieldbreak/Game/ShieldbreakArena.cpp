@@ -1380,7 +1380,7 @@ void AShieldbreakArena::BuildScanArt()
 			// The temples keep a hint of their team: warm or cool stone (the trim lines carry the colour).
 			if (UMaterialInstanceDynamic* MID = Piece->CreateDynamicMaterialInstance(0))
 			{
-				MID->SetVectorParameterValue(TEXT("Tint"), Style == Red ? FLinearColor(1.15f, 0.82f, 0.75f) : FLinearColor(0.78f, 0.88f, 1.1f));
+				MID->SetVectorParameterValue(TEXT("Tint"), Style == Red ? FLinearColor(1.02f, 0.86f, 0.8f) : FLinearColor(0.82f, 0.9f, 1.0f));
 			}
 		}
 	}
