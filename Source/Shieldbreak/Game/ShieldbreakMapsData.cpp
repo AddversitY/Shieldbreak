@@ -357,6 +357,57 @@ namespace ShieldbreakMapsData
 		L.Blocks.Add({ FVector(6000.0f, 500.0f, 200.0f), FVector(6300.0f, 800.0f, 330.0f), FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
 		L.Blocks.Add({ FVector(-7300.0f, -1400.0f, 550.0f), FVector(-7000.0f, -1100.0f, 680.0f), FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
 		L.Blocks.Add({ FVector(7000.0f, 1100.0f, 550.0f), FVector(7300.0f, 1400.0f, 680.0f), FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
+		// Breaking up the long walkways (no long open runs, as on Sanctuary): staggered low cover, a few full-height
+		// pieces, Forerunner-style arches over the crossings and more ways up. Every piece is added with its
+		// point-mirrored twin (x, y) -> (-x, -y), keeping the map symmetric for both teams.
+		{
+			const FLinearColor StoneColor(0.50f, 0.46f, 0.40f);
+			auto Mirrored = [&L, &StoneColor](float X0, float Y0, float Z0, float X1, float Y1, float Z1)
+			{
+				L.Blocks.Add({ FVector(X0, Y0, Z0), FVector(X1, Y1, Z1), StoneColor, FName(TEXT("stone")) });
+				L.Blocks.Add({ FVector(-X1, -Y1, Z0), FVector(-X0, -Y0, Z1), StoneColor, FName(TEXT("stone")) });
+			};
+			// The long cross walkways (x = +-1600): staggered waist-high cover, with the Aegis between the two middle pieces.
+			Mirrored(-1900.0f, 200.0f, 550.0f, -1550.0f, 300.0f, 700.0f);
+			Mirrored(-1650.0f, -300.0f, 550.0f, -1300.0f, -200.0f, 700.0f);
+			Mirrored(-1900.0f, 2000.0f, 550.0f, -1600.0f, 2100.0f, 700.0f);
+			Mirrored(-1600.0f, -2100.0f, 550.0f, -1300.0f, -2000.0f, 700.0f);
+			Mirrored(-1600.0f, 3150.0f, 550.0f, -1300.0f, 3250.0f, 700.0f);
+			Mirrored(-1900.0f, -3250.0f, 550.0f, -1600.0f, -3150.0f, 700.0f);
+			Mirrored(1300.0f, 2000.0f, 550.0f, 1600.0f, 2100.0f, 700.0f);
+			Mirrored(1600.0f, -2100.0f, 550.0f, 1900.0f, -2000.0f, 700.0f);
+			// Arches over the walkways where the dark pillars hold them up (y = +-1000): two posts and a lintel.
+			for (const float X : { -1600.0f, 1600.0f })
+			{
+				for (const float Y : { -1000.0f, 1000.0f })
+				{
+					L.Blocks.Add({ FVector(X - 300.0f, Y - 100.0f, 550.0f), FVector(X - 210.0f, Y + 100.0f, 960.0f), StoneColor, FName(TEXT("stone")) });
+					L.Blocks.Add({ FVector(X + 210.0f, Y - 100.0f, 550.0f), FVector(X + 300.0f, Y + 100.0f, 960.0f), StoneColor, FName(TEXT("stone")) });
+					L.Blocks.Add({ FVector(X - 340.0f, Y - 110.0f, 960.0f), FVector(X + 340.0f, Y + 110.0f, 1050.0f), StoneColor, FName(TEXT("stone")) });
+				}
+			}
+			// The long outer walkways (y = +-4100): cover on alternating sides and one full-height block.
+			Mirrored(-4500.0f, 3800.0f, 550.0f, -4300.0f, 4060.0f, 700.0f);
+			Mirrored(-3400.0f, 4160.0f, 550.0f, -3200.0f, 4360.0f, 900.0f);
+			Mirrored(-2800.0f, 4100.0f, 550.0f, -2600.0f, 4360.0f, 700.0f);
+			Mirrored(-900.0f, 4100.0f, 550.0f, -700.0f, 4360.0f, 700.0f);
+			Mirrored(600.0f, 3800.0f, 550.0f, 800.0f, 4060.0f, 700.0f);
+			// The corner decks (x = +-4500, y = +-4150): a full-height block and a low wall.
+			Mirrored(-4700.0f, -4400.0f, 550.0f, -4300.0f, -4000.0f, 900.0f);
+			Mirrored(-5000.0f, -4700.0f, 550.0f, -4800.0f, -4450.0f, 680.0f);
+			// The platforms over the overshield / its twin: two low blocks each.
+			Mirrored(-500.0f, -3100.0f, 550.0f, -300.0f, -2900.0f, 700.0f);
+			Mirrored(300.0f, -3100.0f, 550.0f, 500.0f, -2900.0f, 700.0f);
+		}
+		// More ways up: ramps from the side courts onto the cross walkways and the corner decks, grav lifts from the middle.
+		L.Ramps.Add({ FVector(-1900.0f, 2600.0f, 550.0f), FVector(-3000.0f, 2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Ramps.Add({ FVector(1900.0f, -2600.0f, 550.0f), FVector(3000.0f, -2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Ramps.Add({ FVector(1900.0f, 2600.0f, 550.0f), FVector(3000.0f, 2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Ramps.Add({ FVector(-1900.0f, -2600.0f, 550.0f), FVector(-3000.0f, -2600.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Ramps.Add({ FVector(-4050.0f, -3500.0f, 550.0f), FVector(-4050.0f, -2400.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Ramps.Add({ FVector(4050.0f, 3500.0f, 550.0f), FVector(4050.0f, 2400.0f, 200.0f), 400.0f, 40.0f, FLinearColor(0.70f, 0.58f, 0.22f), FName(TEXT("ramp")) });
+		L.Lifts.Add({ FVector(-900.0f, -700.0f, 0.0f), FVector(-1600.0f, -700.0f, 560.0f) });
+		L.Lifts.Add({ FVector(900.0f, 700.0f, 0.0f), FVector(1600.0f, 700.0f, 560.0f) });
 		L.Ramps.Add({ FVector(-2800.0f, 0.0f, 200.0f), FVector(-2000.0f, 0.0f, 0.0f), 1000.0f, 40.0f, FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
 		L.Ramps.Add({ FVector(2800.0f, 0.0f, 200.0f), FVector(2000.0f, 0.0f, 0.0f), 1000.0f, 40.0f, FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
 		L.Ramps.Add({ FVector(600.0f, 2000.0f, 200.0f), FVector(600.0f, 1200.0f, 0.0f), 900.0f, 40.0f, FLinearColor(0.50f, 0.46f, 0.40f), FName(TEXT("stone")) });
