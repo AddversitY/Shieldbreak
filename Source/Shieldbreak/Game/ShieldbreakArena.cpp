@@ -1949,8 +1949,9 @@ void AShieldbreakArena::BuildScanArt()
 	// 5. Long grass and loose stones at the foot of the walls and structures, where the ground meets the stone. (The
 	// fern scans read as solid green mounds at this size, and the stones' own material as moss blobs: grass, and the
 	// stones take the dark scanned stone.)
-	// Green ground cover (the Kikuyu grass reads as dark dry stalks whatever its material does); -SBKikuyu for the old one.
-	const bool bKikuyu = FParse::Param(FCommandLine::Get(), TEXT("SBKikuyu"));
+	// Kikuyu grass. -SBGroundCover tries the leafy ground cover instead (its Megascans foliage material renders near
+	// black here, like the scanned rocks' own, so it is off by default).
+	const bool bKikuyu = !FParse::Param(FCommandLine::Get(), TEXT("SBGroundCover"));
 	TArray<UStaticMesh*> Plants = bKikuyu ? TArray<UStaticMesh*>() : Family(TEXT("3D_Plants/GroundCover"), TEXT("SM_GroundCover_"), { 1, 6, 7, 8 });
 	if (Plants.Num() == 0)
 	{
