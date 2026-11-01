@@ -63,14 +63,16 @@ def palette_instance(slot, palette, master):
 
 
 def expected_sizes():
-    """name -> (size x, y, z) from the Blender report line 'X a..b Y c..d Z e..f'."""
+    """name -> (size x, y, z) from the Blender reports' lines 'X a..b Y c..d Z e..f' (build_map_kit.py writes
+    mapkit_report.txt, build_sanctum_kit.py sanctum_kit_report.txt)."""
     sizes = {}
-    with open(os.path.join(EXPORT, "MapKit", "mapkit_report.txt")) as f:
-        for line in f:
-            match = re.match(r"(\S+): .*X (-?[\d.]+)\.\.(-?[\d.]+) Y (-?[\d.]+)\.\.(-?[\d.]+) Z (-?[\d.]+)\.\.(-?[\d.]+)", line)
-            if match:
-                v = [float(x) for x in match.groups()[1:]]
-                sizes[match.group(1)] = (v[1] - v[0], v[3] - v[2], v[5] - v[4], v[4])
+    for report in glob.glob(os.path.join(EXPORT, "MapKit", "*_report.txt")):
+        with open(report) as f:
+            for line in f:
+                match = re.match(r"(\S+): .*X (-?[\d.]+)\.\.(-?[\d.]+) Y (-?[\d.]+)\.\.(-?[\d.]+) Z (-?[\d.]+)\.\.(-?[\d.]+)", line)
+                if match:
+                    v = [float(x) for x in match.groups()[1:]]
+                    sizes[match.group(1)] = (v[1] - v[0], v[3] - v[2], v[5] - v[4], v[4])
     return sizes
 
 
@@ -135,7 +137,7 @@ def main():
         if want and abs(box.min.z - want[3]) > 2.0:
             problems.append("%s: base at z %.1f, expected %.1f" % (name, box.min.z, want[3]))
     if len(fbxs) != len(sizes):
-        problems.append("%d FBX files but %d in mapkit_report.txt" % (len(fbxs), len(sizes)))
+        problems.append("%d FBX files but %d in the kit reports" % (len(fbxs), len(sizes)))
     log("RESULT " + ("OK, %d meshes" % len(fbxs) if not problems else "FAILED: " + "; ".join(problems)))
     out = os.path.join(PROJECT, "Saved", "Logs", "MapArtImport.txt")
     os.makedirs(os.path.dirname(out), exist_ok=True)

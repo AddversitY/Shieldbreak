@@ -28,9 +28,11 @@ lines = []
 # top coverage (how much of an upward face the top layer takes: 1.5 all of it, 0.5 broken patches), side
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
-    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1)),
+    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1),
+                   top_desat=0.25, top_tint=(0.72, 0.8, 0.62)),
     "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.45, desat=0.8, tint=(1.0, 0.98, 0.94)),
-    "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86)),
+    "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86),
+                 top_desat=0.7, top_tint=(0.85, 0.84, 0.8)),
     "Dark": dict(side="BeachCliff", top="NordicMoss", side_tile=420.0, top_tile=320.0, threshold=0.6, coverage=0.9, desat=0.75, tint=(0.7, 0.7, 0.67)),
 }
 TOP_DEFAULT = "MossyGrass"
@@ -269,7 +271,10 @@ def scan_material():
     link(side_bc, "", desat, "")
     link(scalar("SideDesaturation", 0.0, -800, -1350), "", desat, "Fraction")
     side_col = binary(unreal.MaterialExpressionMultiply, desat, tint, -450, -1600)
-    top_col = binary(unreal.MaterialExpressionMultiply, top["BC"][0], top_tint, -450, -1800, a_out="RGB")
+    top_desat = node(unreal.MaterialExpressionDesaturation, -650, -1950)
+    link(top["BC"][0], "RGB", top_desat, "")
+    link(scalar("TopDesaturation", 0.0, -800, -2100), "", top_desat, "Fraction")
+    top_col = binary(unreal.MaterialExpressionMultiply, top_desat, top_tint, -450, -1800)
     base = lerp(side_col, top_col, -250, -1600, b_out="")
     normal_out = lerp(side_n, top["N"][0], -250, -600)
     ard = lerp(side_ard, top["ARD"][0], -250, 300)
@@ -318,6 +323,9 @@ def scan_instances(master):
             mel.set_material_instance_scalar_parameter_value(mi, name, value)
         r, g, b = look["tint"]
         mel.set_material_instance_vector_parameter_value(mi, "Tint", unreal.LinearColor(r, g, b, 1.0))
+        r, g, b = look.get("top_tint", (1, 1, 1))
+        mel.set_material_instance_vector_parameter_value(mi, "TopTint", unreal.LinearColor(r, g, b, 1.0))
+        mel.set_material_instance_scalar_parameter_value(mi, "TopDesaturation", look.get("top_desat", 0.0))
         eal.save_asset(path)
         log("%s: %s; %s" % (path, ", ".join(used), ", ".join("%s %s" % kv for kv in look.items() if kv[0] not in ("side", "top"))))
 

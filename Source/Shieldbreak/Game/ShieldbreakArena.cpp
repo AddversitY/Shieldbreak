@@ -1712,10 +1712,15 @@ void AShieldbreakArena::BuildScanArt()
 				{
 					UStaticMesh* Mesh = Cliffs[Random.RandRange(0, Cliffs.Num() - 1)];
 					const FVector Extent = Mesh->GetBoundingBox().GetSize();
-					const double Height = Row == 0 ? Random.FRandRange(2200.f, 3400.f) : Row == 1 ? Random.FRandRange(3200.f, 5200.f)
+					const double Height = Row == 0 ? Random.FRandRange(2000.f, 3000.f) : Row == 1 ? Random.FRandRange(3200.f, 5200.f)
 						: Random.FRandRange(7000.f, 11000.f);
-					const double Scale = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.5, 40.0);
-					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+					// Fitted, not just scaled up: a set width along the barrier and its own height, so the near row is a
+					// continuous rock face of many pieces rather than a few giant ones.
+					const double Width = Row == 0 ? Random.FRandRange(1200.f, 2000.f) : Row == 1 ? Random.FRandRange(2200.f, 3500.f)
+						: Random.FRandRange(5000.f, 8000.f);
+					const double Flat = FMath::Clamp(Width / FMath::Max(FMath::Max(Extent.X, Extent.Y), 1.0), 0.5, 60.0);
+					const double Tall = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.5, 60.0);
+					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Flat, Flat, Tall));
 					const FBox Placed = PlacedBounds(Mesh, Transform);
 					const double Spread = FVector::DotProduct(Side.Along, Placed.GetSize());
 					// The near row leaves the gates and terraces their stretch of the barrier.
@@ -1866,7 +1871,6 @@ void AShieldbreakArena::BuildScanArt()
 
 	// 7. Grass in drifts across the ground, short enough not to hide a crouching player.
 	TArray<UStaticMesh*> GrassMeshes = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
-	GrassMeshes.Append(Family(TEXT("3D_Plants/GroundCover"), TEXT("SM_GroundCover_"), { 1, 2, 3, 4, 5, 6, 7, 8 }));
 	int32 GrassCount = 0;
 	if (GrassMeshes.Num() > 0)
 	{
@@ -1874,7 +1878,7 @@ void AShieldbreakArena::BuildScanArt()
 		for (int32 Drift = 0; Drift < Drifts; ++Drift)
 		{
 			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
-			const int32 Tufts = Random.RandRange(8, 16);
+			const int32 Tufts = Random.RandRange(14, 26);
 			for (int32 Tuft = 0; Tuft < Tufts; ++Tuft)
 			{
 				const FVector2D At = Middle + FVector2D(Random.FRandRange(-1.f, 1.f), Random.FRandRange(-1.f, 1.f)) * Random.FRandRange(40.f, 320.f);
