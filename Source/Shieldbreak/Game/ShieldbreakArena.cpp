@@ -1276,13 +1276,13 @@ namespace ShieldbreakScanPrivate
 		return ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Megascans/%s/%s.%s"), Folder, Name, Name));
 	}
 
-	/** Every mesh of a numbered family that loaded (Names: "SM_MossyRockFace_%02d" style, numbers First..Last). */
-	TArray<UStaticMesh*> Family(const TCHAR* Folder, const TCHAR* Pattern, std::initializer_list<int32> Numbers)
+	/** Every mesh of a numbered family that loaded (names Prefix + two-digit number, e.g. SM_MossyRockFace_01). */
+	TArray<UStaticMesh*> Family(const TCHAR* Folder, const TCHAR* Prefix, std::initializer_list<int32> Numbers)
 	{
 		TArray<UStaticMesh*> Out;
 		for (const int32 Number : Numbers)
 		{
-			if (UStaticMesh* Found = Mesh(Folder, *FString::Printf(Pattern, Number)))
+			if (UStaticMesh* Found = Mesh(Folder, *FString::Printf(TEXT("%s%02d"), Prefix, Number)))
 			{
 				Out.Add(Found);
 			}
@@ -1348,7 +1348,7 @@ void AShieldbreakArena::BuildScanArt()
 	}
 	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
 	FRandomStream Random(static_cast<int32>(GetTypeHash(MapId.ToString())) ^ 0x5CA9);
-	const TArray<UStaticMesh*> Boulders = Family(TEXT("3D_Assets/MossyForestBoulder"), TEXT("SM_MossyForestBoulder_%02d"), { 1, 2, 3, 4, 5, 6, 7 });
+	const TArray<UStaticMesh*> Boulders = Family(TEXT("3D_Assets/MossyForestBoulder"), TEXT("SM_MossyForestBoulder_"), { 1, 2, 3, 4, 5, 6, 7 });
 
 	// 1. The blocks and ramps: scanned stone with moss on top, earth and grass underfoot, worn paving on walkways.
 	static const FName Floor(TEXT("floor")), Sand(TEXT("sand")), Grass(TEXT("grass")), Bridge(TEXT("bridge")), Ramp(TEXT("ramp"));
@@ -1431,9 +1431,9 @@ void AShieldbreakArena::BuildScanArt()
 
 	// 3. A canyon: two rows of scanned cliffs round the perimeter walls, the near row's inner edge just behind each
 	// wall's face, the far row taller. Nothing reaches into the playable area.
-	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_%02d"), { 1, 2, 3 });
-	Cliffs.Append(Family(TEXT("3D_Assets/ForestRockFormation"), TEXT("SM_ForestRockFormation_%02d"), { 1, 2, 4, 5, 6 }));
-	Cliffs.Append(Family(TEXT("3D_Assets/QuarryCliff"), TEXT("SM_QuarryCliff_%02d"), { 1, 2 }));
+	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_"), { 1, 2, 3 });
+	Cliffs.Append(Family(TEXT("3D_Assets/ForestRockFormation"), TEXT("SM_ForestRockFormation_"), { 1, 2, 4, 5, 6 }));
+	Cliffs.Append(Family(TEXT("3D_Assets/QuarryCliff"), TEXT("SM_QuarryCliff_"), { 1, 2 }));
 	int32 CliffCount = 0;
 	if (Cliffs.Num() > 0)
 	{
@@ -1473,7 +1473,7 @@ void AShieldbreakArena::BuildScanArt()
 	}
 
 	// 4. Trees rooted on the ground outside the walls, among the cliffs, tall enough for their crowns to show over the rim.
-	const TArray<UStaticMesh*> Trees = Family(TEXT("3D_Plants/EuropeanHornbeam/Geometry/SimpleWind"), TEXT("SM_EuropeanHornbeam_Forest_%02d"), { 1, 2, 3, 4, 5, 7, 8 });
+	const TArray<UStaticMesh*> Trees = Family(TEXT("3D_Plants/EuropeanHornbeam/Geometry/SimpleWind"), TEXT("SM_EuropeanHornbeam_Forest_"), { 1, 2, 3, 4, 5, 7, 8 });
 	int32 TreeCount = 0;
 	if (Trees.Num() > 0)
 	{
@@ -1497,8 +1497,8 @@ void AShieldbreakArena::BuildScanArt()
 	}
 
 	// 5. Ferns and stones at the foot of the walls and structures, where the ground meets the stone.
-	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/BeechFern"), TEXT("SM_BeechFern_%02d"), { 1, 2, 3, 4, 8, 13, 15 });
-	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_%02d"), { 1, 2, 3, 4, 5, 6, 7 });
+	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/BeechFern"), TEXT("SM_BeechFern_"), { 1, 2, 3, 4, 8, 13, 15 });
+	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_"), { 1, 2, 3, 4, 5, 6, 7 });
 	int32 PlantCount = 0;
 	if (Plants.Num() > 0)
 	{
