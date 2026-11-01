@@ -967,6 +967,14 @@ void AShieldbreakArena::SpawnLighting()
 			FParse::Value(FCommandLine::Get(), TEXT("SBExposure="), ExposureBias);
 			Settings.bOverride_AutoExposureBias = true;
 			Settings.AutoExposureBias = ExposureBias;
+			// -SBExposureMin=<EV100>: the darkest scene the eye adapts to, so stepping out from under cover does not
+			// blow the daylight out (being tuned on Sanctum).
+			float MinEV = 0.f;
+			if (FParse::Value(FCommandLine::Get(), TEXT("SBExposureMin="), MinEV))
+			{
+				Settings.bOverride_AutoExposureMinBrightness = true;
+				Settings.AutoExposureMinBrightness = MinEV;
+			}
 		}
 	}
 }
