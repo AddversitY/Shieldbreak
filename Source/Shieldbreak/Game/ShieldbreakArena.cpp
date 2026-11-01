@@ -1826,6 +1826,76 @@ void AShieldbreakArena::BuildScanArt()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d angled caps."), *Layout.DisplayName, CapCount);
 
+	// Buttress fins (the Blender Fin) leaning out from the upper part of the tall walls, every few metres along each
+	// face, so the temples and towers read as angled Forerunner masonry instead of boxes. Visual only, so each fin
+	// stays well above anything a player can stand on in front of it (3.3 m of clearance under its foot). -SBNoFins.
+	int32 FinCount = 0;
+	if (UStaticMesh* FinMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoFins")) ? nullptr : Kit(TEXT("Fin")))
+	{
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const FVector Size = Block.Max - Block.Min;
+			const bool bGround = Block.Style == Floor || Block.Style == Sand || Block.Style == Grass || Block.Style == FName(TEXT("glow"));
+			if (bGround || IsPerimeter(Layout, Block) || Size.Z < 500.0 || AltarFor(Layout, Block))
+			{
+				continue;
+			}
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			const FVector Normals[4] = { FVector(1, 0, 0), FVector(-1, 0, 0), FVector(0, 1, 0), FVector(0, -1, 0) };
+			for (const FVector& Normal : Normals)
+			{
+				const bool bAlongY = Normal.X != 0.0;
+				const double FaceLength = bAlongY ? Size.Y : Size.X;
+				const double Offset = bAlongY ? Size.X * 0.5 : Size.Y * 0.5;
+				if (FaceLength < 380.0)
+				{
+					continue;
+				}
+				const double Height = FMath::Min(Size.Z * 0.55, 650.0);
+				const double Foot = Block.Max.Z - Height;
+				const int32 Count = FMath::Clamp(FMath::FloorToInt32(FaceLength / 450.0), 1, 8);
+				const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
+				for (int32 Index = 0; Index < Count; ++Index)
+				{
+					const double Along = (Count == 1) ? 0.0 : -FaceLength * 0.5 + 120.0 + (FaceLength - 240.0) * Index / (Count - 1);
+					const FVector At = FVector(Center.X, Center.Y, Foot) + Normal * Offset + Tangent * Along;
+					// In front of the fin: not inside another block, and nothing to stand on within 3.3 m below its foot.
+					const FVector Probe = At + Normal * 40.0;
+					if (InsideBlock(Layout, Probe + FVector(0, 0, 10.0)) || FMath::Abs(Probe.X) > Half.X || FMath::Abs(Probe.Y) > Half.Y)
+					{
+						continue;
+					}
+					double Stand = Layout.FloorZ;
+					for (const FShieldbreakMapBlock& Other : Layout.Blocks)
+					{
+						if (Probe.X > Other.Min.X - 200.0 && Probe.X < Other.Max.X + 200.0 && Probe.Y > Other.Min.Y - 200.0 && Probe.Y < Other.Max.Y + 200.0
+							&& Other.Max.Z <= Foot + 1.0 && &Other != &Block)
+						{
+							Stand = FMath::Max(Stand, static_cast<double>(Other.Max.Z));
+						}
+					}
+					for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+					{
+						const FVector2D A(Ramp.Start), B(Ramp.End), P(Probe);
+						const double T = FMath::Clamp(FVector2D::DotProduct(P - A, B - A) / FMath::Max((B - A).SizeSquared(), 1.0), 0.0, 1.0);
+						if (FVector2D::Distance(P, A + (B - A) * T) < Ramp.Width * 0.5 + 200.0)
+						{
+							Stand = FMath::Max(Stand, FMath::Max(Ramp.Start.Z, Ramp.End.Z));
+						}
+					}
+					if (Foot - Stand < 330.0)
+					{
+						continue;
+					}
+					const FRotator Yaw(0.f, static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Normal.Y, Normal.X))), 0.f);
+					PlaceHero(FinMesh, FTransform(Yaw, At - Normal * 4.0, FVector(1.3, 1.6, Height / 100.0)));
+					++FinCount;
+				}
+			}
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d buttress fins."), *Layout.DisplayName, FinCount);
+
 	for (const int32 Index : AltarBlocks)
 	{
 		const FShieldbreakMapBlock& Block = Layout.Blocks[Index];

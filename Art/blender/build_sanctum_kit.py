@@ -14,6 +14,8 @@ Pieces:
   Terrace  a 4000 cm long, three-step battered retaining wall with a light channel per step, to stand in the canyon
   Cap      an angled crown for the tops of tall blocks (towers, temple fins), on a 100 x 100 cm footprint that the
            game scales to each block: a cut plinth, two inward-leaning blades with a light seam, and a hard-light shard
+  Fin      a buttress blade for the upper part of a tall wall, 100 cm tall unscaled (the game sets its height),
+           leaning out from the face (local +X) with a light line down its outer edge
   Altar    the shell over the centre plinth (600 x 600 x 320 cm of collision): battered stone with light channels, and a
            crown of hard-light stones hanging high above it, out of reach
 
@@ -208,7 +210,22 @@ def cap():
     return sb_kit.join("SM_SB_Kit_Cap", parts)
 
 
-PIECES = (gate, shard, terrace, altar, cap)
+def fin():
+    """A buttress blade standing against a wall (the face at local X = 0, +X out), 100 cm tall unscaled: thick at the
+    foot, leaning out as it rises, with a notch near the top and a light line down the outer edge."""
+    parts = []
+    outline = [(-4, 0), (14, 0), (40, 62), (44, 84), (30, 90), (34, 100), (-4, 100)]
+    blade = prism_xz("blade", outline, -14, 14, "Ivory", bevel=1.0)
+    parts.append(blade)
+    # The light line: a thin bar along the leaning edge, set just proud of it.
+    length = math.hypot(26, 62)
+    line = sb_kit.box("line", (0, 0, 0), (3, 6, length), "GlowCyan", bevel=0.0)
+    placed(line, (28, 0, 31), (0, math.degrees(math.atan2(26, 62)), 0))
+    parts.append(line)
+    return sb_kit.join("SM_SB_Kit_Fin", parts)
+
+
+PIECES = (gate, shard, terrace, altar, cap, fin)
 
 
 def build(render=None):
