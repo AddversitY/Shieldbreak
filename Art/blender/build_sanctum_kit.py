@@ -12,6 +12,8 @@ Pieces:
   Gate     a 3400 cm wide gateway: two battered three-tier pylons with fins, a notched lintel, a floating keystone
   Shard    a 4600 cm levitating obelisk: five stone segments hung apart on a hard-light core over a stepped plinth
   Terrace  a 4000 cm long, three-step battered retaining wall with a light channel per step, to stand in the canyon
+  Altar    the shell over the centre plinth (600 x 600 x 320 cm of collision): battered stone with light channels, and a
+           crown of hard-light stones hanging high above it, out of reach
 
 Exported to Art/Export/MapKit (same import as the rest of the map kit: Tools/ImportMapArt.bat).
 """
@@ -143,7 +145,50 @@ def terrace():
     return sb_kit.join("SM_SB_Kit_Terrace", parts)
 
 
-PIECES = (gate, shard, terrace)
+def altar():
+    """Wraps the 600 x 600 x 320 cm centre plinth. The shell stays within 20 cm of the collision box at the foot and
+    meets it at the top (322 cm, just over the block so the stone top shows), so what you see is what you stand on."""
+    parts = []
+    top = 322.0
+    # The battered body, then a cut lip round the top edge.
+    parts.append(battered("body", (0, 0, 0), (640, 640), (612, 612), top - 40, "Ivory", bevel=8.0, chamfer=0.1))
+    parts.append(battered("lip", (0, 0, top - 40), (616, 616), (604, 604), 40, "Sand", bevel=5.0, chamfer=0.1))
+    # A base course, knee high.
+    parts.append(battered("course", (0, 0, 0), (650, 650), (642, 642), 60, "Sand", bevel=6.0, chamfer=0.1))
+    # On each face: a recessed vertical light slit in the middle, flanked by two angled light strokes, and a band.
+    for yaw in (0, 90, 180, 270):
+        a = math.radians(yaw)
+        def face_box(name, off_along, z, size, mat, tilt=0.0, out=0.0):
+            # size: (thickness, width along the face, height); placed proud of the battered face at height z.
+            face = 320.0 - 14.0 * (z / top) + 3.0 + out
+            obj = sb_kit.box(name, (0, 0, 0), size, mat, bevel=0.0)
+            x = math.cos(a) * face - math.sin(a) * off_along
+            y = math.sin(a) * face + math.cos(a) * off_along
+            return placed(obj, (x, y, z), (tilt, 0, yaw))
+        parts.append(face_box("slit", 0, 170, (8, 22, 180), "GlowCyan"))
+        for side in (-1, 1):
+            parts.append(face_box("stroke", side * 130, 150, (8, 14, 150), "GlowCyan", tilt=side * 28.0))
+            # Stone pilasters at the corners of each face, standing a little proud.
+            parts.append(face_box("pilaster", side * 250, 130, (14, 70, 200), "Ivory", out=4.0))
+        parts.append(face_box("band", 0, 255, (8, 420, 10), "GlowCyan"))
+    # The crown: four hard-light stones hanging high over the plinth (out of reach of a jump from its top), each
+    # tilted in toward the middle, with a glowing core between them.
+    crown_z = 860.0
+    for i, yaw in enumerate((45, 135, 225, 315)):
+        a = math.radians(yaw)
+        r = 260.0
+        stone = frustum("crown_hi", (0, 0, 0), (130, 130), (10, 10), 300, "Ivory", bevel=4.0)
+        placed(stone, (math.cos(a) * r, math.sin(a) * r, crown_z + (i % 2) * 40), (0, -18, yaw))
+        parts.append(stone)
+        tail = frustum("crown_lo", (0, 0, 0), (130, 130), (10, 10), -150, "Ivory", bevel=4.0)
+        placed(tail, (math.cos(a) * r, math.sin(a) * r, crown_z - 10 + (i % 2) * 40), (0, -18, yaw))
+        parts.append(tail)
+    parts.append(placed(frustum("core_hi", (0, 0, 0), (70, 70), (4, 4), 120, "GlowAmber", bevel=0.0), (0, 0, crown_z + 60), (0, 0, 0)))
+    parts.append(placed(frustum("core_lo", (0, 0, 0), (70, 70), (4, 4), -120, "GlowAmber", bevel=0.0), (0, 0, crown_z + 60), (0, 0, 0)))
+    return sb_kit.join("SM_SB_Kit_Altar", parts)
+
+
+PIECES = (gate, shard, terrace, altar)
 
 
 def build(render=None):

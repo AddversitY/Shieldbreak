@@ -394,6 +394,7 @@ void AShieldbreakArena::BuildGeometry()
 namespace ShieldbreakScanPrivate
 {
 	bool IsPerimeter(const FShieldbreakMapLayout& Layout, const FShieldbreakMapBlock& Block);
+	UStaticMesh* AltarFor(const FShieldbreakMapLayout& Layout, const FShieldbreakMapBlock& Block);
 }
 
 void AShieldbreakArena::BuildTrim()
@@ -446,7 +447,8 @@ void AShieldbreakArena::BuildTrim()
 			}
 			continue;
 		}
-		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bCarvedStone && ShieldbreakScanPrivate::IsPerimeter(Layout, Block)))
+		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bCarvedStone && (ShieldbreakScanPrivate::IsPerimeter(Layout, Block)
+			|| ShieldbreakScanPrivate::AltarFor(Layout, Block))))
 		{
 			continue;
 		}
@@ -1395,6 +1397,20 @@ namespace ShieldbreakScanPrivate
 			|| Block.Min.Y <= -Layout.HalfExtent.Y - 50.0 || Block.Max.Y >= Layout.HalfExtent.Y + 50.0);
 	}
 
+	/** The altar hero piece, for a 600 x 600 x 320 cm stone plinth standing on the floor (Sanctum's centre, the
+	 *  rockets): it is the plinth's shell, with its own light channels. Null for any other block, or with -SBNoAltar. */
+	UStaticMesh* AltarFor(const FShieldbreakMapLayout& Layout, const FShieldbreakMapBlock& Block)
+	{
+		const FVector Size = Block.Max - Block.Min;
+		if (Block.Style != FName(TEXT("stone")) || !FMath::IsNearlyEqual(Size.X, 600.0, 1.0) || !FMath::IsNearlyEqual(Size.Y, 600.0, 1.0)
+			|| !FMath::IsNearlyEqual(Size.Z, 320.0, 1.0) || !FMath::IsNearlyEqual(Block.Min.Z, static_cast<double>(Layout.FloorZ), 1.0)
+			|| FParse::Param(FCommandLine::Get(), TEXT("SBNoAltar")))
+		{
+			return nullptr;
+		}
+		return ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_Altar.SM_SB_Kit_Altar"));
+	}
+
 	/** One horizontal ring of a carved block's outline: height above the block's foot and how far the face sits out
 	 *  from the collision box (negative = inset). */
 	struct FRing { double Z; double Out; };
@@ -1552,6 +1568,7 @@ void AShieldbreakArena::BuildScanArt()
 	static const FName RockStyle(TEXT("rock")), DarkStyle(TEXT("dark")), Red(TEXT("red")), Blue(TEXT("blue"));
 	const int32 NumBlocks = Layout.Blocks.Num();
 	TArray<int32> RockBlocks;
+	TArray<int32> AltarBlocks;
 	// -SBNoCarve keeps the plain boxes (with the scanned materials) for comparisons.
 	const bool bCarve = !FParse::Param(FCommandLine::Get(), TEXT("SBNoCarve"));
 	// -SBScanRockOwn keeps the scanned rocks' own materials (they come out black; see Place).
@@ -1573,6 +1590,14 @@ void AShieldbreakArena::BuildScanArt()
 			// invisible barrier and Lumen occluder.
 			Piece->bAffectIndirectLightingWhileHidden = true;
 			Piece->SetVisibility(false);
+			continue;
+		}
+		if (Index < NumBlocks && AltarFor(Layout, Layout.Blocks[Index]))
+		{
+			// The centre plinth: the Blender altar (placed with the hero pieces below) is its shell.
+			Piece->bAffectIndirectLightingWhileHidden = true;
+			Piece->SetVisibility(false);
+			AltarBlocks.Add(Index);
 			continue;
 		}
 		if (Style == RockStyle && Index < NumBlocks && Boulders.Num() > 0)
@@ -1772,6 +1797,13 @@ void AShieldbreakArena::BuildScanArt()
 			// A levitating obelisk far out past the middle of each long side: the skyline landmark.
 			PlaceHero(ShardMesh, Facing(Side, Side.Wall + 4200.0, (SideIndex == 2 ? 0.2 : -0.2) * Side.Length, Layout.FloorZ - 350.0));
 		}
+	}
+
+	for (const int32 Index : AltarBlocks)
+	{
+		const FShieldbreakMapBlock& Block = Layout.Blocks[Index];
+		const FVector Center = (Block.Min + Block.Max) * 0.5;
+		PlaceHero(AltarFor(Layout, Block), FTransform(FVector(Center.X, Center.Y, Block.Min.Z)));
 	}
 
 	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_"), { 1, 2, 3 });
