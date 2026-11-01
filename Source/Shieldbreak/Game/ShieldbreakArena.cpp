@@ -1949,7 +1949,13 @@ void AShieldbreakArena::BuildScanArt()
 	// 5. Long grass and loose stones at the foot of the walls and structures, where the ground meets the stone. (The
 	// fern scans read as solid green mounds at this size, and the stones' own material as moss blobs: grass, and the
 	// stones take the dark scanned stone.)
-	TArray<UStaticMesh*> Plants = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+	// Green ground cover (the Kikuyu grass reads as dark dry stalks whatever its material does); -SBKikuyu for the old one.
+	const bool bKikuyu = FParse::Param(FCommandLine::Get(), TEXT("SBKikuyu"));
+	TArray<UStaticMesh*> Plants = bKikuyu ? TArray<UStaticMesh*>() : Family(TEXT("3D_Plants/GroundCover"), TEXT("SM_GroundCover_"), { 1, 6, 7, 8 });
+	if (Plants.Num() == 0)
+	{
+		Plants = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+	}
 	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_"), { 1, 2, 3, 4, 5, 6, 7 });
 	int32 PlantCount = 0;
 	if (Plants.Num() > 0)
@@ -2047,7 +2053,7 @@ void AShieldbreakArena::BuildScanArt()
 	}
 
 	// 7. Grass in drifts across the ground, short enough not to hide a crouching player.
-	TArray<UStaticMesh*> GrassMeshes = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+	TArray<UStaticMesh*> GrassMeshes = Plants;
 	int32 GrassCount = 0;
 	if (GrassMeshes.Num() > 0)
 	{
@@ -2093,7 +2099,9 @@ void AShieldbreakArena::BuildScanArt()
 	// The grass tufts (sections 5 and 7): out of the distance fields, which shade them near black under Lumen like
 	// the tree crowns, and on MakeScanArt's lighter MI_SB_Grass.
 	{
-		UMaterialInterface* GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Grass.MI_SB_Grass"));
+		// MI_SB_Grass is a Kikuyu instance: only for those meshes.
+		const bool bKikuyuMeshes = GrassMeshes.Num() > 0 && GrassMeshes[0]->GetName().StartsWith(TEXT("SM_KikuyuGrass_"));
+		UMaterialInterface* GrassSurface = bKikuyuMeshes ? ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Grass.MI_SB_Grass")) : nullptr;
 		TSet<UStaticMesh*> GrassSet(GrassMeshes);
 		GrassSet.Append(Plants);
 		for (UStaticMesh* Mesh : GrassSet)
