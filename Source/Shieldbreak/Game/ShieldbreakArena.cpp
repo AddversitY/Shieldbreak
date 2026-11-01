@@ -1393,12 +1393,17 @@ void AShieldbreakArena::BuildScanArt()
 		return Instances;
 	};
 	TMap<UStaticMesh*, UInstancedStaticMeshComponent*> Groups;
-	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow = true)
+	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow = true, int32 CullDistance = 0)
 	{
 		UInstancedStaticMeshComponent*& Instances = Groups.FindOrAdd(Mesh);
 		if (!Instances)
 		{
 			Instances = Instanced(Mesh, bShadow);
+			if (CullDistance > 0)
+			{
+				// Small plants fade out past this distance (cm); they are noise from further away.
+				Instances->SetCullDistances(CullDistance * 3 / 4, CullDistance);
+			}
 		}
 		Instances->AddInstance(Transform);
 	};
@@ -1549,11 +1554,94 @@ void AShieldbreakArena::BuildScanArt()
 		}
 	}
 
+	// 6. Ivy hanging over the tops of the taller walls and structures, on faces that open onto the map.
+	TArray<UStaticMesh*> Ivy = Family(TEXT("3D_Plants/Ivy"), TEXT("SM_Ivy_"), { 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 24, 25 });
+	int32 IvyCount = 0;
+	if (Ivy.Num() > 0)
+	{
+		const FVector2D Half = Layout.HalfExtent;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const FVector Size = Block.Max - Block.Min;
+			if (Size.Z < 300.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")) || Block.Style == RockStyle)
+			{
+				continue;
+			}
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			const FVector Normals[4] = { FVector(1, 0, 0), FVector(-1, 0, 0), FVector(0, 1, 0), FVector(0, -1, 0) };
+			for (const FVector& Normal : Normals)
+			{
+				const bool bAlongY = Normal.X != 0.0;
+				const double FaceLength = bAlongY ? Size.Y : Size.X;
+				const double Offset = bAlongY ? Size.X * 0.5 : Size.Y * 0.5;
+				const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
+				for (double Along = -FaceLength * 0.5 + 80.0; Along < FaceLength * 0.5 - 80.0; Along += 230.0)
+				{
+					if (Random.FRand() > 0.38f)
+					{
+						continue;
+					}
+					const FVector Lip = FVector(Center.X, Center.Y, Block.Max.Z) + Normal * (Offset + 2.0) + Tangent * (Along + Random.FRandRange(-60.f, 60.f));
+					// Only faces that open onto the map: not outside the walls, not pressed against another block.
+					if (FMath::Abs(Lip.X) > Half.X - 20.0 || FMath::Abs(Lip.Y) > Half.Y - 20.0
+						|| InsideBlock(Layout, Lip + Normal * 40.0 - FVector(0, 0, 60.0)))
+					{
+						continue;
+					}
+					UStaticMesh* Mesh = Ivy[Random.RandRange(0, Ivy.Num() - 1)];
+					const double Length = FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0);
+					const double Scale = FMath::Min(Random.FRandRange(0.8f, 1.4f), (Size.Z - 40.0) / Length);
+					// The ivy's leaves grow toward its +Y: turn that to face out of the wall.
+					const double Yaw = FMath::RadiansToDegrees(FMath::Atan2(-Normal.X, Normal.Y));
+					FTransform Transform(FRotator(0.f, static_cast<float>(Yaw), 0.f), Lip, FVector(Scale));
+					Place(Mesh, Transform, false, 9000);
+					++IvyCount;
+				}
+			}
+		}
+	}
+
+	// 7. Grass in drifts across the ground, short enough not to hide a crouching player.
+	TArray<UStaticMesh*> GrassMeshes = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+	GrassMeshes.Append(Family(TEXT("3D_Plants/GroundCover"), TEXT("SM_GroundCover_"), { 1, 2, 3, 4, 5, 6, 7, 8 }));
+	int32 GrassCount = 0;
+	if (GrassMeshes.Num() > 0)
+	{
+		const FVector2D Half = Layout.HalfExtent;
+		const int32 Drifts = FMath::Clamp(static_cast<int32>(Half.X * Half.Y / 250000.0), 40, 160);
+		for (int32 Drift = 0; Drift < Drifts; ++Drift)
+		{
+			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
+			const int32 Tufts = Random.RandRange(8, 16);
+			for (int32 Tuft = 0; Tuft < Tufts; ++Tuft)
+			{
+				const FVector2D At = Middle + FVector2D(Random.FRandRange(-1.f, 1.f), Random.FRandRange(-1.f, 1.f)) * Random.FRandRange(40.f, 320.f);
+				if (FMath::Abs(At.X) > Half.X - 40.0 || FMath::Abs(At.Y) > Half.Y - 40.0)
+				{
+					continue;
+				}
+				const FVector Foot(At.X, At.Y, Layout.FloorZ);
+				if (InsideBlock(Layout, Foot + FVector(0, 0, 20.0)) || !(OnSurface(Layout, Foot) || FMath::Abs(Foot.Z - Layout.FloorZ) < 5.0))
+				{
+					continue;
+				}
+				UStaticMesh* Mesh = GrassMeshes[Random.RandRange(0, GrassMeshes.Num() - 1)];
+				const double Height = FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0);
+				const double Scale = FMath::Clamp(Random.FRandRange(25.f, 45.f) / Height, 0.2, 3.0);
+				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+				const FBox Placed = PlacedBounds(Mesh, Transform);
+				Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - Placed.Min.Z - 2.0));
+				Place(Mesh, Transform, false, 5000);
+				++GrassCount;
+			}
+		}
+	}
+
 	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d meshes."),
-		*Layout.DisplayName, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, Groups.Num());
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned art: %d rock cover boulders, %d cliffs, %d trees, %d plants and stones, %d ivy, %d grass, %d meshes."),
+		*Layout.DisplayName, RockBlocks.Num(), CliffCount, TreeCount, PlantCount, IvyCount, GrassCount, Groups.Num());
 }

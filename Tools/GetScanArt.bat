@@ -18,7 +18,7 @@ echo Copying from %ED% > "%LOG%"
 for %%F in (MossyForestBoulder MossyForestRock MossyRockFace MossyRocks ForestRockFormation QuarryCliff SmallStonesPack MossyEmbankment ForestRoots) do (
   robocopy "%ED%\Megascans\3D_Assets\%%F" "%SB%\Megascans\3D_Assets\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
 )
-for %%F in (BeechFern Ivy EnglishIvy EuropeanHornbeam Elderberry) do (
+for %%F in (BeechFern Ivy EnglishIvy EuropeanHornbeam Elderberry KikuyuGrass GroundCover) do (
   robocopy "%ED%\Megascans\3D_Plants\%%F" "%SB%\Megascans\3D_Plants\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
 )
 for %%F in (MossyGrass JungleGround MossyRockyGround BeachCliff NordicMoss IcelandicQuarryRock RockCliff) do (
