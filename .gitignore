@@ -36,3 +36,7 @@ Content/Collections/
 # Blender preview renders
 Art/blender/previews/
 __pycache__/
+
+# Scanned art copied locally from Epic's Electric Dreams sample by Tools/GetScanArt.bat (not redistributed)
+Content/Megascans/
+Content/MSPresets/

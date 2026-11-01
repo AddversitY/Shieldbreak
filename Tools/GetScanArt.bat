@@ -1,0 +1,29 @@
+@echo off
+rem Copies the scanned (Megascans) rocks, cliffs, plants and ground surfaces Shieldbreak uses out of Epic's free
+rem Electric Dreams sample into Content\Megascans and Content\MSPresets, keeping their /Game paths so the references
+rem hold. They stay out of git (see .gitignore): get the sample from Fab (Electric Dreams Env, "Create project",
+rem UE 5.8) first. SB_ELECTRIC_DREAMS overrides the sample's Content folder.
+rem Results: Saved\Logs\GetScanArt.log
+setlocal
+set "ED=%SB_ELECTRIC_DREAMS%"
+if "%ED%"=="" set "ED=%USERPROFILE%\Documents\Unreal Projects\ElectricDreamsEnv\Content"
+set "SB=%~dp0..\Content"
+set "LOG=%~dp0..\Saved\Logs\GetScanArt.log"
+if not exist "%~dp0..\Saved\Logs" mkdir "%~dp0..\Saved\Logs"
+if not exist "%ED%\Megascans" (
+  echo Electric Dreams not found at %ED% > "%LOG%"
+  exit /b 1
+)
+echo Copying from %ED% > "%LOG%"
+for %%F in (MossyForestBoulder MossyForestRock MossyRockFace MossyRocks ForestRockFormation QuarryCliff SmallStonesPack MossyEmbankment ForestRoots) do (
+  robocopy "%ED%\Megascans\3D_Assets\%%F" "%SB%\Megascans\3D_Assets\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
+)
+for %%F in (BeechFern Ivy EnglishIvy EuropeanHornbeam Elderberry) do (
+  robocopy "%ED%\Megascans\3D_Plants\%%F" "%SB%\Megascans\3D_Plants\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
+)
+for %%F in (MossyGrass JungleGround MossyRockyGround BeachCliff NordicMoss) do (
+  robocopy "%ED%\Megascans\Surfaces\%%F" "%SB%\Megascans\Surfaces\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
+)
+robocopy "%ED%\MSPresets" "%SB%\MSPresets" /E /NFL /NDL /NJH /NP >> "%LOG%"
+echo COPYDONE >> "%LOG%"
+endlocal
