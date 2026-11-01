@@ -28,7 +28,7 @@ lines = []
 # top coverage (how much of an upward face the top layer takes: 1.5 all of it, 0.5 broken patches), side
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
-    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=0.45, desat=0.0, tint=(1, 1, 1),
+    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=0.62, desat=0.0, tint=(1, 1, 1), patch_noise=1.0,
                    top_desat=0.3, top_tint=(0.64, 0.72, 0.55)),
     "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.45, desat=0.8, tint=(1.0, 0.98, 0.94)),
     "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86),
@@ -245,8 +245,16 @@ def scan_material():
     if shared is not None:
         patch_sample.set_editor_property("sampler_source", shared)
     link(patch_xy, "", patch_sample, "UVs")
-    patch_h = node(unreal.MaterialExpressionComponentMask, -1400, 3900, r=False, g=False, b=True, a=False)
-    link(patch_sample, "RGB", patch_h, "")
+    patch_tex = node(unreal.MaterialExpressionComponentMask, -1550, 3900, r=False, g=False, b=True, a=False)
+    link(patch_sample, "RGB", patch_tex, "")
+    # Or (PatchNoise 1) broad world-space noise, for a top layer whose height map is too even to break up: the
+    # ground's grass, which otherwise flips from all grass to all earth at one coverage value.
+    noise = node(unreal.MaterialExpressionNoise, -1700, 4200, scale=0.0012, levels=3, output_min=0.0, output_max=1.0, quality=1)
+    link(position, "", noise, "Position")
+    patch_h = node(unreal.MaterialExpressionLinearInterpolate, -1400, 3900)
+    link(patch_tex, "", patch_h, "A")
+    link(noise, "", patch_h, "B")
+    link(scalar("PatchNoise", 0.0, -1550, 4350), "", patch_h, "Alpha")
     coverage = scalar("TopCoverage", 1.6, -1400, 4050)
     patch_raw = binary(unreal.MaterialExpressionAdd, patch_h, coverage, -1250, 3900)
     patch_off = node(unreal.MaterialExpressionSubtract, -1100, 3900, const_b=1.0)
@@ -333,6 +341,7 @@ def scan_instances(master):
         r, g, b = look.get("top_tint", (1, 1, 1))
         mel.set_material_instance_vector_parameter_value(mi, "TopTint", unreal.LinearColor(r, g, b, 1.0))
         mel.set_material_instance_scalar_parameter_value(mi, "TopDesaturation", look.get("top_desat", 0.0))
+        mel.set_material_instance_scalar_parameter_value(mi, "PatchNoise", look.get("patch_noise", 0.0))
         eal.save_asset(path)
         log("%s: %s; %s" % (path, ", ".join(used), ", ".join("%s %s" % kv for kv in look.items() if kv[0] not in ("side", "top"))))
 
