@@ -1896,6 +1896,87 @@ void AShieldbreakArena::BuildScanArt()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d buttress fins."), *Layout.DisplayName, FinCount);
 
+	// Angled cornices (the Blender Eave) along the top of the walls, in runs of up to 6 m: a steep chamfered lip just
+	// under each roof edge, so the flat-topped temples get a Forerunner profile. The lip falls away from the roof line,
+	// so it never reads as a ledge, and it is only placed where nothing stands near it (2.6 m clear under it, and no
+	// block or ramp beside it at that height). Visual only. -SBNoEaves.
+	int32 EaveCount = 0;
+	if (UStaticMesh* EaveMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoEaves")) ? nullptr : Kit(TEXT("Eave")))
+	{
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const FVector Size = Block.Max - Block.Min;
+			const bool bGround = Block.Style == Floor || Block.Style == Sand || Block.Style == Grass || Block.Style == FName(TEXT("glow"));
+			if (bGround || IsPerimeter(Layout, Block) || Size.Z < 380.0 || AltarFor(Layout, Block))
+			{
+				continue;
+			}
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			const double Under = Block.Max.Z - 110.0;
+			const FVector Normals[4] = { FVector(1, 0, 0), FVector(-1, 0, 0), FVector(0, 1, 0), FVector(0, -1, 0) };
+			for (const FVector& Normal : Normals)
+			{
+				const bool bAlongY = Normal.X != 0.0;
+				const double FaceLength = bAlongY ? Size.Y : Size.X;
+				const double Offset = bAlongY ? Size.X * 0.5 : Size.Y * 0.5;
+				if (FaceLength < 300.0)
+				{
+					continue;
+				}
+				const int32 Runs = FMath::CeilToInt32(FaceLength / 600.0);
+				const double Pitch = FaceLength / Runs;
+				const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
+				for (int32 Index = 0; Index < Runs; ++Index)
+				{
+					const double Along = -FaceLength * 0.5 + Pitch * (Index + 0.5);
+					const FVector At = FVector(Center.X, Center.Y, Block.Max.Z) + Normal * Offset + Tangent * Along;
+					bool bClear = true;
+					// Check the run's middle and both ends, 40 cm out.
+					for (const double Step : { -0.5, 0.0, 0.5 })
+					{
+						const FVector Probe = At + Normal * 40.0 + Tangent * (Pitch - 40.0) * Step;
+						if (FMath::Abs(Probe.X) > Half.X || FMath::Abs(Probe.Y) > Half.Y || InsideBlock(Layout, FVector(Probe.X, Probe.Y, Under)))
+						{
+							bClear = false;
+							break;
+						}
+						for (const FShieldbreakMapBlock& Other : Layout.Blocks)
+						{
+							if (&Other != &Block && Probe.X > Other.Min.X - 150.0 && Probe.X < Other.Max.X + 150.0
+								&& Probe.Y > Other.Min.Y - 150.0 && Probe.Y < Other.Max.Y + 150.0 && Other.Max.Z > Under - 260.0)
+							{
+								bClear = false;
+								break;
+							}
+						}
+						for (const FShieldbreakMapRamp& Slope : Layout.Ramps)
+						{
+							const FVector2D A(Slope.Start), B(Slope.End), P(Probe);
+							const double T = FMath::Clamp(FVector2D::DotProduct(P - A, B - A) / FMath::Max((B - A).SizeSquared(), 1.0), 0.0, 1.0);
+							if (FVector2D::Distance(P, A + (B - A) * T) < Slope.Width * 0.5 + 150.0
+								&& FMath::Max(Slope.Start.Z, Slope.End.Z) > Under - 260.0)
+							{
+								bClear = false;
+							}
+						}
+						if (!bClear)
+						{
+							break;
+						}
+					}
+					if (!bClear || Under - Layout.FloorZ < 260.0)
+					{
+						continue;
+					}
+					const FRotator Yaw(0.f, static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Normal.Y, Normal.X))), 0.f);
+					PlaceHero(EaveMesh, FTransform(Yaw, At - Normal * 2.0, FVector(1.0, (Pitch - 30.0) / 100.0, 1.0)));
+					++EaveCount;
+				}
+			}
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: %d angled eaves."), *Layout.DisplayName, EaveCount);
+
 	for (const int32 Index : AltarBlocks)
 	{
 		const FShieldbreakMapBlock& Block = Layout.Blocks[Index];

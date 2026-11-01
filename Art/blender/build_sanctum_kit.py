@@ -225,7 +225,24 @@ def fin():
     return sb_kit.join("SM_SB_Kit_Fin", parts)
 
 
-PIECES = (gate, shard, terrace, altar, cap, fin)
+def eave():
+    """An angled cornice run along the top of a wall (the face at local X = 0, +X out; the roof line at Z = 0), 100 cm
+    long unscaled in Y: its top falls away steeply from just under the roof edge, so it reads as a chamfered Forerunner
+    lip and never as a ledge, with a light line along its lower edge."""
+    parts = []
+    outline = [(-4, -10), (8, -10), (58, -52), (56, -60), (36, -66), (-4, -84)]
+    parts.append(prism_xz("lip", outline, -50, 50, "Ivory", bevel=1.0))
+    # Notched end chevrons keep a long run from reading as one extrusion.
+    for y in (-50, 50):
+        parts.append(prism_xz("end%d" % y, [(-4, -84), (30, -70), (12, -100), (-4, -110)], y - 6 if y > 0 else y, y if y > 0 else y + 6,
+                              "Ivory", bevel=0.5))
+    line = sb_kit.box("line", (0, 0, 0), (3, 100, 3), "GlowCyan", bevel=0.0)
+    placed(line, (57, 0, -57), (0, 0, 0))
+    parts.append(line)
+    return sb_kit.join("SM_SB_Kit_Eave", parts)
+
+
+PIECES = (gate, shard, terrace, altar, cap, fin, eave)
 
 
 def build(render=None):
