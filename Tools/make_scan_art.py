@@ -443,6 +443,64 @@ def grass_instance():
     log("%s: parent %s, set %s" % (path, parent.get_path_name(), ", ".join(applied) or "nothing"))
 
 
+def grass_material():
+    """M_SB_Grass: our own masked, two-sided grass material on the Kikuyu grass's albedo. The Megascans foliage
+    master renders near black in this project (like the scanned rocks' own), whatever its instance parameters."""
+    found = [a.split(".")[0] for a in eal.list_assets("/Game/Megascans/3D_Plants/KikuyuGrass", recursive=True)]
+    albedo_path = next((a for a in found if a.endswith("/T_KikuyuGrass_01_BC")), None)
+    art_path = next((a for a in found if a.endswith("/T_KikuyuGrass_01_AoRT")), None)
+    if not albedo_path:
+        log("M_SB_Grass: no T_KikuyuGrass_01_BC")
+        return
+    albedo = unreal.load_asset(albedo_path)
+    art = unreal.load_asset(art_path) if art_path else None
+    albedo_alpha = not albedo.get_editor_property("compression_no_alpha")
+    path = MATERIALS + "/M_SB_Grass"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_Grass", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    mat.set_editor_property("two_sided", True)
+    mat.set_editor_property("opacity_mask_clip_value", 0.4)
+
+    def node(cls, x, y, **props):
+        n = mel.create_material_expression(mat, cls, x, y)
+        for key, value in props.items():
+            n.set_editor_property(key, value)
+        return n
+
+    bc = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, 0, parameter_name="Albedo", texture=albedo,
+              sampler_type=sampler_for(albedo, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR))
+    tint = node(unreal.MaterialExpressionVectorParameter, -900, 300, parameter_name="Tint", default_value=unreal.LinearColor(1.0, 1.2, 0.75, 1.0))
+    bright = node(unreal.MaterialExpressionScalarParameter, -900, 450, parameter_name="Brightness", default_value=1.3)
+    tinted = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -600, 100)
+    mel.connect_material_expressions(bc, "RGB", tinted, "A")
+    mel.connect_material_expressions(tint, "", tinted, "B")
+    base = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -400, 150)
+    mel.connect_material_expressions(tinted, "", base, "A")
+    mel.connect_material_expressions(bright, "", base, "B")
+    mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    if albedo_alpha or not art:
+        mel.connect_material_property(bc, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
+        source = "albedo alpha"
+    else:
+        art_node = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, 650, parameter_name="AoRT", texture=art,
+                        sampler_type=sampler_for(art, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR))
+        mel.connect_material_property(art_node, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
+        source = "AoRT alpha"
+    rough = node(unreal.MaterialExpressionConstant, -400, 400, r=0.85)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.set_material_usage(mat, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES)
+    nanite = getattr(unreal.MaterialUsage, "MATUSAGE_NANITE", None)
+    if nanite is not None:
+        mel.set_material_usage(mat, nanite)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("%s: albedo %s, opacity from %s" % (path, albedo.get_name(), source))
+
+
 def main():
     try:
         assets = check_dependencies()
@@ -450,6 +508,7 @@ def main():
         describe_foliage()
         leaf_instance()
         grass_instance()
+        grass_material()
         scan_instances(scan_material())
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads

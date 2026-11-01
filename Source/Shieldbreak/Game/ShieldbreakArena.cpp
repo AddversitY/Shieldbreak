@@ -2102,7 +2102,20 @@ void AShieldbreakArena::BuildScanArt()
 	{
 		// MI_SB_Grass is a Kikuyu instance: only for those meshes.
 		const bool bKikuyuMeshes = GrassMeshes.Num() > 0 && GrassMeshes[0]->GetName().StartsWith(TEXT("SM_KikuyuGrass_"));
-		UMaterialInterface* GrassSurface = bKikuyuMeshes ? ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Grass.MI_SB_Grass")) : nullptr;
+		// M_SB_Grass (our own masked material on the grass's albedo) when MakeScanArt has built it: the Megascans
+		// foliage master renders the tufts near black. -SBGrassMI keeps the instance of that master.
+		UMaterialInterface* GrassSurface = nullptr;
+		if (bKikuyuMeshes)
+		{
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBGrassMI")))
+			{
+				GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/M_SB_Grass.M_SB_Grass"));
+			}
+			if (!GrassSurface)
+			{
+				GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Grass.MI_SB_Grass"));
+			}
+		}
 		TSet<UStaticMesh*> GrassSet(GrassMeshes);
 		GrassSet.Append(Plants);
 		for (UStaticMesh* Mesh : GrassSet)
