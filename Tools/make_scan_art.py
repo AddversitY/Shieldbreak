@@ -28,7 +28,7 @@ lines = []
 # top coverage (how much of an upward face the top layer takes: 1.5 all of it, 0.5 broken patches), side
 # desaturation (0 keeps the scan's colour, 1 makes it grey) and side tint.
 SURFACES = {
-    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.6, desat=0.0, tint=(1, 1, 1),
+    "Ground": dict(side="MossyRockyGround", top="MossyGrass", side_tile=400.0, top_tile=350.0, threshold=0.35, coverage=1.05, desat=0.0, tint=(1, 1, 1),
                    top_desat=0.3, top_tint=(0.64, 0.72, 0.55)),
     "Stone": dict(side="IcelandicQuarryRock", top="NordicMoss", side_tile=520.0, top_tile=320.0, threshold=0.75, coverage=0.45, desat=0.8, tint=(1.0, 0.98, 0.94)),
     "Path": dict(side="IcelandicQuarryRock", top="MossyRockyGround", side_tile=480.0, top_tile=420.0, threshold=0.75, coverage=1.6, desat=0.8, tint=(0.92, 0.9, 0.86),
