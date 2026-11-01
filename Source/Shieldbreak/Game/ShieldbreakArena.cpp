@@ -1859,8 +1859,8 @@ void AShieldbreakArena::BuildScanArt()
 				{
 					const double Along = (Count == 1) ? 0.0 : -FaceLength * 0.5 + 120.0 + (FaceLength - 240.0) * Index / (Count - 1);
 					const FVector At = FVector(Center.X, Center.Y, Foot) + Normal * Offset + Tangent * Along;
-					// In front of the fin: not inside another block, and nothing to stand on within 3.3 m below its foot.
-					const FVector Probe = At + Normal * 40.0;
+					// In front of the fin (it juts about 1.3 m): not inside another block, and nothing to stand on within 3.3 m below its foot.
+					const FVector Probe = At + Normal * 90.0;
 					if (InsideBlock(Layout, Probe + FVector(0, 0, 10.0)) || FMath::Abs(Probe.X) > Half.X || FMath::Abs(Probe.Y) > Half.Y)
 					{
 						continue;
@@ -1888,7 +1888,7 @@ void AShieldbreakArena::BuildScanArt()
 						continue;
 					}
 					const FRotator Yaw(0.f, static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Normal.Y, Normal.X))), 0.f);
-					PlaceHero(FinMesh, FTransform(Yaw, At - Normal * 4.0, FVector(1.3, 1.6, Height / 100.0)));
+					PlaceHero(FinMesh, FTransform(Yaw, At - Normal * 4.0, FVector(3.0, 2.6, Height / 100.0)));
 					++FinCount;
 				}
 			}
