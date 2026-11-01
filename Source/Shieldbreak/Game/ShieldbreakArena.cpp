@@ -390,6 +390,11 @@ void AShieldbreakArena::BuildGeometry()
 	}
 }
 
+namespace ShieldbreakScanPrivate
+{
+	bool IsPerimeter(const FShieldbreakMapLayout& Layout, const FShieldbreakMapBlock& Block);
+}
+
 void AShieldbreakArena::BuildTrim()
 {
 	using namespace ShieldbreakArenaPrivate;
@@ -421,7 +426,7 @@ void AShieldbreakArena::BuildTrim()
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
 		const FVector3f Size(Block.Max - Block.Min);
-		if (!HasTrim(Block.Style) || Size.Z < 120.f)
+		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bCarvedStone && ShieldbreakScanPrivate::IsPerimeter(Layout, Block)))
 		{
 			continue;
 		}
@@ -1330,6 +1335,13 @@ namespace ShieldbreakScanPrivate
 
 namespace ShieldbreakScanPrivate
 {
+	/** A perimeter wall: a block standing outside the playable half extent (the map's boundary). */
+	bool IsPerimeter(const FShieldbreakMapLayout& Layout, const FShieldbreakMapBlock& Block)
+	{
+		return Block.Max.Z > Layout.FloorZ + 1.0 && (Block.Min.X <= -Layout.HalfExtent.X - 50.0 || Block.Max.X >= Layout.HalfExtent.X + 50.0
+			|| Block.Min.Y <= -Layout.HalfExtent.Y - 50.0 || Block.Max.Y >= Layout.HalfExtent.Y + 50.0);
+	}
+
 	/** One horizontal ring of a carved block's outline: height above the block's foot and how far the face sits out
 	 *  from the collision box (negative = inset). */
 	struct FRing { double Z; double Out; };
@@ -1492,6 +1504,14 @@ void AShieldbreakArena::BuildScanArt()
 		{
 			continue;
 		}
+		if (Index < NumBlocks && IsPerimeter(Layout, Layout.Blocks[Index]))
+		{
+			// The boundary is the canyon itself (cliffs, terraces and gates below): the wall stays only as an
+			// invisible barrier and Lumen occluder.
+			Piece->bAffectIndirectLightingWhileHidden = true;
+			Piece->SetVisibility(false);
+			continue;
+		}
 		if (Style == RockStyle && Index < NumBlocks && Boulders.Num() > 0)
 		{
 			// The box keeps its collision; a boulder fitted over it is what players see.
@@ -1587,24 +1607,88 @@ void AShieldbreakArena::BuildScanArt()
 		Place(Mesh, Transform);
 	}
 
-	// 3. A canyon: two rows of scanned cliffs round the perimeter walls, the near row's inner edge just behind each
-	// wall's face, the far row taller. Nothing reaches into the playable area.
+	// 3. The boundary: a canyon. Each short side (a team's back) gets a Forerunner gate standing in the barrier line,
+	// each long side two stepped terraces, and scanned cliffs fill everything else in two rows, the near row's inner
+	// edge right on the barrier so no wall shows. Nothing reaches into the playable area.
+	struct FHero { int32 Side; double Along; double HalfSpan; };
+	TArray<FHero> Heroes;
+	auto Kit = [](const TCHAR* Name) { return ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_%s.SM_SB_Kit_%s"), Name, Name)); };
+	UStaticMesh* GateMesh = Kit(TEXT("Gate"));
+	UStaticMesh* TerraceMesh = Kit(TEXT("Terrace"));
+	UStaticMesh* ShardMesh = Kit(TEXT("Shard"));
+	const FVector2D Half = Layout.HalfExtent;
+	struct FSide { FVector Out; FVector Along; double Wall; double Length; };
+	const FSide Sides[4] = {
+		{ FVector(1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y }, { FVector(-1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y },
+		{ FVector(0, 1, 0), FVector(1, 0, 0), Half.Y, Half.X }, { FVector(0, -1, 0), FVector(1, 0, 0), Half.Y, Half.X } };
+	auto Facing = [](const FSide& Side, double Out, double Along, double Z)
+	{
+		// Kit pieces face +X: turn that to look back into the arena.
+		const FRotator Yaw(0.f, static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(-Side.Out.Y, -Side.Out.X))), 0.f);
+		return FTransform(Yaw, Side.Out * Out + Side.Along * Along + FVector(0, 0, Z));
+	};
+	auto KitMaterials = [&](UInstancedStaticMeshComponent* Instances, UStaticMesh* Mesh)
+	{
+		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+		{
+			const FString Name = Slots[Slot].MaterialSlotName.ToString();
+			if (Name.StartsWith(TEXT("M_Ivory")))
+			{
+				Instances->SetMaterial(Slot, Stone);
+			}
+			else if (Name.StartsWith(TEXT("M_Sand")))
+			{
+				Instances->SetMaterial(Slot, Path);
+			}
+		}
+	};
+	auto PlaceHero = [&](UStaticMesh* Mesh, const FTransform& Transform)
+	{
+		const bool bNew = !Groups.Contains(Mesh);
+		Place(Mesh, Transform);
+		if (bNew)
+		{
+			KitMaterials(Groups[Mesh], Mesh);
+		}
+	};
+	for (int32 SideIndex = 0; SideIndex < 4; ++SideIndex)
+	{
+		const FSide& Side = Sides[SideIndex];
+		const bool bShort = Side.Out.X != 0.0;
+		if (bShort && GateMesh)
+		{
+			// The gate's front face (local +X 500) on the barrier line; its plinth sunk into the outer ground.
+			PlaceHero(GateMesh, Facing(Side, Side.Wall + 500.0, 0.0, Layout.FloorZ - 200.0));
+			Heroes.Add({ SideIndex, 0.0, 1800.0 });
+		}
+		if (!bShort && TerraceMesh)
+		{
+			for (const double Along : { -0.55, 0.55 })
+			{
+				PlaceHero(TerraceMesh, Facing(Side, Side.Wall + 60.0, Along * Side.Length, Layout.FloorZ - 350.0));
+				Heroes.Add({ SideIndex, Along * Side.Length, 2000.0 });
+			}
+		}
+		if (!bShort && ShardMesh)
+		{
+			// A levitating obelisk far out past the middle of each long side: the skyline landmark.
+			PlaceHero(ShardMesh, Facing(Side, Side.Wall + 4200.0, (SideIndex == 2 ? 0.2 : -0.2) * Side.Length, Layout.FloorZ - 350.0));
+		}
+	}
+
 	TArray<UStaticMesh*> Cliffs = Family(TEXT("3D_Assets/MossyRockFace"), TEXT("SM_MossyRockFace_"), { 1, 2, 3 });
 	Cliffs.Append(Family(TEXT("3D_Assets/ForestRockFormation"), TEXT("SM_ForestRockFormation_"), { 1, 2, 4, 5, 6 }));
 	Cliffs.Append(Family(TEXT("3D_Assets/QuarryCliff"), TEXT("SM_QuarryCliff_"), { 1, 2 }));
 	int32 CliffCount = 0;
 	if (Cliffs.Num() > 0)
 	{
-		const FVector2D Half = Layout.HalfExtent;
-		struct FSide { FVector Out; FVector Along; double Wall; double Length; };
-		const FSide Sides[4] = {
-			{ FVector(1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y }, { FVector(-1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y },
-			{ FVector(0, 1, 0), FVector(1, 0, 0), Half.Y, Half.X }, { FVector(0, -1, 0), FVector(1, 0, 0), Half.Y, Half.X } };
-		for (const FSide& Side : Sides)
+		for (int32 SideIndex = 0; SideIndex < 4; ++SideIndex)
 		{
+			const FSide& Side = Sides[SideIndex];
 			for (int32 Row = 0; Row < 2; ++Row)
 			{
-				const double Gap = Row == 0 ? 120.0 : 1600.0;
+				const double Gap = Row == 0 ? 10.0 : 1500.0;
 				const double Reach = Side.Length + (Row == 0 ? 1800.0 : 3500.0);
 				double Along = -Reach;
 				while (Along < Reach)
@@ -1615,16 +1699,26 @@ void AShieldbreakArena::BuildScanArt()
 					const double Scale = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.5, 40.0);
 					FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 					const FBox Placed = PlacedBounds(Mesh, Transform);
-					// Push out until the side of the rock that faces the arena sits Gap behind the wall's face.
-					const bool bPositive = Side.Out.X + Side.Out.Y > 0.0;
-					const double Inner = FVector::DotProduct(Side.Out, bPositive ? Placed.Min : Placed.Max);
-					const double Offset = Side.Wall + Gap - Inner;
 					const double Spread = FVector::DotProduct(Side.Along, Placed.GetSize());
-					const FVector At = Side.Out * Offset + Side.Along * (Along + Spread * 0.5 - FVector::DotProduct(Side.Along, Placed.GetCenter()));
-					Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - 350.0 - Placed.Min.Z));
-					Place(Mesh, Transform);
-					++CliffCount;
-					Along += FMath::Max(Spread * 0.62, 600.0);
+					// The near row leaves the gates and terraces their stretch of the barrier.
+					const double Middle = Along + Spread * 0.5;
+					const bool bBlocked = Row == 0 && Heroes.ContainsByPredicate([&](const FHero& Hero)
+					{
+						return Hero.Side == SideIndex && FMath::Abs(Middle - Hero.Along) < Hero.HalfSpan + Spread * 0.3;
+					});
+					if (!bBlocked)
+					{
+						// Push out until the side of the rock that faces the arena sits Gap behind the barrier.
+						const bool bPositive = Side.Out.X + Side.Out.Y > 0.0;
+						const double Inner = FVector::DotProduct(Side.Out, bPositive ? Placed.Min : Placed.Max);
+						const double Offset = Side.Wall + Gap - Inner;
+						const FVector At = Side.Out * Offset + Side.Along * (Middle - FVector::DotProduct(Side.Along, Placed.GetCenter()));
+						Transform.SetTranslation(FVector(At.X, At.Y, Layout.FloorZ - 350.0 - Placed.Min.Z));
+						Place(Mesh, Transform);
+						++CliffCount;
+					}
+					// The near row overlaps well so no gap shows the outside through it.
+					Along += FMath::Max(Spread * (Row == 0 ? 0.45 : 0.62), 500.0);
 				}
 			}
 		}
@@ -1660,11 +1754,10 @@ void AShieldbreakArena::BuildScanArt()
 	int32 PlantCount = 0;
 	if (Plants.Num() > 0)
 	{
-		const FVector2D Half = Layout.HalfExtent;
 		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 		{
 			const FVector Size = Block.Max - Block.Min;
-			if (Size.Z < 120.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")))
+			if (Size.Z < 120.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")) || IsPerimeter(Layout, Block))
 			{
 				continue;
 			}
@@ -1712,11 +1805,10 @@ void AShieldbreakArena::BuildScanArt()
 	int32 IvyCount = 0;
 	if (Ivy.Num() > 0)
 	{
-		const FVector2D Half = Layout.HalfExtent;
 		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 		{
 			const FVector Size = Block.Max - Block.Min;
-			if (Size.Z < 300.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")) || Block.Style == RockStyle)
+			if (Size.Z < 300.0 || Block.Style == Floor || Block.Style == FName(TEXT("glow")) || Block.Style == RockStyle || IsPerimeter(Layout, Block))
 			{
 				continue;
 			}
@@ -1760,7 +1852,6 @@ void AShieldbreakArena::BuildScanArt()
 	int32 GrassCount = 0;
 	if (GrassMeshes.Num() > 0)
 	{
-		const FVector2D Half = Layout.HalfExtent;
 		const int32 Drifts = FMath::Clamp(static_cast<int32>(Half.X * Half.Y / 250000.0), 40, 160);
 		for (int32 Drift = 0; Drift < Drifts; ++Drift)
 		{
