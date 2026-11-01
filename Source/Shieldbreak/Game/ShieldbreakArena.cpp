@@ -1874,13 +1874,13 @@ void AShieldbreakArena::BuildScanArt()
 							Stand = FMath::Max(Stand, static_cast<double>(Other.Max.Z));
 						}
 					}
-					for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+					for (const FShieldbreakMapRamp& Slope : Layout.Ramps)
 					{
-						const FVector2D A(Ramp.Start), B(Ramp.End), P(Probe);
+						const FVector2D A(Slope.Start), B(Slope.End), P(Probe);
 						const double T = FMath::Clamp(FVector2D::DotProduct(P - A, B - A) / FMath::Max((B - A).SizeSquared(), 1.0), 0.0, 1.0);
-						if (FVector2D::Distance(P, A + (B - A) * T) < Ramp.Width * 0.5 + 200.0)
+						if (FVector2D::Distance(P, A + (B - A) * T) < Slope.Width * 0.5 + 200.0)
 						{
-							Stand = FMath::Max(Stand, FMath::Max(Ramp.Start.Z, Ramp.End.Z));
+							Stand = FMath::Max(Stand, FMath::Max(Slope.Start.Z, Slope.End.Z));
 						}
 					}
 					if (Foot - Stand < 330.0)
