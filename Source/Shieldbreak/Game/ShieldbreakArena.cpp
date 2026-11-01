@@ -426,6 +426,25 @@ void AShieldbreakArena::BuildTrim()
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
 		const FVector3f Size(Block.Max - Block.Min);
+		// Sanctum's twist on the stone walkways: a thin line of hard light along each long edge, just under the lip.
+		if (bCarvedStone && Block.Style == FName(TEXT("bridge")) && Size.Z < 120.f)
+		{
+			const FVector Center = (Block.Min + Block.Max) * 0.5;
+			const bool bAlongY = Size.Y > Size.X;
+			const float Length = (bAlongY ? Size.Y : Size.X) - 2.f * EndInset;
+			const float Offset = (bAlongY ? Size.X : Size.Y) * 0.5f + StripDepth * 0.5f - 1.f;
+			if (Length >= 250.f)
+			{
+				const FVector Scale = bAlongY ? FVector(StripDepth, Length, 8.f) : FVector(Length, StripDepth, 8.f);
+				for (const float Side : { -1.f, 1.f })
+				{
+					const FVector At = Center + (bAlongY ? FVector(Side * Offset, 0.0, 0.0) : FVector(0.0, Side * Offset, 0.0));
+					Strips[0]->AddInstance(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Block.Min.Z + 10.0), Scale / 100.f));
+					++Count;
+				}
+			}
+			continue;
+		}
 		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bCarvedStone && ShieldbreakScanPrivate::IsPerimeter(Layout, Block)))
 		{
 			continue;
