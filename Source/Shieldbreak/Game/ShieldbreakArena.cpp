@@ -721,7 +721,8 @@ void AShieldbreakArena::BuildCladding()
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Cladding"), Mesh);
 		// The blocks underneath already cast the shadows; the panels sit 1-2 cm off them.
 		Instances->SetCastShadow(false);
-		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
+		// Indoors the thousands of panels stay out of the distance fields: the blocks under them already stand there.
+		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen() && !Layout.bIndoor;
 		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
 		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
 		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
@@ -736,7 +737,18 @@ void AShieldbreakArena::BuildCladding()
 				// Floor plates keep their accent lines painted but barely lit, or the whole floor reads as a glowing grid.
 				if (Group.Piece.ToString().StartsWith(TEXT("Floor")))
 				{
-					MID->SetScalarParameterValue(TEXT("AccentGlow"), 0.6f);
+					MID->SetScalarParameterValue(TEXT("AccentGlow"), Layout.bIndoor ? 0.3f : 0.6f);
+				}
+				else if (Layout.bIndoor)
+				{
+					// Indoors the bands' accent lines are a hint, not a light source: the lamps and trim light the halls.
+					MID->SetScalarParameterValue(TEXT("AccentGlow"), 2.f);
+				}
+				if (Layout.bIndoor)
+				{
+					// Brushed rather than polished: past Lumen's reflection roughness cut-off, so the floors and walls
+					// skip traced reflections (1.8 ms on Keel, R13) and read as worn hull metal.
+					MID->SetScalarParameterValue(TEXT("RoughnessScale"), 1.7f);
 				}
 			}
 		}
@@ -1027,6 +1039,13 @@ void AShieldbreakArena::SpawnLighting()
 			SunLight->SetAtmosphereSunLight(true);
 			SunLight->SetForwardShadingPriority(1); // the sun, not the fill, drives fog and translucency
 			SunLight->SetCastShadows(true);
+			// Enclosed maps: the roof keeps the sun out anyway; its shadows (cascades and distance-field shadows over
+			// the whole interior) cost about 0.5 ms for no light. -SBIndoorSun keeps it for comparisons.
+			if (Layout.bIndoor && !FParse::Param(FCommandLine::Get(), TEXT("SBIndoorSun")))
+			{
+				SunLight->SetIntensity(0.f);
+				SunLight->SetCastShadows(false);
+			}
 		}
 	}
 

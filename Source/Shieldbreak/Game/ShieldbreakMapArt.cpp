@@ -492,6 +492,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
 		Keel.KitGlow = FLinearColor(1.0f, 0.5f, 0.12f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
+		Keel.bClad = true; // panelled hull plating, bands and deck plates (Quaternius kit) over every block
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
 		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
@@ -539,6 +540,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Spire.Trim = FLinearColor(0.22f, 0.62f, 1.0f);
 		Spire.KitGlow = FLinearColor(0.3f, 0.7f, 1.0f);
 		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
+		Spire.bClad = true;
 		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
 		return Out;
 	}();
