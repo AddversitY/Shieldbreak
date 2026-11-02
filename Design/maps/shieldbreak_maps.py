@@ -236,7 +236,7 @@ def keel():
     Levels: hold/hall floor 0, decks 300, catwalks/gantries/core 650, ceiling 1500."""
     m = Map("Keel", "Keel", "Midship", 6800, 4400, wall_h=1500, max_z=1600)
     # Look: gunmetal hull, hazard-orange ramps and amber glow strips.
-    m.palette = {"metal": (0.30, 0.32, 0.35), "wall": (0.12, 0.13, 0.15), "floor": (0.16, 0.17, 0.18),
+    m.palette = {"metal": (0.23, 0.24, 0.26), "wall": (0.10, 0.11, 0.12), "floor": (0.14, 0.15, 0.16),
                  "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004

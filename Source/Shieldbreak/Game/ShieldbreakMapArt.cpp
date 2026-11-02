@@ -352,6 +352,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Metal = FLinearColor(0.30f, 0.32f, 0.35f);
 		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
 		Keel.Haze = FLinearColor(0.42f, 0.34f, 0.26f);
+		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
 		Keel.InteriorLight = FLinearColor(1.f, 0.72f, 0.45f); // sodium-orange work lamps inside the hull
 		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
@@ -362,6 +363,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.Metal = FLinearColor(0.30f, 0.33f, 0.38f);
 		Bastion.DarkMetal = FLinearColor(0.13f, 0.14f, 0.17f);
 		Bastion.Haze = FLinearColor(0.66f, 0.54f, 0.56f);
+		Bastion.Trim = FLinearColor(1.0f, 0.62f, 0.26f);
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -378,6 +380,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Rock = FLinearColor(0.46f, 0.21f, 0.12f);
 		Creekbed.Foliage = FLinearColor(0.22f, 0.24f, 0.10f);
 		Creekbed.Haze = FLinearColor(0.78f, 0.58f, 0.38f);
+		Creekbed.Trim = FLinearColor(1.0f, 0.66f, 0.30f);
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");
@@ -386,6 +389,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Spire.Metal = FLinearColor(0.66f, 0.68f, 0.71f);
 		Spire.DarkMetal = FLinearColor(0.24f, 0.27f, 0.31f);
 		Spire.Haze = FLinearColor(0.55f, 0.66f, 0.80f);
+		Spire.Trim = FLinearColor(0.22f, 0.62f, 1.0f);
 		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
 		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
 		return Out;

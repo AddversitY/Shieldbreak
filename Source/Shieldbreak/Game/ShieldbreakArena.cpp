@@ -74,7 +74,6 @@ namespace ShieldbreakArenaPrivate
 		return SurfaceKind(Style) == FName(TEXT("Panel")) && Style != FName(TEXT("ramp")) && Style != FName(TEXT("slide"));
 	}
 
-	const FLinearColor TrimCyan(0.25f, 0.8f, 1.f);
 	const FLinearColor TrimRed(1.f, 0.22f, 0.12f);
 	const FLinearColor TrimBlue(0.2f, 0.45f, 1.f);
 
@@ -422,7 +421,7 @@ void AShieldbreakArena::BuildTrim()
 	// One instanced mesh per colour: three draw calls for every trim line on the map.
 	const FName RedStyle(TEXT("red")), BlueStyle(TEXT("blue"));
 	UInstancedStaticMeshComponent* Strips[3] = { nullptr, nullptr, nullptr };
-	const FLinearColor Colors[3] = { TrimCyan, TrimRed, TrimBlue };
+	const FLinearColor Colors[3] = { ShieldbreakMapArt::GetLook(MapId).Trim, TrimRed, TrimBlue };
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		Strips[Index] = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Trim"), CubeMesh);
