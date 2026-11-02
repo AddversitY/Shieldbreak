@@ -706,7 +706,7 @@ def spire():
     m.block((-2400, -250, 0), (-2200, 250, B - S), "metal", sym=True)
     for x0, y0, x1, y1 in [(-4300, 2000, -4000, 2300), (-500, 1800, -200, 2100), (-2300, -2100, -2000, -1800),
                            (-3300, 700, -3000, 1000)]:
-        m.block((x0, y0, 0), (x1, y1, 2200), "glow", sym=True)
+        m.block((x0, y0, 0), (x1, y1, 2200), "metal", sym=True)   # structure; only the column glows
 
     # ---- The energy column: a room with four doors (rockets), its roof the crown (sniper) ----
     m.wall_y(-600, 600, -570, 0, C - S, [(-200, 200, 0, 400)], color="glow", sym=True)
