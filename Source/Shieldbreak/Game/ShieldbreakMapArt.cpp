@@ -2,6 +2,8 @@
 
 #include "Game/ShieldbreakMaps.h"
 #include "Math/RandomStream.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace ShieldbreakMapArtPrivate
 {
@@ -549,7 +551,8 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 {
 	using namespace ShieldbreakMapArtPrivate;
 	TArray<FShieldbreakArtGroup> Groups;
-	if (!GetLook(MapId).bClad)
+	// -SBClad forces the kit on (comparison shots of a map that does not use it yet).
+	if (!GetLook(MapId).bClad && !FParse::Param(FCommandLine::Get(), TEXT("SBClad")))
 	{
 		return Groups;
 	}
