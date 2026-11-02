@@ -344,23 +344,24 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 	static const TMap<FName, FShieldbreakMapLook> Looks = []
 	{
 		TMap<FName, FShieldbreakMapLook> Out;
-		// Keel: an orbital drydock. Cool steel, a concrete apron, grey-blue haze.
+		// Keel: the inside of a derelict warship. Gunmetal hull, hazard-orange accents, sodium work lamps, smoky haze.
 		FShieldbreakMapLook& Keel = Out.Add(FName(TEXT("Keel")));
 		Keel.GroundStyle = TEXT("stone");
-		Keel.Ground = FLinearColor(0.21f, 0.22f, 0.23f);
-		Keel.Rock = FLinearColor(0.27f, 0.27f, 0.28f);
-		Keel.Metal = FLinearColor(0.34f, 0.38f, 0.42f);
-		Keel.DarkMetal = FLinearColor(0.11f, 0.13f, 0.16f);
-		Keel.Haze = FLinearColor(0.34f, 0.42f, 0.54f);
-		Keel.InteriorLight = FLinearColor(1.f, 0.84f, 0.66f); // sodium-warm work lamps inside the hull
-		// Bastion: a cliff fortress in cold, high country. Pale rock, cold blue-white haze.
+		Keel.Ground = FLinearColor(0.14f, 0.15f, 0.16f);
+		Keel.Rock = FLinearColor(0.22f, 0.22f, 0.23f);
+		Keel.Metal = FLinearColor(0.30f, 0.32f, 0.35f);
+		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
+		Keel.Haze = FLinearColor(0.42f, 0.34f, 0.26f);
+		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
+		Keel.InteriorLight = FLinearColor(1.f, 0.72f, 0.45f); // sodium-orange work lamps inside the hull
+		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
 		FShieldbreakMapLook& Bastion = Out.Add(FName(TEXT("Bastion")));
 		Bastion.GroundStyle = TEXT("stone");
-		Bastion.Ground = FLinearColor(0.44f, 0.46f, 0.50f);
-		Bastion.Rock = FLinearColor(0.36f, 0.37f, 0.41f);
+		Bastion.Ground = FLinearColor(0.80f, 0.82f, 0.87f);
+		Bastion.Rock = FLinearColor(0.24f, 0.24f, 0.28f);
 		Bastion.Metal = FLinearColor(0.30f, 0.33f, 0.38f);
 		Bastion.DarkMetal = FLinearColor(0.13f, 0.14f, 0.17f);
-		Bastion.Haze = FLinearColor(0.55f, 0.62f, 0.72f);
+		Bastion.Haze = FLinearColor(0.66f, 0.54f, 0.56f);
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -370,20 +371,23 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Sanctum.Carved = FLinearColor(0.62f, 0.56f, 0.46f);
 		Sanctum.Haze = FLinearColor(0.50f, 0.58f, 0.62f);
 		Sanctum.bScan = true;
-		// Creekbed: a forest valley. Green banks, pines, mossy rock, soft green-grey haze.
+		// Creekbed: a red-rock desert canyon in golden afternoon light. Rust sand, red sandstone, warm dusty haze.
 		FShieldbreakMapLook& Creekbed = Out.Add(FName(TEXT("Creekbed")));
-		Creekbed.Ground = FLinearColor(0.17f, 0.27f, 0.11f);
-		Creekbed.Rock = FLinearColor(0.29f, 0.29f, 0.27f);
-		Creekbed.Foliage = FLinearColor(0.08f, 0.19f, 0.07f);
-		Creekbed.Haze = FLinearColor(0.38f, 0.47f, 0.50f);
-		// Spire: a storm-harvesting exchange above a dark caldera. Basalt, blue-steel towers, stormy haze.
+		Creekbed.GroundStyle = TEXT("stone");
+		Creekbed.Ground = FLinearColor(0.60f, 0.37f, 0.21f);
+		Creekbed.Rock = FLinearColor(0.46f, 0.21f, 0.12f);
+		Creekbed.Foliage = FLinearColor(0.22f, 0.24f, 0.10f);
+		Creekbed.Haze = FLinearColor(0.78f, 0.58f, 0.38f);
+		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");
-		Spire.Ground = FLinearColor(0.15f, 0.15f, 0.17f);
-		Spire.Rock = FLinearColor(0.21f, 0.20f, 0.22f);
-		Spire.Metal = FLinearColor(0.32f, 0.40f, 0.43f);
-		Spire.DarkMetal = FLinearColor(0.12f, 0.15f, 0.18f);
-		Spire.Haze = FLinearColor(0.30f, 0.37f, 0.55f);
+		Spire.Ground = FLinearColor(0.36f, 0.38f, 0.42f);
+		Spire.Rock = FLinearColor(0.40f, 0.42f, 0.46f);
+		Spire.Metal = FLinearColor(0.66f, 0.68f, 0.71f);
+		Spire.DarkMetal = FLinearColor(0.24f, 0.27f, 0.31f);
+		Spire.Haze = FLinearColor(0.55f, 0.66f, 0.80f);
+		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
+		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
 		return Out;
 	}();
 	static const FShieldbreakMapLook Default;
@@ -580,10 +584,10 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 	}
 	else if (Id == TEXT("Creekbed"))
 	{
-		// A forest valley: pines crowd every wall, boulders and a few crags further out.
-		Rocks(TEXT("Pine"), { 200, 250.f, 5500.f, 0.75f, 1.45f, 520.f });
-		Rocks(TEXT("RockBoulder"), { 36, 200.f, 7000.f, 0.6f, 1.5f, 900.f });
-		Rocks(TEXT("RockTall"), { 12, 3500.f, 9000.f, 1.5f, 2.5f, 1400.f });
+		// A red-rock canyon: sandstone shelves and boulders crowd the walls, tall buttes further out. No trees.
+		Rocks(TEXT("RockShelf"), { 24, 600.f, 8000.f, 1.3f, 2.6f, 1800.f });
+		Rocks(TEXT("RockBoulder"), { 40, 200.f, 7000.f, 0.6f, 1.6f, 900.f });
+		Rocks(TEXT("RockTall"), { 18, 2500.f, 10000.f, 1.6f, 2.8f, 1400.f });
 	}
 	else if (Id == TEXT("Spire"))
 	{

@@ -64,6 +64,7 @@ class Map:
         self.keepout = []   # (min_xy, max_xy) rectangles the cover pass must leave empty (self-test run-ups, etc.)
         self.reflect = False  # mirror the blue side across x = 0 instead of through the centre (see mir)
         self.indoor = False  # enclosed: a ceiling over the whole map and interior lighting (set by roof())
+        self.palette = {}  # per-map colour overrides for the palette names in C (the map's look)
         self.check_reach = False  # reachability() errors fail validation (the 2026-11 redesigned maps)
         # Floor slab + perimeter walls.
         hx, hy, t = half_x, half_y, 100.0
@@ -234,6 +235,9 @@ def keel():
     north hold mirrors into blue's south hold, red's south engine deck into blue's north one.
     Levels: hold/hall floor 0, decks 300, catwalks/gantries/core 650, ceiling 1500."""
     m = Map("Keel", "Keel", "Midship", 6800, 4400, wall_h=1500, max_z=1600)
+    # Look: gunmetal hull, hazard-orange ramps and amber glow strips.
+    m.palette = {"metal": (0.30, 0.32, 0.35), "wall": (0.12, 0.13, 0.15), "floor": (0.16, 0.17, 0.18),
+                 "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004
     m.check_reach = True
@@ -339,6 +343,9 @@ def bastion():
     pit (rockets, under the north-south bridge). Levels: pit 0, plateau 300, ridges and ramparts 650, roofs 950 / 900,
     sniper tower 1000."""
     m = Map("Bastion", "Bastion", "Lockout", 6400, 5200, wall_h=1300, max_z=1800)
+    # Look: packed snow and ice-grey stone, dark rock, weathered timber ramps, warm beacon light.
+    m.palette = {"stone": (0.72, 0.74, 0.79), "rock": (0.24, 0.24, 0.28), "tower": (0.44, 0.46, 0.52),
+                 "bridge": (0.38, 0.40, 0.46), "ramp": (0.46, 0.36, 0.26), "glow": (1.00, 0.62, 0.28)}
     m.reflect = True
     m.check_reach = True
     m.sun = (-22.0, 200.0)   # low dusk sun
@@ -577,6 +584,9 @@ def creekbed():
     with the aegis where it crosses the creek (slow and protected). Each outpost holds its flag, with a roof reached by
     two outside ramps. Levels: creek 0, mid rock 200, banks 300, mesas and arch 650, outpost roofs 740."""
     m = Map("Creekbed", "Creekbed", "Beaver Creek", 6000, 4000, wall_h=1500, max_z=1300)
+    # Look: red sandstone, rust-orange sand, sun-bleached ramps.
+    m.palette = {"sand": (0.62, 0.38, 0.22), "rock": (0.48, 0.22, 0.13), "ramp": (0.66, 0.48, 0.30),
+                 "glow": (1.00, 0.70, 0.35)}
     m.reflect = True
     m.check_reach = True
     m.sun = (-35.0, 250.0)   # warm afternoon sun
@@ -666,6 +676,9 @@ def spire():
     gravity lifts from the side galleries. Each flank has a long gallery (3.5 m) at one team's end and a raised vent
     block at the other. Point-symmetric. Levels: floor 0, galleries 350, bridge / ring / decks 700, crown 1100."""
     m = Map("Spire", "Spire", "Narrows / Construct", 7200, 3600, wall_h=2200, max_z=2400)
+    # Look: silver-white Forerunner metal, cool grey floor, blue hard light.
+    m.palette = {"metal": (0.66, 0.68, 0.71), "wall": (0.50, 0.52, 0.56), "floor": (0.36, 0.38, 0.42),
+                 "bridge": (0.60, 0.62, 0.66), "ramp": (0.52, 0.60, 0.70), "glow": (0.22, 0.62, 1.00)}
     m.sun = (-30.0, 160.0)
     m.fog = 0.003
     m.check_reach = True
@@ -1129,8 +1142,8 @@ def vec(p):
     return f"FVector({f(p[0])}, {f(p[1])}, {f(p[2])})"
 
 
-def col(name):
-    r, g, b = C[name]
+def col(name, m=None):
+    r, g, b = (m.palette.get(name) if m is not None else None) or C[name]
     return f"FLinearColor({r:.2f}f, {g:.2f}f, {b:.2f}f)"
 
 
@@ -1164,9 +1177,9 @@ def generate_cpp():
         if m.indoor:
             lines.append("\t\tL.bIndoor = true;")
         for mn, mx, c in m.blocks:
-            lines.append(f"\t\tL.Blocks.Add({{ {vec(mn)}, {vec(mx)}, {col(c)}, {style(c)} }});")
+            lines.append(f"\t\tL.Blocks.Add({{ {vec(mn)}, {vec(mx)}, {col(c, m)}, {style(c)} }});")
         for start, end, width, c, thick in m.ramps:
-            lines.append(f"\t\tL.Ramps.Add({{ {vec(start)}, {vec(end)}, {f(width)}, {f(thick)}, {col(c)}, {style(c)} }});")
+            lines.append(f"\t\tL.Ramps.Add({{ {vec(start)}, {vec(end)}, {f(width)}, {f(thick)}, {col(c, m)}, {style(c)} }});")
         for base, target in m.lifts:
             lines.append(f"\t\tL.Lifts.Add({{ {vec(base)}, {vec(target)} }});")
         for s in m.spawns:
@@ -1242,7 +1255,7 @@ def render_png(m, path):
     zmin, zmax = m.floor_z, max([b[1][2] for b in shown if b[2] != "wall"] + [m.floor_z + 1])
 
     def shade(color, z):
-        r, g, b = C[color]
+        r, g, b = m.palette.get(color) or C[color]
         t = 0.45 + 0.55 * (z - zmin) / max(1.0, zmax - zmin)
         return tuple(int(min(255, 255 * min(1.0, c * 1.6 + 0.08) * t)) for c in (r, g, b))
 
