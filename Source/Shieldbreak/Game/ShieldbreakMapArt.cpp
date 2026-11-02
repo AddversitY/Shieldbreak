@@ -326,6 +326,104 @@ namespace ShieldbreakMapArtPrivate
 		}
 	}
 
+	/** Sandstone skin over the visible faces of the layout's rock and sand blocks (FShieldbreakMapLook::bRockSkin):
+	 *  RockFace tiles (400 x 400, bulging up to 26 cm out of the face) in a grid stretched to fill each face, and a
+	 *  RockCap dome on the tops of the small rocks. Faces a ramp runs into are left bare, so no rock pokes through the
+	 *  ramp's surface. Each block's tiles take the block's own colour. */
+	void RockSkin(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout)
+	{
+		const FVector2D Half = Layout.HalfExtent;
+		auto Inside = [&Half](const FVector2D& P) { return FMath::Abs(P.X) < Half.X - 1.0 && FMath::Abs(P.Y) < Half.Y - 1.0; };
+		auto TileGroup = [&Groups](const TCHAR* Piece, const FLinearColor& Tint) -> TArray<FTransform>&
+		{
+			const FName Name(Piece);
+			for (FShieldbreakArtGroup& Existing : Groups)
+			{
+				if (Existing.Piece == Name && Existing.SurfaceTint == Tint)
+				{
+					return Existing.Instances;
+				}
+			}
+			FShieldbreakArtGroup& Added = Groups.AddDefaulted_GetRef();
+			Added.Piece = Name;
+			Added.SurfaceTint = Tint;
+			return Added.Instances;
+		};
+		static const TCHAR* const Faces[3] = { TEXT("RockFaceA"), TEXT("RockFaceB"), TEXT("RockFaceC") };
+		constexpr double TileSize = 400.0;
+		int32 Seed = 0;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			++Seed;
+			if (Block.Style != FName(TEXT("rock")) && Block.Style != FName(TEXT("sand")))
+			{
+				continue;
+			}
+			const FLinearColor Tint(Block.Color.R, Block.Color.G, Block.Color.B, 1.f);
+			const FVector Size = Block.Max - Block.Min;
+			const FVector2D Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5);
+			const double Bottom = FMath::Max(Block.Min.Z, static_cast<double>(Layout.FloorZ));
+			const double Height = Block.Max.Z - Bottom;
+			struct FFace { FVector2D Normal; double Offset; double Width; };
+			const FFace BlockFaces[4] = { { FVector2D(1.0, 0.0), Size.X * 0.5, Size.Y }, { FVector2D(-1.0, 0.0), Size.X * 0.5, Size.Y },
+				{ FVector2D(0.0, 1.0), Size.Y * 0.5, Size.X }, { FVector2D(0.0, -1.0), Size.Y * 0.5, Size.X } };
+			for (const FFace& Face : BlockFaces)
+			{
+				const FVector2D At = Center + Face.Normal * Face.Offset;
+				if (Height < 60.0 || Face.Width < 60.0 || !Inside(At))
+				{
+					continue;
+				}
+				const FVector2D Tangent(-Face.Normal.Y, Face.Normal.X);
+				bool bRampHere = false;
+				for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+				{
+					for (const FVector& End : { Ramp.Start, Ramp.End })
+					{
+						const FVector2D Rel = FVector2D(End.X, End.Y) - At;
+						if (FMath::Abs(FVector2D::DotProduct(Rel, Face.Normal)) < 60.0
+							&& FMath::Abs(FVector2D::DotProduct(Rel, Tangent)) < Face.Width * 0.5 + Ramp.Width * 0.5
+							&& End.Z > Bottom - 50.0 && End.Z < Block.Max.Z + 50.0)
+						{
+							bRampHere = true;
+						}
+					}
+				}
+				// A face pressed against another block (a bank against the next bank) is never seen.
+				const FVector Probe(At.X + Face.Normal.X * 50.0, At.Y + Face.Normal.Y * 50.0, Bottom + Height * 0.5);
+				bool bCovered = false;
+				for (const FShieldbreakMapBlock& Other : Layout.Blocks)
+				{
+					bCovered |= &Other != &Block && FBox(Other.Min, Other.Max).IsInsideOrOn(Probe);
+				}
+				if (bRampHere || bCovered)
+				{
+					continue;
+				}
+				const int32 Across = FMath::Max(1, FMath::RoundToInt(Face.Width / TileSize));
+				const int32 Up = FMath::Max(1, FMath::RoundToInt(Height / TileSize));
+				const double TileW = Face.Width / Across, TileH = Height / Up;
+				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X));
+				for (int32 I = 0; I < Across; ++I)
+				{
+					for (int32 J = 0; J < Up; ++J)
+					{
+						const FVector2D P = At + Tangent * (-Face.Width * 0.5 + TileW * (I + 0.5));
+						const uint32 Pick = HashCombine(GetTypeHash(Seed), HashCombine(GetTypeHash(I), GetTypeHash(J * 7 + static_cast<int32>(Yaw))));
+						TileGroup(Faces[Pick % 3], Tint).Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(P.X, P.Y, Bottom + TileH * J),
+							FVector(1.0, TileW / TileSize, TileH / TileSize)));
+					}
+				}
+			}
+			// Small rocks (cover, pillars, hoodoos) get a domed top; big walkable tops stay flat underfoot.
+			if (Block.Style == FName(TEXT("rock")) && Size.X <= 700.0 && Size.Y <= 700.0 && Inside(Center))
+			{
+				TileGroup(TEXT("RockCap"), Tint).Add(FTransform(FRotator(0.f, (Seed % 4) * 90.f, 0.f), FVector(Center.X, Center.Y, Block.Max.Z),
+					FVector(Size.X / TileSize, Size.Y / TileSize, 1.0)));
+			}
+		}
+	}
+
 	/** A pylon at each of the given corners (signs of X and Y), Distance outside the walls diagonally. */
 	void CornerPylons(TArray<FShieldbreakArtGroup>& Groups, FRandomStream& Random, const FShieldbreakMapLayout& Layout,
 		std::initializer_list<FVector2D> Corners, float Distance, float ScaleMin, float ScaleMax)
@@ -366,6 +464,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.Haze = FLinearColor(0.66f, 0.54f, 0.56f);
 		Bastion.Trim = FLinearColor(1.0f, 0.62f, 0.26f);
 		Bastion.KitGlow = FLinearColor(1.0f, 0.6f, 0.25f);
+		Bastion.bRockSkin = true;
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -384,6 +483,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Haze = FLinearColor(0.78f, 0.58f, 0.38f);
 		Creekbed.Trim = FLinearColor(1.0f, 0.66f, 0.30f);
 		Creekbed.KitGlow = FLinearColor(1.0f, 0.62f, 0.28f);
+		Creekbed.bRockSkin = true;
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");
@@ -535,6 +635,11 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 			Group(Groups, TEXT("Condenser")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
 		}
 		return Groups;
+	}
+
+	if (GetLook(MapId).bRockSkin)
+	{
+		RockSkin(Groups, Layout);
 	}
 
 	if (Id == TEXT("Keel"))

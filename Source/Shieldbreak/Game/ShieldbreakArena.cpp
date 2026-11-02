@@ -648,7 +648,14 @@ void AShieldbreakArena::BuildMapArt()
 		// Pieces laid a few centimetres proud of a block (reliefs, edge bands, the floor inlay) sit inside the block's
 		// distance field, so the sky light's occlusion blacks them out; a little self light keeps them reading.
 		const bool bFlush = Group.Piece == TEXT("Relief") || Group.Piece == TEXT("Fascia") || Group.Piece == TEXT("Inlay");
-		ApplyKitSurfaces(Instances, Look, bFlush ? 0.35f : 0.f);
+		// The rock skin takes its block's colour, so a sand bank and a red-rock mesa stay apart.
+		FShieldbreakMapLook GroupLook = Look;
+		if (Group.SurfaceTint.A > 0.f)
+		{
+			GroupLook.Rock = Group.SurfaceTint;
+			GroupLook.Carved = Group.SurfaceTint;
+		}
+		ApplyKitSurfaces(Instances, GroupLook, bFlush ? 0.35f : 0.f);
 		if (Group.TeamTint.A > 0.f)
 		{
 			const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();

@@ -31,6 +31,9 @@ struct FShieldbreakMapLook
 	/** Scanned art (AShieldbreakArena::BuildScanArt): Megascans stone, moss and earth on the blocks, a canyon of
 	 *  cliffs round the walls, boulders for rock cover, ferns and trees. Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
 	bool bScan = false;
+	/** Sandstone skin (Art/blender/build_rock_skin.py) over the faces of the rock and sand blocks inside the walls, and
+	 *  domed caps on the small ones (ShieldbreakMapArt::Plan). Visual only; the blocks keep their collision. */
+	bool bRockSkin = false;
 	/** Glowing trim lines along built structures (team-coloured structures keep red and blue). */
 	FLinearColor Trim = FLinearColor(0.25f, 0.8f, 1.f);
 	/** Recolours the kit's M_Glow* slots (cyan or amber as modelled) to this colour; alpha 0 keeps them as modelled. */
@@ -46,6 +49,8 @@ struct FShieldbreakArtGroup
 	TArray<FTransform> Instances;
 	/** Colour for the mesh's M_TeamGlow slots (team sigils); alpha 0 keeps the imported glow. */
 	FLinearColor TeamTint = FLinearColor::Transparent;
+	/** Tint for the mesh's stone slots (M_Sand, M_Ivory) instead of the map's: the rock skin takes its block's colour. */
+	FLinearColor SurfaceTint = FLinearColor::Transparent;
 };
 
 namespace ShieldbreakMapArt
