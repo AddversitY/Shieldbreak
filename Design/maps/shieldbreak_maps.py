@@ -567,41 +567,90 @@ def sanctum():
 
 
 def creekbed():
-    """Beaver Creek principles: small and fast. Two huts with roof access face each other across a shallow creek;
-    covered caves run along both sides; a rock in mid-creek holds the rockets."""
-    m = Map("Creekbed", "Creekbed", "Beaver Creek", 2800, 1800, wall_h=900, floor_z=-140)
-    m.sun = (-55.0, 300.0)
-    # Banks (top 0) and the creek: two gentle ramps meeting at -120 in the middle.
-    m.block((-2800, -1800, -140), (-800, 1800, 0), "grass", sym=True)
-    m.ramp((-800, 0, 0), (0, 0, -120), 3600, "sand", sym=True)
-    # Huts: walls with a front door and side doors, roof (top 320) reached by an outside ramp.
-    for a, b in [((-2700, -560, 0), (-2640, 560, 300)), ((-2060, -560, 0), (-2000, -160, 300)), ((-2060, 160, 0), (-2000, 560, 300)),
-                 ((-2700, -560, 0), (-2450, -500, 300)), ((-2250, -560, 0), (-2000, -500, 300)),
-                 ((-2700, 500, 0), (-2450, 560, 300)), ((-2250, 500, 0), (-2000, 560, 300))]:
-        m.block(a, b, "red")
-        m.block(mirror(a), mirror(b), "blue")
-    m.block((-2700, -560, 300), (-2000, 900, 320), "red")
-    m.block((2700, 560, 300), (2000, -900, 320), "blue")
-    m.ramp((-1550, 750, 0), (-2150, 750, 320), 220, sym=True)
-    # Caves: roofs over each side edge (open underneath, 240 clearance at the banks).
-    m.block((-1300, 1350, 240), (1300, 1800, 290), "rock", sym=True)
-    m.block((-1300, 1300, -140), (-1100, 1350, 240), "rock", sym=True)
-    m.block((300, 1300, -140), (500, 1350, 240), "rock", sym=True)
-    # Mid-creek rock (top 80): one jump up from the creek bed.
-    m.block((-300, -300, -140), (300, 300, 80), "rock")
-    # Bank cover.
-    m.block((-1500, -400, 0), (-1350, -200, 140), "rock", sym=True)
-    m.block((-1700, -1300, 0), (-1500, -1100, 140), "rock", sym=True)
-    m.block((-900, 900, -20), (-700, 1050, 120), "rock", sym=True)
-    # Items.
-    m.weapon("rockets", (0, 0, 150))
-    m.powerup("aegis", (0, 1550, -50))
-    m.weapon("rail", (0, -1550, -50))
-    for s in [(-2350, 200, 0), (-2350, -200, 0), (-2400, 0, 320), (-1600, 1100, 0), (-1600, -1000, 0)]:
-        m.spawn(s)
-    m.flag((-2450, 0, 90))
-    m.hills = [(0, 0, 300), (-2350, 150, 540), (0, 1550, 100), (2350, -150, 540), (0, -1550, 100)]
-    m.ball = (0, 900, -50)
+    """Creekbed (2026-11 redesign): a red-rock desert canyon in golden afternoon light, outdoors. Two outposts face
+    each other across a dry creek.
+
+    Mirror-symmetric across x = 0 (reflect=True); all three power items sit on the centre line, so neither team is
+    closer to any of them. Middle: the creek bed, 3 m below the banks, with the rockets on a walkable rock in
+    mid-creek (fast and exposed). North: a mesa per side joined by a natural arch over the creek's gorge, with the Rail
+    Lance on the arch (high, exposed, sees the creek). South: a cave runs under the cliff the whole width of the map,
+    with the aegis where it crosses the creek (slow and protected). Each outpost holds its flag, with a roof reached by
+    two outside ramps. Levels: creek 0, mid rock 200, banks 300, mesas and arch 650, outpost roofs 740."""
+    m = Map("Creekbed", "Creekbed", "Beaver Creek", 6000, 4000, wall_h=1500, max_z=1300)
+    m.reflect = True
+    m.check_reach = True
+    m.sun = (-35.0, 250.0)   # warm afternoon sun
+    m.fog = 0.006
+    P, M = 300, 650
+
+    # ---- Terrain: banks at P, the creek bed at 0 between them, mesas (north) and the cave band (south) ----
+    m.block((-6000, -2700, 0), (-1300, 2600, P), "sand", sym=True)
+    m.ramp((-1300, -50, P), (-700, -50, 0), 5300, "sand", sym=True)
+    m.block((-6000, 2600, 0), (-4400, 4000, P), "sand", sym=True)
+    m.block((-4400, 2600, 0), (-600, 4000, M), "rock", sym=True)                 # mesa
+    m.block((-600, 2900, M - 120), (600, 3700, M), "rock")                       # the natural arch
+    m.ramp((-3600, 1600, P), (-3600, 2600, M), 400, "rock", sym=True)           # up from the bank
+    m.ramp((-5400, 3300, P), (-4400, 3300, M), 400, "rock", sym=True)           # up from the outpost yard
+
+    # ---- South: the cave under the cliff, crossing the creek ----
+    m.block((-6000, -4000, 0), (-600, -2700, P), "sand", sym=True)
+    m.block((-600, -4000, 0), (600, -2700, P), "sand")
+    m.block((-4400, -4000, P + 400), (0, -2700, 1500), "rock", sym=True)         # cliff over the cave
+    m.wall_x(-4400, 0, -2800, P, P + 400, [(-3700, -3100, P, P + 400), (-2200, -1600, P, P + 400), (-500, 0, P, P + 400)],
+             t=200, color="rock", sym=True)                                       # cave face with openings
+    m.ramp((0, -1900, 0), (0, -2700, P), 800, "sand")                            # creek bed up into the cave
+    m.block((-3000, -3600, P), (-2700, -3300, P + 400), "rock", sym=True)       # cave pillars
+    m.block((-1500, -3500, P), (-1200, -3200, P + 400), "rock", sym=True)
+
+    # ---- Outposts (red at -X): flag inside, roof reached by two outside ramps ----
+    R = P + 440
+    m.wall_y(-1000, 1000, -4300, P, R - 40, [(-400, 400, P, P + 350)], color="red", sym=True)    # front
+    m.wall_y(-1000, 1000, -5700, P, R - 40, [(-300, 300, P, P + 350)], color="red", sym=True)    # back
+    m.wall_x(-5700, -4300, 1000, P, R - 40, [(-5300, -4800, P, P + 350)], color="red", sym=True)
+    m.wall_x(-5700, -4300, -1000, P, R - 40, [(-5300, -4800, P, P + 350)], color="red", sym=True)
+    m.block((-5730, -1500, R - 40), (-4270, 1500, R), "red", sym=True)          # roof, with porches
+    m.ramp((-3500, 1250, P), (-4270, 1250, R), 400, sym=True)
+    m.ramp((-3500, -1250, P), (-4270, -1250, R), 400, sym=True)
+
+    # ---- The creek: mid rock (rockets) and boulders ----
+    m.block((-500, -500, 0), (500, 500, 200), "rock")
+    m.ramp((0, 1000, 0), (0, 500, 200), 400, "rock")
+    m.ramp((0, -1000, 0), (0, -500, 200), 400, "rock")
+
+    # ---- Bank landmarks: tall hoodoos break the outpost-to-outpost lines ----
+    m.block((-2700, -700, P), (-2300, -300, 1300), "rock", sym=True)
+    m.block((-3100, 1000, P), (-2700, 1400, 1300), "rock", sym=True)
+
+    # ---- Cover ----
+    m.cover((-3700, 300, P), (-3400, 600, P + 140), "rock", sym=True)
+    m.cover((-2000, -1800, P), (-1700, -1500, P + 140), "rock", sym=True)
+    m.cover((-2000, 1000, P), (-1700, 1300, P + 140), "rock", sym=True)
+    m.cover((-3600, -1900, P), (-3300, -1600, P + 400), "rock", sym=True)
+    m.cover((-500, 1300, 0), (-250, 1600, 140), "rock", sym=True)                # creek boulders
+    m.cover((-700, -1500, 0), (-450, -1200, 450), "rock", sym=True)
+    m.cover((-650, 2000, 0), (-400, 2300, 450), "rock", sym=True)
+    m.cover((-2300, 300, P), (-2000, 600, P + 140), "rock", sym=True)           # bank
+    m.cover((-3300, -1000, P), (-3000, -700, P + 140), "rock", sym=True)
+    m.cover((-2500, -2400, P), (-2200, -2100, P + 140), "rock", sym=True)
+    m.cover((-2500, 2000, P), (-2200, 2300, P + 400), "rock", sym=True)
+    m.cover((-1700, -600, P), (-1450, -300, P + 140), "rock", sym=True)
+    m.cover((-1700, 1900, P), (-1450, 2200, P + 140), "rock", sym=True)
+    m.cover((-3700, 3500, M), (-3400, 3700, M + 130), "rock", sym=True)         # mesa top
+    m.cover((-1500, 2900, M), (-1300, 3200, M + 130), "rock", sym=True)
+    m.cover((-2600, 3200, M), (-2300, 3500, M + 130), "rock", sym=True)         # mesa top
+    m.cover((-3700, -3300, P), (-3400, -3100, P + 130), "rock", sym=True)       # cave
+    m.cover((-4900, 1700, P), (-4600, 2000, P + 140), "rock", sym=True)         # outpost yard
+    m.cover((-4900, -2000, P), (-4600, -1700, P + 140), "rock", sym=True)
+
+    # ---- Items and objectives (all three power items on the centre line) ----
+    m.weapon("rockets", (0, 0, 270))
+    m.weapon("rail", (0, 3300, M + 70))
+    m.powerup("aegis", (0, -3400, P + 70))
+    for sp in [(-5300, 500, P), (-5800, 2200, P), (-5800, -2200, P), (-5000, 0, R), (-5600, -3400, P)]:
+        m.spawn(sp)
+    m.flag((-5200, -400, P + 90))
+    m.hills = [(0, 0, 420), (0, 3300, M + 220), (0, -3400, P + 220), (-3000, -2300, P + 220), (3000, -2300, P + 220)]
+    m.ball = (0, 1900, 90)
     return m
 
 
@@ -609,8 +658,10 @@ def spire():
     """Spire (2026-11 redesign): the hollow inside of a Forerunner tower, fully enclosed (22 m ceiling). High against low,
     split by the energy column in the middle.
 
-    Each base is a deck at 7 m (flag) over an undercroft at floor level. A 5 m bridge runs from each deck to a ring
-    round the column, so the old 56 m bridge sightline is broken by the column itself. The column's base is a room
+    Each base is a deck at 7 m (flag) over an undercroft at floor level; the deck is a room behind a full-height front
+    wall with three ways in (bridge + lift, and a ramp from each flank). A 5 m bridge runs from each deck to a ring
+    round the column, so the old 56 m bridge sightline is broken by the column itself. Floor-to-ceiling pylons and
+    bridge supports cut the 140 m floor into 30-40 m fights. The column's base is a room
     with four doors holding the rockets; its top is the crown (11 m) with the sniper, reached only by two exposed
     gravity lifts from the side galleries. Each flank has a long gallery (3.5 m) at one team's end and a raised vent
     block at the other. Point-symmetric. Levels: floor 0, galleries 350, bridge / ring / decks 700, crown 1100."""
@@ -692,67 +743,7 @@ def spire():
     return m
 
 
-def expand_horizontal(m, factor=2.0):
-    """First size pass: double X/Y, retain authored Z and human movement scale.
-
-    Transform every gameplay anchor together with its supporting surfaces.
-    Widths expand, but ramp thickness, cover heights and lift pads do not.
-    Crucible is deliberately excluded so mechanic regression distances stay fixed.
-    """
-    if factor <= 0:
-        raise ValueError('Map scale must be positive')
-    def p(v):
-        return (v[0] * factor, v[1] * factor, v[2])
-    m.half_x *= factor
-    m.half_y *= factor
-    m.blocks = [(p(a),p(b),style) for a,b,style in m.blocks]
-    m.ramps = [(p(a),p(b),width*factor,style,thickness)
-               for a,b,width,style,thickness in m.ramps]
-    m.lifts = [(p(a),p(b)) for a,b in m.lifts]
-    m.spawns = [p(v) for v in m.spawns]
-    m.weapons = [(kind,p(at),respawn) for kind,at,respawn in m.weapons]
-    m.powerups = [(kind,p(at),respawn) for kind,at,respawn in m.powerups]
-    m.flags = [p(v) if v is not None else None for v in m.flags]
-    m.hills = [p(v) for v in m.hills]
-    m.ball = p(m.ball) if m.ball is not None else None
-    m.notes.append('2x length and width / 4x original ground area; original heights retained')
-    return m
-
-
-# =====================================================================================================
-# Cover pass (2026-10-29): the 2x expansion kept the original handful of cover pieces, so the larger floors were
-# mostly open ground (see openness() below). These add human-scale cover, sightline breakers and small
-# high-ground pieces in the expanded coordinates. Heights: low cover 110-140 (shoot over it, crouch behind it),
-# tall walls 450-500 (break a lane's sightline). validate_fill() keeps them off ramps, lift paths, spawns,
-# items and objectives, and forbids gaps a player could snag in (anything between 0 and 2 m).
-# =====================================================================================================
-
-def fill_creekbed(m):
-    # Banks: more rocks between the huts and the creek so the approaches are short hops, not open lawns.
-    m.cover((-2400, -700, 0), (-2100, -400, 140), "rock", sym=True)
-    m.cover((-3700, 300, 0), (-3400, 600, 140), "rock", sym=True)
-    m.cover((-2600, 1700, 0), (-2300, 2000, 140), "rock", sym=True)
-    m.cover((-3500, -1500, 0), (-3300, -900, 400), "rock", sym=True)
-    m.cover((-4600, 2400, 0), (-4300, 2800, 140), "rock", sym=True)
-    m.cover((-4700, -2900, 0), (-4400, -2500, 140), "rock", sym=True)
-    m.cover((-2300, -2400, 0), (-2000, -2100, 140), "rock", sym=True)
-    # Creek: boulders either side of the mid-creek rock (the creek bed is about -60 to -120 here).
-    m.cover((-1200, 1200, -140), (-900, 1500, 60), "rock", sym=True)
-    m.cover((-1300, -1500, -140), (-1000, -1200, 60), "rock", sym=True)
-    m.cover((-500, 2000, -140), (-300, 2200, 60), "rock", sym=True)
-
-
-FILLS = {"Creekbed": fill_creekbed}
-
-
-def expand_and_fill(m):
-    expand_horizontal(m)
-    FILLS[m.id](m)
-    m.notes.append(f"cover pass: {len(m.fill)} pieces")
-    return m
-
-
-MAPS = [keel(), bastion(), sanctum(), expand_and_fill(creekbed()), spire(), crucible()]
+MAPS = [keel(), bastion(), sanctum(), creekbed(), spire(), crucible()]
 DEFAULT_MAP = "Keel"
 
 
@@ -904,7 +895,7 @@ def openness(m, step=250.0, near=800.0):
     while x < m.half_x:
         y = -m.half_y + step / 2
         while y < m.half_y:
-            zs = m.surfaces_at(x, y)
+            zs = [z for z in m.surfaces_at(x, y) if z < m.max_z]   # tops above MaxZ are scenery
             if zs:
                 points.append((x, y, max(zs)))
             y += step
@@ -1105,8 +1096,8 @@ def reachability(m, g=None):
                         seen.add(b)
                         stack.append(b)
         area = len(comp) * cell_area
-        if area > ISLAND_OK:
-            i, j, z, _ = nodes[comp[0]]
+        i, j, z, _ = nodes[comp[0]]
+        if area > ISLAND_OK and z < m.max_z:   # tops above MaxZ are scenery (cliffs): the bots' scan starts below them
             xs = [nodes[c][0] for c in comp]
             ys = [nodes[c][1] for c in comp]
             cx = -m.half_x + (sum(xs) / len(xs) + 0.5) * s

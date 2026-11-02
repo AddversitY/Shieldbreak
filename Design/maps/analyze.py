@@ -147,7 +147,8 @@ def sample_points(g, step_cells=5):
         if i % step_cells or j % step_cells:
             continue
         for k, (z, _) in enumerate(st):
-            out.append(g.node_of[(i, j, k)])
+            if z < g.m.max_z:   # tops above MaxZ are unreachable scenery (cliffs, spires)
+                out.append(g.node_of[(i, j, k)])
     return out
 
 
