@@ -689,9 +689,11 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		return Groups;
 	}
 
-	if (GetLook(MapId).bRockSkin || GetLook(MapId).bStoneSkin)
+	// With the scanned terrain drawn (Bastion's snow-topped quarry stone), the ashlar tiles would hide it: rock skin only.
+	const bool bStoneSkin = GetLook(MapId).bStoneSkin && !TerrainScanReady(MapId);
+	if (GetLook(MapId).bRockSkin || bStoneSkin)
 	{
-		RockSkin(Groups, Layout, GetLook(MapId).bRockSkin, GetLook(MapId).bStoneSkin);
+		RockSkin(Groups, Layout, GetLook(MapId).bRockSkin, bStoneSkin);
 	}
 
 	if (Id == TEXT("Keel"))

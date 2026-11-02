@@ -2621,6 +2621,8 @@ namespace ShieldbreakTerrainScanPrivate
 		bool bStones = true;
 		/** Lush (Creekbed): grass drifts on the ground, trees along the rim, a running creek and a waterfall. */
 		bool bLush = false;
+		/** The skyline row of giant crags (row 2). */
+		bool bGiants = true;
 	};
 
 	const FTerrainSet* SetFor(FName Set)
@@ -2638,8 +2640,9 @@ namespace ShieldbreakTerrainScanPrivate
 			FTerrainSet& Creek = Out.Add(FName(TEXT("Creek")));
 			Creek.Rocks = Canyon.Rocks;
 			Creek.Cliffs = { { TEXT("HugeSandstoneCliff"), 6 }, { TEXT("MassiveSandstoneCliff"), 6 } };
-			// No mesa scans: the flat mesa stretched into a skyline crag still tore into floating flakes (R16).
-			Creek.Giants = { { TEXT("MassiveSandstoneCliff"), 6 }, { TEXT("HugeSandstoneCliff"), 6 } };
+			// No skyline row: at 70-110 m the sandstone cliffs tore into floating flakes over the canyon (R19 isolated it to
+			// row 2), and the row cost 8 FPS. The trees and the two near rows close the valley on their own.
+			Creek.bGiants = false;
 			Creek.bLush = true;
 			FTerrainSet& Tundra = Out.Add(FName(TEXT("Tundra")));
 			Tundra.Rocks = { { TEXT("NordicBoulder"), 8 }, { TEXT("TundraMossyBoulder"), 8 },
@@ -2925,7 +2928,7 @@ void AShieldbreakArena::BuildTerrainScan()
 		const bool bCanyon = Look.ScanSet == FName(TEXT("Canyon")) || Look.ScanSet == FName(TEXT("Creek"));
 		const bool bLandmarkSide = (bCanyon && Side.Out.Y < 0.0) || (Look.ScanSet == FName(TEXT("Tundra")) && Side.Out.Y > 0.0);
 		const double LandmarkAlong = bCanyon ? 600.0 : 0.0;
-		for (int32 Row = Set.bRow0 ? 0 : 1; Row < 3; ++Row)
+		for (int32 Row = Set.bRow0 ? 0 : 1; Row < (Set.bGiants ? 3 : 2); ++Row)
 		{
 			if (!(RowMask & (1 << Row)))
 			{
@@ -3045,7 +3048,7 @@ void AShieldbreakArena::BuildTerrainScan()
 			Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Leaves.MI_SB_Leaves"));
 		}
 		UMaterialInterface* Bark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Scan_CreekRock.MI_SB_Scan_CreekRock"));
-		int32 TreeTotal = 70;
+		int32 TreeTotal = 50; // 70 cost about 8 FPS (R19)
 		FParse::Value(FCommandLine::Get(), TEXT("SBTrees="), TreeTotal);
 		for (int32 Index = 0; Trees.Num() > 0 && Index < TreeTotal; ++Index)
 		{
