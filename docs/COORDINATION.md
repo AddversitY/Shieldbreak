@@ -160,6 +160,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-11-02 Claude, driving the desktop remotely: **Spire and Creekbed redesign** (`Saved\RunR3.bat`, commit
+  `b93e9e1`). Build OK, self-test 126/126. Tours: Spire Slayer 29/29 (115 FPS, 66 interior lamps), Spire CTF 39/39,
+  Creekbed Slayer 23/23 (114 FPS), Creekbed Oddball 29/29, no bot stuck for 20 s. **Look pass** (`RunR4.bat`,
+  `b5c3b9d`): build OK, self-test 126/126, shots `*_r4_*`. The interrupted-fade hand check that missed in R2 passed
+  in both runs. The desktop checkout has a local edit to `Config/DefaultEngine.ini`, left alone; the run scripts now
+  push with `git pull --rebase --autostash`.
 - 2026-11-02 Claude, driving the desktop remotely (`Saved\RunR2.bat`, commit `0c12bef`): **Keel and Bastion
   redesign**. Editor build OK. Self-test 125/126: the miss is "The gun hand moves smoothly through an interrupted
   fade" (fastest hand movement 501 cm/s), unrelated to maps. Tours: Keel Slayer 27/27 (92 FPS, 66 interior lamps),
