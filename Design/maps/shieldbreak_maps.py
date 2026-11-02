@@ -589,8 +589,8 @@ def sanctum():
 
 
 def creekbed():
-    """Creekbed (2026-11 redesign; look reworked 2026-11-02): a green, creek-fed sandstone valley in clear midday
-    light, outdoors. Two stone outposts face each other across a running creek that drops in as a waterfall under the
+    """Creekbed (2026-11 redesign; look reworked 2026-11-02): a green, creek-fed sandstone canyon in warm low
+    light, outdoors. Two silver Forerunner outposts face each other across a running creek that drops in as a waterfall under the
     arch (the water, grass and trees are the scanned terrain's "Creek" set: ShieldbreakMapArt.cpp, BuildTerrainScan).
 
     Mirror-symmetric across x = 0 (reflect=True); all three power items sit on the centre line, so neither team is
@@ -604,10 +604,10 @@ def creekbed():
     # Look: grass-green banks, tan sandstone, pale stone ramps.
     m.palette = {"sand": (0.30, 0.36, 0.20), "rock": (0.58, 0.47, 0.34), "ramp": (0.66, 0.60, 0.50),
                  "glow": (1.00, 0.74, 0.40),
-                 "red": (0.21, 0.14, 0.14), "blue": (0.13, 0.16, 0.21)}
+                 "red": (0.44, 0.40, 0.40), "blue": (0.38, 0.41, 0.46)}   # silver Forerunner metal, a hint of team
     m.reflect = True
     m.check_reach = True
-    m.sun = (-50.0, 230.0)   # high, clear midday sun
+    m.sun = (-34.0, 235.0)   # warm, low afternoon sun: lit rims, deep shade in the gorge
     m.fog = 0.004
     P, M = 300, 650
 

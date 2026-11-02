@@ -518,7 +518,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Sanctum.Carved = FLinearColor(0.62f, 0.56f, 0.46f);
 		Sanctum.Haze = FLinearColor(0.50f, 0.58f, 0.62f);
 		Sanctum.bScan = true;
-		// Creekbed (2026-11-02 rework): a green, creek-fed sandstone valley in clear midday light. Grass on the banks and on
+		// Creekbed (2026-11-02 rework): a green, creek-fed sandstone canyon in warm low sun. Grass on the banks and on
 		// the rock tops, tan sandstone, a running creek and a waterfall under the arch, trees along the rim, blue haze.
 		FShieldbreakMapLook& Creekbed = Out.Add(FName(TEXT("Creekbed")));
 		Creekbed.GroundStyle = TEXT("stone");
@@ -526,8 +526,9 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Rock = FLinearColor(0.58f, 0.47f, 0.34f);
 		Creekbed.Foliage = FLinearColor(0.22f, 0.30f, 0.12f);
 		Creekbed.Haze = FLinearColor(0.60f, 0.70f, 0.82f);
-		Creekbed.Trim = FLinearColor(1.0f, 0.74f, 0.40f);
-		Creekbed.KitGlow = FLinearColor(1.0f, 0.70f, 0.38f);
+		// Forerunner blue on silver metal against the warm rock (the reference's strongest contrast).
+		Creekbed.Trim = FLinearColor(0.30f, 0.75f, 1.0f);
+		Creekbed.KitGlow = FLinearColor(0.30f, 0.72f, 1.0f);
 		Creekbed.bRockSkin = true;
 		Creekbed.ScanSet = TEXT("Creek");
 		// The creek over the bed between the banks (ankle deep), through the gorge under the arch, and the waterfall

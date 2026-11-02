@@ -382,7 +382,7 @@ TERRAIN = {
                         coverage=0.78, desat=0.0, tint=(1.0, 0.97, 0.92), patch_noise=1.0, top_desat=0.1,
                         top_tint=(0.82, 0.95, 0.62)),
     "CreekRock": dict(side="asset:HugeSandstoneCliff", top="MossyGrass", side_tile=650.0, top_tile=360.0,
-                      threshold=0.78, coverage=0.62, desat=0.15, tint=(1.08, 1.02, 0.94), top_desat=0.1,
+                      threshold=0.55, coverage=0.85, desat=0.15, tint=(1.08, 1.02, 0.94), top_desat=0.1,
                       top_tint=(0.82, 0.95, 0.62)),
 }
 
