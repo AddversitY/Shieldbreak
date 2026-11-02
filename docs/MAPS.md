@@ -12,6 +12,15 @@ in sight of the enemy half. Keel and Spire are fully enclosed (a ceiling block s
 interior lamps replace the sun). The full write-up, with the decision, skill, tradeoff and counterplay behind each
 change, is in the doc "Shieldbreak competitive map redesign"; the playtest checklist and metrics are there too.
 
+Spawning: the spawn picker (`AShieldbreakGameMode::ChooseSpawnTransform`) never picks a spawn that a living enemy can
+see (map geometry only, within 60 m) while a hidden one is left, so a team pushed back into its half is not spawn-trapped.
+
+Look (visual only, no collision): each map has a hero landmark made in Blender (`Art/blender/build_hero_kit.py`): a
+reactor crown hung over Keel's core, a keep-tower beyond Bastion's north wall, a hard-light condenser hung over Spire's
+column, and a sandstone arch beyond Creekbed's south cliff. Creekbed's and Bastion's rock and sand blocks wear a
+sandstone skin (`Art/blender/build_rock_skin.py`, `FShieldbreakMapLook::bRockSkin`). Kit glow takes each map's colour
+(`FShieldbreakMapLook::KitGlow`).
+
 Tools:
 
 - `python3 Design/maps/shieldbreak_maps.py --check` validates without writing. On the redesigned maps it also runs
@@ -28,7 +37,7 @@ Tools:
 |---|---|---|---|
 | Keel | 89 / 0 | 217 | 14.2 / 15.7 / 17.1 s |
 | Bastion | 131 / 0 | 846 (the long-range map) | 13.7 / 15.1 / 15.9 s |
-| Spire | 90 / 0 | 947 | 16.4 / 20.3 / 20.6 s |
+| Spire | 90 / 0 | 763 | 16.4 / 20.3 / 20.6 s |
 | Creekbed | 161 / 0 | 555 | 11.7 / 12.8 / 13.4 s |
 
 - **Source:** `Design/maps/shieldbreak_maps.py`. It validates every map (ramps ≤ 30°, spawns standing on surfaces with
