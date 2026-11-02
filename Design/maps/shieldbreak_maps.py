@@ -237,7 +237,9 @@ def keel():
     m = Map("Keel", "Keel", "Midship", 6800, 4400, wall_h=1500, max_z=1600)
     # Look: gunmetal hull, hazard-orange ramps and amber glow strips.
     m.palette = {"metal": (0.23, 0.24, 0.26), "wall": (0.10, 0.11, 0.12), "floor": (0.14, 0.15, 0.16),
-                 "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12)}
+                 "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12),
+                 # Team colours toned down: under the sodium lamps the default red turned whole decks orange.
+                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004
     m.check_reach = True
@@ -586,7 +588,9 @@ def creekbed():
     m = Map("Creekbed", "Creekbed", "Beaver Creek", 6000, 4000, wall_h=1500, max_z=1300)
     # Look: red sandstone, rust-orange sand, sun-bleached ramps.
     m.palette = {"sand": (0.62, 0.38, 0.22), "rock": (0.48, 0.22, 0.13), "ramp": (0.66, 0.48, 0.30),
-                 "glow": (1.00, 0.70, 0.35)}
+                 "glow": (1.00, 0.70, 0.35),
+                 # Crimson, not orange-red, so the red outpost stays apart from the red rock round it.
+                 "red": (0.40, 0.07, 0.10)}
     m.reflect = True
     m.check_reach = True
     m.sun = (-35.0, 250.0)   # warm afternoon sun
