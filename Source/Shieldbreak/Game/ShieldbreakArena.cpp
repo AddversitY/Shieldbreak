@@ -2635,7 +2635,8 @@ namespace ShieldbreakTerrainScanPrivate
 			FTerrainSet& Creek = Out.Add(FName(TEXT("Creek")));
 			Creek.Rocks = Canyon.Rocks;
 			Creek.Cliffs = { { TEXT("HugeSandstoneCliff"), 6 }, { TEXT("MassiveSandstoneCliff"), 6 } };
-			Creek.Giants = Canyon.Giants;
+			// No mesa scans: the flat mesa stretched into a skyline crag still tore into floating flakes (R16).
+			Creek.Giants = { { TEXT("MassiveSandstoneCliff"), 6 }, { TEXT("HugeSandstoneCliff"), 6 } };
 			Creek.bLush = true;
 			FTerrainSet& Tundra = Out.Add(FName(TEXT("Tundra")));
 			Tundra.Rocks = { { TEXT("NordicBoulder"), 8 }, { TEXT("TundraMossyBoulder"), 8 },
