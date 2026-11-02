@@ -1046,6 +1046,24 @@ void AShieldbreakArena::SpawnLighting()
 				SunLight->SetIntensity(0.f);
 				SunLight->SetCastShadows(false);
 			}
+			// Scanned-terrain maps: the fitted Nanite rocks in every cascade cost 1.1-1.3 ms of shadow depths (R15
+			// profile). Two cascades over the arena itself, and distance-field shadows (Lumen already builds the
+			// fields) past that. -SBSunCascades=, -SBSunShadowDist= and -SBNoSunDF for comparisons.
+			else if (ShieldbreakMapArt::TerrainScanReady(MapId))
+			{
+				int32 Cascades = 2;
+				float ShadowDistance = 9000.f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBSunCascades="), Cascades);
+				FParse::Value(FCommandLine::Get(), TEXT("SBSunShadowDist="), ShadowDistance);
+				SunLight->SetDynamicShadowCascades(Cascades);
+				SunLight->SetDynamicShadowDistanceMovableLight(ShadowDistance);
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoSunDF")))
+				{
+					SunLight->bUseRayTracedDistanceFieldShadows = true;
+					SunLight->DistanceFieldShadowDistance = 25000.f;
+					SunLight->MarkRenderStateDirty();
+				}
+			}
 		}
 	}
 
@@ -2630,6 +2648,8 @@ namespace ShieldbreakTerrainScanPrivate
 		}
 		bUsable &= Slots.Num() <= 1;
 		const FVector Size = Mesh->GetBoundingBox().GetSize();
+		// SM_MassiveSandstoneCliff_06 is a 220 m vista piece with no material of its own: not a cliff to place.
+		bUsable &= Size.GetMax() < 10000.0;
 		UE_LOG(LogShieldbreak, Log, TEXT("terrain scan %s: %s, %d slots, %.0fx%.0fx%.0f cm,%s"), *Mesh->GetName(),
 			bUsable ? TEXT("used") : TEXT("SKIPPED"), Slots.Num(), Size.X, Size.Y, Size.Z, *Detail);
 		return bUsable || FParse::Param(FCommandLine::Get(), TEXT("SBAllTerrainScans"));
@@ -2902,8 +2922,17 @@ void AShieldbreakArena::BuildTerrainScan()
 				const FVector Extent = Mesh->GetBoundingBox().GetSize();
 				const double Height = Row == 0 ? Random.FRandRange(1800.f, 2800.f) : Row == 1 ? Random.FRandRange(3000.f, 5000.f) : Random.FRandRange(7000.f, 11000.f);
 				const double Width = Row == 0 ? Random.FRandRange(1200.f, 2000.f) : Row == 1 ? Random.FRandRange(2200.f, 3500.f) : Random.FRandRange(5000.f, 8000.f);
-				const double Flat = FMath::Clamp(Width / FMath::Max(FMath::Max(Extent.X, Extent.Y), 1.0), 0.3, 60.0);
-				const double Tall = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.3, 60.0);
+				double Flat = FMath::Clamp(Width / FMath::Max(FMath::Max(Extent.X, Extent.Y), 1.0), 0.3, 60.0);
+				double Tall = FMath::Clamp(Height / FMath::Max(Extent.Z, 1.0), 0.3, 60.0);
+				// A flat scan stretched 5-30x upward (a ridge or a low formation made into a cliff) tore into streaks
+				// against the sky (R13-R15). Height may be at most twice the width's scale: past that, the two meet
+				// halfway (wider and lower).
+				if (Tall > Flat * 2.0)
+				{
+					const double Meet = FMath::Sqrt(Tall / (Flat * 2.0));
+					Flat *= Meet;
+					Tall /= Meet;
+				}
 				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Flat, Flat, Tall));
 				const FBox Placed = PlacedBounds(Mesh, Transform);
 				const double Spread = FVector::DotProduct(Side.Along, Placed.GetSize());
