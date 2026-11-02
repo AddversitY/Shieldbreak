@@ -2158,8 +2158,16 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			}
 			else if (Phase == 3)
 			{
-				const float Dt = GetWorld()->GetDeltaSeconds();
-				if (Dt > 0.f) { Value0 = FMath::Max(Value0, static_cast<float>(FVector::Dist(Hand, LastHand)) / Dt); }
+				// Time since the pose last changed, not this frame's delta: on a frame where the pose was not refreshed
+				// (a hitch, or the anim update landing a frame late) the next refresh carries two frames of motion,
+				// which read as a pop at double speed (the one flaky miss, 501 cm/s).
+				Value1 += GetWorld()->GetDeltaSeconds();
+				const float Moved = static_cast<float>(FVector::Dist(Hand, LastHand));
+				if (Moved > KINDA_SMALL_NUMBER && Value1 > 0.f)
+				{
+					Value0 = FMath::Max(Value0, Moved / Value1);
+					Value1 = 0.f;
+				}
 				LastHand = Hand;
 				if (Now() - Mark > 0.25f)
 				{
