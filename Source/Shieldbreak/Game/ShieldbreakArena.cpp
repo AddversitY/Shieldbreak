@@ -2623,6 +2623,8 @@ namespace ShieldbreakTerrainScanPrivate
 		bool bLush = false;
 		/** The skyline row of giant crags (row 2). */
 		bool bGiants = true;
+		/** Stone slabs up to 4 m tall take the ground material (a walkable snowfield, not quarry stone). */
+		bool bStoneSlabsAsGround = false;
 	};
 
 	const FTerrainSet* SetFor(FName Set)
@@ -2651,6 +2653,7 @@ namespace ShieldbreakTerrainScanPrivate
 			Tundra.Giants = { { TEXT("MassiveNordicCoastalCliff"), 6 }, { TEXT("MassiveTundraRockFormation"), 6 } };
 			Tundra.bHidePerimeter = false;
 			Tundra.bRow0 = false;
+			Tundra.bStoneSlabsAsGround = !FParse::Param(FCommandLine::Get(), TEXT("SBStoneSlabs"));
 			return Out;
 		}();
 		return Sets.Find(Set);
@@ -2785,7 +2788,11 @@ void AShieldbreakArena::BuildTerrainScan()
 			Piece->SetVisibility(false);
 			continue;
 		}
-		UMaterialInterface* Surface = (Style == Floor || Style == Sand) ? Ground
+		// Low stone slabs are ground to walk on (Bastion's plateau): the set's ground, which on the tundra carries the
+		// snow the pit floor shows; the quarry-stone instance stays on the taller stone (walls, plinths).
+		const bool bLowSlab = bBlock && Style == StoneStyle && Set.bStoneSlabsAsGround
+			&& Layout.Blocks[Index].Max.Z - Layout.Blocks[Index].Min.Z <= 400.0;
+		UMaterialInterface* Surface = (Style == Floor || Style == Sand || bLowSlab) ? Ground
 			: Style == RockStyle ? (bBlock ? Rock : Ground)
 			: (Style == StoneStyle && Stone) ? Stone : nullptr;
 		if (!Surface)
