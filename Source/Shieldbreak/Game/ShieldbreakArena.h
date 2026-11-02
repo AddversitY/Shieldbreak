@@ -80,6 +80,10 @@ private:
 	/** Scanned materials on the blocks, cliffs, boulders, plants and trees for maps whose look has bScan. Visual only:
 	 *  the blocks keep their collision (rock cover is hidden under its boulder). */
 	void BuildScanArt();
+	/** Scanned terrain for outdoor maps with a ScanSet (Creekbed's sandstone canyon, Bastion's tundra rock): scanned
+	 *  ground and stone on the blocks, scanned rock fitted over the rock blocks, stones at their feet, cliffs and crags
+	 *  round the map. Visual only: every block keeps its collision and stays drawn under the rock. -SBNoTerrainScan. */
+	void BuildTerrainScan();
 	/** Puts the tinted world materials on a kit mesh's solid slots by palette slot name; M_Glow* slots keep their emissive. */
 	void ApplyKitSurfaces(UMeshComponent* Mesh, const struct FShieldbreakMapLook& Look, float SelfLight = 0.f) const;
 	/** Ground and mountains outside the walls. Visual only. */

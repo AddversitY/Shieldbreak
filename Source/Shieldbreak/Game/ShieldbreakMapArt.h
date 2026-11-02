@@ -31,6 +31,11 @@ struct FShieldbreakMapLook
 	/** Scanned art (AShieldbreakArena::BuildScanArt): Megascans stone, moss and earth on the blocks, a canyon of
 	 *  cliffs round the walls, boulders for rock cover, ferns and trees. Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
 	bool bScan = false;
+	/** Scanned terrain set for an outdoor map (AShieldbreakArena::BuildTerrainScan): "Canyon" (Creekbed's sandstone) or
+	 *  "Tundra" (Bastion's snowy rock). Scanned ground, rock fitted over the rock blocks, scanned stone on the stone
+	 *  blocks, cliffs and crags for the skyline. None keeps the kit look; so does a missing set (the procedural rock
+	 *  skin stays as the fallback). Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
+	FName ScanSet;
 	/** Sandstone skin (Art/blender/build_rock_skin.py) over the faces of the rock and sand blocks inside the walls, and
 	 *  domed caps on the small ones (ShieldbreakMapArt::Plan). Visual only; the blocks keep their collision. */
 	bool bRockSkin = false;
@@ -57,6 +62,9 @@ struct FShieldbreakArtGroup
 
 namespace ShieldbreakMapArt
 {
+	/** True when the map's ScanSet materials are imported (MI_SB_Scan_<Set>Ground etc.): BuildTerrainScan will draw. */
+	bool TerrainScanReady(FName MapId);
+
 	/** The look for a map id (unknown ids and Crucible get the defaults above). */
 	SHIELDBREAK_API const FShieldbreakMapLook& GetLook(FName MapId);
 

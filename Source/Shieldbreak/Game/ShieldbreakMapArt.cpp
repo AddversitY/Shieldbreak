@@ -503,6 +503,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.KitGlow = FLinearColor(1.0f, 0.6f, 0.25f);
 		Bastion.bRockSkin = true;
 		Bastion.bStoneSkin = true;
+		Bastion.ScanSet = TEXT("Tundra");
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -522,6 +523,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Trim = FLinearColor(1.0f, 0.66f, 0.30f);
 		Creekbed.KitGlow = FLinearColor(1.0f, 0.62f, 0.28f);
 		Creekbed.bRockSkin = true;
+		Creekbed.ScanSet = TEXT("Canyon");
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");

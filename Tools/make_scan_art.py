@@ -122,7 +122,24 @@ def describe_textures():
                                                      tex.get_editor_property("srgb"), tex.get_editor_property("virtual_texture_streaming")))
 
 
+# Suffixes a scanned 3D asset's textures may use for each map (Megascans exports vary between packs).
+ASSET_SUFFIXES = {"BC": ("_BC", "_D", "_Albedo", "_BaseColor"), "N": ("_N", "_Normal"),
+                  "AoRDp": ("_AoRDp", "_ORDp", "_ARD", "_ORD", "_AORD", "_ORDS")}
+
+
 def texture(surface, suffix):
+    """A surface's map: a Megascans surface by name (Surfaces/<name>/T_<name>_01_<suffix>), or "asset:<Folder>" for the
+    textures of a scanned 3D asset in 3D_Assets/<Folder> (the first texture whose name ends in one of the suffixes)."""
+    if surface.startswith("asset:"):
+        folder = "/Game/Megascans/3D_Assets/" + surface[6:]
+        names = sorted(str(d.package_name) for d in registry.get_assets_by_path(folder, recursive=True)
+                       if str(d.asset_class_path.asset_name).startswith("Texture"))
+        for ending in ASSET_SUFFIXES.get(suffix, ("_" + suffix,)):
+            for name in names:
+                if name.endswith(ending):
+                    return unreal.load_asset(name)
+        log("MISSING texture %s %s (has %s)" % (folder, suffix, ", ".join(n.rsplit("/", 1)[1] for n in names)))
+        return None
     path = "%s/%s/T_%s_01_%s" % (SURF, surface, surface, suffix)
     tex = unreal.load_asset(path) if eal.does_asset_exist(path) else None
     if not tex:
@@ -151,13 +168,16 @@ def sampler_for(tex, fallback):
     return unreal.MaterialSamplerType.SAMPLERTYPE_COLOR if tex.get_editor_property("srgb") else unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR
 
 
-def scan_material():
-    path = MATERIALS + "/M_SB_Scan"
+def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None):
+    """The world-projected scan master. The terrain sets build one each with their own textures as the defaults, so
+    their samplers match their textures (a virtual-textured default cannot take a plain texture, or the reverse)."""
+    top_default = top_default or TOP_DEFAULT
+    path = MATERIALS + "/" + name
     if eal.does_asset_exist(path):
         mat = unreal.load_asset(path)
         mel.delete_all_material_expressions(mat)
     else:
-        mat = tools.create_asset("M_SB_Scan", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+        mat = tools.create_asset(name, MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
 
     def node(cls, x, y, **props):
         n = mel.create_material_expression(mat, cls, x, y)
@@ -167,7 +187,7 @@ def scan_material():
 
     def link(a, a_out, b, b_in):
         if not mel.connect_material_expressions(a, a_out, b, b_in):
-            log("M_SB_Scan: could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
+            log(name + ": could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
 
     def scalar(name, value, x, y):
         return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=value)
@@ -179,9 +199,9 @@ def scan_material():
         return n
 
     shared = getattr(unreal.SamplerSourceMode, "SSM_WRAP_WORLD_GROUP_SETTINGS", None)
-    kinds = (("BC", unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, "BeachCliff", "BC"),
-             ("N", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, "BeachCliff", "N"),
-             ("ARD", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR, "BeachCliff", "AoRDp"))
+    kinds = (("BC", unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, side_default, "BC"),
+             ("N", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, side_default, "N"),
+             ("ARD", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR, side_default, "AoRDp"))
     position = node(unreal.MaterialExpressionWorldPosition, -2400, 0)
     tiles = {}
 
@@ -192,7 +212,7 @@ def scan_material():
         uvw = binary(unreal.MaterialExpressionDivide, position, tile, -2200, y0)
         out = {}
         for k, (suffix, sampler, surface, file_suffix) in enumerate(kinds):
-            default = texture(surface if layer == "Side" else TOP_DEFAULT, file_suffix)
+            default = texture(surface if layer == "Side" else top_default, file_suffix)
             sampler = sampler_for(default, sampler)
             log("%s%s: %s, sampler %s" % (layer, suffix, default.get_name() if default else None, sampler))
             out[suffix] = []
@@ -260,7 +280,7 @@ def scan_material():
     patch_uvw = binary(unreal.MaterialExpressionDivide, position, patch_tile, -2200, 3900)
     patch_xy = node(unreal.MaterialExpressionComponentMask, -2000, 3900, r=True, g=True, b=False, a=False)
     link(patch_uvw, "", patch_xy, "")
-    top_ard_default = texture(TOP_DEFAULT, "AoRDp")
+    top_ard_default = texture(top_default, "AoRDp")
     patch_sample = node(unreal.MaterialExpressionTextureSampleParameter2D, -1700, 3900, parameter_name="TopARD",
                         texture=top_ard_default, sampler_type=sampler_for(top_ard_default, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR))
     if shared is not None:
@@ -332,9 +352,36 @@ def scan_material():
     return mat
 
 
-def scan_instances(master):
-    defaults = {"Side": "BeachCliff", "Top": TOP_DEFAULT}
-    for kind, look in SURFACES.items():
+# The outdoor terrain sets (AShieldbreakArena::BuildTerrainScan): MI_SB_Scan_<Set><Kind>, each on its own master
+# (M_SB_Scan_<Set><Kind>) built with its own textures. "asset:<Folder>" takes a scanned 3D asset's textures.
+# Snow on Bastion is the tundra ground's own scan, fully desaturated and lifted: packed snow with the ground's relief.
+SNOW = dict(top_desat=1.0, top_tint=(1.75, 1.8, 1.9))
+TERRAIN = {
+    "CanyonGround": dict(side="asset:CanyonErodedRockyGround", top="asset:SandstoneRockyGround", side_tile=450.0, top_tile=420.0,
+                         threshold=0.35, coverage=1.6, desat=0.0, tint=(1.0, 0.95, 0.9), patch_noise=1.0),
+    "CanyonRock": dict(side="asset:HugeSandstoneCliff", top="asset:SandstoneRockyGround", side_tile=650.0, top_tile=420.0,
+                       threshold=0.8, coverage=0.55, desat=0.0, tint=(1.0, 1.0, 1.0)),
+    "TundraGround": dict(side="asset:TundraRockyGround", top="asset:TundraRockyGround", side_tile=420.0, top_tile=520.0,
+                         threshold=0.35, coverage=0.8, desat=0.2, tint=(0.9, 0.92, 0.95), patch_noise=1.0, **SNOW),
+    "TundraRock": dict(side="asset:MassiveTundraRockFormation", top="asset:TundraRockyGround", side_tile=600.0, top_tile=420.0,
+                       threshold=0.62, coverage=0.75, desat=0.3, tint=(0.85, 0.88, 0.92), **SNOW),
+    "TundraStone": dict(side="IcelandicQuarryRock", top="asset:TundraRockyGround", side_tile=480.0, top_tile=420.0,
+                        threshold=0.75, coverage=1.0, desat=0.85, tint=(0.95, 0.97, 1.0), **SNOW),
+}
+
+
+def terrain_sets():
+    for kind, look in TERRAIN.items():
+        if not texture(look["side"], "BC") or not texture(look["top"], "BC"):
+            log("TERRAIN %s skipped: textures missing" % kind)
+            continue
+        master = scan_material("M_SB_Scan_" + kind, look["side"], look["top"])
+        scan_instances(master, {kind: look}, {"Side": look["side"], "Top": look["top"]})
+
+
+def scan_instances(master, surfaces=None, defaults=None):
+    defaults = defaults or {"Side": "BeachCliff", "Top": TOP_DEFAULT}
+    for kind, look in (surfaces or SURFACES).items():
         path = "%s/MI_SB_Scan_%s" % (MATERIALS, kind)
         if eal.does_asset_exist(path):
             mi = unreal.load_asset(path)
@@ -532,6 +579,7 @@ def main():
         grass_instance()
         grass_material()
         scan_instances(scan_material())
+        terrain_sets()
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads
         log("RESULT failed: %s" % error)
