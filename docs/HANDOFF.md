@@ -53,10 +53,19 @@ and a shadowed wall.
   `fill_<map>()` in `Design/maps/shieldbreak_maps.py` and checked by its validator (exposed floor now 10-18%,
   down from 31-48% after the 2× stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
 
+## Latest cloud pass (2026-11-02): competitive map redesign
+
+- Keel, Bastion, Spire and Creekbed redesigned for competitive 4v4 (branch `claude/project-thread-05ljt0`, PR #7).
+  Keel and Spire are fully enclosed. Layout tools, measurements and per-map notes are in `MAPS.md`. Keel and
+  Bastion passed the desktop build and bot tours; Spire and Creekbed are next (`Saved\RunR3.bat` pattern).
+- First look pass: a palette and atmosphere per map (Keel gunmetal and orange, Bastion snow at dusk, Spire
+  silver-white and blue, Creekbed red rock in warm light).
+- One self-test check, the gun hand through an interrupted fade (501 cm/s), fails on the desktop and is unrelated
+  to maps.
+
 ## Still open
 
-- All five launch maps have a first expansion to 2x X/Y (4x ground area), keeping
-  original heights. Further route/cover/pacing iteration is open. The preserved
+- The redesigned maps need human playtests (checklist in the redesign doc). The preserved
   overhead sketch tool is `Design/map-planner/index.html`.
 - Spire has original collector, service-panel and lift-surround modules; see
   `SPIRE_ART_PASS.md`. Claude's existing reload, melee and grenade animations are

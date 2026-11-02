@@ -40,6 +40,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-11-02 Claude (cloud, branch `claude/project-thread-05ljt0`, PR #7): competitive redesign of Keel, Bastion,
+  Spire and Creekbed (`Design/maps/shieldbreak_maps.py`, `Design/maps/analyze.py`, enclosed maps via `bIndoor` and
+  `BuildInteriorLights` in `ShieldbreakArena.cpp`), plus a first per-map look pass. See `docs/MAPS.md`.
 - 2026-10-29 Claude (cloud, branch `claude/project-thread-km43pg`): map art kit outside the walls for all five
   launch maps, per-map ground/rock/haze colours (`Game/ShieldbreakMapArt.*`, `BuildMapArt`, `BuildBackdrop`, fog
   colour in `ShieldbreakArena.cpp`), `Art/blender/build_map_kit.py`, `Tools/ImportMapArt.bat`. See
@@ -157,6 +160,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-11-02 Claude, driving the desktop remotely (`Saved\RunR2.bat`, commit `0c12bef`): **Keel and Bastion
+  redesign**. Editor build OK. Self-test 125/126: the miss is "The gun hand moves smoothly through an interrupted
+  fade" (fastest hand movement 501 cm/s), unrelated to maps. Tours: Keel Slayer 27/27 (92 FPS, 66 interior lamps),
+  Keel CTF 37/37, Bastion Slayer 24/24 (102 FPS), Bastion KOTH 28/28, no bot stuck for 20 s anywhere. Shots in
+  `Saved/Screenshots/Shots/keel_r2_*` and `bastion_r2_*`.
 - 2026-10-29 Claude, driving the desktop (`desktop-888hmr5`) remotely: **PR #5 built and tested**. The editor build
   compiled first time (only the existing `RemoteViewPitch` deprecation warning). Full gameplay suite **124/126**.
   All new presentation checks pass:

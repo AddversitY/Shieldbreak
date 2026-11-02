@@ -1,42 +1,35 @@
 # Maps
 
 Six maps are built from code: five launch maps plus **Crucible**, the original test arena (the self-test uses it).
-Each one is an original layout built on the *principles* of a classic Halo map. They are greyboxes for now;
-world materials, trim and scenery are applied, with modular Spire detailing in progress.
+Each one is an original layout built on the *principles* of a classic Halo map. World materials, trim and scenery
+are applied; each map has its own palette and atmosphere, and fuller environment art is still ahead.
 
-## Current size pass (2026-10-27)
+## Competitive redesign (2026-11-02)
 
-All five launch maps now use **2× their original length and width (4× ground
-area)**. Heights, player movement and jump tuning are unchanged. Supporting
-surfaces, ramps, spawns, items, objectives and lift targets expand together.
-Crucible stays at its original size for gameplay regressions. This is the first
-playable expansion; cover density and encounter pacing can still be revised
-from playtesting and user sketches. Use `Design/map-planner/index.html` to draw
-routes and direct further dimensions.
+Keel, Bastion, Spire and Creekbed were redesigned for competitive 4v4. Each now has routes at different heights
+(fast and exposed, slow and protected, flanks), power items placed so both teams can contest them, and no spawn
+in sight of the enemy half. Keel and Spire are fully enclosed (a ceiling block spans the map, `bIndoor`, and
+interior lamps replace the sun). The full write-up, with the decision, skill, tradeoff and counterplay behind each
+change, is in the doc "Shieldbreak competitive map redesign"; the playtest checklist and metrics are there too.
 
-## Cover pass (2026-10-29)
+Tools:
 
-The 2× size pass stretched each layout but kept its original handful of cover pieces, so a third to a half of
-every launch map's floor had nothing chest-high within 8 m. The generator now adds a cover pass per map
-(`fill_<map>()` in the script, applied after `expand_horizontal`): low cover (110–140 cm, shoot over it, crouch
-behind it), tall walls (450–500 cm) that split the long lanes, and cover on the base and balcony tops.
-The validator checks every cover-pass piece: it stands on a surface, stays off ramps and lift paths, keeps 2 m
-from spawns, pickups, flags, the ball and lift ends, leaves no gap under 2 m (players and bots snag in those),
-leaves standing room under overhangs and stays out of keep-out areas (Sanctum's plinth run-up). It also fails a
-launch map with more than 20% exposed floor. Each run prints the numbers:
+- `python3 Design/maps/shieldbreak_maps.py --check` validates without writing. On the redesigned maps it also runs
+  a reachability check: a walk graph on a 50 cm grid (45 cm step-up, 7 m drops, ramps, lifts, no jumps) proves bots
+  can reach every spawn, item and objective and walk back out, and flags any walkable patch over 30 m2 that is
+  cut off. Tops above `max_z` (cliffs, spires) are scenery and are skipped.
+- `python3 Design/maps/analyze.py [Map] [--png]` prints sprint times from each team's spawns to every item and
+  objective, spawn and pickup exposure, long sightlines and three flag-to-flag routes (`ANALYZE_OUT=dir` for the
+  route PNG). These are geometry estimates, not playtest results.
+- `m.palette` overrides block colours per map (the look); `ShieldbreakMapArt::GetLook` holds haze, ground and
+  interior-light colours.
 
-| Map | Exposed floor: original / after 2× / now | Average view distance: original / after 2× / now |
-|---|---|---|
-| Keel | 8% / 35% / 10% | 21 / 43 / 37 m |
-| Bastion | 23% / 48% / 18% | 23 / 45 / 41 m |
-| Sanctum | 19% / 43% / 12% (rebuilt: 12%) | 21 / 43 / 38 m (rebuilt: 36 m) |
-| Creekbed | 1% / 31% / 16% | 18 / 37 / 35 m |
-| Spire | 8% / 43% / 11% | 19 / 38 / 36 m |
-
-"Exposed" is the share of standing points (a 2.5 m grid, highest surface) with no geometry at chest height
-within 8 m. "Average view" is the mean length of 16 eye-height rays from each point, so it mostly tracks map
-size. Elevated spots (tower tops, Keel's deck, Spire's bridge) stay exposed on purpose. These are layout
-metrics, not playtest results: route timing and spawn fairness still need bot and human matches.
+| Map | Spawn exposure (before / now) | Standing lines over 60 m | Flag-to-flag routes (sprint) |
+|---|---|---|---|
+| Keel | 89 / 0 | 217 | 14.2 / 15.7 / 17.1 s |
+| Bastion | 131 / 0 | 846 (the long-range map) | 13.7 / 15.1 / 15.9 s |
+| Spire | 90 / 0 | 947 | 16.4 / 20.3 / 20.6 s |
+| Creekbed | 161 / 0 | 555 | 11.7 / 12.8 / 13.4 s |
 
 - **Source:** `Design/maps/shieldbreak_maps.py`. It validates every map (ramps ≤ 30°, spawns standing on surfaces with
   headroom, items and objectives above a surface, at least 4 spawns per team), generates
@@ -49,21 +42,25 @@ metrics, not playtest results: route timing and spawn fairness still need bot an
 
 | Map | Inspired by | Size | Power weapons / items | Best modes |
 |---|---|---|---|---|
-| **Keel** (default) | Midship | 144 × 88 m | Rockets on the deck, Overshield under it, Rail Lance per lane, Aegis per balcony | CTF, Slayer |
-| **Bastion** | Lockout | 120 × 120 m (asymmetric) | Sniper on the tall tower, Rockets in the pit, Rail Lance on the battle tower, Camo in the library, Aegis on the east wall | KOTH, Oddball, Slayer |
+| **Keel** (default) | Midship | 136 × 88 m, enclosed | Rockets on the reactor core, Overshield under it, Rail Lance and Aegis per side (off the spawns) | CTF, Slayer |
+| **Bastion** | Lockout | 128 × 104 m | Sniper on the neutral north tower, Rockets in the pit, Rail Lance on the library roof, Camo in the library, Aegis per side | KOTH, Oddball, Slayer |
 | **Sanctum** | Sanctuary / The Pit | 152 × 104 m | Rockets on the courtyard plinth (crouch-jump or Power Jump), Sniper per temple perch, Rail Lance per flank walkway, Aegis per courtyard crossing, Overshield in the south shrine | CTF, Slayer |
-| **Creekbed** | Beaver Creek | 112 × 72 m | Rockets on the mid-creek rock, Aegis in the north cave, Rail Lance in the south cave | Slayer, CTF |
-| **Spire** | Narrows / Construct | 168 × 64 m | Rockets under the bridge, Camo out on the bridge, Sniper per base perch, Rail Lance per mid platform; 4 gravity lifts | CTF, KOTH |
+| **Creekbed** | Beaver Creek | 120 × 80 m | Rockets on the mid-creek rock, Rail Lance on the arch, Aegis in the cave (all on the centre line) | Slayer, CTF, Oddball |
+| **Spire** | Narrows / Construct | 144 × 72 m, enclosed | Sniper on the crown, Rockets in the column room, Rail Lance per gallery, Aegis per vent block; 6 gravity lifts | CTF, KOTH |
 
 ## Keel
-Two bases face each other across a raised central deck that you can also fight under. Four ramps climb it: two
-from the ends and two from the side lanes. Balconies overlook the lanes.
+The inside of a derelict warship, fully enclosed (15 m ceiling). Each team's hangar (deck 3 m, gantry 6.5 m)
+sits behind a blast wall with three doors. The reactor hall in the middle has the rockets on the core (6.5 m),
+reached by two bridges and two lifts, with the overshield in the housing underneath. North: a cargo hold with a
+6.5 m catwalk. South: an engine deck over a maintenance tunnel.
 
 ![Keel](../Design/maps/Keel.png)
 
 ## Bastion
-Asymmetric. A sunken pit is ringed by plateaus, with a bridge across the pit. A tall sniper tower and a shorter
-battle tower stand in opposite corners, and there is an enclosed library. Teams start in opposite corners.
+A snowbound fortress at dusk, mirror-symmetric across the middle. Each team holds a keep (flag inside) in a
+walled yard whose rampart walkway joins the keep roof. North is long range: a rock ridge per side and the neutral
+sniper tower. South is close range: a ruined barracks per side and the neutral library (camo) with the Rail Lance
+on its roof. The pit in the middle holds the rockets under a north-south bridge.
 
 ![Bastion](../Design/maps/Bastion.png)
 
@@ -80,14 +77,18 @@ high flank routes), not its geometry.
 ![Sanctum](../Design/maps/Sanctum.png)
 
 ## Creekbed
-Small and fast. Two huts with roof access face each other across a shallow creek. Covered caves run along both
-sides, and a rock in mid-creek holds the rockets.
+A red-rock desert canyon, mirror-symmetric across the dry creek, with all three power items on the centre
+line. The creek bed (3 m below the banks) has the rockets on a walkable rock. North: a mesa per side joined by a
+natural arch over the gorge, with the Rail Lance on the arch. South: a cave under the cliff crossing the whole map,
+with the aegis where it passes the creek. Each team's outpost holds its flag, with a roof reached by two ramps.
 
 ![Creekbed](../Design/maps/Creekbed.png)
 
 ## Spire
-Two high bases are joined by a long, narrow bridge over a lower level. Gravity lifts and ramps climb from below;
-the rockets sit under the bridge and the camo out on it.
+The hollow inside of a Forerunner tower, fully enclosed (22 m ceiling). Each base is a deck room at 7 m (flag)
+over an undercroft, with three ways in. One bridge runs from each deck to a ring round the energy column; the
+column room holds the rockets and its top, the crown (11 m), holds the sniper, reached only by two exposed lifts.
+Each flank has a gallery (Rail Lance) and a vent block (Aegis). Floor-to-ceiling pylons break up the floor.
 
 ![Spire](../Design/maps/Spire.png)
 
