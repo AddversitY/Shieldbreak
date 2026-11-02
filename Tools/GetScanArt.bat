@@ -18,6 +18,11 @@ echo Copying from %ED% > "%LOG%"
 for %%F in (MossyForestBoulder MossyForestRock MossyRockFace MossyRocks ForestRockFormation QuarryCliff SmallStonesPack MossyEmbankment ForestRoots) do (
   robocopy "%ED%\Megascans\3D_Assets\%%F" "%SB%\Megascans\3D_Assets\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
 )
+rem Creekbed (sandstone canyon) and Bastion (tundra and Nordic rock) sets.
+for %%F in (CanyonSandstoneRidge MassiveCanyonSandstoneMesa HugeSandstoneCliff MassiveSandstoneCliff SandstoneBoulder SandstoneRockyGround CanyonErodedRockyGround DryRiverBed MassiveTundraRockFormation TundraMossyBoulder TundraRockyGround NordicBoulder NordicBeachRock NordicBeachRocks NordicBeachRockyGround MassiveNordicCoastalCliff SmoothRockShelf) do (
+  robocopy "%ED%\Megascans\3D_Assets\%%F" "%SB%\Megascans\3D_Assets\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
+)
+robocopy "%ED%\Megascans\Decals\AridDebris" "%SB%\Megascans\Decals\AridDebris" /E /NFL /NDL /NJH /NP >> "%LOG%"
 for %%F in (BeechFern Ivy EnglishIvy EuropeanHornbeam Elderberry KikuyuGrass GroundCover) do (
   robocopy "%ED%\Megascans\3D_Plants\%%F" "%SB%\Megascans\3D_Plants\%%F" /E /NFL /NDL /NJH /NP >> "%LOG%"
 )

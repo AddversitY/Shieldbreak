@@ -101,6 +101,27 @@ def describe_meshes(assets):
             path, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z, nanite, ",".join(slots)))
 
 
+SET_FOLDERS = ["CanyonSandstoneRidge", "MassiveCanyonSandstoneMesa", "HugeSandstoneCliff", "MassiveSandstoneCliff",
+               "SandstoneBoulder", "SandstoneRockyGround", "CanyonErodedRockyGround", "DryRiverBed", "MassiveTundraRockFormation",
+               "TundraMossyBoulder", "TundraRockyGround", "NordicBoulder", "NordicBeachRock", "NordicBeachRocks",
+               "NordicBeachRockyGround", "MassiveNordicCoastalCliff", "SmoothRockShelf"]
+
+
+def describe_textures():
+    """Lists the textures of the Creekbed / Bastion scan sets (their surfaces are built from these)."""
+    for root in ["/Game/Megascans/3D_Assets/" + f for f in SET_FOLDERS] + ["/Game/Megascans/Decals/AridDebris"]:
+        folder = root.rsplit("/", 1)[1]
+        if not eal.does_directory_exist(root):
+            log("SET %s missing" % folder)
+            continue
+        for data in registry.get_assets_by_path(root, recursive=True):
+            cls = str(data.asset_class_path.asset_name)
+            if cls.startswith("Texture"):
+                tex = unreal.load_asset(str(data.package_name))
+                log("TEX %s %dx%d srgb %s vt %s" % (data.package_name, tex.blueprint_get_size_x(), tex.blueprint_get_size_y(),
+                                                     tex.get_editor_property("srgb"), tex.get_editor_property("virtual_texture_streaming")))
+
+
 def texture(surface, suffix):
     path = "%s/%s/T_%s_01_%s" % (SURF, surface, surface, suffix)
     tex = unreal.load_asset(path) if eal.does_asset_exist(path) else None
@@ -505,6 +526,7 @@ def main():
     try:
         assets = check_dependencies()
         describe_meshes(assets)
+        describe_textures()
         describe_foliage()
         leaf_instance()
         grass_instance()
