@@ -15,6 +15,9 @@ and no shadow casting.
   RockCap        A 400 x 400 top tile for small rocks (cover, pillars, hoodoos): a low, faceted dome up to 12 cm
                  high whose rim tucks 6 cm below the top.
 
+  StoneFaceA/B   Dressed-stone (ashlar) face tiles for the fortress blocks: four courses of blocks of
+                 uneven length, 4-9 cm proud, over a backing plate. Same grid and pivot as the rock faces.
+
 Pivot: face tiles on the middle of their bottom edge (y = 0, z = 0); the cap on its centre at the top surface.
 One slot, M_Sand, tinted per map at runtime. Exported to Art/Export/MapKit with rockskin_report.txt.
 """
@@ -165,7 +168,39 @@ def rock_cap():
     return cap_tile("SM_SB_Kit_RockCap", 51)
 
 
-PIECES = (rock_face_a, rock_face_b, rock_face_c, rock_cap, rock_corner)
+def ashlar_tile(name, seed):
+    """Dressed stone: four courses of blocks of uneven length, each a slab 4-9 cm proud of the face with a
+    mortar gap round it, over a backing plate at x = 0. Courses run past the tile's sides by OVER so tiles interlock."""
+    rng = random.Random(seed)
+    parts = [sb_kit.box("backing", (-2.0, 0.0, TOP / 2.0), (4.0, 2 * (HALF + OVER), TOP + OVER), "Sand", bevel=0.0)]
+    courses = 4
+    gap = 5.0
+    course_h = TOP / courses
+    for c in range(courses):
+        z0 = c * course_h
+        y = -HALF - OVER - rng.uniform(0, 60)
+        while y < HALF + OVER:
+            length = rng.uniform(70, 150)
+            y1 = min(y + length, HALF + OVER)
+            y = max(y, -HALF - OVER)
+            if y1 - y > 25:
+                depth = rng.uniform(4.0, 9.0)
+                stone = sb_kit.box("stone", (0.0, 0.0, 0.0), (depth, y1 - y - gap, course_h - gap), "Sand", bevel=0.0)
+                kit.placed(stone, (depth / 2.0, (y + y1) / 2.0, z0 + course_h / 2.0), (0, 0, 0))
+                parts.append(stone)
+            y = y1
+    return sb_kit.join(name, parts)
+
+
+def stone_face_a():
+    return ashlar_tile("SM_SB_Kit_StoneFaceA", 71)
+
+
+def stone_face_b():
+    return ashlar_tile("SM_SB_Kit_StoneFaceB", 83)
+
+
+PIECES = (rock_face_a, rock_face_b, rock_face_c, rock_cap, rock_corner, stone_face_a, stone_face_b)
 
 
 def build(render=None):

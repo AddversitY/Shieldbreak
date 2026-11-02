@@ -326,11 +326,12 @@ namespace ShieldbreakMapArtPrivate
 		}
 	}
 
-	/** Sandstone skin over the visible faces of the layout's rock and sand blocks (FShieldbreakMapLook::bRockSkin):
+	/** Sandstone skin over the visible faces of the layout's rock and sand blocks (FShieldbreakMapLook::bRockSkin), and
+	 *  dressed-stone (ashlar) StoneFace tiles over its stone blocks (bStoneSkin):
 	 *  RockFace tiles (400 x 400, bulging up to 36 cm out of the face) in a grid stretched to fill each face, a
 	 *  RockCorner column down each exposed vertical edge, and a RockCap dome on the tops of the small rocks. Faces a ramp runs into are left bare, so no rock pokes through the
 	 *  ramp's surface. Each block's tiles take the block's own colour. */
-	void RockSkin(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout)
+	void RockSkin(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout, bool bRock, bool bStone)
 	{
 		const FVector2D Half = Layout.HalfExtent;
 		auto Inside = [&Half](const FVector2D& P) { return FMath::Abs(P.X) < Half.X - 1.0 && FMath::Abs(P.Y) < Half.Y - 1.0; };
@@ -349,16 +350,20 @@ namespace ShieldbreakMapArtPrivate
 			Added.SurfaceTint = Tint;
 			return Added.Instances;
 		};
-		static const TCHAR* const Faces[3] = { TEXT("RockFaceA"), TEXT("RockFaceB"), TEXT("RockFaceC") };
+		static const TCHAR* const RockFaces[3] = { TEXT("RockFaceA"), TEXT("RockFaceB"), TEXT("RockFaceC") };
+		static const TCHAR* const StoneFaces[3] = { TEXT("StoneFaceA"), TEXT("StoneFaceB"), TEXT("StoneFaceA") };
 		constexpr double TileSize = 400.0;
 		int32 Seed = 0;
 		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 		{
 			++Seed;
-			if (Block.Style != FName(TEXT("rock")) && Block.Style != FName(TEXT("sand")))
+			const bool bIsRock = bRock && (Block.Style == FName(TEXT("rock")) || Block.Style == FName(TEXT("sand")));
+			const bool bIsStone = bStone && Block.Style == FName(TEXT("stone"));
+			if (!bIsRock && !bIsStone)
 			{
 				continue;
 			}
+			const TCHAR* const* Faces = bIsRock ? RockFaces : StoneFaces;
 			const FLinearColor Tint(Block.Color.R, Block.Color.G, Block.Color.B, 1.f);
 			const FVector Size = Block.Max - Block.Min;
 			const FVector2D Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5);
@@ -370,7 +375,7 @@ namespace ShieldbreakMapArtPrivate
 			for (const FFace& Face : BlockFaces)
 			{
 				const FVector2D At = Center + Face.Normal * Face.Offset;
-				if (Height < 60.0 || Face.Width < 60.0 || !Inside(At))
+				if (Height < 60.0 || Face.Width < (bIsStone ? 100.0 : 60.0) || !Inside(At))
 				{
 					continue;
 				}
@@ -415,8 +420,9 @@ namespace ShieldbreakMapArtPrivate
 					}
 				}
 			}
-			// A weathered column down each exposed vertical edge, so the boxes lose their sharp corners.
-			if (Height >= 60.0)
+			// A weathered column down each exposed vertical edge, so the boxes lose their sharp corners (rock only:
+			// dressed stone keeps its square arrises).
+			if (bIsRock && Height >= 60.0)
 			{
 				const int32 Up = FMath::Max(1, FMath::RoundToInt(Height / TileSize));
 				const double TileH = Height / Up;
@@ -496,6 +502,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.Trim = FLinearColor(1.0f, 0.62f, 0.26f);
 		Bastion.KitGlow = FLinearColor(1.0f, 0.6f, 0.25f);
 		Bastion.bRockSkin = true;
+		Bastion.bStoneSkin = true;
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -668,9 +675,9 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		return Groups;
 	}
 
-	if (GetLook(MapId).bRockSkin)
+	if (GetLook(MapId).bRockSkin || GetLook(MapId).bStoneSkin)
 	{
-		RockSkin(Groups, Layout);
+		RockSkin(Groups, Layout, GetLook(MapId).bRockSkin, GetLook(MapId).bStoneSkin);
 	}
 
 	if (Id == TEXT("Keel"))

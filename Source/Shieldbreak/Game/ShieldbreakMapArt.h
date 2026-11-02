@@ -34,6 +34,8 @@ struct FShieldbreakMapLook
 	/** Sandstone skin (Art/blender/build_rock_skin.py) over the faces of the rock and sand blocks inside the walls, and
 	 *  domed caps on the small ones (ShieldbreakMapArt::Plan). Visual only; the blocks keep their collision. */
 	bool bRockSkin = false;
+	/** Dressed-stone (ashlar) skin over the stone blocks' faces (Art/blender/build_rock_skin.py StoneFace tiles). */
+	bool bStoneSkin = false;
 	/** Glowing trim lines along built structures (team-coloured structures keep red and blue). */
 	FLinearColor Trim = FLinearColor(0.25f, 0.8f, 1.f);
 	/** Recolours the kit's M_Glow* slots (cyan or amber as modelled) to this colour; alpha 0 keeps them as modelled. */
