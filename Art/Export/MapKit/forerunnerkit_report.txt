@@ -1,0 +1,15 @@
+SM_F_WallMetal: 148 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel
+SM_F_WallBand: 196 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel, M_GlowCyan
+SM_F_WallDark: 80 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal
+SM_F_WallPlate: 280 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel
+SM_F_BandPlates: 124 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel
+SM_F_BandAccent: 112 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel, M_GlowCyan
+SM_F_BandDark: 56 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal
+SM_F_BandTriangles: 188 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel
+SM_F_FloorMetal: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorMetal2: 100 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorCenter: 232 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorX: 140 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorPlates: 144 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorSquares: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
+SM_F_FloorDark: 12 tris, X -200.0..200.0 Y -200.0..200.0 Z -4.0..0.0, slots M_Gunmetal

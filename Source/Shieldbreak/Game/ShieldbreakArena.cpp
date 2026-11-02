@@ -715,8 +715,10 @@ void AShieldbreakArena::BuildCladding()
 	int32 Kinds = 0, Placed = 0;
 	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Cladding(MapId, Layout))
 	{
-		const FString Name = TEXT("SM_Q_") + Group.Piece.ToString();
-		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/SciFiKit/%s.%s"), *Name, *Name)) : nullptr;
+		const bool bForerunner = Look.CladKit == FName(TEXT("F")) && !FParse::Param(FCommandLine::Get(), TEXT("SBQuaterniusClad"));
+		const FString Name = (bForerunner ? TEXT("SM_F_") : TEXT("SM_Q_")) + Group.Piece.ToString();
+		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/%s/%s.%s"),
+			bForerunner ? TEXT("MapKit") : TEXT("SciFiKit"), *Name, *Name)) : nullptr;
 		if (!Mesh)
 		{
 			continue;
@@ -726,8 +728,14 @@ void AShieldbreakArena::BuildCladding()
 		Instances->SetCastShadow(false);
 		// Indoors the thousands of panels stay out of the distance fields: the blocks under them already stand there.
 		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen() && !Layout.bIndoor;
+		// The Forerunner plates use palette slots: the map's tinted panel material and glow, like the hero kit (a little
+		// self light, as thin pieces laid on a block go dark under the sky light's occlusion).
+		if (bForerunner)
+		{
+			ApplyKitSurfaces(Instances, Look, 0.3f);
+		}
 		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
-		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		const TArray<FStaticMaterial>& Slots = bForerunner ? TArray<FStaticMaterial>() : Mesh->GetStaticMaterials();
 		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
 		{
 			UMaterialInstanceDynamic* MID = Slots[Slot].MaterialSlotName.ToString().StartsWith(TEXT("M_Trim"))

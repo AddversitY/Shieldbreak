@@ -28,6 +28,9 @@ struct FShieldbreakMapLook
 	FLinearColor CladTint = FLinearColor(0.5f, 0.5f, 0.5f);
 	/** The kit's accent stripes and small lights. */
 	FLinearColor CladAccent = FLinearColor(1.0f, 0.5f, 0.12f);
+	/** Which cladding kit dresses the blocks: "Q" the panelled Quaternius-based set (SM_Q_<piece>, Art/SciFiKit), "F"
+	 *  Spire's own smooth Forerunner plates (SM_F_<piece>, Art/MapKit, build_forerunner_kit.py), same pieces. */
+	FName CladKit = TEXT("Q");
 	/** Scanned art (AShieldbreakArena::BuildScanArt): Megascans stone, moss and earth on the blocks, a canyon of
 	 *  cliffs round the walls, boulders for rock cover, ferns and trees. Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
 	bool bScan = false;

@@ -539,13 +539,15 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Spire.GroundStyle = TEXT("stone");
 		Spire.Ground = FLinearColor(0.36f, 0.38f, 0.42f);
 		Spire.Rock = FLinearColor(0.40f, 0.42f, 0.46f);
-		Spire.Metal = FLinearColor(0.66f, 0.68f, 0.71f);
+		Spire.Metal = FLinearColor(0.80f, 0.82f, 0.86f); // Forerunner silver-white
 		Spire.DarkMetal = FLinearColor(0.24f, 0.27f, 0.31f);
 		Spire.Haze = FLinearColor(0.55f, 0.66f, 0.80f);
 		Spire.Trim = FLinearColor(0.22f, 0.62f, 1.0f);
 		Spire.KitGlow = FLinearColor(0.3f, 0.7f, 1.0f);
 		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
 		Spire.bClad = true;
+		// Its own kit (2026-11-02): large silver plates split by angled seams, so it no longer reads as Keel in blue.
+		Spire.CladKit = TEXT("F");
 		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
 		return Out;
 	}();
