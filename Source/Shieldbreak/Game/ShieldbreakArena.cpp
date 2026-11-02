@@ -7,6 +7,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -430,7 +431,8 @@ void AShieldbreakArena::BuildTrim()
 		// Brighter than glow blocks: the lines are thin and mostly seen from across the map.
 		if (UMaterialInstanceDynamic* MID = ApplySurface(Strips[Index], TEXT("glow"), Colors[Index]))
 		{
-			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 14.f);
+			// Enclosed maps: half as bright, or the strips bloom the dim halls out to a wash.
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), Layout.bIndoor ? 7.f : 14.f);
 		}
 	}
 
@@ -851,16 +853,30 @@ void AShieldbreakArena::BuildInteriorLights()
 	{
 		return;
 	}
-	// A regular grid of soft, unshadowed lamps a little under the ceiling, skipping any spot inside a block. Spacing
-	// and strength are overridable (-SBLampSpacing= -SBLampCd=) so the PC can compare settings in one batch.
+	// Pools of light, not an even wash: a grid of work lamps hung under the ceiling, each a downward spot (the ceiling
+	// stays dark, the floor gets pools with shade between) with its fixture drawn as a glowing panel, so every light
+	// has a visible source. Unshadowed (cheap); the volumetric haze (SpawnLighting) shows their cones. Spacing and
+	// strength are overridable (-SBLampSpacing= -SBLampCd=), and -SBPointLamps brings back the old even point lamps.
 	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
-	float Spacing = 1300.f, Candelas = 90.f;
+	const bool bSpots = !FParse::Param(FCommandLine::Get(), TEXT("SBPointLamps"));
+	float Spacing = bSpots ? 1700.f : 1300.f, Candelas = bSpots ? 150.f : 90.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampSpacing="), Spacing);
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampCd="), Candelas);
 	Spacing = FMath::Max(Spacing, 400.f);
-	const float LampZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z) - 120.f;
+	const float CeilingZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z);
+	const float LampZ = CeilingZ - (bSpots ? 40.f : 120.f);
 	const int32 CountX = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.X / Spacing));
 	const int32 CountY = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.Y / Spacing));
+	UInstancedStaticMeshComponent* Fixtures = nullptr;
+	if (bSpots && CubeMesh && GlowMaterial)
+	{
+		Fixtures = AddDecoration<UInstancedStaticMeshComponent>(TEXT("LampFixture"), CubeMesh);
+		Fixtures->SetCastShadow(false);
+		if (UMaterialInstanceDynamic* MID = ApplySurface(Fixtures, TEXT("glow"), Look.InteriorLight))
+		{
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 9.f);
+		}
+	}
 	int32 Lamps = 0;
 	for (int32 IX = 0; IX < CountX; ++IX)
 	{
@@ -877,21 +893,48 @@ void AShieldbreakArena::BuildInteriorLights()
 			{
 				continue;
 			}
-			UPointLightComponent* Lamp = NewObject<UPointLightComponent>(this);
+			ULocalLightComponent* Lamp = nullptr;
+			if (bSpots)
+			{
+				USpotLightComponent* Spot = NewObject<USpotLightComponent>(this);
+				Spot->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+				Spot->SetInnerConeAngle(28.f);
+				Spot->SetOuterConeAngle(58.f);
+				Spot->SetSourceRadius(60.f);
+				Lamp = Spot;
+				if (Fixtures)
+				{
+					// A 1.6 x 0.5 m light panel flush under the ceiling, turned a quarter on alternate rows.
+					Fixtures->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f), FVector(At.X, At.Y, CeilingZ - 6.f),
+						FVector(1.6f, 0.5f, 0.06f)));
+				}
+			}
+			else
+			{
+				UPointLightComponent* Point = NewObject<UPointLightComponent>(this);
+				Point->SetSourceRadius(120.f);
+				Lamp = Point;
+			}
 			Lamp->SetupAttachment(Root);
 			Lamp->SetMobility(EComponentMobility::Movable);
 			Lamp->SetRelativeLocation(At);
 			Lamp->SetIntensityUnits(ELightUnits::Candelas);
 			Lamp->SetIntensity(Candelas);
-			Lamp->SetAttenuationRadius(Spacing * 1.9f);
-			Lamp->SetSourceRadius(120.f);
+			Lamp->SetAttenuationRadius(bSpots ? 2600.f : Spacing * 1.9f);
 			Lamp->SetLightColor(Look.InteriorLight);
 			Lamp->SetCastShadows(false);
+			Lamp->SetVolumetricScatteringIntensity(bSpots ? 1.5f : 0.f);
 			Lamp->RegisterComponent();
 			++Lamps;
 		}
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s: enclosed, %d interior lamps (%.0f cm grid, %.0f cd)."), *Layout.DisplayName, Lamps, Spacing, Candelas);
+	if (Fixtures)
+	{
+		Fixtures->RegisterComponent();
+		AddInstanceComponent(Fixtures);
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("%s: enclosed, %d interior %s (%.0f cm grid, %.0f cd)."), *Layout.DisplayName, Lamps,
+		bSpots ? TEXT("spot lamps") : TEXT("point lamps"), Spacing, Candelas);
 }
 
 void AShieldbreakArena::BuildSpawnPoints()
@@ -1066,6 +1109,18 @@ void AShieldbreakArena::SpawnLighting()
 			FogComponent->SetFogInscatteringColor(ShieldbreakMapArt::GetLook(MapId).Haze);
 			FogComponent->SetFogHeightFalloff(0.08f);
 			FogComponent->SetStartDistance(4000.f);
+			// Enclosed maps: a thin volumetric haze from the start, so the lamps' cones show as shafts of light in the
+			// dusty air. -SBNoVolFog for before/after and frame-time comparisons.
+			if (Layout.bIndoor && !FParse::Param(FCommandLine::Get(), TEXT("SBNoVolFog")))
+			{
+				FogComponent->SetVolumetricFog(true);
+				FogComponent->SetVolumetricFogScatteringDistribution(0.5f);
+				FogComponent->SetVolumetricFogExtinctionScale(1.f);
+				FogComponent->SetVolumetricFogDistance(5000.f);
+				FogComponent->SetStartDistance(0.f);
+				FogComponent->SetFogDensity(Layout.FogDensity * 1.5f);
+				FogComponent->SetFogHeightFalloff(0.001f);
+			}
 		}
 	}
 

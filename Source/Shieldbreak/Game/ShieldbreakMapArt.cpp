@@ -490,7 +490,9 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
 		Keel.KitGlow = FLinearColor(1.0f, 0.5f, 0.12f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
-		Keel.InteriorLight = FLinearColor(1.f, 0.72f, 0.45f); // sodium-orange work lamps inside the hull
+		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
+		// carry the warmth (sodium-orange lamps turned every surface the same orange).
+		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
 		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
 		FShieldbreakMapLook& Bastion = Out.Add(FName(TEXT("Bastion")));
 		Bastion.GroundStyle = TEXT("stone");
