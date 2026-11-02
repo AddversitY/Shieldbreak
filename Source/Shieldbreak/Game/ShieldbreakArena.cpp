@@ -2562,7 +2562,7 @@ void AShieldbreakArena::BuildScanArt()
 		AddInstanceComponent(Slabs);
 	}
 
-	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
+	for (const TPair<TTuple<UStaticMesh*, bool>, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
@@ -2613,6 +2613,28 @@ namespace ShieldbreakTerrainScanPrivate
 		return Sets.Find(Set);
 	}
 
+	// Some scans carry extra non-opaque slots (dust and debris cards). With the
+	// set's opaque rock forced on every slot they rendered as torn, floating streaks in front of the sky (R13, R14).
+	// Those scans stay out; -SBAllTerrainScans keeps them for comparison. Each scan is logged once.
+	bool UsableScan(UStaticMesh* Mesh)
+	{
+		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
+		FString Detail;
+		bool bUsable = true;
+		for (const FStaticMaterial& Slot : Slots)
+		{
+			const EBlendMode Blend = Slot.MaterialInterface ? Slot.MaterialInterface->GetBlendMode() : BLEND_Opaque;
+			Detail += FString::Printf(TEXT(" [%s %s %d]"), *Slot.MaterialSlotName.ToString(),
+				Slot.MaterialInterface ? *Slot.MaterialInterface->GetName() : TEXT("none"), static_cast<int32>(Blend));
+			bUsable &= Blend == BLEND_Opaque;
+		}
+		bUsable &= Slots.Num() <= 1;
+		const FVector Size = Mesh->GetBoundingBox().GetSize();
+		UE_LOG(LogShieldbreak, Log, TEXT("terrain scan %s: %s, %d slots, %.0fx%.0fx%.0f cm,%s"), *Mesh->GetName(),
+			bUsable ? TEXT("used") : TEXT("SKIPPED"), Slots.Num(), Size.X, Size.Y, Size.Z, *Detail);
+		return bUsable || FParse::Param(FCommandLine::Get(), TEXT("SBAllTerrainScans"));
+	}
+
 	TArray<UStaticMesh*> LoadFamilies(const TArray<FFamily>& Families)
 	{
 		TArray<UStaticMesh*> Out;
@@ -2623,7 +2645,10 @@ namespace ShieldbreakTerrainScanPrivate
 				if (UStaticMesh* Found = ShieldbreakScanPrivate::Mesh(*FString::Printf(TEXT("3D_Assets/%s"), Family.Folder),
 					*FString::Printf(TEXT("SM_%s_%02d"), Family.Folder, Number)))
 				{
-					Out.Add(Found);
+					if (UsableScan(Found))
+					{
+						Out.Add(Found);
+					}
 				}
 			}
 		}
@@ -2667,10 +2692,13 @@ void AShieldbreakArena::BuildTerrainScan()
 	const TArray<UStaticMesh*> Cliffs = LoadFamilies(Set.Cliffs);
 	const TArray<UStaticMesh*> Giants = LoadFamilies(Set.Giants);
 
-	TMap<UStaticMesh*, UInstancedStaticMeshComponent*> Groups;
+	// Grouped by mesh AND shadow casting: Canyon uses CanyonSandstoneRidge both as fitted rock (shadowed) and as
+	// cliff (unshadowed); keyed by mesh alone, the first rock turned every ridge cliff into a shadow caster
+	// (R14: Nanite shadows 1.4 ms, Creekbed 123 FPS against 179 without the scans).
+	TMap<TTuple<UStaticMesh*, bool>, UInstancedStaticMeshComponent*> Groups;
 	auto Place = [&](UStaticMesh* Mesh, const FTransform& Transform, bool bShadow, int32 CullDistance = 0)
 	{
-		UInstancedStaticMeshComponent*& Instances = Groups.FindOrAdd(Mesh);
+		UInstancedStaticMeshComponent*& Instances = Groups.FindOrAdd(MakeTuple(Mesh, bShadow));
 		if (!Instances)
 		{
 			Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Terrain"), Mesh);
@@ -2846,6 +2874,8 @@ void AShieldbreakArena::BuildTerrainScan()
 		{ FVector(1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y }, { FVector(-1, 0, 0), FVector(0, 1, 0), Half.X, Half.Y },
 		{ FVector(0, 1, 0), FVector(1, 0, 0), Half.Y, Half.X }, { FVector(0, -1, 0), FVector(1, 0, 0), Half.Y, Half.X } };
 	const double BackdropZ = Layout.FloorZ - 400.0;
+	int32 RowMask = 7; // -SBTerrainRows=<bits>: which cliff rows to place (1 barrier, 2 behind it, 4 giants), for diagnosis
+	FParse::Value(FCommandLine::Get(), TEXT("SBTerrainRows="), RowMask);
 	for (int32 SideIndex = 0; SideIndex < 4; ++SideIndex)
 	{
 		const FSide& Side = Sides[SideIndex];
@@ -2854,6 +2884,10 @@ void AShieldbreakArena::BuildTerrainScan()
 		const double LandmarkAlong = Look.ScanSet == FName(TEXT("Canyon")) ? 600.0 : 0.0;
 		for (int32 Row = Set.bRow0 ? 0 : 1; Row < 3; ++Row)
 		{
+			if (!(RowMask & (1 << Row)))
+			{
+				continue;
+			}
 			const TArray<UStaticMesh*>& Pool = (Row == 2 && Giants.Num() > 0) ? Giants : Cliffs;
 			if (Pool.Num() == 0)
 			{
@@ -2891,7 +2925,7 @@ void AShieldbreakArena::BuildTerrainScan()
 		}
 	}
 
-	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
+	for (const TPair<TTuple<UStaticMesh*, bool>, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
