@@ -10,7 +10,7 @@ M_Glow* slots keep their emissive instance and the game recolours them per map (
                 hung from the ceiling over the reactor (top at z = 0, hangs to z = -260).
   Condenser     Spire: an inverted, stepped hard-light condenser over the energy column, hung from the ceiling
                 (top at z = 0, hangs to z = -420).
-  Watchtower    Bastion: a square stone keep-tower with corner buttresses, battlements and a beacon fire, 5400 cm tall.
+  Watchtower    Bastion: a Forerunner-style pylon, two prongs forking round a hard-light seam, a glowing prism floating in the fork, 6400 cm.
   SandstoneArch Creekbed: a natural sandstone arch with a flat, heavy span and uneven legs, weathered by noise.
 
 Exported to Art/Export/MapKit (Tools/ImportMapArt.bat imports the whole folder).
@@ -96,30 +96,29 @@ def condenser():
 
 
 def watchtower():
-    """A 5000 cm square stone keep-tower: a battered base, a tall shaft with angled buttresses at the corners, a
-    machicolated gallery, a crenellated top and a warm beacon fire burning on it. Snow-pale stone is the Ivory slot,
-    dark stone the Sand slot."""
-    parts = [kit.frustum("base", (0, 0, 0), (2000, 2000), (1500, 1500), 1000, "Sand", bevel=18.0),
-             kit.frustum("shaft", (0, 0, 1000), (1200, 1200), (1000, 1000), 2800, "Ivory", bevel=14.0),
-             kit.frustum("corbel", (0, 0, 3800), (1000, 1000), (1400, 1400), 300, "Sand", bevel=10.0),
-             kit.frustum("gallery", (0, 0, 4100), (1400, 1400), (1400, 1400), 500, "Ivory", bevel=10.0)]
+    """Bastion's landmark (2026-11-02, replacing the stone keep that read medieval): an original Forerunner-style
+    pylon, about 6400 cm tall. An eight-sided stepped plinth, then two tapered prongs that rise together and fork
+    apart above two thirds height, with a hard-light seam burning between them up to the fork, angled fins clasping
+    them where they split, and a glowing prism floating in the fork. Snow-pale metal is the Ivory slot, dark metal
+    the Sand slot; the seam and prism glow (the game tints them with Bastion's KitGlow)."""
+    parts = [kit.frustum("plinth", (0, 0, 0), (2600, 2600), (2000, 2000), 450, "Sand", bevel=16.0, sides=8, rotate=22.5),
+             kit.frustum("step", (0, 0, 450), (1600, 1600), (1300, 1300), 300, "Ivory", bevel=12.0, sides=8, rotate=22.5)]
+    # Each prong drawn in XZ on +X (inner edge first, bottom up, then the outer edge down); the second turned half round.
+    prong = [(110, 0), (110, 3900), (420, 4900), (980, 5650), (820, 5650), (560, 4900), (620, 3300), (760, 1400), (820, 0)]
+    for turn in (0, 180):
+        parts.append(kit.placed(kit.prism_xz("prong", prong, -240, 240, "Ivory", bevel=8.0), (0, 0, 750), (0, 0, turn)))
+        # A dark keel down each prong's outer face, set proud of the slab.
+        keel = kit.prism_xz("keel", [(700, 300), (780, 300), (720, 1400), (580, 3300), (520, 4600), (460, 4600), (520, 3300), (650, 1400)],
+                            -300, 300, "Sand", bevel=3.0)
+        parts.append(kit.placed(keel, (0, 0, 750), (0, 0, turn)))
+    parts.append(sb_kit.box("seam", (0, 0, 750 + 1950), (90, 200, 3900), "GlowAmber", bevel=0.0))
+    # Fins clasp the prongs where they fork, two per side, sweeping out and down.
     for a in range(4):
-        ang = 45 + 90 * a
-        b = kit.prism_xz("buttress", [(0, 0), (1000, 0), (380, 1300), (80, 3100), (0, 3100)], -90, 90, "Ivory", bevel=8.0)
-        kit.placed(b, (math.cos(math.radians(ang)) * 560, math.sin(math.radians(ang)) * 560, 700), (0, 0, ang))
-        parts.append(b)
-    # Merlons round the top (4 per side), the beacon fire in a brazier, and arrow slits down the shaft.
-    for side in range(4):
-        r = math.radians(90 * side)
-        for k in (-1.5, -0.5, 0.5, 1.5):
-            along = k * 300
-            x, y = 640, along
-            parts.append(sb_kit.box("merlon", (x * math.cos(r) - y * math.sin(r), x * math.sin(r) + y * math.cos(r), 4750),
-                                    (150, 180, 300), "Ivory", bevel=6.0))
-        parts.append(kit.placed(sb_kit.box("slit", (0, 0, 0), (14, 50, 380), "GlowAmber", bevel=0.0),
-                                (math.cos(r) * 545, math.sin(r) * 545, 2600), (0, 0, 90 * side)))
-    parts.append(kit.frustum("brazier", (0, 0, 4600), (500, 500), (700, 700), 260, "Sand", bevel=8.0))
-    parts.append(kit.frustum("fire", (0, 0, 4860), (560, 560), (60, 60), 520, "GlowAmber", bevel=0.0, sides=6, rotate=0.0))
+        fin = kit.prism_xz("fin", [(0, 0), (1150, -420), (1250, -300), (0, 260)], -40, 40, "Sand", bevel=4.0)
+        parts.append(kit.placed(fin, (0, 0, 4500), (0, 0, 35 + 90 * a if a % 2 == 0 else 145 + 90 * (a - 1))))
+    # The prism floating in the fork.
+    parts.append(kit.frustum("prism_lo", (0, 0, 5350), (40, 40), (300, 300), 300, "GlowAmber", bevel=0.0, sides=4, rotate=45.0))
+    parts.append(kit.frustum("prism_hi", (0, 0, 5650), (300, 300), (40, 40), 450, "GlowAmber", bevel=0.0, sides=4, rotate=45.0))
     return sb_kit.join("SM_SB_Kit_Watchtower", parts)
 
 
