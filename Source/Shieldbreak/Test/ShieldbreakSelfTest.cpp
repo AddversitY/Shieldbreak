@@ -2863,6 +2863,17 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				Lines.Add(FString::Printf(TEXT("INFO  fixed-view FPS %.1f over %.1f s"), (GFrameCounter - Value0) / Seconds, Seconds));
 				return true;
 			}, 25.f });
+		// One frame's GPU cost by pass (the log gets the ProfileGPU tree), so a speed pass knows what to cut. Compare its
+		// total with the frame time above: equal means the GPU is the limit.
+		Steps.Add({ TEXT("GPU profile of the fixed view"),
+			[this]()
+			{
+				if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+				{
+					PC->ConsoleCommand(TEXT("ProfileGPU"));
+				}
+			},
+			[](float Elapsed) { return Elapsed > 2.f; }, 5.f });
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
