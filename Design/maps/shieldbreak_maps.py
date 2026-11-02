@@ -239,7 +239,7 @@ def keel():
     m.palette = {"metal": (0.23, 0.24, 0.26), "wall": (0.10, 0.11, 0.12), "floor": (0.14, 0.15, 0.16),
                  "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12),
                  # Team colours toned down: under the sodium lamps the default red turned whole decks orange.
-                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}
+                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004
     m.check_reach = True
@@ -321,6 +321,18 @@ def keel():
     m.cover((-3700, -4100, L2), (-3300, -3700, 1100), "metal", sym=True)    # engine deck machinery
     m.cover((-2600, -3600, L2), (-2400, -3300, L2 + 110), "metal", sym=True)
     m.cover((-3600, -4100, 0), (-3400, -3900, 130), sym=True)               # tunnel
+    # Hull ribs: 3 m frames off the hull and the hall walls, every 10 m where nothing else stands. They break the
+    # lines that hug the walls down the whole ship (long lines over 60 m, 10 m sample: 217 -> 135), so a long
+    # corridor is a run of 10 m bays. Split round the catwalk and the engine deck; none stands on a catwalk or bridge.
+    for a, b in [((-5030, 2660, L1), (-4970, 2960, 1500)), ((-4030, 4100, 0), (-3970, 4400, 610)),
+                 ((-3030, 2660, 0), (-2970, 2960, 1500)), ((-2030, 2660, 0), (-1970, 2960, 1500)),
+                 ((-1030, 4100, 0), (-970, 4400, 610)), ((-1030, 2660, 0), (-970, 2960, 1500)),
+                 ((-30, 4100, 0), (30, 4400, 610)), ((-30, 2660, 0), (30, 2960, 610)),
+                 ((970, 4100, 0), (1030, 4400, 1500)), ((970, 2300, 0), (1030, 2600, 1500)),
+                 ((1970, 4100, 0), (2030, 4400, 400)), ((1970, 4100, L2), (2030, 4400, 1500)),
+                 ((2970, 4100, 0), (3030, 4400, 610)), ((2970, 2660, 0), (3030, 2960, 1500)),
+                 ((3970, 4100, L2), (4030, 4400, 1500))]:
+        m.cover(a, b, "metal", sym=True)
 
     # ---- Items and objectives ----
     m.weapon("rockets", (0, 0, L2 + 70))
@@ -347,8 +359,8 @@ def bastion():
     m = Map("Bastion", "Bastion", "Lockout", 6400, 5200, wall_h=1300, max_z=1800)
     # Look: packed snow and ice-grey stone, dark rock, weathered timber ramps, warm beacon light.
     m.palette = {"stone": (0.72, 0.74, 0.79), "rock": (0.24, 0.24, 0.28), "tower": (0.44, 0.46, 0.52),
-                 "bridge": (0.38, 0.40, 0.46), "ramp": (0.46, 0.36, 0.26), "glow": (1.00, 0.62, 0.28),
-                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}   # toned team colours (all four maps)
+                 "bridge": (0.38, 0.40, 0.46), "ramp": (0.30, 0.32, 0.36), "glow": (1.00, 0.62, 0.28),
+                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}   # toned team colours (all four maps): the trim carries the colour
     m.reflect = True
     m.check_reach = True
     m.sun = (-22.0, 200.0)   # low dusk sun
@@ -591,7 +603,7 @@ def creekbed():
     m.palette = {"sand": (0.62, 0.38, 0.22), "rock": (0.48, 0.22, 0.13), "ramp": (0.66, 0.48, 0.30),
                  "glow": (1.00, 0.70, 0.35),
                  # Crimson, not orange-red, so the red outpost stays apart from the red rock round it.
-                 "red": (0.40, 0.07, 0.10)}
+                 "red": (0.30, 0.07, 0.10), "blue": (0.10, 0.17, 0.30)}
     m.reflect = True
     m.check_reach = True
     m.sun = (-35.0, 250.0)   # warm afternoon sun
@@ -684,7 +696,7 @@ def spire():
     # Look: silver-white Forerunner metal, cool grey floor, blue hard light.
     m.palette = {"metal": (0.66, 0.68, 0.71), "wall": (0.50, 0.52, 0.56), "floor": (0.36, 0.38, 0.42),
                  "bridge": (0.60, 0.62, 0.66), "ramp": (0.52, 0.60, 0.70), "glow": (0.22, 0.62, 1.00),
-                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}   # toned team colours (all four maps)
+                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}   # toned team colours (all four maps): the trim carries the colour
     m.sun = (-30.0, 160.0)
     m.fog = 0.003
     m.check_reach = True
