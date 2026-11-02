@@ -347,7 +347,8 @@ def bastion():
     m = Map("Bastion", "Bastion", "Lockout", 6400, 5200, wall_h=1300, max_z=1800)
     # Look: packed snow and ice-grey stone, dark rock, weathered timber ramps, warm beacon light.
     m.palette = {"stone": (0.72, 0.74, 0.79), "rock": (0.24, 0.24, 0.28), "tower": (0.44, 0.46, 0.52),
-                 "bridge": (0.38, 0.40, 0.46), "ramp": (0.46, 0.36, 0.26), "glow": (1.00, 0.62, 0.28)}
+                 "bridge": (0.38, 0.40, 0.46), "ramp": (0.46, 0.36, 0.26), "glow": (1.00, 0.62, 0.28),
+                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}   # toned team colours (all four maps)
     m.reflect = True
     m.check_reach = True
     m.sun = (-22.0, 200.0)   # low dusk sun
@@ -682,7 +683,8 @@ def spire():
     m = Map("Spire", "Spire", "Narrows / Construct", 7200, 3600, wall_h=2200, max_z=2400)
     # Look: silver-white Forerunner metal, cool grey floor, blue hard light.
     m.palette = {"metal": (0.66, 0.68, 0.71), "wall": (0.50, 0.52, 0.56), "floor": (0.36, 0.38, 0.42),
-                 "bridge": (0.60, 0.62, 0.66), "ramp": (0.52, 0.60, 0.70), "glow": (0.22, 0.62, 1.00)}
+                 "bridge": (0.60, 0.62, 0.66), "ramp": (0.52, 0.60, 0.70), "glow": (0.22, 0.62, 1.00),
+                 "red": (0.42, 0.12, 0.11), "blue": (0.12, 0.20, 0.42)}   # toned team colours (all four maps)
     m.sun = (-30.0, 160.0)
     m.fog = 0.003
     m.check_reach = True
