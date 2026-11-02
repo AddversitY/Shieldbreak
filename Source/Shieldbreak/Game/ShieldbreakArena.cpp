@@ -3052,7 +3052,7 @@ void AShieldbreakArena::BuildTerrainScan()
 			const double Angle = Random.FRandRange(0.f, static_cast<float>(UE_TWO_PI));
 			const FVector2D Dir(FMath::Cos(Angle), FMath::Sin(Angle));
 			const double ToWall = FMath::Min(Half.X / FMath::Max(FMath::Abs(Dir.X), 1e-3), Half.Y / FMath::Max(FMath::Abs(Dir.Y), 1e-3));
-			const double Distance = ToWall + Random.FRandRange(500.f, 3000.f);
+			const double Distance = ToWall + Random.FRandRange(1600.f, 4200.f); // crowns clear of the corner cameras and the rim
 			UStaticMesh* Mesh = Trees[Random.RandRange(0, Trees.Num() - 1)];
 			const double Height = Random.FRandRange(2400.f, 3800.f);
 			const double Scale = FMath::Clamp(Height / FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0), 0.3, 6.0);

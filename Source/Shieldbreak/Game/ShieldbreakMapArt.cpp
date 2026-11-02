@@ -502,7 +502,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.Ground = FLinearColor(0.80f, 0.82f, 0.87f);
 		Bastion.Rock = FLinearColor(0.24f, 0.24f, 0.28f);
 		Bastion.Metal = FLinearColor(0.30f, 0.33f, 0.38f);
-		Bastion.DarkMetal = FLinearColor(0.13f, 0.14f, 0.17f);
+		Bastion.DarkMetal = FLinearColor(0.19f, 0.20f, 0.24f);
 		Bastion.Haze = FLinearColor(0.66f, 0.54f, 0.56f);
 		Bastion.Trim = FLinearColor(1.0f, 0.62f, 0.26f);
 		Bastion.KitGlow = FLinearColor(1.0f, 0.6f, 0.25f);

@@ -332,7 +332,13 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
     top_desat = node(unreal.MaterialExpressionDesaturation, -650, -1950)
     link(top["BC"][0], "RGB", top_desat, "")
     link(scalar("TopDesaturation", 0.0, -800, -2100), "", top_desat, "Fraction")
-    top_col = binary(unreal.MaterialExpressionMultiply, top_desat, top_tint, -450, -1800)
+    top_tinted = binary(unreal.MaterialExpressionMultiply, top_desat, top_tint, -450, -1800)
+    # TopLift pulls the top layer toward TopLiftColor (snow from a gravel scan keeps its relief but not its grey).
+    top_col = node(unreal.MaterialExpressionLinearInterpolate, -350, -1950)
+    link(top_tinted, "", top_col, "A")
+    link(node(unreal.MaterialExpressionVectorParameter, -500, -2100, parameter_name="TopLiftColor",
+              default_value=unreal.LinearColor(0.86, 0.89, 0.94, 1)), "", top_col, "B")
+    link(scalar("TopLift", 0.0, -500, -2250), "", top_col, "Alpha")
     base = lerp(side_col, top_col, -250, -1600, b_out="")
     normal_out = lerp(side_n, top["N"][0], -250, -600)
     ard = lerp(side_ard, top["ARD"][0], -250, 300)
@@ -365,7 +371,7 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
 # The outdoor terrain sets (AShieldbreakArena::BuildTerrainScan): MI_SB_Scan_<Set><Kind>, each on its own master
 # (M_SB_Scan_<Set><Kind>) built with its own textures. "asset:<Folder>" takes a scanned 3D asset's textures.
 # Snow on Bastion is the tundra ground's own scan, fully desaturated and lifted: packed snow with the ground's relief.
-SNOW = dict(top_desat=1.0, top_tint=(1.75, 1.8, 1.9))
+SNOW = dict(top_desat=1.0, top_tint=(1.3, 1.33, 1.4), top_lift=0.72)
 TERRAIN = {
     "CanyonGround": dict(side="asset:CanyonErodedRockyGround", top="asset:SandstoneRockyGround", side_tile=450.0, top_tile=420.0,
                          threshold=0.35, coverage=1.6, desat=0.0, tint=(1.0, 0.95, 0.9), patch_noise=1.0),
@@ -427,6 +433,7 @@ def scan_instances(master, surfaces=None, defaults=None):
         mel.set_material_instance_vector_parameter_value(mi, "TopTint", unreal.LinearColor(r, g, b, 1.0))
         mel.set_material_instance_scalar_parameter_value(mi, "TopDesaturation", look.get("top_desat", 0.0))
         mel.set_material_instance_scalar_parameter_value(mi, "PatchNoise", look.get("patch_noise", 0.0))
+        mel.set_material_instance_scalar_parameter_value(mi, "TopLift", look.get("top_lift", 0.0))
         eal.save_asset(path)
         log("%s: %s; %s" % (path, ", ".join(used), ", ".join("%s %s" % kv for kv in look.items() if kv[0] not in ("side", "top"))))
 

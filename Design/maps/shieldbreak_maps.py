@@ -360,7 +360,7 @@ def bastion():
     # Look: packed snow and ice-grey stone, dark rock, weathered timber ramps, warm beacon light.
     m.palette = {"stone": (0.72, 0.74, 0.79), "rock": (0.24, 0.24, 0.28), "tower": (0.44, 0.46, 0.52),
                  "bridge": (0.38, 0.40, 0.46), "ramp": (0.30, 0.32, 0.36), "glow": (1.00, 0.62, 0.28),
-                 "red": (0.21, 0.15, 0.14), "blue": (0.13, 0.16, 0.21)}   # bases in near-neutral metal with a hint of their team; the red/blue trim lines carry the colour
+                 "red": (0.30, 0.21, 0.20), "blue": (0.19, 0.23, 0.30)}   # bases in near-neutral metal with a hint of their team; the red/blue trim lines carry the colour
     m.reflect = True
     m.check_reach = True
     m.sun = (-22.0, 200.0)   # low dusk sun
