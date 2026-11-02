@@ -2562,7 +2562,7 @@ void AShieldbreakArena::BuildScanArt()
 		AddInstanceComponent(Slabs);
 	}
 
-	for (const TPair<TTuple<UStaticMesh*, bool>, UInstancedStaticMeshComponent*>& Group : Groups)
+	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
