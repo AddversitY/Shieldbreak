@@ -1,4 +1,5 @@
-SM_SB_Kit_RockFaceA: 240 tris, X -8.0..24.5 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
-SM_SB_Kit_RockFaceB: 240 tris, X -8.0..24.1 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
-SM_SB_Kit_RockFaceC: 240 tris, X -8.0..25.8 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
+SM_SB_Kit_RockFaceA: 320 tris, X -8.0..35.9 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
+SM_SB_Kit_RockFaceB: 320 tris, X -8.0..33.8 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
+SM_SB_Kit_RockFaceC: 320 tris, X -8.0..33.0 Y -215.0..215.0 Z -7.5..407.5, slots M_Sand
 SM_SB_Kit_RockCap: 128 tris, X -215.0..215.0 Y -215.0..215.0 Z -6.0..9.5, slots M_Sand
+SM_SB_Kit_RockCorner: 166 tris, X -48.9..47.9 Y -48.2..48.3 Z -15.0..400.0, slots M_Sand

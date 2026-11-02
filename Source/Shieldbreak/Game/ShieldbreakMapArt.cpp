@@ -327,8 +327,8 @@ namespace ShieldbreakMapArtPrivate
 	}
 
 	/** Sandstone skin over the visible faces of the layout's rock and sand blocks (FShieldbreakMapLook::bRockSkin):
-	 *  RockFace tiles (400 x 400, bulging up to 26 cm out of the face) in a grid stretched to fill each face, and a
-	 *  RockCap dome on the tops of the small rocks. Faces a ramp runs into are left bare, so no rock pokes through the
+	 *  RockFace tiles (400 x 400, bulging up to 36 cm out of the face) in a grid stretched to fill each face, a
+	 *  RockCorner column down each exposed vertical edge, and a RockCap dome on the tops of the small rocks. Faces a ramp runs into are left bare, so no rock pokes through the
 	 *  ramp's surface. Each block's tiles take the block's own colour. */
 	void RockSkin(TArray<FShieldbreakArtGroup>& Groups, const FShieldbreakMapLayout& Layout)
 	{
@@ -412,6 +412,37 @@ namespace ShieldbreakMapArtPrivate
 						const uint32 Pick = HashCombine(GetTypeHash(Seed), HashCombine(GetTypeHash(I), GetTypeHash(J * 7 + static_cast<int32>(Yaw))));
 						TileGroup(Faces[Pick % 3], Tint).Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(P.X, P.Y, Bottom + TileH * J),
 							FVector(1.0, TileW / TileSize, TileH / TileSize)));
+					}
+				}
+			}
+			// A weathered column down each exposed vertical edge, so the boxes lose their sharp corners.
+			if (Height >= 60.0)
+			{
+				const int32 Up = FMath::Max(1, FMath::RoundToInt(Height / TileSize));
+				const double TileH = Height / Up;
+				for (const double CX : { Block.Min.X, Block.Max.X })
+				{
+					for (const double CY : { Block.Min.Y, Block.Max.Y })
+					{
+						const FVector2D Corner(CX, CY);
+						const FVector Probe(CX + (CX > Center.X ? 50.0 : -50.0), CY + (CY > Center.Y ? 50.0 : -50.0), Bottom + Height * 0.5);
+						bool bCovered = !Inside(Corner);
+						for (const FShieldbreakMapBlock& Other : Layout.Blocks)
+						{
+							bCovered |= &Other != &Block && FBox(Other.Min, Other.Max).IsInsideOrOn(Probe);
+						}
+						// Not beside a ramp, where the column would stick up through the ramp's surface.
+						for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+						{
+							const FVector2D A(Ramp.Start.X, Ramp.Start.Y), B(Ramp.End.X, Ramp.End.Y);
+							const FVector2D Closest = FMath::ClosestPointOnSegment2D(Corner, A, B);
+							bCovered |= FVector2D::Distance(Closest, Corner) < Ramp.Width * 0.5 + 60.0;
+						}
+						for (int32 J = 0; !bCovered && J < Up; ++J)
+						{
+							TileGroup(TEXT("RockCorner"), Tint).Add(FTransform(FRotator(0.f, ((Seed + J) % 8) * 45.f, 0.f),
+								FVector(CX, CY, Bottom + TileH * J), FVector(1.0, 1.0, TileH / TileSize)));
+						}
 					}
 				}
 			}

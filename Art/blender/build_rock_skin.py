@@ -8,8 +8,10 @@ and no shadow casting.
 
   RockFaceA/B/C  A 400 x 400 face tile facing +X with its back on x = 0 (the block's face). The edges tuck 8 cm
                  into the block and overlap the neighbouring tiles by 15 cm, so there are no seams; the middle
-                 bulges out up to 32 cm with horizontal sandstone strata and noise. Three variants, so the grid
-                 does not repeat. 240 triangles each.
+                 bulges out up to about 35 cm in broad lumps, with uneven sandstone beds and the odd vertical joint. Three variants, so the grid
+                 does not repeat. 320 triangles each.
+  RockCorner     A noisy vertical column (radius ~45 cm, 400 tall, 160 triangles) on each vertical edge, so the
+                 boxes lose their sharp corners.
   RockCap        A 400 x 400 top tile for small rocks (cover, pillars, hoodoos): a low, faceted dome up to 12 cm
                  high whose rim tucks 6 cm below the top.
 
@@ -30,9 +32,9 @@ import bpy  # noqa: E402
 from mathutils import Vector, noise  # noqa: E402
 
 OUT = kit.OUT
-NY, NZ = 7, 21          # grid vertices across and up: 6 x 20 quads, 240 triangles (two rows per sandstone bed)
+NY, NZ = 9, 21          # grid vertices across and up: 8 x 20 quads, 320 triangles
 HALF, TOP, OVER = 200.0, 400.0, 15.0
-BULGE, TUCK = 32.0, 8.0
+BULGE, TUCK = 60.0, 8.0
 
 
 def grid_mesh(name, points, rows, cols):
@@ -71,10 +73,16 @@ def face_tile(name, seed):
             edge = min(s, 1 - s, t, 1 - t)                     # 0 on the rim, 0.5 in the middle
             fall = min(1.0, edge / 0.18)                       # rim tucks in, the body bulges
             p = Vector((0.0, y, z))
-            n = noise.noise(p * 0.006 + offset) * 0.6 + noise.noise(p * 0.017 + offset) * 0.3
-            # Sandstone strata: each ~80 cm bed leans out towards its top, then steps back (an undercut ledge).
-            bed = (z / 80.0 + band_phase + 0.15 * n) % 1.0
-            x = (0.25 + 0.3 * n + 0.5 * bed) * BULGE
+            big = noise.noise(p * 0.004 + offset) * 0.5 + 0.5                    # broad lumps, 0..1
+            mid = noise.noise(p * 0.013 + offset * 1.7)                           # -1..1
+            # Sandstone beds of uneven thickness (~1.1 m, warped), stepping back at each bed's top; how strongly they
+            # show varies across the face, so they read as rock strata, not planks.
+            warped = z + 45.0 * noise.noise(p * 0.005 + offset * 0.5)
+            bed = (warped / 110.0 + band_phase) % 1.0
+            show = 0.5 + 0.5 * noise.noise(Vector((0.0, y * 0.006, 3.0)) + offset)
+            # The odd vertical joint, pressed in.
+            joint = max(0.0, 1.0 - abs(noise.noise(Vector((0.0, y * 0.011, z * 0.0015)) + offset)) * 9.0)
+            x = (0.15 + 0.5 * big + 0.12 * mid + 0.28 * bed * show - 0.3 * joint) * BULGE
             row.append((-TUCK + (x + TUCK) * fall, y, z))
         rows.append(row)
     return grid_mesh(name, rows, NZ, NY)
@@ -103,6 +111,44 @@ def cap_tile(name, seed):
     return grid_mesh(name, rows, n_side, n_side)
 
 
+def corner_tile(name, seed):
+    """A rounded, noisy vertical column centred on a block's corner (pivot on the corner, base z = 0, 400 tall), so
+    the box's sharp vertical edge reads as a weathered rock edge. Radius about 45 cm; the inner part is hidden."""
+    rng = random.Random(seed)
+    offset = Vector((rng.uniform(-60, 60), rng.uniform(-60, 60), rng.uniform(-60, 60)))
+    sides, levels = 8, 11
+    bm = bmesh.new()
+    rings = []
+    for r in range(levels):
+        z = -OVER + r / (levels - 1) * (TOP + OVER)        # flush with the block's top, never above it
+        ring = []
+        for k in range(sides):
+            a = math.tau * (k + 0.5) / sides
+            d = Vector((math.cos(a), math.sin(a), 0.0))
+            n = noise.noise(Vector((d.x * 2.0, d.y * 2.0, z * 0.012)) + offset)
+            rad = 45.0 * (1.0 + 0.35 * n)
+            ring.append(bm.verts.new((d.x * rad, d.y * rad, z)))
+        rings.append(ring)
+    for r in range(levels - 1):
+        for k in range(sides):
+            j = (k + 1) % sides
+            bm.faces.new((rings[r][k], rings[r][j], rings[r + 1][j], rings[r + 1][k]))
+    bm.faces.new(rings[-1])                                       # closed top, seen from above
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = sb_kit._link(name, mesh)
+    for p in obj.data.polygons:
+        p.use_smooth = False
+    obj.data.materials.append(sb_kit.material("Sand"))
+    return obj
+
+
+def rock_corner():
+    return corner_tile("SM_SB_Kit_RockCorner", 67)
+
+
 def rock_face_a():
     return face_tile("SM_SB_Kit_RockFaceA", 11)
 
@@ -119,7 +165,7 @@ def rock_cap():
     return cap_tile("SM_SB_Kit_RockCap", 51)
 
 
-PIECES = (rock_face_a, rock_face_b, rock_face_c, rock_cap)
+PIECES = (rock_face_a, rock_face_b, rock_face_c, rock_cap, rock_corner)
 
 
 def build(render=None):
