@@ -2623,8 +2623,6 @@ namespace ShieldbreakTerrainScanPrivate
 		bool bLush = false;
 		/** The skyline row of giant crags (row 2). */
 		bool bGiants = true;
-		/** Snow lying on the tops of the metal blocks (Bastion): the set's ground (snow-topped scan) as a thin cap. */
-		bool bSnowCaps = false;
 	};
 
 	const FTerrainSet* SetFor(FName Set)
@@ -2653,7 +2651,6 @@ namespace ShieldbreakTerrainScanPrivate
 			Tundra.Giants = { { TEXT("MassiveNordicCoastalCliff"), 6 }, { TEXT("MassiveTundraRockFormation"), 6 } };
 			Tundra.bHidePerimeter = false;
 			Tundra.bRow0 = false;
-			Tundra.bSnowCaps = true;
 			return Out;
 		}();
 		return Sets.Find(Set);
@@ -2808,34 +2805,6 @@ void AShieldbreakArena::BuildTerrainScan()
 		{
 			Pieces[Index]->bAffectIndirectLightingWhileHidden = true;
 			Pieces[Index]->SetVisibility(false);
-		}
-	}
-
-	// 1b. Snow caps (Bastion): the fortress's metal roofs, ramparts and keeps read as bare dark slabs in a snowfield.
-	// A 6 cm cap of the snow-topped ground, inset 25 cm so the metal edge and its trim still show, on every flat
-	// metal top at least 1.5 m across. Visual only (no collision, no shadow); out of the distance fields, where thin
-	// pieces laid on a block go black (2026-10-30). -SBNoSnowCaps for comparisons.
-	int32 SnowCaps = 0;
-	if (Set.bSnowCaps && Ground && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoSnowCaps")))
-	{
-		static const FName GlowStyle(TEXT("glow"));
-		UInstancedStaticMeshComponent* Caps = AddDecoration<UInstancedStaticMeshComponent>(TEXT("SnowCaps"), CubeMesh);
-		Caps->SetMaterial(0, Ground);
-		Caps->SetCastShadow(false);
-		Caps->bAffectDistanceFieldLighting = false;
-		Caps->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
-		{
-			const FVector Size = Block.Max - Block.Min;
-			if (Block.Style == Floor || Block.Style == Sand || Block.Style == RockStyle || Block.Style == StoneStyle
-				|| Block.Style == GlowStyle || Size.X < 150.0 || Size.Y < 150.0 || Block.Max.Z <= Layout.FloorZ + 1.0)
-			{
-				continue;
-			}
-			const FVector CapSize(Size.X - 50.0, Size.Y - 50.0, 6.0);
-			const FVector Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5, Block.Max.Z + 2.0);
-			Caps->AddInstance(FTransform(FRotator::ZeroRotator, Center, CapSize / 100.0));
-			++SnowCaps;
 		}
 	}
 
@@ -3174,7 +3143,7 @@ void AShieldbreakArena::BuildTerrainScan()
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded); %d water sheets, %d trees, %d grass tufts, %d snow caps."),
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded); %d water sheets, %d trees, %d grass tufts."),
 		*Layout.DisplayName, *Look.ScanSet.ToString(), Surfaced, RockCount, RockBlocks.Num(), StoneCount, CliffCount, Groups.Num(), Rocks.Num(), Cliffs.Num(), Giants.Num(),
-		WaterCount, TreeCount, GrassCount, SnowCaps);
+		WaterCount, TreeCount, GrassCount);
 }
