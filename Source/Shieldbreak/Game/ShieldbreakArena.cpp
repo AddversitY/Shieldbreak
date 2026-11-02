@@ -1094,7 +1094,16 @@ void AShieldbreakArena::SpawnLighting()
 	{
 		if (AVolumetricCloud* Clouds = World->SpawnActor<AVolumetricCloud>(AVolumetricCloud::StaticClass(), FTransform::Identity, Params))
 		{
-			UE_LOG(LogShieldbreak, Log, TEXT("Sky: volumetric clouds%s."), Clouds->FindComponentByClass<UVolumetricCloudComponent>() ? TEXT("") : TEXT(" (no component)"));
+			UVolumetricCloudComponent* CloudLayer = Clouds->FindComponentByClass<UVolumetricCloudComponent>();
+			// Out of the real-time sky capture: rendering the clouds into the sky light's cube faces cost up to 1.5 ms
+			// on the frames that recapture (R16 Creekbed profile); the sky light barely changes without them.
+			// -SBCloudsInSkyLight keeps them in.
+			if (CloudLayer && !FParse::Param(FCommandLine::Get(), TEXT("SBCloudsInSkyLight")))
+			{
+				CloudLayer->bVisibleInRealTimeSkyCaptures = false;
+				CloudLayer->MarkRenderStateDirty();
+			}
+			UE_LOG(LogShieldbreak, Log, TEXT("Sky: volumetric clouds%s."), CloudLayer ? TEXT("") : TEXT(" (no component)"));
 		}
 	}
 
