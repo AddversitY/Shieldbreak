@@ -533,8 +533,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.ScanSet = TEXT("Creek");
 		// The creek over the bed between the banks (ankle deep), through the gorge under the arch, and the waterfall
 		// down the north cliff behind it.
-		Creekbed.Water = { FBox(FVector(-760.0, -2700.0, 0.0), FVector(760.0, 4000.0, 22.0)),
-			FBox(FVector(-520.0, 3955.0, -20.0), FVector(520.0, 3985.0, 1650.0)) };
+		Creekbed.Water = { FBox(FVector(-760.0, -2700.0, 0.0), FVector(760.0, 4000.0, 22.0)) };
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");

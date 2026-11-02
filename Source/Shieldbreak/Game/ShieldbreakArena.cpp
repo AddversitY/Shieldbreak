@@ -439,6 +439,8 @@ void AShieldbreakArena::BuildTrim()
 	constexpr float StripHeight = 14.f, StripDepth = 6.f, TopInset = 30.f, FootHeight = 60.f, EndInset = 30.f;
 	const bool bCarvedStone = ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan"))
 		&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoCarve"));
+	// Terrain-scan maps bury the perimeter walls in cliffs: a glow line along them reads as a white seam in the rock.
+	const bool bTerrainHidesPerimeter = ShieldbreakMapArt::TerrainScanReady(MapId) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoTerrainScan"));
 	const FVector2D Half = Layout.HalfExtent;
 	int32 Count = 0;
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
@@ -463,7 +465,8 @@ void AShieldbreakArena::BuildTrim()
 			}
 			continue;
 		}
-		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bCarvedStone && (ShieldbreakScanPrivate::IsPerimeter(Layout, Block)
+		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bTerrainHidesPerimeter && ShieldbreakScanPrivate::IsPerimeter(Layout, Block))
+			|| (bCarvedStone && (ShieldbreakScanPrivate::IsPerimeter(Layout, Block)
 			|| ShieldbreakScanPrivate::AltarFor(Layout, Block))))
 		{
 			continue;
@@ -1052,7 +1055,7 @@ void AShieldbreakArena::SpawnLighting()
 			else if (ShieldbreakMapArt::TerrainScanReady(MapId))
 			{
 				int32 Cascades = 2;
-				float ShadowDistance = 9000.f;
+				float ShadowDistance = 6000.f;
 				FParse::Value(FCommandLine::Get(), TEXT("SBSunCascades="), Cascades);
 				FParse::Value(FCommandLine::Get(), TEXT("SBSunShadowDist="), ShadowDistance);
 				SunLight->SetDynamicShadowCascades(Cascades);
@@ -3034,7 +3037,14 @@ void AShieldbreakArena::BuildTerrainScan()
 		// 5b. Trees along the rim, rooted on the backdrop ground between the barrier cliffs and the next row; crowns
 		// show over the rim. Visual only, outside the play space.
 		const TArray<UStaticMesh*> Trees = Family(TEXT("3D_Plants/EuropeanHornbeam/Geometry/SimpleWind"), TEXT("SM_EuropeanHornbeam_Forest_"), { 1, 2, 3, 4, 5, 7, 8 });
-		UMaterialInterface* Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Leaves.MI_SB_Leaves"));
+		// The Megascans foliage master renders black here (like the grass): MakeScanArt's own M_SB_Leaves on the leaf
+		// cards, the mossy creek rock (world projected, so it reads as bark at this range) on the trunks.
+		UMaterialInterface* Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/M_SB_Leaves.M_SB_Leaves"));
+		if (!Leaves)
+		{
+			Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Leaves.MI_SB_Leaves"));
+		}
+		UMaterialInterface* Bark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Scan_CreekRock.MI_SB_Scan_CreekRock"));
 		int32 TreeTotal = 70;
 		FParse::Value(FCommandLine::Get(), TEXT("SBTrees="), TreeTotal);
 		for (int32 Index = 0; Trees.Num() > 0 && Index < TreeTotal; ++Index)
@@ -3055,11 +3065,12 @@ void AShieldbreakArena::BuildTerrainScan()
 		for (UStaticMesh* Mesh : Trees)
 		{
 			UInstancedStaticMeshComponent** Instances = PlantGroups.Find(Mesh);
-			for (int32 Slot = 0; Instances && Leaves && Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+			for (int32 Slot = 0; Instances && Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
 			{
-				if (Mesh->GetStaticMaterials()[Slot].MaterialSlotName == FName(TEXT("TwoSided")))
+				const bool bLeafSlot = Mesh->GetStaticMaterials()[Slot].MaterialSlotName == FName(TEXT("TwoSided"));
+				if (UMaterialInterface* Surface = bLeafSlot ? Leaves : Bark)
 				{
-					(*Instances)->SetMaterial(Slot, Leaves);
+					(*Instances)->SetMaterial(Slot, Surface);
 				}
 			}
 		}
@@ -3068,7 +3079,7 @@ void AShieldbreakArena::BuildTerrainScan()
 		// player, on our own M_SB_Grass (the Megascans foliage master renders it near black).
 		const TArray<UStaticMesh*> Grass = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 		UMaterialInterface* GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/M_SB_Grass.M_SB_Grass"));
-		const int32 Drifts = FMath::Clamp(static_cast<int32>(Half.X * Half.Y / 220000.0), 40, 180);
+		const int32 Drifts = FMath::Clamp(static_cast<int32>(Half.X * Half.Y / 440000.0), 30, 90);
 		for (int32 Drift = 0; Grass.Num() > 0 && GrassSurface && Drift < Drifts; ++Drift)
 		{
 			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
@@ -3105,7 +3116,7 @@ void AShieldbreakArena::BuildTerrainScan()
 				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
 				const FBox Placed = PlacedBounds(Mesh, Transform);
 				Transform.SetTranslation(FVector(At.X, At.Y, GroundZ - Placed.Min.Z - 7.0));
-				PlacePlant(Mesh, Transform, 5000);
+				PlacePlant(Mesh, Transform, 4000);
 				++GrassCount;
 			}
 		}

@@ -379,8 +379,8 @@ TERRAIN = {
                         threshold=0.75, coverage=1.0, desat=0.85, tint=(0.95, 0.97, 1.0), **SNOW),
     # Creek (Creekbed's 2026-11-02 rework): a green valley. Grass and earth underfoot, tan sandstone with grass on top.
     "CreekGround": dict(side="MossyRockyGround", top="MossyGrass", side_tile=420.0, top_tile=360.0, threshold=0.35,
-                        coverage=0.78, desat=0.0, tint=(1.0, 0.97, 0.92), patch_noise=1.0, top_desat=0.1,
-                        top_tint=(0.82, 0.95, 0.62)),
+                        coverage=0.6, desat=0.0, tint=(1.0, 0.97, 0.92), patch_noise=1.0, top_desat=0.25,
+                        top_tint=(0.74, 0.84, 0.56)),
     "CreekRock": dict(side="asset:HugeSandstoneCliff", top="MossyGrass", side_tile=650.0, top_tile=360.0,
                       threshold=0.55, coverage=0.85, desat=0.15, tint=(1.08, 1.02, 0.94), top_desat=0.1,
                       top_tint=(0.82, 0.95, 0.62)),
@@ -675,8 +675,8 @@ def water_material():
     log("%s: ripples and foam from %s" % (path, surface))
 
     for name, scalars, vectors in (
-            ("MI_SB_Water", {"Vertical": 0.0, "Tile": 650.0, "FlowX": 0.0, "FlowY": -0.07, "FoamAmount": 0.0, "Roughness": 0.05, "Emissive": 0.0},
-             {"Color": (0.035, 0.08, 0.075), "RippleScale": (0.28, 0.28, 1.0)}),
+            ("MI_SB_Water", {"Vertical": 0.0, "Tile": 650.0, "FlowX": 0.0, "FlowY": -0.07, "FoamAmount": 0.0, "Roughness": 0.02, "Emissive": 0.0, "Specular": 0.8},
+             {"Color": (0.018, 0.035, 0.03), "RippleScale": (0.35, 0.35, 1.0)}),
             ("MI_SB_Waterfall", {"Vertical": 1.0, "Tile": 260.0, "FlowX": 0.0, "FlowY": -1.3, "FoamAmount": 1.6, "Roughness": 0.3, "Emissive": 0.35},
              {"Color": (0.32, 0.38, 0.38), "FoamColor": (0.85, 0.9, 0.9), "RippleScale": (0.5, 0.5, 1.0)})):
         mi_path = MATERIALS + "/" + name
@@ -694,6 +694,60 @@ def water_material():
         log("%s: built" % mi_path)
 
 
+def leaf_material():
+    """M_SB_Leaves: our own masked, two-sided leaf material on the hornbeam's summer albedo. MI_SB_Leaves is an
+    instance of the Megascans foliage master, which renders near black in this project (Creekbed R17)."""
+    found = [a.split(".")[0] for a in eal.list_assets("/Game/Megascans/3D_Plants/EuropeanHornbeam", recursive=True)]
+    albedo_path = next((a for a in found if a.endswith("/T_EuropeanHornbeam_TwoSided_Summer_Albedo")), None)
+    mask_path = next((a for a in found if a.endswith("/T_EuropeanHornbeam_TwoSided_Summer_Mask")), None)
+    if not albedo_path:
+        log("M_SB_Leaves: no T_EuropeanHornbeam_TwoSided_Summer_Albedo")
+        return
+    albedo = unreal.load_asset(albedo_path)
+    mask = unreal.load_asset(mask_path) if mask_path else None
+    albedo_alpha = not albedo.get_editor_property("compression_no_alpha")
+    path = MATERIALS + "/M_SB_Leaves"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_Leaves", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    mat.set_editor_property("two_sided", True)
+    mat.set_editor_property("opacity_mask_clip_value", 0.4)
+    bc = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -900, 0)
+    bc.set_editor_property("parameter_name", "Albedo")
+    bc.set_editor_property("texture", albedo)
+    bc.set_editor_property("sampler_type", sampler_for(albedo, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR))
+    tint = mel.create_material_expression(mat, unreal.MaterialExpressionVectorParameter, -900, 300)
+    tint.set_editor_property("parameter_name", "Tint")
+    tint.set_editor_property("default_value", unreal.LinearColor(1.1, 1.2, 0.95, 1.0))
+    tinted = mel.create_material_expression(mat, unreal.MaterialExpressionMultiply, -600, 100)
+    mel.connect_material_expressions(bc, "RGB", tinted, "A")
+    mel.connect_material_expressions(tint, "", tinted, "B")
+    mel.connect_material_property(tinted, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    if albedo_alpha or not mask:
+        mel.connect_material_property(bc, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
+        source = "albedo alpha"
+    else:
+        m = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSampleParameter2D, -900, 600)
+        m.set_editor_property("parameter_name", "Mask")
+        m.set_editor_property("texture", mask)
+        m.set_editor_property("sampler_type", sampler_for(mask, unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR))
+        mel.connect_material_property(m, "R", unreal.MaterialProperty.MP_OPACITY_MASK)
+        source = "mask R (compression %s)" % mask.get_editor_property("compression_settings")
+    rough = mel.create_material_expression(mat, unreal.MaterialExpressionConstant, -400, 400)
+    rough.set_editor_property("r", 0.7)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.set_material_usage(mat, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES)
+    nanite = getattr(unreal.MaterialUsage, "MATUSAGE_NANITE", None)
+    if nanite is not None:
+        mel.set_material_usage(mat, nanite)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("%s: albedo %s, opacity from %s" % (path, albedo.get_name(), source))
+
+
 def main():
     try:
         assets = check_dependencies()
@@ -706,6 +760,7 @@ def main():
         scan_instances(scan_material())
         terrain_sets()
         water_material()
+        leaf_material()
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads
         log("RESULT failed: %s" % error)
