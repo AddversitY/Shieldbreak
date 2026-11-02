@@ -707,6 +707,11 @@ def spire():
     for x0, y0, x1, y1 in [(-4300, 2000, -4000, 2300), (-500, 1800, -200, 2100), (-2300, -2100, -2000, -1800),
                            (-3300, 700, -3000, 1000)]:
         m.block((x0, y0, 0), (x1, y1, 2200), "metal", sym=True)   # structure; only the column glows
+    # Two pylons through the ring (one per side of the column) break the diagonal deck-door-to-deck-door lines that
+    # run past the column at deck height (deck-to-deck lines 14 -> 7, lines over 100 m 101 -> 70); the ring walkway
+    # keeps 4.5 m beside each.
+    m.block((-1300, -1350, 0), (-1000, -1050, 2200), "metal", sym=True)
+    m.block((-150, -1350, 0), (150, -1050, 2200), "metal", sym=True)
 
     # ---- The energy column: a room with four doors (rockets), its roof the crown (sniper) ----
     m.wall_y(-600, 600, -570, 0, C - S, [(-200, 200, 0, 400)], color="glow", sym=True)
@@ -729,7 +734,7 @@ def spire():
     m.cover((-4600, -250, B), (-4400, -100, B + 110), "metal", sym=True)       # bridge: staggered
     m.cover((-2600, 100, B), (-2400, 250, B + 110), "metal", sym=True)
     m.cover((-500, -500, C), (-300, -300, C + 110), "metal", sym=True)         # crown
-    m.cover((300, 1200, B), (500, 1350, B + 110), "metal", sym=True)       # ring
+    m.cover((550, 1200, B), (700, 1350, B + 110), "metal", sym=True)       # ring
     m.cover((-4800, 1400, 0), (-4500, 1700, 130), sym=True)                    # floor
     m.cover((-4400, -1800, 0), (-4100, -1500, 130), sym=True)
     m.cover((-2600, 900, 0), (-2300, 1200, 130), sym=True)

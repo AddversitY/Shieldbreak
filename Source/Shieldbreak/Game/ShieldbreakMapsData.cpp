@@ -800,6 +800,10 @@ namespace ShieldbreakMapsData
 		L.Blocks.Add({ FVector(2000.0f, 1800.0f, 0.0f), FVector(2300.0f, 2100.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(-3300.0f, 700.0f, 0.0f), FVector(-3000.0f, 1000.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(3000.0f, -1000.0f, 0.0f), FVector(3300.0f, -700.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(-1300.0f, -1350.0f, 0.0f), FVector(-1000.0f, -1050.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(1000.0f, 1050.0f, 0.0f), FVector(1300.0f, 1350.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(-150.0f, -1350.0f, 0.0f), FVector(150.0f, -1050.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(-150.0f, 1050.0f, 0.0f), FVector(150.0f, 1350.0f, 2200.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(-600.0f, -600.0f, 0.0f), FVector(-540.0f, -200.0f, 1060.0f), FLinearColor(0.22f, 0.62f, 1.00f), FName(TEXT("glow")) });
 		L.Blocks.Add({ FVector(540.0f, 200.0f, 0.0f), FVector(600.0f, 600.0f, 1060.0f), FLinearColor(0.22f, 0.62f, 1.00f), FName(TEXT("glow")) });
 		L.Blocks.Add({ FVector(-600.0f, -200.0f, 400.0f), FVector(-540.0f, 200.0f, 1060.0f), FLinearColor(0.22f, 0.62f, 1.00f), FName(TEXT("glow")) });
@@ -823,8 +827,8 @@ namespace ShieldbreakMapsData
 		L.Blocks.Add({ FVector(2400.0f, -250.0f, 700.0f), FVector(2600.0f, -100.0f, 810.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(-500.0f, -500.0f, 1100.0f), FVector(-300.0f, -300.0f, 1210.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(300.0f, 300.0f, 1100.0f), FVector(500.0f, 500.0f, 1210.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
-		L.Blocks.Add({ FVector(300.0f, 1200.0f, 700.0f), FVector(500.0f, 1350.0f, 810.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
-		L.Blocks.Add({ FVector(-500.0f, -1350.0f, 700.0f), FVector(-300.0f, -1200.0f, 810.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(550.0f, 1200.0f, 700.0f), FVector(700.0f, 1350.0f, 810.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
+		L.Blocks.Add({ FVector(-700.0f, -1350.0f, 700.0f), FVector(-550.0f, -1200.0f, 810.0f), FLinearColor(0.66f, 0.68f, 0.71f), FName(TEXT("metal")) });
 		L.Blocks.Add({ FVector(-4800.0f, 1400.0f, 0.0f), FVector(-4500.0f, 1700.0f, 130.0f), FLinearColor(0.25f, 0.38f, 0.28f), FName(TEXT("cover")) });
 		L.Blocks.Add({ FVector(4500.0f, -1700.0f, 0.0f), FVector(4800.0f, -1400.0f, 130.0f), FLinearColor(0.25f, 0.38f, 0.28f), FName(TEXT("cover")) });
 		L.Blocks.Add({ FVector(-4400.0f, -1800.0f, 0.0f), FVector(-4100.0f, -1500.0f, 130.0f), FLinearColor(0.25f, 0.38f, 0.28f), FName(TEXT("cover")) });

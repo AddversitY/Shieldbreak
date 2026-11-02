@@ -48,11 +48,17 @@ namespace ShieldbreakGameModePrivate
 	constexpr float FloorTraceUp = 100.f;
 	constexpr float FloorTraceDown = 500.f;
 	constexpr float FallbackTraceRange = 5000.f;
+	/** Spawn line-of-sight check: eye height above the spawn's feet, how far an enemy counts as seeing it (beyond
+	 *  the Battle Rifle's 40 m precision range), and how much a seen spawn's rating drops. */
+	constexpr double SpawnEyeHeight = 160.0;
+	constexpr double SpawnSightRange = 6000.0;
+	constexpr double SeenSpawnPenalty = 0.01;
 
 	struct FSpawnCandidate
 	{
 		int32 Index = 0;
 		double Rating = 0.0;
+		bool bSeen = false;
 	};
 }
 
@@ -341,6 +347,7 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 	// Every other living character is an enemy, except teammates in Team Slayer.
 	const uint8 SpawnTeam = ShieldbreakTeams::GetTeam(ForController);
 	TArray<FVector> EnemyLocations;
+	TArray<FVector> EnemyEyes;
 	for (TActorIterator<AShieldbreakCharacter> It(CurrentWorld); It; ++It)
 	{
 		const AShieldbreakCharacter* Other = *It;
@@ -348,8 +355,12 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 			&& !ShieldbreakTeams::AreTeammates(Other, ForController))
 		{
 			EnemyLocations.Add(Other->GetActorLocation());
+			EnemyEyes.Add(Other->GetPawnViewLocation());
 		}
 	}
+	// Map geometry only (players never block the check): world static is what the arena is built from.
+	FCollisionQueryParams SightParams(SCENE_QUERY_STAT(ShieldbreakSpawnSight), false);
+	const FCollisionObjectQueryParams SightObjects(ECC_WorldStatic);
 
 	TArray<FSpawnCandidate> Candidates;
 	Candidates.Reserve(Spawns.Num());
@@ -370,6 +381,19 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 			{
 				Candidate.Rating = FMath::Min(Candidate.Rating, FVector::DistSquared(SpawnLocation, EnemyLocation));
 			}
+			// A spawn an enemy can already see (within rifle range) is a spawn trap: rate it far below any hidden
+			// spawn, so it is used only when every spawn is seen. One trace per enemy, a few hundred per respawn at most.
+			const FVector SpawnEye = SpawnLocation + FVector(0.0, 0.0, SpawnEyeHeight);
+			for (const FVector& Eye : EnemyEyes)
+			{
+				if (FVector::DistSquared(SpawnEye, Eye) < FMath::Square(SpawnSightRange)
+					&& !CurrentWorld->LineTraceTestByObjectType(Eye, SpawnEye, SightObjects, SightParams))
+				{
+					Candidate.Rating *= SeenSpawnPenalty;
+					Candidate.bSeen = true;
+					break;
+				}
+			}
 		}
 
 		// Teams start from their own half of the (X-symmetric) arena: red at -X, blue at +X.
@@ -387,10 +411,16 @@ FTransform AShieldbreakGameMode::ChooseSpawnTransform(AController* ForController
 
 	Candidates.Sort([](const FSpawnCandidate& A, const FSpawnCandidate& B)
 	{
-		return A.Rating > B.Rating;
+		return A.bSeen != B.bSeen ? !A.bSeen : A.Rating > B.Rating;
 	});
 
-	const int32 PoolSize = FMath::Min(SpawnChoicePool, Candidates.Num());
+	// Pick among the best few, but never a seen spawn while a hidden one is left.
+	int32 Hidden = 0;
+	for (const FSpawnCandidate& Candidate : Candidates)
+	{
+		Hidden += Candidate.bSeen ? 0 : 1;
+	}
+	const int32 PoolSize = FMath::Min(SpawnChoicePool, Hidden > 0 ? Hidden : Candidates.Num());
 	const FTransform& Picked = Spawns[Candidates[FMath::RandRange(0, PoolSize - 1)].Index];
 
 	return FTransform(FRotator(0.0, Picked.Rotator().Yaw, 0.0),
