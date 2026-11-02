@@ -2890,7 +2890,7 @@ void AShieldbreakArena::BuildTerrainScan()
 	const TArray<UStaticMesh*> Stones = Family(TEXT("3D_Assets/SmallStonesPack"), TEXT("SM_SmallStonesPack_"), { 1, 2, 3, 4, 5, 6, 7 });
 	const FVector2D Half = Layout.HalfExtent;
 	int32 StoneCount = 0;
-	if (Set.bStones && Stones.Num() > 0)
+	if (Set.bStones && Stones.Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("SBNoStones"))) // -SBNoStones: diagnosis
 	{
 		for (const int32 Index : RockBlocks)
 		{
