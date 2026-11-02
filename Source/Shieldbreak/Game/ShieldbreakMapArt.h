@@ -33,6 +33,8 @@ struct FShieldbreakMapLook
 	bool bScan = false;
 	/** Glowing trim lines along built structures (team-coloured structures keep red and blue). */
 	FLinearColor Trim = FLinearColor(0.25f, 0.8f, 1.f);
+	/** Recolours the kit's M_Glow* slots (cyan or amber as modelled) to this colour; alpha 0 keeps them as modelled. */
+	FLinearColor KitGlow = FLinearColor::Transparent;
 	/** Enclosed maps: the colour of the lamps under the ceiling (AShieldbreakArena::BuildInteriorLights). */
 	FLinearColor InteriorLight = FLinearColor(1.f, 0.93f, 0.84f);
 };

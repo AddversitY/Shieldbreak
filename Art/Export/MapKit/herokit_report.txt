@@ -1,0 +1,4 @@
+SM_SB_Kit_ReactorCrown: 1476 tris, X -1075.1..1075.1 Y -1075.1..1075.1 Z -260.0..0.0, slots M_Gunmetal, M_Steel, M_GlowAmber
+SM_SB_Kit_Condenser: 388 tris, X -987.5..987.5 Y -987.5..987.5 Z -420.0..0.0, slots M_Ivory, M_GlowCyan
+SM_SB_Kit_Watchtower: 1200 tris, X -1158.6..1158.6 Y -1158.6..1158.6 Z 0.0..5380.0, slots M_Sand, M_Ivory, M_GlowAmber
+SM_SB_Kit_SandstoneArch: 1056 tris, X -928.6..913.2 Y -4567.6..4230.7 Z -44.1..4047.4, slots M_Sand

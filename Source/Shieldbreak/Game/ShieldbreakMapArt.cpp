@@ -353,6 +353,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
 		Keel.Haze = FLinearColor(0.42f, 0.34f, 0.26f);
 		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
+		Keel.KitGlow = FLinearColor(1.0f, 0.5f, 0.12f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
 		Keel.InteriorLight = FLinearColor(1.f, 0.72f, 0.45f); // sodium-orange work lamps inside the hull
 		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
@@ -364,6 +365,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Bastion.DarkMetal = FLinearColor(0.13f, 0.14f, 0.17f);
 		Bastion.Haze = FLinearColor(0.66f, 0.54f, 0.56f);
 		Bastion.Trim = FLinearColor(1.0f, 0.62f, 0.26f);
+		Bastion.KitGlow = FLinearColor(1.0f, 0.6f, 0.25f);
 		// Sanctum: an overgrown Forerunner-style sanctuary in a canyon. Scanned stone with moss on top, grassy earth,
 		// cliffs and hornbeams round the walls, soft blue-green haze (BuildScanArt).
 		FShieldbreakMapLook& Sanctum = Out.Add(FName(TEXT("Sanctum")));
@@ -381,6 +383,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Foliage = FLinearColor(0.22f, 0.24f, 0.10f);
 		Creekbed.Haze = FLinearColor(0.78f, 0.58f, 0.38f);
 		Creekbed.Trim = FLinearColor(1.0f, 0.66f, 0.30f);
+		Creekbed.KitGlow = FLinearColor(1.0f, 0.62f, 0.28f);
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");
@@ -390,6 +393,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Spire.DarkMetal = FLinearColor(0.24f, 0.27f, 0.31f);
 		Spire.Haze = FLinearColor(0.55f, 0.66f, 0.80f);
 		Spire.Trim = FLinearColor(0.22f, 0.62f, 1.0f);
+		Spire.KitGlow = FLinearColor(0.3f, 0.7f, 1.0f);
 		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
 		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
 		return Out;
@@ -507,6 +511,32 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 
 	auto Rocks = [&](const TCHAR* Piece, const FScatter& Spec) { Scatter(Group(Groups, Piece), Random, Layout, Spec); };
 
+	// Enclosed maps have no outside to dress: their one hero piece hangs from the ceiling over the middle, above
+	// anywhere a player can stand or jump to (visual only, so it must never hide a player or seem to block a shot).
+	if (Layout.bIndoor)
+	{
+		double CeilingZ = Layout.FloorZ + 1500.0;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			if (Block.Max.X - Block.Min.X >= 1.8 * Layout.HalfExtent.X && Block.Max.Y - Block.Min.Y >= 1.8 * Layout.HalfExtent.Y
+				&& Block.Min.Z > Layout.FloorZ + 300.0)
+			{
+				CeilingZ = Block.Min.Z;
+			}
+		}
+		if (Id == TEXT("Keel"))
+		{
+			// The warship's reactor crown over the core (hangs 2.6 m; the core top is at 6.5 m, the ceiling at 15 m).
+			Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+		}
+		else if (Id == TEXT("Spire"))
+		{
+			// A hard-light condenser over the energy column (hangs 4.2 m from the 22 m ceiling; the crown is at 11 m).
+			Group(Groups, TEXT("Condenser")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+		}
+		return Groups;
+	}
+
 	if (Id == TEXT("Keel"))
 	{
 		// The arena is the deck of a ship in dock: hull ribs along both long sides, cranes over the ends,
@@ -534,6 +564,15 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		Rocks(TEXT("RockTall"), { 34, 900.f, 9000.f, 1.2f, 2.6f, 900.f });
 		Rocks(TEXT("RockShelf"), { 18, 1200.f, 9000.f, 1.4f, 2.6f, 2000.f });
 		Rocks(TEXT("RockBoulder"), { 24, 600.f, 7000.f, 0.8f, 1.8f, 1000.f });
+		// Hero landmark: a keep-tower with a beacon fire beyond the north wall, on the centre line (neutral: the map
+		// mirrors across x = 0), so both teams share one skyline marker for the long-range north.
+		for (const FSide& Side : Sides(Layout))
+		{
+			if (IsLongSide(Side) && Side.Normal.Y > 0.0)
+			{
+				Group(Groups, TEXT("Watchtower")).Add(FacingArena(Layout, Side, 2600.f, 0.f, FVector(1.1f)));
+			}
+		}
 	}
 	else if (Id == TEXT("Sanctum"))
 	{
@@ -592,6 +631,14 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		Rocks(TEXT("RockShelf"), { 24, 600.f, 8000.f, 1.3f, 2.6f, 1800.f });
 		Rocks(TEXT("RockBoulder"), { 40, 200.f, 7000.f, 0.6f, 1.6f, 900.f });
 		Rocks(TEXT("RockTall"), { 18, 2500.f, 10000.f, 1.6f, 2.8f, 1400.f });
+		// Hero landmark: a natural sandstone arch beyond the south cliff, spanning the skyline behind the cave.
+		for (const FSide& Side : Sides(Layout))
+		{
+			if (IsLongSide(Side) && Side.Normal.Y < 0.0)
+			{
+				Group(Groups, TEXT("SandstoneArch")).Add(FacingArena(Layout, Side, 3800.f, 600.f, FVector(1.35f)));
+			}
+		}
 	}
 	else if (Id == TEXT("Spire"))
 	{

@@ -586,6 +586,20 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
 		const FString Slot = Slots[Index].MaterialSlotName.ToString();
+		if (Look.KitGlow.A > 0.f && Slot.StartsWith(TEXT("M_Glow")) && GlowMaterial)
+		{
+			// This map's glow colour instead of the kit's modelled cyan or amber.
+			Mesh->SetMaterial(Index, GlowMaterial);
+			if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+			{
+				MID->SetVectorParameterValue(TEXT("BaseColor"), Look.KitGlow * 0.2f);
+				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Look.KitGlow);
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+				MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
+				MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
+			}
+			continue;
+		}
 		for (const FSlotLook& Entry : SlotLooks)
 		{
 			if (!Slot.StartsWith(Entry.Prefix))
@@ -610,8 +624,8 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 void AShieldbreakArena::BuildMapArt()
 {
 	// -SBNoMapArt drops the set pieces, for before/after shots and performance comparisons.
-	// Enclosed maps have no outside to dress.
-	if (GetNetMode() == NM_DedicatedServer || Layout.bIndoor || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
+	// Enclosed maps have no outside to dress; ShieldbreakMapArt::Plan gives them only their hero piece.
+	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
 	{
 		return;
 	}
