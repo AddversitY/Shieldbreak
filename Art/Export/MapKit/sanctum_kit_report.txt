@@ -3,3 +3,5 @@ SM_SB_Kit_Shard: 888 tris, X -747.0..747.0 Y -747.0..747.0 Z 0.0..5000.0, slots 
 SM_SB_Kit_Terrace: 2060 tris, X -1497.8..114.7 Y -2007.8..2007.8 Z 0.0..1970.0, slots M_Ivory, M_GlowCyan, M_Sand
 SM_SB_Kit_Altar: 940 tris, X -328.3..328.3 Y -328.3..328.3 Z 0.0..1185.6, slots M_Ivory, M_Sand, M_GlowCyan, M_GlowAmber
 SM_SB_Kit_Cap: 316 tris, X -51.4..51.4 Y -51.4..51.4 Z 0.0..152.0, slots M_Ivory, M_GlowCyan
+SM_SB_Kit_Fin: 92 tris, X -4.0..43.8 Y -14.0..14.0 Z -0.6..100.0, slots M_Ivory, M_GlowCyan
+SM_SB_Kit_Eave: 156 tris, X -4.0..58.5 Y -50.0..50.0 Z -109.7..-10.0, slots M_Ivory, M_GlowCyan
