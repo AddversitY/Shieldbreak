@@ -712,6 +712,17 @@ void AShieldbreakArena::BuildCladding()
 		return;
 	}
 	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+	// -SBCladTint=R,G,B overrides the map's plate tint, for before/after shots.
+	FLinearColor CladTint = Look.CladTint;
+	FString TintArg;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SBCladTint="), TintArg, false))
+	{
+		TArray<FString> Parts;
+		if (TintArg.ParseIntoArray(Parts, TEXT(","), true) == 3)
+		{
+			CladTint = FLinearColor(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+		}
+	}
 	int32 Kinds = 0, Placed = 0;
 	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Cladding(MapId, Layout))
 	{
@@ -743,7 +754,7 @@ void AShieldbreakArena::BuildCladding()
 			if (MID)
 			{
 				// A group's own colour (sandstone paving) overrides the map's metal.
-				MID->SetVectorParameterValue(TEXT("Tint"), Group.TeamTint.A > 0.f ? Group.TeamTint : Look.CladTint);
+				MID->SetVectorParameterValue(TEXT("Tint"), Group.TeamTint.A > 0.f ? Group.TeamTint : CladTint);
 				MID->SetVectorParameterValue(TEXT("AccentColor"), Look.CladAccent);
 				// Floor plates keep their accent lines painted but barely lit, or the whole floor reads as a glowing grid.
 				if (Group.Piece.ToString().StartsWith(TEXT("Floor")))
