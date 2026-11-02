@@ -606,43 +606,89 @@ def creekbed():
 
 
 def spire():
-    """Narrows / Construct principles: two high bases joined by a long, narrow bridge over a lower level. Gravity
-    lifts and ramps climb from the lower level; the rockets sit under the bridge, the camo out on it."""
-    m = Map("Spire", "Spire", "Narrows / Construct", 4200, 1600, wall_h=1300, max_z=1800)
+    """Spire (2026-11 redesign): the hollow inside of a Forerunner tower, fully enclosed (22 m ceiling). High against low,
+    split by the energy column in the middle.
+
+    Each base is a deck at 7 m (flag) over an undercroft at floor level. A 5 m bridge runs from each deck to a ring
+    round the column, so the old 56 m bridge sightline is broken by the column itself. The column's base is a room
+    with four doors holding the rockets; its top is the crown (11 m) with the sniper, reached only by two exposed
+    gravity lifts from the side galleries. Each flank has a long gallery (3.5 m) at one team's end and a raised vent
+    block at the other. Point-symmetric. Levels: floor 0, galleries 350, bridge / ring / decks 700, crown 1100."""
+    m = Map("Spire", "Spire", "Narrows / Construct", 7200, 3600, wall_h=2200, max_z=2400)
     m.sun = (-30.0, 160.0)
-    m.fog = 0.006
-    # Bases (top 600) spanning each end.
-    m.block((-4200, -1600, 0), (-2800, 1600, 600), "red")
-    m.block((4200, 1600, 0), (2800, -1600, 600), "blue")
-    # Bridge (top 600, 400 wide) with staggered cover.
-    m.block((-2800, -200, 560), (2800, 200, 600), "bridge")
-    m.block((-1600, -200, 600), (-1400, -120, 690), "metal", sym=True)
-    m.block((-500, 120, 600), (-300, 200, 690), "metal", sym=True)
-    # Mid platforms (top 300) along each side, ramps up from the lower level and on to the base.
-    m.block((-2200, 900, 260), (-1200, 1400, 300), "metal", sym=True)
-    m.ramp((-650, 1150, 0), (-1200, 1150, 300), 250, sym=True)
-    m.ramp((-2200, 1150, 300), (-2800, 1150, 600), 250, sym=True)
-    # Lower-level cover and the support piers under the bridge.
-    for x in (-2000, -1000, 1000, 2000):
-        m.block((x - 60, -60, 0), (x + 60, 60, 560), "dark")
-    m.block((-1600, -1200, 0), (-1350, -950, 160), "cover", sym=True)
-    m.block((-400, -1100, 0), (-150, -1050, 120), "cover", sym=True)
-    # Gravity lifts: base front to the base top, and lower level to the bridge.
-    m.lift((-2600, -900, 0), (-3100, -900, 600), sym=True)
-    m.lift((-600, -700, 0), (-600, -100, 600), sym=True)
-    # Sniper perch at the back of each base (top 900, two 150 steps).
-    m.block((-4100, -300, 600), (-3800, 300, 900), "tower", sym=True)
-    m.block((-3800, -300, 600), (-3650, 300, 750), "tower", sym=True)
-    # Items.
+    m.fog = 0.003
+    m.check_reach = True
+    m.roof()
+    G, B, C, S = 350, 700, 1100, 40
+
+    # ---- Bases: deck at B over an undercroft with three doors ----
+    m.block((-7200, -3600, B - S), (-5800, 3600, B), "red", sym=True)
+    m.wall_y(-3600, 3600, -5800, 0, B - S, [(-2400, -1600, 0, 400), (-400, 400, 0, 400), (1600, 2400, 0, 400)],
+             color="red", sym=True)
+    m.block((-5830, -900, B), (-5770, 900, B + 110), "red", sym=True)          # deck lip
+    m.lift((-5200, 1200, 0), (-6200, 1200, B), sym=True)
+    # Deck front: a wall up to the ceiling with three ways in (bridge + lift, two gallery ramps), so the decks are rooms
+    # and the 140 m deck-to-deck lines are cut to what the doors allow.
+    m.wall_y(-3600, 3600, -5800, B, 2200, [(-3400, -2800, B, B + 400), (-700, 700, B, B + 400), (950, 1450, B, B + 700), (2800, 3400, B, B + 400)],
+             color="red", sym=True)
+
+    # ---- Bridge from the deck to the ring round the column ----
+    m.block((-5800, -250, B - S), (-1400, 250, B), "bridge", sym=True)
+    m.block((-1400, 600, B - S), (1400, 1400, B), "bridge", sym=True)          # ring: north / south
+    m.block((-1400, -600, B - S), (-600, 600, B), "bridge", sym=True)          # ring: west / east
+    m.lift((-3600, -1200, 0), (-3600, 0, B), sym=True)
+    # Floor-to-ceiling pylons: bridge supports and lane breakers, so the 140 m floor is a run of 30-40 m fights.
+    m.block((-4600, -250, 0), (-4400, 250, B - S), "metal", sym=True)
+    m.block((-2400, -250, 0), (-2200, 250, B - S), "metal", sym=True)
+    for x0, y0, x1, y1 in [(-4300, 2000, -4000, 2300), (-500, 1800, -200, 2100), (-2300, -2100, -2000, -1800),
+                           (-3300, 700, -3000, 1000)]:
+        m.block((x0, y0, 0), (x1, y1, 2200), "glow", sym=True)
+
+    # ---- The energy column: a room with four doors (rockets), its roof the crown (sniper) ----
+    m.wall_y(-600, 600, -570, 0, C - S, [(-200, 200, 0, 400)], color="glow", sym=True)
+    m.wall_x(-540, 540, 570, 0, C - S, [(-200, 200, 0, 400)], color="glow", sym=True)
+    m.block((-600, -600, C - S), (600, 600, C), "glow")
+    m.lift((-2400, 3000, G), (-300, 300, C), sym=True)
+
+    # ---- North flank, red end: the long gallery ----
+    m.block((-5200, 2600, G - S), (-800, 3600, G), "metal", sym=True)
+    m.ramp((-3200, 1800, 0), (-3200, 2600, G), 500, sym=True)
+    m.ramp((-5150, 3100, G), (-5800, 3100, B), 500, sym=True)
+    m.ramp((-1000, 2700, G), (-1000, 1400, B), 400, sym=True)
+
+    # ---- South flank, red end: the vent block ----
+    m.block((-5200, -3600, 0), (-3200, -2600, G), "metal", sym=True)
+    m.ramp((-2400, -3100, 0), (-3200, -3100, G), 500, sym=True)
+    m.ramp((-5150, -3100, G), (-5800, -3100, B), 500, sym=True)
+
+    # ---- Cover ----
+    m.cover((-4600, -250, B), (-4400, -100, B + 110), "metal", sym=True)       # bridge: staggered
+    m.cover((-2600, 100, B), (-2400, 250, B + 110), "metal", sym=True)
+    m.cover((-500, -500, C), (-300, -300, C + 110), "metal", sym=True)         # crown
+    m.cover((300, 1200, B), (500, 1350, B + 110), "metal", sym=True)       # ring
+    m.cover((-4800, 1400, 0), (-4500, 1700, 130), sym=True)                    # floor
+    m.cover((-4400, -1800, 0), (-4100, -1500, 130), sym=True)
+    m.cover((-2600, 900, 0), (-2300, 1200, 130), sym=True)
+    m.cover((-2000, -1500, 0), (-1700, -1200, 450), "metal", sym=True)
+    m.cover((-2000, 1100, 0), (-1700, 1600, 450), "metal", sym=True)
+    m.cover((-5300, -500, 0), (-5000, 500, 450), "metal", sym=True)
+    m.cover((-3000, -2400, 0), (-2700, -2100, 130), sym=True)
+    m.cover((-4200, 3000, G), (-4000, 3300, G + 110), "metal", sym=True)       # gallery
+    m.cover((-1500, 2900, G), (-1300, 3100, G + 110), "metal", sym=True)
+    m.cover((-4600, -3100, G), (-4400, -2700, G + 110), "metal", sym=True)     # vent block
+    m.cover((-6900, 2100, B), (-6600, 2400, B + 110), "metal", sym=True)       # deck
+    m.cover((-6900, -2400, B), (-6600, -2100, B + 110), "metal", sym=True)
+
+    # ---- Items and objectives ----
     m.weapon("rockets", (0, 0, 70))
-    m.weapon("sniper", (-3950, 0, 970), sym=True)
-    m.weapon("rail", (-1700, 1150, 370), sym=True)
-    m.powerup("camo", (0, 0, 670))
-    for s in [(-3400, 800, 600), (-3400, -800, 600), (-3100, 0, 600), (-1700, 1150, 300), (-2400, -900, 0)]:
-        m.spawn(s)
-    m.flag((-3600, 0, 690))
-    m.hills = [(0, 0, 820), (0, 900, 220), (-3300, 0, 820), (0, -900, 220), (3300, 0, 820)]
-    m.ball = (0, 600, 90)
+    m.weapon("sniper", (0, 0, C + 70))
+    m.weapon("rail", (-1800, 3250, G + 70), sym=True)
+    m.powerup("aegis", (-3800, -3100, G + 70), sym=True)
+    for sp in [(-6600, 1500, B), (-6600, -1500, B), (-6700, 2600, 0), (-6700, -2600, 0), (-6300, 2900, B)]:
+        m.spawn(sp)
+    m.flag((-6600, 0, B + 90))
+    m.hills = [(0, 0, C + 220), (-3600, 0, B + 220), (-3200, 3100, G + 220), (3600, 0, B + 220), (3200, -3100, G + 220)]
+    m.ball = (0, 2000, 90)
     return m
 
 
@@ -696,37 +742,7 @@ def fill_creekbed(m):
     m.cover((-500, 2000, -140), (-300, 2200, 60), "rock", sym=True)
 
 
-def fill_spire(m):
-    # Lower level: tall fins break the full-length lanes on both sides; low cover between them.
-    m.cover((-3700, -3200, 0), (-3500, -2500, 500), "metal", sym=True)
-    m.cover((-1800, 2700, 0), (-1600, 3200, 500), "metal", sym=True)
-    m.cover((-600, -3200, 0), (-400, -2600, 500), "metal", sym=True)
-    m.cover((-900, 2600, 0), (-600, 2900, 130), sym=True)
-    m.cover((-2800, -900, 0), (-2500, -600, 130), sym=True)
-    m.cover((-4700, 600, 0), (-4400, 900, 130), sym=True)
-    m.cover((-1900, -2400, 0), (-1600, -2100, 130), sym=True)
-    m.cover((-300, 1600, 0), (200, 1700, 120), sym=True)
-    m.cover((-3400, 1100, 0), (-3000, 1400, 130), sym=True)
-    m.cover((-1700, 1100, 0), (-1400, 1400, 130), sym=True)
-    m.cover((-700, 600, 0), (-400, 900, 130), sym=True)
-    # Mid platform (top 300): a low wall at its back edge.
-    m.cover((-3600, 2600, 300), (-3200, 2800, 410), "metal", sym=True)
-    # Base tops (600): the bases were 28 x 64 m of open floor. Low cover around the flag and spawns,
-    # and a front lip either side of the bridge.
-    m.cover((-7700, -2400, 600), (-7300, -2000, 730), "metal", sym=True)
-    m.cover((-7700, 2000, 600), (-7300, 2400, 730), "metal", sym=True)
-    m.cover((-6400, -1100, 600), (-6100, -800, 730), "metal", sym=True)
-    m.cover((-6400, 800, 600), (-6100, 1100, 730), "metal", sym=True)
-    m.cover((-5800, -1200, 600), (-5700, -700, 710), "metal", sym=True)
-    m.cover((-5800, 700, 600), (-5700, 1200, 710), "metal", sym=True)
-    m.cover((-7000, -3000, 600), (-6800, -2600, 1100), "metal", sym=True)
-    m.cover((-7000, 2600, 600), (-6800, 3000, 1100), "metal", sym=True)
-    # Bridge: two more staggered barriers, still leaving it the exposed route.
-    m.cover((-4500, 150, 600), (-4300, 400, 710), "metal", sym=True)
-    m.cover((-2300, -400, 600), (-2100, -150, 710), "metal", sym=True)
-
-
-FILLS = {"Creekbed": fill_creekbed, "Spire": fill_spire}
+FILLS = {"Creekbed": fill_creekbed}
 
 
 def expand_and_fill(m):
@@ -736,7 +752,7 @@ def expand_and_fill(m):
     return m
 
 
-MAPS = [keel(), bastion(), sanctum(), expand_and_fill(creekbed()), expand_and_fill(spire()), crucible()]
+MAPS = [keel(), bastion(), sanctum(), expand_and_fill(creekbed()), spire(), crucible()]
 DEFAULT_MAP = "Keel"
 
 
