@@ -1113,6 +1113,9 @@ void AShieldbreakArena::SpawnLighting()
 			// dusty air. -SBNoVolFog for before/after and frame-time comparisons.
 			if (Layout.bIndoor && !FParse::Param(FCommandLine::Get(), TEXT("SBNoVolFog")))
 			{
+				// Neutral, dim haze: the map's warm outdoor haze colour tinted every surface orange from start 0.
+				FogComponent->SetFogInscatteringColor(FLinearColor(0.05f, 0.055f, 0.065f));
+				FogComponent->SetVolumetricFogAlbedo(FColor(200, 205, 215));
 				FogComponent->SetVolumetricFog(true);
 				FogComponent->SetVolumetricFogScatteringDistribution(0.5f);
 				FogComponent->SetVolumetricFogExtinctionScale(1.f);
@@ -2668,7 +2671,8 @@ void AShieldbreakArena::BuildTerrainScan()
 	};
 
 	// 1. Surfaces: scanned ground underfoot (floor, sand banks, the creek's slopes), scanned rock on the rock blocks
-	// (still drawn: where a corner pokes out of the fitted rock it reads as the same rock), scanned stone on the stone.
+	// (hidden under their fitted rock below, as on Sanctum: drawn, the flat box faces showed through everywhere),
+	// scanned stone on the stone.
 	static const FName Floor(TEXT("floor")), Sand(TEXT("sand")), RockStyle(TEXT("rock")), StoneStyle(TEXT("stone"));
 	const int32 NumBlocks = Layout.Blocks.Num();
 	TArray<int32> RockBlocks;
@@ -2701,6 +2705,14 @@ void AShieldbreakArena::BuildTerrainScan()
 		if (bBlock && Style == RockStyle)
 		{
 			RockBlocks.Add(Index);
+		}
+	}
+	if (Rocks.Num() > 0)
+	{
+		for (const int32 Index : RockBlocks)
+		{
+			Pieces[Index]->bAffectIndirectLightingWhileHidden = true;
+			Pieces[Index]->SetVisibility(false);
 		}
 	}
 
@@ -2743,8 +2755,9 @@ void AShieldbreakArena::BuildTerrainScan()
 				const bool bPartAlongX = PartSize.X >= PartSize.Y;
 				const float Yaw = (bMeshAlongX == bPartAlongX ? 0.f : 90.f) + (Random.FRand() < 0.5f ? 180.f : 0.f);
 				const FVector Turned = FMath::IsNearlyEqual(FMath::Fmod(Yaw, 180.f), 90.f) ? FVector(E.Y, E.X, E.Z) : E;
-				const FVector Fit((PartSize.X + 60.0) / FMath::Max(Turned.X, 1.0), (PartSize.Y + 60.0) / FMath::Max(Turned.Y, 1.0),
-					(PartSize.Z + 25.0) / FMath::Max(Turned.Z, 1.0));
+				// A scan is rounder than its bounds: 18% over the box (at most 1.2 m a side) so it wraps the collision.
+				const FVector Fit((PartSize.X + FMath::Min(PartSize.X * 0.18, 240.0)) / FMath::Max(Turned.X, 1.0),
+					(PartSize.Y + FMath::Min(PartSize.Y * 0.18, 240.0)) / FMath::Max(Turned.Y, 1.0), (PartSize.Z * 1.08 + 20.0) / FMath::Max(Turned.Z, 1.0));
 				const FVector Scale = FMath::IsNearlyEqual(FMath::Fmod(Yaw, 180.f), 90.f) ? FVector(Fit.Y, Fit.X, Fit.Z) : Fit;
 				FTransform Transform(FRotator(0.f, Yaw, 0.f), FVector::ZeroVector, Scale);
 				const FBox Placed = PlacedBounds(Mesh, Transform);
@@ -2807,6 +2820,7 @@ void AShieldbreakArena::BuildTerrainScan()
 
 	// 4. Cliffs round the map: rows on the barrier (the canyon walls), just behind it, and giant crags for the skyline.
 	// The landmark side (the arch, the watchtower) leaves its middle open in the near rows so the landmark shows.
+	// The cliffs stand beyond the walls; Lumen lights them, so they cast no sun shadows (see below).
 	int32 CliffCount = 0;
 	struct FSide { FVector Out; FVector Along; double Wall; double Length; };
 	const FSide Sides[4] = {
@@ -2849,7 +2863,8 @@ void AShieldbreakArena::BuildTerrainScan()
 					const double Offset = Side.Wall + Gap - Inner;
 					const FVector At = Side.Out * Offset + Side.Along * (Middle - FVector::DotProduct(Side.Along, Placed.GetCenter()));
 					Transform.SetTranslation(FVector(At.X, At.Y, BackdropZ + 50.0 - Placed.Min.Z));
-					Place(Mesh, Transform, Row < 2);
+					// No shadows from the cliffs: Nanite cliffs in the sun's cascades cost 1.3 ms (R13 GPU profile).
+					Place(Mesh, Transform, false);
 					++CliffCount;
 				}
 				Along += FMath::Max(Spread * (Row == 0 ? 0.45 : Row == 1 ? 0.62 : 0.7), 500.0);

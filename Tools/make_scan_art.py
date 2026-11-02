@@ -124,7 +124,14 @@ def describe_textures():
 
 # Suffixes a scanned 3D asset's textures may use for each map (Megascans exports vary between packs).
 ASSET_SUFFIXES = {"BC": ("_BC", "_D", "_Albedo", "_BaseColor"), "N": ("_N", "_Normal"),
-                  "AoRDp": ("_AoRDp", "_ORDp", "_ARD", "_ORD", "_AORD", "_ORDS")}
+                  "AoRDp": ("_AoRDp", "_ORDp", "_ARD", "_ORD", "_AORD", "_ORDS", "_DpR", "_DpRF")}
+
+
+def is_dpr(surface):
+    """Whether a surface's packed map is Electric Dreams' DpR / DpRF (R displacement, G roughness; no AO channel)
+    rather than the surfaces' AoRDp (R AO, G roughness, B displacement)."""
+    tex = texture(surface, "AoRDp")
+    return bool(tex) and "_DpR" in tex.get_name()
 
 
 def texture(surface, suffix):
@@ -172,6 +179,7 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
     """The world-projected scan master. The terrain sets build one each with their own textures as the defaults, so
     their samplers match their textures (a virtual-textured default cannot take a plain texture, or the reverse)."""
     top_default = top_default or TOP_DEFAULT
+    side_dpr, top_dpr = is_dpr(side_default), is_dpr(top_default)
     path = MATERIALS + "/" + name
     if eal.does_asset_exist(path):
         mat = unreal.load_asset(path)
@@ -264,7 +272,7 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
     above = binary(unreal.MaterialExpressionSubtract, nz, threshold, -1400, 3400)
     sharp = node(unreal.MaterialExpressionMultiply, -1250, 3400, const_b=12.0)
     link(above, "", sharp, "A")
-    height = node(unreal.MaterialExpressionComponentMask, -1250, 3550, r=False, g=False, b=True, a=False)
+    height = node(unreal.MaterialExpressionComponentMask, -1250, 3550, r=top_dpr, g=False, b=not top_dpr, a=False)
     link(top["ARD"][0], "RGB", height, "")
     breakup = scalar("TopBreakup", 1.5, -1250, 3700)
     centered = node(unreal.MaterialExpressionSubtract, -1100, 3550, const_b=0.5)
@@ -286,7 +294,7 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
     if shared is not None:
         patch_sample.set_editor_property("sampler_source", shared)
     link(patch_xy, "", patch_sample, "UVs")
-    patch_tex = node(unreal.MaterialExpressionComponentMask, -1550, 3900, r=False, g=False, b=True, a=False)
+    patch_tex = node(unreal.MaterialExpressionComponentMask, -1550, 3900, r=top_dpr, g=False, b=not top_dpr, a=False)
     link(patch_sample, "RGB", patch_tex, "")
     # Or (PatchNoise 1) broad world-space noise, for a top layer whose height map is too even to break up: the
     # ground's grass, which otherwise flips from all grass to all earth at one coverage value.
@@ -337,7 +345,8 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
 
     mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(normal_out, "", unreal.MaterialProperty.MP_NORMAL)
-    mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    if not (side_dpr or top_dpr):
+        mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     mel.connect_material_property(roughness, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.set_material_usage(mat, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES)
     # The scanned rocks, cliffs and stones are Nanite meshes: without this flag they fall back to the default material.
@@ -348,7 +357,8 @@ def scan_material(name="M_SB_Scan", side_default="BeachCliff", top_default=None)
         mat.set_editor_property("used_with_nanite", True)
     mel.recompile_material(mat)
     eal.save_asset(path)
-    log("built %s (%d expressions)" % (path, mel.get_num_material_expressions(mat)))
+    log("built %s (%d expressions, side %s, top %s)" % (path, mel.get_num_material_expressions(mat),
+                                                       "DpR" if side_dpr else "AoRDp", "DpR" if top_dpr else "AoRDp"))
     return mat
 
 
