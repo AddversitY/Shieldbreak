@@ -693,8 +693,10 @@ def spire():
     m.lift((-5200, 1200, 0), (-6200, 1200, B), sym=True)
     # Deck front: a wall up to the ceiling with three ways in (bridge + lift, two gallery ramps), so the decks are rooms
     # and the 140 m deck-to-deck lines are cut to what the doors allow.
+    # Neutral silver above the deck: a 15 m red (blue) wall bounced team colour over the whole ceiling. The deck, its lip
+    # and the undercroft wall stay team-coloured.
     m.wall_y(-3600, 3600, -5800, B, 2200, [(-3400, -2800, B, B + 400), (-700, 700, B, B + 400), (950, 1450, B, B + 700), (2800, 3400, B, B + 400)],
-             color="red", sym=True)
+             color="wall", sym=True)
 
     # ---- Bridge from the deck to the ring round the column ----
     m.block((-5800, -250, B - S), (-1400, 250, B), "bridge", sym=True)
