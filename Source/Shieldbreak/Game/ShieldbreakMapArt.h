@@ -36,6 +36,9 @@ struct FShieldbreakMapLook
 	 *  blocks, cliffs and crags for the skyline. None keeps the kit look; so does a missing set (the procedural rock
 	 *  skin stays as the fallback). Needs Tools/GetScanArt.bat and MakeScanArt.bat. */
 	FName ScanSet;
+	/** Water sheets (lush terrain sets): flat boxes are a water surface at their top, boxes taller than 3 m a waterfall
+	 * across their long side. Visual only. */
+	TArray<FBox> Water;
 	/** Sandstone skin (Art/blender/build_rock_skin.py) over the faces of the rock and sand blocks inside the walls, and
 	 *  domed caps on the small ones (ShieldbreakMapArt::Plan). Visual only; the blocks keep their collision. */
 	bool bRockSkin = false;

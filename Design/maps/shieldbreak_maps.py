@@ -589,25 +589,25 @@ def sanctum():
 
 
 def creekbed():
-    """Creekbed (2026-11 redesign): a red-rock desert canyon in golden afternoon light, outdoors. Two outposts face
-    each other across a dry creek.
+    """Creekbed (2026-11 redesign; look reworked 2026-11-02): a green, creek-fed sandstone valley in clear midday
+    light, outdoors. Two stone outposts face each other across a running creek that drops in as a waterfall under the
+    arch (the water, grass and trees are the scanned terrain's "Creek" set: ShieldbreakMapArt.cpp, BuildTerrainScan).
 
     Mirror-symmetric across x = 0 (reflect=True); all three power items sit on the centre line, so neither team is
-    closer to any of them. Middle: the creek bed, 3 m below the banks, with the rockets on a walkable rock in
+    closer to any of them. Middle: the creek, 3 m below the banks, with the rockets on a walkable rock in
     mid-creek (fast and exposed). North: a mesa per side joined by a natural arch over the creek's gorge, with the Rail
     Lance on the arch (high, exposed, sees the creek). South: a cave runs under the cliff the whole width of the map,
     with the aegis where it crosses the creek (slow and protected). Each outpost holds its flag, with a roof reached by
     two outside ramps. Levels: creek 0, mid rock 200, banks 300, mesas and arch 650, outpost roofs 740."""
     m = Map("Creekbed", "Creekbed", "Beaver Creek", 6000, 4000, wall_h=1500, max_z=1300)
-    # Look: red sandstone, rust-orange sand, sun-bleached ramps.
-    m.palette = {"sand": (0.62, 0.38, 0.22), "rock": (0.48, 0.22, 0.13), "ramp": (0.66, 0.48, 0.30),
-                 "glow": (1.00, 0.70, 0.35),
-                 # Crimson, not orange-red, so the red outpost stays apart from the red rock round it.
+    # Look: grass-green banks, tan sandstone, pale stone ramps.
+    m.palette = {"sand": (0.30, 0.36, 0.20), "rock": (0.58, 0.47, 0.34), "ramp": (0.66, 0.60, 0.50),
+                 "glow": (1.00, 0.74, 0.40),
                  "red": (0.21, 0.14, 0.14), "blue": (0.13, 0.16, 0.21)}
     m.reflect = True
     m.check_reach = True
-    m.sun = (-35.0, 250.0)   # warm afternoon sun
-    m.fog = 0.006
+    m.sun = (-50.0, 230.0)   # high, clear midday sun
+    m.fog = 0.004
     P, M = 300, 650
 
     # ---- Terrain: banks at P, the creek bed at 0 between them, mesas (north) and the cave band (south) ----

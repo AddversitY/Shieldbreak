@@ -518,17 +518,22 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Sanctum.Carved = FLinearColor(0.62f, 0.56f, 0.46f);
 		Sanctum.Haze = FLinearColor(0.50f, 0.58f, 0.62f);
 		Sanctum.bScan = true;
-		// Creekbed: a red-rock desert canyon in golden afternoon light. Rust sand, red sandstone, warm dusty haze.
+		// Creekbed (2026-11-02 rework): a green, creek-fed sandstone valley in clear midday light. Grass on the banks and on
+		// the rock tops, tan sandstone, a running creek and a waterfall under the arch, trees along the rim, blue haze.
 		FShieldbreakMapLook& Creekbed = Out.Add(FName(TEXT("Creekbed")));
 		Creekbed.GroundStyle = TEXT("stone");
-		Creekbed.Ground = FLinearColor(0.60f, 0.37f, 0.21f);
-		Creekbed.Rock = FLinearColor(0.46f, 0.21f, 0.12f);
-		Creekbed.Foliage = FLinearColor(0.22f, 0.24f, 0.10f);
-		Creekbed.Haze = FLinearColor(0.78f, 0.58f, 0.38f);
-		Creekbed.Trim = FLinearColor(1.0f, 0.66f, 0.30f);
-		Creekbed.KitGlow = FLinearColor(1.0f, 0.62f, 0.28f);
+		Creekbed.Ground = FLinearColor(0.30f, 0.36f, 0.20f);
+		Creekbed.Rock = FLinearColor(0.58f, 0.47f, 0.34f);
+		Creekbed.Foliage = FLinearColor(0.22f, 0.30f, 0.12f);
+		Creekbed.Haze = FLinearColor(0.60f, 0.70f, 0.82f);
+		Creekbed.Trim = FLinearColor(1.0f, 0.74f, 0.40f);
+		Creekbed.KitGlow = FLinearColor(1.0f, 0.70f, 0.38f);
 		Creekbed.bRockSkin = true;
-		Creekbed.ScanSet = TEXT("Canyon");
+		Creekbed.ScanSet = TEXT("Creek");
+		// The creek over the bed between the banks (ankle deep), through the gorge under the arch, and the waterfall
+		// down the north cliff behind it.
+		Creekbed.Water = { FBox(FVector(-760.0, -2700.0, 0.0), FVector(760.0, 4000.0, 22.0)),
+			FBox(FVector(-520.0, 3955.0, -20.0), FVector(520.0, 3985.0, 1650.0)) };
 		// Spire: the hollow inside of a Forerunner tower. Silver-white metal, blue hard light, cool pale haze.
 		FShieldbreakMapLook& Spire = Out.Add(FName(TEXT("Spire")));
 		Spire.GroundStyle = TEXT("stone");

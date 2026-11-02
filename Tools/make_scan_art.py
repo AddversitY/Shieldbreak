@@ -377,6 +377,13 @@ TERRAIN = {
                        threshold=0.62, coverage=0.75, desat=0.3, tint=(0.85, 0.88, 0.92), **SNOW),
     "TundraStone": dict(side="IcelandicQuarryRock", top="asset:TundraRockyGround", side_tile=480.0, top_tile=420.0,
                         threshold=0.75, coverage=1.0, desat=0.85, tint=(0.95, 0.97, 1.0), **SNOW),
+    # Creek (Creekbed's 2026-11-02 rework): a green valley. Grass and earth underfoot, tan sandstone with grass on top.
+    "CreekGround": dict(side="MossyRockyGround", top="MossyGrass", side_tile=420.0, top_tile=360.0, threshold=0.35,
+                        coverage=0.78, desat=0.0, tint=(1.0, 0.97, 0.92), patch_noise=1.0, top_desat=0.1,
+                        top_tint=(0.82, 0.95, 0.62)),
+    "CreekRock": dict(side="asset:HugeSandstoneCliff", top="MossyGrass", side_tile=650.0, top_tile=360.0,
+                      threshold=0.78, coverage=0.62, desat=0.15, tint=(1.08, 1.02, 0.94), top_desat=0.1,
+                      top_tint=(0.82, 0.95, 0.62)),
 }
 
 
@@ -579,6 +586,114 @@ def grass_material():
     log("%s: albedo %s, opacity from %s" % (path, albedo.get_name(), source))
 
 
+def water_material():
+    """M_SB_Water: opaque, two-sided running water for the lush terrain sets. World-projected (flat: X/Y; Vertical 1:
+    along the sheet and Z, for a waterfall), two scrolling copies of a scanned ground's normal map as ripples, foam
+    from its albedo. Instances: MI_SB_Water (the creek, slow, glassy) and MI_SB_Waterfall (fast, rough, white)."""
+    surface = "MossyRockyGround"
+    normal_tex, albedo_tex = texture(surface, "N"), texture(surface, "BC")
+    if not normal_tex or not albedo_tex:
+        log("M_SB_Water: textures missing")
+        return
+    path = MATERIALS + "/M_SB_Water"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_Water", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property("two_sided", True)
+
+    def node(cls, x, y, **props):
+        n = mel.create_material_expression(mat, cls, x, y)
+        for key, value in props.items():
+            n.set_editor_property(key, value)
+        return n
+
+    def link(a, a_out, b, b_in):
+        if not mel.connect_material_expressions(a, a_out, b, b_in):
+            log("M_SB_Water: could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
+
+    def scalar(name, value, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=value)
+
+    def binary(cls, a, b, x, y, a_out="", b_out=""):
+        n = node(cls, x, y)
+        link(a, a_out, n, "A")
+        link(b, b_out, n, "B")
+        return n
+
+    def mask(src, x, y, r=False, g=False, b=False):
+        n = node(unreal.MaterialExpressionComponentMask, x, y, r=r, g=g, b=b, a=False)
+        link(src, "", n, "")
+        return n
+
+    position = node(unreal.MaterialExpressionWorldPosition, -2600, 0)
+    flat = mask(position, -2400, -100, r=True, g=True)
+    along = binary(unreal.MaterialExpressionAdd, mask(position, -2400, 50, r=True), mask(position, -2400, 150, g=True), -2200, 100)
+    upright = binary(unreal.MaterialExpressionAppendVector, along, mask(position, -2400, 250, b=True), -2000, 150)
+    lerp = node(unreal.MaterialExpressionLinearInterpolate, -1800, 0)
+    link(flat, "", lerp, "A")
+    link(upright, "", lerp, "B")
+    link(scalar("Vertical", 0.0, -2000, 300), "", lerp, "Alpha")
+    uv = binary(unreal.MaterialExpressionDivide, lerp, scalar("Tile", 600.0, -1800, 200), -1600, 0)
+    flow = binary(unreal.MaterialExpressionAppendVector, scalar("FlowX", 0.0, -1800, 350), scalar("FlowY", -0.08, -1800, 450), -1600, 400)
+    offset = binary(unreal.MaterialExpressionMultiply, node(unreal.MaterialExpressionTime, -1600, 300), flow, -1400, 350)
+    uv1 = binary(unreal.MaterialExpressionAdd, uv, offset, -1200, 0)
+    slow = binary(unreal.MaterialExpressionMultiply, offset, node(unreal.MaterialExpressionConstant, -1400, 500, r=0.71), -1200, 450)
+    scaled = binary(unreal.MaterialExpressionMultiply, uv, node(unreal.MaterialExpressionConstant, -1400, 200, r=0.61), -1200, 200)
+    uv2 = binary(unreal.MaterialExpressionAdd, binary(unreal.MaterialExpressionAdd, scaled, slow, -1000, 300),
+                 node(unreal.MaterialExpressionConstant, -1200, 600, r=0.37), -800, 300)
+    normal_sampler = sampler_for(normal_tex, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    n1 = node(unreal.MaterialExpressionTextureSampleParameter2D, -800, -200, parameter_name="RippleN", texture=normal_tex, sampler_type=normal_sampler)
+    n2 = node(unreal.MaterialExpressionTextureSampleParameter2D, -600, 300, parameter_name="RippleN2", texture=normal_tex, sampler_type=normal_sampler)
+    link(uv1, "", n1, "UVs")
+    link(uv2, "", n2, "UVs")
+    summed = binary(unreal.MaterialExpressionAdd, n1, n2, -400, 0, "RGB", "RGB")
+    strength = node(unreal.MaterialExpressionVectorParameter, -600, 600, parameter_name="RippleScale", default_value=unreal.LinearColor(0.3, 0.3, 1.0, 1.0))
+    shaped = binary(unreal.MaterialExpressionMultiply, summed, strength, -200, 0, "", "RGB")
+    normal = node(unreal.MaterialExpressionNormalize, 0, 0)
+    link(shaped, "", normal, "")
+    mel.connect_material_property(normal, "", unreal.MaterialProperty.MP_NORMAL)
+
+    foam_tex = node(unreal.MaterialExpressionTextureSampleParameter2D, -800, -600, parameter_name="FoamBC", texture=albedo_tex,
+                    sampler_type=sampler_for(albedo_tex, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR))
+    link(uv1, "", foam_tex, "UVs")
+    foam = binary(unreal.MaterialExpressionMultiply, foam_tex, scalar("FoamAmount", 0.0, -800, -400), -500, -500, "R", "")
+    foam_clamped = node(unreal.MaterialExpressionSaturate, -300, -500)
+    link(foam, "", foam_clamped, "")
+    color = node(unreal.MaterialExpressionLinearInterpolate, -100, -400)
+    link(node(unreal.MaterialExpressionVectorParameter, -300, -700, parameter_name="Color", default_value=unreal.LinearColor(0.03, 0.075, 0.07, 1.0)), "RGB", color, "A")
+    link(node(unreal.MaterialExpressionVectorParameter, -300, -850, parameter_name="FoamColor", default_value=unreal.LinearColor(0.75, 0.8, 0.8, 1.0)), "RGB", color, "B")
+    link(foam_clamped, "", color, "Alpha")
+    mel.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    glow = binary(unreal.MaterialExpressionMultiply, color, scalar("Emissive", 0.0, -100, -200), 100, -300)
+    mel.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.connect_material_property(scalar("Roughness", 0.06, 0, 200), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(scalar("Specular", 0.6, 0, 300), "", unreal.MaterialProperty.MP_SPECULAR)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("%s: ripples and foam from %s" % (path, surface))
+
+    for name, scalars, vectors in (
+            ("MI_SB_Water", {"Vertical": 0.0, "Tile": 650.0, "FlowX": 0.0, "FlowY": -0.07, "FoamAmount": 0.0, "Roughness": 0.05, "Emissive": 0.0},
+             {"Color": (0.035, 0.08, 0.075), "RippleScale": (0.28, 0.28, 1.0)}),
+            ("MI_SB_Waterfall", {"Vertical": 1.0, "Tile": 260.0, "FlowX": 0.0, "FlowY": -1.3, "FoamAmount": 1.6, "Roughness": 0.3, "Emissive": 0.35},
+             {"Color": (0.32, 0.38, 0.38), "FoamColor": (0.85, 0.9, 0.9), "RippleScale": (0.5, 0.5, 1.0)})):
+        mi_path = MATERIALS + "/" + name
+        if eal.does_asset_exist(mi_path):
+            mi = unreal.load_asset(mi_path)
+        else:
+            mi = tools.create_asset(name, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        mel.set_material_instance_parent(mi, mat)
+        mel.clear_all_material_instance_parameters(mi)
+        for key, value in scalars.items():
+            mel.set_material_instance_scalar_parameter_value(mi, key, value)
+        for key, (r, g, b) in vectors.items():
+            mel.set_material_instance_vector_parameter_value(mi, key, unreal.LinearColor(r, g, b, 1.0))
+        eal.save_asset(mi_path)
+        log("%s: built" % mi_path)
+
+
 def main():
     try:
         assets = check_dependencies()
@@ -590,6 +705,7 @@ def main():
         grass_material()
         scan_instances(scan_material())
         terrain_sets()
+        water_material()
         log("RESULT ok")
     except Exception as error:  # noqa: BLE001 - report anything into the log the cloud reads
         log("RESULT failed: %s" % error)

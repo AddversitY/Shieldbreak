@@ -2607,6 +2607,8 @@ namespace ShieldbreakTerrainScanPrivate
 		/** Cliff rows: 0 on the barrier, 1 just behind, 2 the far skyline. */
 		bool bRow0 = true;
 		bool bStones = true;
+		/** Lush (Creekbed): grass drifts on the ground, trees along the rim, a running creek and a waterfall. */
+		bool bLush = false;
 	};
 
 	const FTerrainSet* SetFor(FName Set)
@@ -2619,6 +2621,13 @@ namespace ShieldbreakTerrainScanPrivate
 			Canyon.Cliffs = { { TEXT("HugeSandstoneCliff"), 6 }, { TEXT("CanyonSandstoneRidge"), 6 },
 				{ TEXT("MassiveSandstoneCliff"), 6 } };
 			Canyon.Giants = { { TEXT("MassiveCanyonSandstoneMesa"), 6 }, { TEXT("MassiveSandstoneCliff"), 6 } };
+			// Creek: the canyon's sandstone gone green (a creek-fed valley, grass on the ground and on the rock tops).
+			// The ridge scans are 1-3 m pieces: boulders only, never stretched into cliffs.
+			FTerrainSet& Creek = Out.Add(FName(TEXT("Creek")));
+			Creek.Rocks = Canyon.Rocks;
+			Creek.Cliffs = { { TEXT("HugeSandstoneCliff"), 6 }, { TEXT("MassiveSandstoneCliff"), 6 } };
+			Creek.Giants = Canyon.Giants;
+			Creek.bLush = true;
 			FTerrainSet& Tundra = Out.Add(FName(TEXT("Tundra")));
 			Tundra.Rocks = { { TEXT("NordicBoulder"), 8 }, { TEXT("TundraMossyBoulder"), 8 },
 				{ TEXT("NordicBeachRock"), 6 } };
@@ -2900,8 +2909,9 @@ void AShieldbreakArena::BuildTerrainScan()
 	{
 		const FSide& Side = Sides[SideIndex];
 		// Creekbed's arch stands past the south (-Y) side, Bastion's watchtower past the north (+Y).
-		const bool bLandmarkSide = (Look.ScanSet == FName(TEXT("Canyon")) && Side.Out.Y < 0.0) || (Look.ScanSet == FName(TEXT("Tundra")) && Side.Out.Y > 0.0);
-		const double LandmarkAlong = Look.ScanSet == FName(TEXT("Canyon")) ? 600.0 : 0.0;
+		const bool bCanyon = Look.ScanSet == FName(TEXT("Canyon")) || Look.ScanSet == FName(TEXT("Creek"));
+		const bool bLandmarkSide = (bCanyon && Side.Out.Y < 0.0) || (Look.ScanSet == FName(TEXT("Tundra")) && Side.Out.Y > 0.0);
+		const double LandmarkAlong = bCanyon ? 600.0 : 0.0;
 		for (int32 Row = Set.bRow0 ? 0 : 1; Row < 3; ++Row)
 		{
 			if (!(RowMask & (1 << Row)))
@@ -2954,11 +2964,162 @@ void AShieldbreakArena::BuildTerrainScan()
 		}
 	}
 
+
+	// 5. Lush sets (Creekbed): the creek's water and its waterfall, trees along the rim, grass drifts on the banks.
+	// Plants keep their own materials (or ours below), so they are grouped apart from the rock.
+	int32 TreeCount = 0, GrassCount = 0, WaterCount = 0;
+	TMap<UStaticMesh*, UInstancedStaticMeshComponent*> PlantGroups;
+	auto PlacePlant = [&](UStaticMesh* Mesh, const FTransform& Transform, int32 CullDistance)
+	{
+		UInstancedStaticMeshComponent*& Instances = PlantGroups.FindOrAdd(Mesh);
+		if (!Instances)
+		{
+			Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Terrain"), Mesh);
+			Instances->SetCastShadow(false);
+			// Out of the distance fields: a crown's or a tuft's own field shades it near black under Lumen.
+			Instances->bAffectDistanceFieldLighting = false;
+			if (CullDistance > 0)
+			{
+				Instances->SetCullDistances(CullDistance * 3 / 4, CullDistance);
+			}
+		}
+		Instances->AddInstance(Transform);
+	};
+	if (Set.bLush && !FParse::Param(FCommandLine::Get(), TEXT("SBNoLush")))
+	{
+		// 5a. Water: a sheet just over the creek bed (ankle deep: feet stay on the bed, no collision), and a
+		// waterfall down the north cliff into the gorge under the arch. MakeScanArt's MI_SB_Water / MI_SB_Waterfall.
+		UStaticMesh* Plane = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Engine/BasicShapes/Plane.Plane"));
+		UMaterialInterface* Water = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Water.MI_SB_Water"));
+		UMaterialInterface* Fall = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Waterfall.MI_SB_Waterfall"));
+		if (Plane && Water)
+		{
+			for (const FBox& Block : Look.Water)
+			{
+				UStaticMeshComponent* Sheet = AddDecoration<UStaticMeshComponent>(TEXT("Water"), Plane);
+				const FVector Size = Block.Max - Block.Min;
+				const bool bFall = Size.Z > 300.0 && Fall;
+				Sheet->SetCastShadow(false);
+				Sheet->bAffectDistanceFieldLighting = false;
+				Sheet->SetMaterial(0, bFall ? Fall : Water);
+				if (bFall)
+				{
+					// Upright, across the block's long side.
+					const bool bAlongX = Size.X >= Size.Y;
+					const FVector Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5, (Block.Min.Z + Block.Max.Z) * 0.5);
+					Sheet->SetRelativeTransform(FTransform(bAlongX ? FRotator(0.f, 0.f, 90.f) : FRotator(0.f, 90.f, 90.f), Center,
+						FVector((bAlongX ? Size.X : Size.Y) / 100.0, Size.Z / 100.0, 1.0)));
+				}
+				else
+				{
+					Sheet->SetRelativeTransform(FTransform(FRotator::ZeroRotator, FVector((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5, Block.Max.Z),
+						FVector(Size.X / 100.0, Size.Y / 100.0, 1.0)));
+				}
+				Sheet->RegisterComponent();
+				AddInstanceComponent(Sheet);
+				++WaterCount;
+			}
+		}
+
+		// 5b. Trees along the rim, rooted on the backdrop ground between the barrier cliffs and the next row; crowns
+		// show over the rim. Visual only, outside the play space.
+		const TArray<UStaticMesh*> Trees = Family(TEXT("3D_Plants/EuropeanHornbeam/Geometry/SimpleWind"), TEXT("SM_EuropeanHornbeam_Forest_"), { 1, 2, 3, 4, 5, 7, 8 });
+		UMaterialInterface* Leaves = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/MI_SB_Leaves.MI_SB_Leaves"));
+		int32 TreeTotal = 70;
+		FParse::Value(FCommandLine::Get(), TEXT("SBTrees="), TreeTotal);
+		for (int32 Index = 0; Trees.Num() > 0 && Index < TreeTotal; ++Index)
+		{
+			const double Angle = Random.FRandRange(0.f, static_cast<float>(UE_TWO_PI));
+			const FVector2D Dir(FMath::Cos(Angle), FMath::Sin(Angle));
+			const double ToWall = FMath::Min(Half.X / FMath::Max(FMath::Abs(Dir.X), 1e-3), Half.Y / FMath::Max(FMath::Abs(Dir.Y), 1e-3));
+			const double Distance = ToWall + Random.FRandRange(500.f, 3000.f);
+			UStaticMesh* Mesh = Trees[Random.RandRange(0, Trees.Num() - 1)];
+			const double Height = Random.FRandRange(2400.f, 3800.f);
+			const double Scale = FMath::Clamp(Height / FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0), 0.3, 6.0);
+			FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+			const FBox Placed = PlacedBounds(Mesh, Transform);
+			Transform.SetTranslation(FVector(Dir.X * Distance, Dir.Y * Distance, BackdropZ + 50.0 - Placed.Min.Z));
+			PlacePlant(Mesh, Transform, 0);
+			++TreeCount;
+		}
+		for (UStaticMesh* Mesh : Trees)
+		{
+			UInstancedStaticMeshComponent** Instances = PlantGroups.Find(Mesh);
+			for (int32 Slot = 0; Instances && Leaves && Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+			{
+				if (Mesh->GetStaticMaterials()[Slot].MaterialSlotName == FName(TEXT("TwoSided")))
+				{
+					(*Instances)->SetMaterial(Slot, Leaves);
+				}
+			}
+		}
+
+		// 5c. Grass in drifts on the banks and ledges (never in the water), short enough not to hide a crouching
+		// player, on our own M_SB_Grass (the Megascans foliage master renders it near black).
+		const TArray<UStaticMesh*> Grass = Family(TEXT("3D_Plants/KikuyuGrass"), TEXT("SM_KikuyuGrass_"), { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+		UMaterialInterface* GrassSurface = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Scan/M_SB_Grass.M_SB_Grass"));
+		const int32 Drifts = FMath::Clamp(static_cast<int32>(Half.X * Half.Y / 220000.0), 40, 180);
+		for (int32 Drift = 0; Grass.Num() > 0 && GrassSurface && Drift < Drifts; ++Drift)
+		{
+			const FVector2D Middle(Random.FRandRange(-Half.X, Half.X), Random.FRandRange(-Half.Y, Half.Y));
+			const int32 Tufts = Random.RandRange(14, 26);
+			for (int32 Tuft = 0; Tuft < Tufts; ++Tuft)
+			{
+				const FVector2D At = Middle + FVector2D(Random.FRandRange(-1.f, 1.f), Random.FRandRange(-1.f, 1.f)) * Random.FRandRange(40.f, 340.f);
+				if (FMath::Abs(At.X) > Half.X - 40.0 || FMath::Abs(At.Y) > Half.Y - 40.0)
+				{
+					continue;
+				}
+				double GroundZ = Layout.FloorZ;
+				for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+				{
+					if ((Block.Style == Floor || Block.Style == Sand) && At.X > Block.Min.X && At.X < Block.Max.X && At.Y > Block.Min.Y && At.Y < Block.Max.Y)
+					{
+						GroundZ = FMath::Max(GroundZ, Block.Max.Z);
+					}
+				}
+				bool bWet = false;
+				for (const FBox& Sheet : Look.Water)
+				{
+					bWet |= At.X > Sheet.Min.X - 60.0 && At.X < Sheet.Max.X + 60.0 && At.Y > Sheet.Min.Y - 60.0 && At.Y < Sheet.Max.Y + 60.0
+						&& GroundZ < Sheet.Max.Z + 20.0;
+				}
+				const FVector Foot(At.X, At.Y, GroundZ);
+				if (bWet || InsideBlock(Layout, Foot + FVector(0, 0, 20.0)))
+				{
+					continue;
+				}
+				UStaticMesh* Mesh = Grass[Random.RandRange(0, Grass.Num() - 1)];
+				const double Height = FMath::Max(Mesh->GetBoundingBox().GetSize().Z, 1.0);
+				const double Scale = FMath::Clamp(Random.FRandRange(28.f, 50.f) / Height, 0.2, 3.0);
+				FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
+				const FBox Placed = PlacedBounds(Mesh, Transform);
+				Transform.SetTranslation(FVector(At.X, At.Y, GroundZ - Placed.Min.Z - 7.0));
+				PlacePlant(Mesh, Transform, 5000);
+				++GrassCount;
+			}
+		}
+		for (UStaticMesh* Mesh : Grass)
+		{
+			UInstancedStaticMeshComponent** Instances = PlantGroups.Find(Mesh);
+			for (int32 Slot = 0; Instances && GrassSurface && Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+			{
+				(*Instances)->SetMaterial(Slot, GrassSurface);
+			}
+		}
+	}
+	for (const TPair<UStaticMesh*, UInstancedStaticMeshComponent*>& Group : PlantGroups)
+	{
+		Group.Value->RegisterComponent();
+		AddInstanceComponent(Group.Value);
+	}
+
 	for (const TPair<TTuple<UStaticMesh*, bool>, UInstancedStaticMeshComponent*>& Group : Groups)
 	{
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded)."),
-		*Layout.DisplayName, *Look.ScanSet.ToString(), Surfaced, RockCount, RockBlocks.Num(), StoneCount, CliffCount, Groups.Num(), Rocks.Num(), Cliffs.Num(), Giants.Num());
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded); %d water sheets, %d trees, %d grass tufts."),
+		*Layout.DisplayName, *Look.ScanSet.ToString(), Surfaced, RockCount, RockBlocks.Num(), StoneCount, CliffCount, Groups.Num(), Rocks.Num(), Cliffs.Num(), Giants.Num(),
+		WaterCount, TreeCount, GrassCount);
 }
