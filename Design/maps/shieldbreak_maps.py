@@ -239,7 +239,7 @@ def keel():
     m.palette = {"metal": (0.23, 0.24, 0.26), "wall": (0.10, 0.11, 0.12), "floor": (0.14, 0.15, 0.16),
                  "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12),
                  # Team colours toned down: under the sodium lamps the default red turned whole decks orange.
-                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}
+                 "red": (0.21, 0.15, 0.14), "blue": (0.13, 0.16, 0.21)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004
     m.check_reach = True
@@ -360,7 +360,7 @@ def bastion():
     # Look: packed snow and ice-grey stone, dark rock, weathered timber ramps, warm beacon light.
     m.palette = {"stone": (0.72, 0.74, 0.79), "rock": (0.24, 0.24, 0.28), "tower": (0.44, 0.46, 0.52),
                  "bridge": (0.38, 0.40, 0.46), "ramp": (0.30, 0.32, 0.36), "glow": (1.00, 0.62, 0.28),
-                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}   # toned team colours (all four maps): the trim carries the colour
+                 "red": (0.21, 0.15, 0.14), "blue": (0.13, 0.16, 0.21)}   # bases in near-neutral metal with a hint of their team; the red/blue trim lines carry the colour
     m.reflect = True
     m.check_reach = True
     m.sun = (-22.0, 200.0)   # low dusk sun
@@ -603,7 +603,7 @@ def creekbed():
     m.palette = {"sand": (0.62, 0.38, 0.22), "rock": (0.48, 0.22, 0.13), "ramp": (0.66, 0.48, 0.30),
                  "glow": (1.00, 0.70, 0.35),
                  # Crimson, not orange-red, so the red outpost stays apart from the red rock round it.
-                 "red": (0.30, 0.07, 0.10), "blue": (0.10, 0.17, 0.30)}
+                 "red": (0.21, 0.14, 0.14), "blue": (0.13, 0.16, 0.21)}
     m.reflect = True
     m.check_reach = True
     m.sun = (-35.0, 250.0)   # warm afternoon sun
@@ -696,7 +696,7 @@ def spire():
     # Look: silver-white Forerunner metal, cool grey floor, blue hard light.
     m.palette = {"metal": (0.66, 0.68, 0.71), "wall": (0.50, 0.52, 0.56), "floor": (0.36, 0.38, 0.42),
                  "bridge": (0.60, 0.62, 0.66), "ramp": (0.52, 0.60, 0.70), "glow": (0.22, 0.62, 1.00),
-                 "red": (0.30, 0.12, 0.11), "blue": (0.11, 0.16, 0.30)}   # toned team colours (all four maps): the trim carries the colour
+                 "red": (0.21, 0.15, 0.14), "blue": (0.13, 0.16, 0.21)}   # bases in near-neutral metal with a hint of their team; the red/blue trim lines carry the colour
     m.sun = (-30.0, 160.0)
     m.fog = 0.003
     m.check_reach = True
