@@ -597,8 +597,9 @@ def creekbed():
     closer to any of them. Middle: the creek, 3 m below the banks, with the rockets on a walkable rock in
     mid-creek (fast and exposed). North: a mesa per side joined by a natural arch over the creek's gorge, with the Rail
     Lance on the arch (high, exposed, sees the creek). South: a cave runs under the cliff the whole width of the map,
-    with the aegis where it crosses the creek (slow and protected). Each outpost holds its flag, with a roof reached by
-    two outside ramps. Levels: creek 0, mid rock 200, banks 300, mesas and arch 650, outpost roofs 740."""
+    with the aegis where it crosses the creek (slow and protected). Each outpost is an open pavilion (2026-11-02, Vincent:
+    no small enclosed base rooms): the flag under a roof on pillars, waist-high walls, a drop hole over the flag, two
+    ramps and a jump route to the roof. Two creek rocks under the arch give a jump route to the Rail Lance. Levels: creek 0, mid rock 200, banks 300, mesas and arch 650, outpost roofs 740."""
     m = Map("Creekbed", "Creekbed", "Beaver Creek", 6000, 4000, wall_h=1500, max_z=1300)
     # Look: grass-green banks, tan sandstone, pale stone ramps.
     m.palette = {"sand": (0.30, 0.36, 0.20), "rock": (0.58, 0.47, 0.34), "ramp": (0.66, 0.60, 0.50),
@@ -629,15 +630,36 @@ def creekbed():
     m.block((-3000, -3600, P), (-2700, -3300, P + 400), "rock", sym=True)       # cave pillars
     m.block((-1500, -3500, P), (-1200, -3200, P + 400), "rock", sym=True)
 
-    # ---- Outposts (red at -X): flag inside, roof reached by two outside ramps ----
+    # ---- Outposts (red at -X): open pavilions, not walled rooms. A roof on six pillars over the flag, waist-high
+    # walls in short runs (cover you fight over, not doors you funnel through), a drop hole in the roof straight down
+    # onto the flag, and three ways up: two outside ramps, and a quick, exposed jump route up the front (crate, then
+    # the roof edge). The back stays open onto a path round the outpost: the flag can be taken from any side. ----
     R = P + 440
-    m.wall_y(-1000, 1000, -4300, P, R - 40, [(-400, 400, P, P + 350)], color="red", sym=True)    # front
-    m.wall_y(-1000, 1000, -5700, P, R - 40, [(-300, 300, P, P + 350)], color="red", sym=True)    # back
-    m.wall_x(-5700, -4300, 1000, P, R - 40, [(-5300, -4800, P, P + 350)], color="red", sym=True)
-    m.wall_x(-5700, -4300, -1000, P, R - 40, [(-5300, -4800, P, P + 350)], color="red", sym=True)
-    m.block((-5730, -1500, R - 40), (-4270, 1500, R), "red", sym=True)          # roof, with porches
-    m.ramp((-3500, 1250, P), (-4270, 1250, R), 400, sym=True)
-    m.ramp((-3500, -1250, P), (-4270, -1250, R), 400, sym=True)
+    T = R - 40                                                                    # roof underside
+    for px, py in [(-5650, -1250), (-5650, 1250), (-4350, -1250), (-4350, 1250), (-5650, 0)]:
+        m.block((px - 100, py - 100, P), (px + 100, py + 100, T), "red", sym=True)  # pillars
+    m.block((-4850, -1250, P), (-4650, -1050, T), "red", sym=True)                # side pillars
+    m.block((-4850, 1050, P), (-4650, 1250, T), "red", sym=True)
+    # Roof (top R) round a 4 m drop hole over the flag; porches past the pillars.
+    m.block((-5750, -1500, T), (-4250, -250, R), "red", sym=True)
+    m.block((-5750, 250, T), (-4250, 1500, R), "red", sym=True)
+    m.block((-5750, -250, T), (-5250, 250, R), "red", sym=True)
+    m.block((-4750, -250, T), (-4250, 250, R), "red", sym=True)
+    # Waist-high walls (1.1 m: crouch cover, jump-over), in short runs with gaps.
+    m.cover((-4400, -900, P), (-4300, -350, P + 110), "red", sym=True)            # front
+    m.cover((-4400, 350, P), (-4300, 900, P + 110), "red", sym=True)
+    m.cover((-5700, -800, P), (-5600, -400, P + 110), "red", sym=True)            # back
+    m.cover((-5700, 400, P), (-5600, 800, P + 110), "red", sym=True)
+    m.cover((-5550, -1150, P), (-5150, -1050, P + 110), "red", sym=True)          # sides (off a pillar)
+    m.cover((-5550, 1050, P), (-5150, 1150, P + 110), "red", sym=True)
+    m.ramp((-3500, 1250, P), (-4250, 1250, R), 400, sym=True)
+    m.ramp((-3500, -1250, P), (-4250, -1250, R), 400, sym=True)
+    m.block((-4250, -150, P), (-4000, 150, P + 210), "rock", sym=True)           # jump route: crate (2.1 m), then the roof (2.4 m)
+
+    # ---- Skill route to the Rail Lance: two creek rocks under the arch, a jump each (2.5 m, then 2.2 m, then 1.8 m
+    # onto the arch). Fast and exposed against the slow, safe ramp-and-mesa way round. ----
+    m.block((-430, 2250, 0), (-180, 2500, 250), "rock", sym=True)
+    m.block((-480, 2620, 0), (-230, 2840, 470), "rock", sym=True)
 
     # ---- The creek: mid rock (rockets) and boulders ----
     m.block((-500, -500, 0), (500, 500, 200), "rock")
@@ -655,7 +677,6 @@ def creekbed():
     m.cover((-3600, -1900, P), (-3300, -1600, P + 400), "rock", sym=True)
     m.cover((-500, 1300, 0), (-250, 1600, 140), "rock", sym=True)                # creek boulders
     m.cover((-700, -1500, 0), (-450, -1200, 450), "rock", sym=True)
-    m.cover((-650, 2000, 0), (-400, 2300, 450), "rock", sym=True)
     m.cover((-2300, 300, P), (-2000, 600, P + 140), "rock", sym=True)           # bank
     m.cover((-3300, -1000, P), (-3000, -700, P + 140), "rock", sym=True)
     m.cover((-2500, -2400, P), (-2200, -2100, P + 140), "rock", sym=True)
@@ -673,9 +694,9 @@ def creekbed():
     m.weapon("rockets", (0, 0, 270))
     m.weapon("rail", (0, 3300, M + 70))
     m.powerup("aegis", (0, -3400, P + 70))
-    for sp in [(-5300, 500, P), (-5800, 2200, P), (-5800, -2200, P), (-5000, 0, R), (-5600, -3400, P)]:
+    for sp in [(-5300, 500, P), (-5800, 2200, P), (-5800, -2200, P), (-5400, 900, R), (-5600, -3400, P)]:
         m.spawn(sp)
-    m.flag((-5200, -400, P + 90))
+    m.flag((-5000, 0, P + 90))
     m.hills = [(0, 0, 420), (0, 3300, M + 220), (0, -3400, P + 220), (-3000, -2300, P + 220), (3000, -2300, P + 220)]
     m.ball = (0, 1900, 90)
     return m
