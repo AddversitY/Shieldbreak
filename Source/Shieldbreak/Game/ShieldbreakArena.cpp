@@ -424,6 +424,9 @@ void AShieldbreakArena::BuildTrim()
 	const FName RedStyle(TEXT("red")), BlueStyle(TEXT("blue"));
 	UInstancedStaticMeshComponent* Strips[3] = { nullptr, nullptr, nullptr };
 	const FLinearColor Colors[3] = { ShieldbreakMapArt::GetLook(MapId).Trim, TrimRed, TrimBlue };
+	// Enclosed maps: half as bright, or the strips bloom the dim halls out to a wash. -SBTrimGlow=<strength> to compare.
+	float TrimGlow = Layout.bIndoor ? 7.f : 14.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBTrimGlow="), TrimGlow);
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		Strips[Index] = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Trim"), CubeMesh);
@@ -431,8 +434,7 @@ void AShieldbreakArena::BuildTrim()
 		// Brighter than glow blocks: the lines are thin and mostly seen from across the map.
 		if (UMaterialInstanceDynamic* MID = ApplySurface(Strips[Index], TEXT("glow"), Colors[Index]))
 		{
-			// Enclosed maps: half as bright, or the strips bloom the dim halls out to a wash.
-			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), Layout.bIndoor ? 7.f : 14.f);
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), TrimGlow);
 		}
 	}
 
