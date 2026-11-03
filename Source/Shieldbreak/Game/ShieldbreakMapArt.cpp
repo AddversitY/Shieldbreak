@@ -489,9 +489,9 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Metal = FLinearColor(0.30f, 0.32f, 0.35f);
 		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
 		Keel.Haze = FLinearColor(0.30f, 0.32f, 0.36f); // cool: was warm, and the hull still read orange (R34)
-		// Amber trim at 0.57x (the strength of -SBTrimGlow=4 indoors): with the wider lamp grid, full-strength strips
-		// tinted the steel orange between lamps (R43).
-		Keel.Trim = FLinearColor(0.57f, 0.24f, 0.045f);
+		// Cool white trim strips: they light the halls as much as the lamps do, and in amber they turned the whole hull
+		// orange (R47: the same camera with the strips off reads gunmetal). Amber stays on the hull kit's thin accents.
+		Keel.Trim = FLinearColor(0.45f, 0.52f, 0.62f);
 		// Cool white kit glow (2026-11-03, R33): with amber glow strips everywhere the Lumen bounce turned the whole hull
 		// orange; amber stays on the trim, accents and the hull kit's rail lines.
 		Keel.KitGlow = FLinearColor(0.72f, 0.84f, 1.0f);
