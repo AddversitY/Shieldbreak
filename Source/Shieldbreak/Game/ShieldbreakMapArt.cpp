@@ -488,7 +488,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.Rock = FLinearColor(0.22f, 0.22f, 0.23f);
 		Keel.Metal = FLinearColor(0.30f, 0.32f, 0.35f);
 		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
-		Keel.Haze = FLinearColor(0.42f, 0.34f, 0.26f);
+		Keel.Haze = FLinearColor(0.30f, 0.32f, 0.36f); // cool: was warm, and the hull still read orange (R34)
 		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
 		// Cool white kit glow (2026-11-03, R33): with amber glow strips everywhere the Lumen bounce turned the whole hull
 		// orange; amber stays on the trim, accents and the hull kit's rail lines.
