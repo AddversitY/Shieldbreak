@@ -377,8 +377,9 @@ TERRAIN = {
                          threshold=0.35, coverage=1.6, desat=0.0, tint=(1.0, 0.95, 0.9), patch_noise=1.0),
     "CanyonRock": dict(side="asset:HugeSandstoneCliff", top="asset:SandstoneRockyGround", side_tile=650.0, top_tile=420.0,
                        threshold=0.8, coverage=0.55, desat=0.0, tint=(1.0, 1.0, 1.0)),
+    # Full snow cover on the ground: at 0.8 the bare-earth patches showed through as brown streaks all over the snow.
     "TundraGround": dict(side="asset:TundraRockyGround", top="asset:TundraRockyGround", side_tile=420.0, top_tile=520.0,
-                         threshold=0.35, coverage=0.8, desat=0.2, tint=(0.9, 0.92, 0.95), patch_noise=1.0, **SNOW),
+                         threshold=0.35, coverage=1.6, desat=0.6, tint=(0.9, 0.92, 0.95), patch_noise=1.0, **SNOW),
     "TundraRock": dict(side="asset:MassiveTundraRockFormation", top="asset:TundraRockyGround", side_tile=600.0, top_tile=420.0,
                        threshold=0.62, coverage=0.75, desat=0.3, tint=(0.85, 0.88, 0.92), **SNOW),
     "TundraStone": dict(side="IcelandicQuarryRock", top="asset:TundraRockyGround", side_tile=480.0, top_tile=420.0,

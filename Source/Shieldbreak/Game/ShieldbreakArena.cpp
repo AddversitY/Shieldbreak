@@ -756,6 +756,12 @@ void AShieldbreakArena::BuildCladding()
 				// A group's own colour (sandstone paving) overrides the map's metal.
 				MID->SetVectorParameterValue(TEXT("Tint"), Group.TeamTint.A > 0.f ? Group.TeamTint : CladTint);
 				MID->SetVectorParameterValue(TEXT("AccentColor"), Look.CladAccent);
+				// -SBCladScalar=Name:Value sets one of M_SB_Trim's scalars on every plate, for diagnosis.
+				FString ScalarArg, ScalarName, ScalarValue;
+				if (FParse::Value(FCommandLine::Get(), TEXT("SBCladScalar="), ScalarArg) && ScalarArg.Split(TEXT(":"), &ScalarName, &ScalarValue))
+				{
+					MID->SetScalarParameterValue(FName(*ScalarName), FCString::Atof(*ScalarValue));
+				}
 				// Floor plates keep their accent lines painted but barely lit, or the whole floor reads as a glowing grid.
 				if (Group.Piece.ToString().StartsWith(TEXT("Floor")))
 				{
