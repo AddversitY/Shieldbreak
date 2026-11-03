@@ -928,10 +928,13 @@ void AShieldbreakArena::BuildInteriorLights()
 		{
 			const FVector At(-Layout.HalfExtent.X + (IX + 0.5) * 2.0 * Layout.HalfExtent.X / CountX,
 				-Layout.HalfExtent.Y + (IY + 0.5) * 2.0 * Layout.HalfExtent.Y / CountY, LampZ);
+			// No margin on Z: the lamps hang 40 cm under the ceiling slab, so a 50 cm margin counted every lamp as inside
+			// the ceiling and Keel had none at all (R38: "0 interior spot lamps"; its halls were lit only by the amber
+			// trim's bounce light, which is why they read orange).
 			const bool bInside = Layout.Blocks.ContainsByPredicate([&At](const FShieldbreakMapBlock& Block)
 			{
 				return At.X > Block.Min.X - 50.0 && At.X < Block.Max.X + 50.0 && At.Y > Block.Min.Y - 50.0 && At.Y < Block.Max.Y + 50.0
-					&& At.Z > Block.Min.Z - 50.0 && At.Z < Block.Max.Z + 50.0;
+					&& At.Z > Block.Min.Z && At.Z < Block.Max.Z;
 			});
 			if (bInside)
 			{
