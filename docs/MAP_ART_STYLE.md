@@ -99,6 +99,23 @@ from Epic's free **Electric Dreams Env** sample (Fab; Epic content, licensed for
   walls and structures, only where there's ground and no block. All visual, no collision. Missing assets fall back
   to the old surfaces with a warning; `-SBNoScan` turns it off for comparisons.
 
+## Lighting lessons (2026-11-03)
+
+- **Emissive strips light the room.** Under Lumen, the glow trim along block edges (`BuildTrim`) bounces as much light as
+  the lamps do. In amber it turned Keel's whole gunmetal hull orange. A map's dominant tone comes from its trim colour,
+  so keep the trim neutral or cool on maps whose surfaces should read as metal, and put warm colours on thin kit accents.
+  Bastion's red team strips tint the snow at the red spawn the same way. That is left in as team identity.
+- **Enclosed maps' lamps.** `BuildInteriorLights` hangs unshadowed downward spots 40 cm under each ceiling:
+  - 24 m apart, 250 cd, 18 m reach. The old grid (17 m, 150 cd, 26 m) looked the same and cost about 12 FPS on Keel.
+  - `-SBLampSpacing=`, `-SBLampCd=`, `-SBLampRadius=` and `-SBLampVol=` for comparisons.
+  - `-SBNoInteriorLights` turns them off.
+- **Sun shadows on scanned maps.** Two cascades over the arena, with distance-field shadows beyond. Sanctum's full cascades
+  cost 3.2 ms (8192x2048 atlas). `-SBFullSunShadows` restores them on bScan maps.
+- **Kit cladding outdoors costs a lot.** `-SBClad` on Bastion cost about 20 FPS (5,300 instances) and covered the snow,
+  so Bastion stays unclad.
+- **Measure in one batch.** The desktop's FPS drifts by 10% or more between sessions. Interleave the variants in one run,
+  twice each, and compare only within that run.
+
 ## Next
 
 Vincent wants one map at a time, sized and filled to Halo Infinite arena scale (Sanctuary as the reference), with a
