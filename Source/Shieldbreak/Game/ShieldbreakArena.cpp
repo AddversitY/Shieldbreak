@@ -909,6 +909,8 @@ void AShieldbreakArena::BuildInteriorLights()
 	// How strongly each lamp lights the volumetric haze (its visible cone). -SBLampVol= to compare the cost.
 	float VolumetricScattering = bSpots ? 1.5f : 0.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampVol="), VolumetricScattering);
+	float Reach = bSpots ? 2600.f : Spacing * 1.9f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBLampRadius="), Reach);
 	Spacing = FMath::Max(Spacing, 400.f);
 	const float CeilingZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z);
 	const float LampZ = CeilingZ - (bSpots ? 40.f : 120.f);
@@ -970,7 +972,7 @@ void AShieldbreakArena::BuildInteriorLights()
 			Lamp->SetRelativeLocation(At);
 			Lamp->SetIntensityUnits(ELightUnits::Candelas);
 			Lamp->SetIntensity(Candelas);
-			Lamp->SetAttenuationRadius(bSpots ? 2600.f : Spacing * 1.9f);
+			Lamp->SetAttenuationRadius(Reach);
 			Lamp->SetLightColor(Look.InteriorLight);
 			Lamp->SetCastShadows(false);
 			Lamp->SetVolumetricScatteringIntensity(VolumetricScattering);
