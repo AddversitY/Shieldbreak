@@ -71,8 +71,7 @@ procedural layer, pivoting around the gun hand on top of the calibrated placemen
 
 All springs are sub-stepped at 240 Hz, so they behave the same at 15 FPS and 144 FPS.
 
-Camera recoil is now eased in: `AShieldbreakCharacter::AddViewKick` applies it with a
-20 ms time constant (about 90% within 50 ms). The total turn per shot is unchanged.
+Camera recoil was removed on 2026-11-03 (Vincent: no recoil). Shots never turn the view; see `docs/GAME_FEEL.md`.
 
 Third person: other players' upper bodies now rock back with each shot (an 8 Hz spine
 spring driven from `MulticastShotFX`). A locomotion change that interrupts a

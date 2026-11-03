@@ -108,6 +108,8 @@ private:
 
 	/** Returns the raw (pre-multiplier) damage the shield layers did not absorb. */
 	float AbsorbWithShield(float RawDamage, float ShieldMultiplier);
+	/** Server: tells the player who did this damage what it did (hit marker flags). */
+	void ConfirmHit(AController* InstigatedBy, bool bShieldHit, bool bShieldBroke, bool bHeadshot) const;
 	void ResetRechargeDelay(float ExtraDelay);
 	void SetShieldInternal(float NewShield);
 	void SetOvershieldInternal(float NewOvershield);

@@ -17,6 +17,7 @@ namespace ShieldbreakSettingsPrivate
 		float Sensitivity = 1.f;
 		float FieldOfView = ShieldbreakSettings::DefaultFieldOfView;
 		bool bInvertLook = false;
+		bool bAimAssist = true;
 		bool bShowTips = true;
 		float MusicVolume = 0.6f;
 		float MasterVolume = 1.f;
@@ -33,6 +34,7 @@ namespace ShieldbreakSettingsPrivate
 			GConfig->GetFloat(Section, TEXT("Sensitivity"), Cached.Sensitivity, GGameUserSettingsIni);
 			GConfig->GetFloat(Section, TEXT("FieldOfView"), Cached.FieldOfView, GGameUserSettingsIni);
 			GConfig->GetBool(Section, TEXT("InvertLook"), Cached.bInvertLook, GGameUserSettingsIni);
+			GConfig->GetBool(Section, TEXT("AimAssist"), Cached.bAimAssist, GGameUserSettingsIni);
 			GConfig->GetBool(Section, TEXT("ShowTips"), Cached.bShowTips, GGameUserSettingsIni);
 			GConfig->GetFloat(Section, TEXT("MusicVolume"), Cached.MusicVolume, GGameUserSettingsIni);
 			Cached.MusicVolume = FMath::Clamp(Cached.MusicVolume, 0.f, 1.f);
@@ -54,6 +56,7 @@ namespace ShieldbreakSettingsPrivate
 		GConfig->SetFloat(Section, TEXT("Sensitivity"), V.Sensitivity, GGameUserSettingsIni);
 		GConfig->SetFloat(Section, TEXT("FieldOfView"), V.FieldOfView, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("InvertLook"), V.bInvertLook, GGameUserSettingsIni);
+		GConfig->SetBool(Section, TEXT("AimAssist"), V.bAimAssist, GGameUserSettingsIni);
 		GConfig->SetBool(Section, TEXT("ShowTips"), V.bShowTips, GGameUserSettingsIni);
 		GConfig->SetFloat(Section, TEXT("MusicVolume"), V.MusicVolume, GGameUserSettingsIni);
 		GConfig->SetFloat(Section, TEXT("MasterVolume"), V.MasterVolume, GGameUserSettingsIni);
@@ -91,6 +94,17 @@ bool ShieldbreakSettings::GetInvertLook()
 void ShieldbreakSettings::SetInvertLook(bool bInvert)
 {
 	ShieldbreakSettingsPrivate::Values().bInvertLook = bInvert;
+	ShieldbreakSettingsPrivate::Save();
+}
+
+bool ShieldbreakSettings::GetAimAssist()
+{
+	return ShieldbreakSettingsPrivate::Values().bAimAssist;
+}
+
+void ShieldbreakSettings::SetAimAssist(bool bEnabled)
+{
+	ShieldbreakSettingsPrivate::Values().bAimAssist = bEnabled;
 	ShieldbreakSettingsPrivate::Save();
 }
 

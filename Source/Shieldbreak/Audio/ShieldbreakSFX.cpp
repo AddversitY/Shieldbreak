@@ -147,10 +147,14 @@ namespace ShieldbreakSFXPrivate
 		}
 		case EShieldbreakSound::ShieldPop:
 		{
-			FSynth S(0.45f, 16);
-			S.AddNoise(0.7f, 9000.f, 1200.f, 0.f, 0.07f);
-			S.AddTone(0.7f, 1400.f, 180.f, 0.25f, 0.001f, 0.12f, 0.f, 0.25f);
-			S.AddBuzz(0.2f, 90.f, 60.f, 0.f, 0.15f);
+			// An electric crack, a falling two-tone "pew" and a low thump: unmistakable across the map.
+			FSynth S(0.5f, 16);
+			S.AddNoise(0.6f, 14000.f, 5000.f, 0.f, 0.018f);
+			S.AddNoise(0.5f, 9000.f, 1200.f, 0.002f, 0.07f);
+			S.AddTone(0.7f, 1500.f, 180.f, 0.22f, 0.001f, 0.12f, 0.f, 0.25f);
+			S.AddTone(0.3f, 2250.f, 270.f, 0.22f, 0.001f, 0.08f);
+			S.AddTone(0.45f, 130.f, 48.f, 0.15f, 0.002f, 0.09f);
+			S.AddBuzz(0.15f, 90.f, 60.f, 0.f, 0.15f);
 			return S.ToPCM();
 		}
 		case EShieldbreakSound::ShieldLowBeep:
@@ -245,6 +249,21 @@ namespace ShieldbreakSFXPrivate
 			S.AddTone(0.4f, 900.f, 200.f, 0.5f, 0.02f, 0.3f, 0.f, 0.6f);
 			S.AddNoise(0.2f, 3000.f, 600.f, 0.05f, 0.3f);
 			return S.ToPCM(0.5f);
+		}
+		case EShieldbreakSound::ShieldHitMarker:
+		{
+			FSynth S(0.06f, 30);
+			S.AddTone(0.5f, 2100.f, 1950.f, 0.04f, 0.0005f, 0.012f, 0.f, 0.2f);
+			S.AddNoise(0.25f, 10000.f, 7000.f, 0.f, 0.005f);
+			return S.ToPCM(0.75f);
+		}
+		case EShieldbreakSound::ShieldBreakMarker:
+		{
+			FSynth S(0.22f, 31);
+			S.AddNoise(0.7f, 13000.f, 3000.f, 0.f, 0.025f);
+			S.AddTone(0.6f, 3200.f, 900.f, 0.12f, 0.0005f, 0.06f, 0.f, 0.3f);
+			S.AddTone(0.3f, 4800.f, 1350.f, 0.12f, 0.0005f, 0.04f);
+			return S.ToPCM(0.8f);
 		}
 		default:
 			return TArray<int16>();

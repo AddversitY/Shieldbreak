@@ -25,6 +25,8 @@
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "NiagaraComponent.h"
+#include "EngineUtils.h"
+#include "Game/ShieldbreakTeams.h"
 
 namespace ShieldbreakWeaponPrivate
 {
@@ -35,6 +37,10 @@ namespace ShieldbreakWeaponPrivate
 	constexpr float DirectionToleranceDegrees = 5.f;
 	constexpr float RateTolerance = 1.25f;
 	constexpr float HeatIdleDelay = 0.25f;
+	/** Bullet magnetism never bends a shot that passes farther than this (cm) from the body line. */
+	constexpr float MagnetismMaxMiss = 40.f;
+	/** How far from the body line a shot still hits anyway (the capsule's radius). */
+	constexpr float MagnetismBodyRadius = 38.f;
 }
 
 AShieldbreakWeapon::AShieldbreakWeapon()
@@ -450,7 +456,9 @@ void AShieldbreakWeapon::FireShotLocal()
 	const FVector Origin = OwnerCharacter->GetAimOrigin();
 	const FVector AimDir = OwnerCharacter->GetAimRotation().Vector();
 	const float HalfAngle = FMath::DegreesToRadians(GetCurrentSpreadDegrees());
-	const FVector Direction = HalfAngle > 0.f ? FMath::VRandCone(AimDir, HalfAngle) : AimDir;
+	const FVector SpreadDir = HalfAngle > 0.f ? FMath::VRandCone(AimDir, HalfAngle) : AimDir;
+	// Player shots bend onto an enemy they narrowly miss (bots aim with their own error model).
+	const FVector Direction = OwnerCharacter->IsPlayerControlled() ? ApplyMagnetism(Origin, SpreadDir) : SpreadDir;
 
 	// Predict ammo / heat locally; the server's replicated values take over.
 	LastShotLocalTime = World->GetTimeSeconds();
@@ -489,23 +497,90 @@ void AShieldbreakWeapon::FireShotLocal()
 				SpawnImpactFX(Hit);
 			}
 		}
+		// No recoil: the gun model jumps in the hands, the aim never moves.
 		PlayShotEffects(true);
-		ApplyRecoil();
 	}
 
 	ServerFireShot(Origin, Direction);
 }
 
-void AShieldbreakWeapon::ApplyRecoil()
+FVector AShieldbreakWeapon::ApplyMagnetism(const FVector& Origin, const FVector& Direction) const
 {
-	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
-	if (!OwnerCharacter || !OwnerCharacter->GetController() || Stats.RecoilPitch <= 0.f)
+	using namespace ShieldbreakWeaponPrivate;
+	const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	UWorld* World = GetWorld();
+	if (!OwnerCharacter || !World || Stats.MagnetismDegrees <= 0.f || Stats.MagnetismRange <= 0.f || !OwnerCharacter->IsAimAssistEnabled())
 	{
-		return;
+		return Direction;
 	}
-	// Eased in over a few frames by the character, rather than a one-frame jump of the view.
-	OwnerCharacter->AddViewKick(FRotator(Stats.RecoilPitch * FMath::FRandRange(0.8f, 1.2f),
-		Stats.RecoilPitch * FMath::FRandRange(-0.25f, 0.25f), 0.f));
+	const FVector Dir = Direction.GetSafeNormal();
+
+	// A shot that already hits someone (or something closer) is left exactly as aimed: magnetism never pulls a
+	// headshot onto the body, and never bends a shot around a wall.
+	FHitResult DirectHit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakMagnetism), true, OwnerCharacter);
+	Params.AddIgnoredActor(this);
+	const bool bDirectHit = World->LineTraceSingleByChannel(DirectHit, Origin, Origin + Dir * Stats.Range, ECC_Weapon, Params);
+	if (bDirectHit && Cast<AShieldbreakCharacter>(DirectHit.GetActor()))
+	{
+		return Direction;
+	}
+	const float BlockedAt = bDirectHit ? static_cast<float>(DirectHit.Distance) : Stats.Range;
+
+	const float Range = FMath::Min(Stats.MagnetismRange, Stats.Range);
+	const AShieldbreakCharacter* Best = nullptr;
+	FVector BestPoint = FVector::ZeroVector;
+	float BestScore = 1.f;
+	for (TActorIterator<AShieldbreakCharacter> It(World); It; ++It)
+	{
+		const AShieldbreakCharacter* Other = *It;
+		if (Other == OwnerCharacter || !Other->IsAlive() || Other->IsHidden() || ShieldbreakTeams::AreTeammates(OwnerCharacter, Other))
+		{
+			continue;
+		}
+		// The body as a line from the hips to the neck (the capsule's straight part). The shot's closest pass to that
+		// line is its miss distance. The line stops below the head on purpose: magnetism finds the body, headshots
+		// still have to be aimed.
+		const FVector Center = Other->GetActorLocation();
+		const FVector Bottom = Center - FVector(0.f, 0.f, 50.f);
+		const FVector Top = (Other->GetHeadMesh() ? Other->GetHeadMesh()->GetComponentLocation() : Center + FVector(0.f, 0.f, 72.f)) - FVector(0.f, 0.f, 20.f);
+		FVector OnRay, OnBody;
+		FMath::SegmentDistToSegmentSafe(Origin, Origin + Dir * Range, Bottom, Top, OnRay, OnBody);
+		const float Distance = static_cast<float>(FVector::Dist(Origin, OnBody));
+		if (Distance < 200.f || Distance > Range || Distance > BlockedAt + 150.f)
+		{
+			continue;
+		}
+		// Extra reach past the body's edge: MagnetismDegrees wide, never more than MagnetismMaxMiss, at full strength
+		// to half range and then fading out, so long shots still need a steady hand.
+		const float Falloff = FMath::Clamp(2.f * (1.f - Distance / Range), 0.f, 1.f);
+		const float Reach = FMath::Min(Distance * FMath::Tan(FMath::DegreesToRadians(Stats.MagnetismDegrees)), MagnetismMaxMiss) * Falloff;
+		const float Miss = static_cast<float>(FVector::Dist(OnRay, OnBody)) - MagnetismBodyRadius;
+		if (Reach <= 1.f || Miss >= Reach)
+		{
+			continue;
+		}
+		const float Score = FMath::Max(0.f, Miss) / Reach;
+		if (Score >= BestScore)
+		{
+			continue;
+		}
+		// The bent path must be clear too.
+		FHitResult Blocker;
+		FCollisionQueryParams ClearParams(SCENE_QUERY_STAT(ShieldbreakMagnetismClear), false, OwnerCharacter);
+		ClearParams.AddIgnoredActor(this);
+		ClearParams.AddIgnoredActor(Other);
+		if (World->LineTraceSingleByChannel(Blocker, Origin, OnBody, ECC_Visibility, ClearParams))
+		{
+			continue;
+		}
+		// Bend only as far as needed: to just inside the body's edge on the side the shot passed.
+		const FVector Side = (OnRay - OnBody).GetSafeNormal();
+		Best = Other;
+		BestPoint = OnBody + Side * FMath::Min(MagnetismBodyRadius - 10.f, static_cast<float>(FVector::Dist(OnRay, OnBody)));
+		BestScore = Score;
+	}
+	return Best ? (BestPoint - Origin).GetSafeNormal() : Direction;
 }
 
 // ---- Server ----
@@ -594,7 +669,7 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 	const FVector ShotDir = FVector(Direction).GetSafeNormal();
 	const FVector ServerAim = OwnerCharacter->GetAimRotation().Vector();
-	const float MaxDeviation = Stats.MaxSpreadDegrees * 2.f + DirectionToleranceDegrees;
+	const float MaxDeviation = Stats.MaxSpreadDegrees * 2.f + Stats.MagnetismDegrees + DirectionToleranceDegrees;
 	if (FVector::DotProduct(ShotDir, ServerAim) < FMath::Cos(FMath::DegreesToRadians(MaxDeviation)))
 	{
 		UE_LOG(LogShieldbreak, Verbose, TEXT("Rejected shot from %s: direction off aim."), *OwnerCharacter->GetName());
@@ -668,11 +743,7 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 
 		if (bVictimWasAlive)
 		{
-			const bool bKill = !Victim->IsAlive();
-			if (AShieldbreakPlayerController* ShooterPC = Cast<AShieldbreakPlayerController>(InstigatorController))
-			{
-				ShooterPC->ClientHitConfirmed(bKill, bHeadshot && bKill);
-			}
+			// The hit marker comes from the victim's shield component (every damage source shares it).
 			if (AShieldbreakPlayerController* VictimPC = Cast<AShieldbreakPlayerController>(Victim->GetController()))
 			{
 				VictimPC->ClientDamagedFrom(FVector_NetQuantize(OwnerCharacter->GetActorLocation()));

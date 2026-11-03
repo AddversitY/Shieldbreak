@@ -29,6 +29,10 @@ enum class EShieldbreakSound : uint8
 	AegisRaise,
 	AegisHit,
 	CamoOn,
+	/** Hit marker for a hit absorbed by the shield: a glassier tick. */
+	ShieldHitMarker,
+	/** Hit marker when your shot pops an enemy's shield: a bright crack. */
+	ShieldBreakMarker,
 	Count
 };
 

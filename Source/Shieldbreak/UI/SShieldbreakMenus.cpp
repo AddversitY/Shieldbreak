@@ -180,6 +180,12 @@ TSharedRef<SWidget> ShieldbreakMenuStyle::MakeGameplayRows()
 		]
 		+ SVerticalBox::Slot().AutoHeight()
 		[
+			MakeChooser(LOCTEXT("AimAssist", "Aim assist"),
+				[]() { return ShieldbreakSettings::GetAimAssist() ? LOCTEXT("AimAssistOn", "On") : LOCTEXT("AimAssistOff", "Off"); },
+				[](int32) { ShieldbreakSettings::SetAimAssist(!ShieldbreakSettings::GetAimAssist()); })
+		]
+		+ SVerticalBox::Slot().AutoHeight()
+		[
 			MakeChooser(LOCTEXT("Tips", "New-player tips"),
 				[]() { return ShieldbreakSettings::GetShowTips() ? LOCTEXT("TipsOn", "On") : LOCTEXT("TipsOff", "Off"); },
 				[](int32) { ShieldbreakSettings::SetShowTips(!ShieldbreakSettings::GetShowTips()); })

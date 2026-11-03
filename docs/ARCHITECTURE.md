@@ -289,10 +289,11 @@ float GetCurrentSpreadDegrees() const;                       // includes owner's
 void AddReserveAmmo(int32 Amount);                           // server
 ```
 Firing: the local machine runs the fire-rate/burst timer and computes the spread direction from
-`GetAimRotation()`, with a cosmetic tracer and recoil. Each shot calls
+`GetAimRotation()`, then applies bullet magnetism (`ApplyMagnetism`, players only; see `docs/GAME_FEEL.md`), with a
+cosmetic tracer and gun kick (no recoil: the aim never moves). Each shot calls
 `UFUNCTION(Server, Reliable) ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction)`.
 The server validates rate (with tolerance), ammo/heat, origin within 150 uu of `GetAimOrigin()`, and direction
-within `MaxSpread + 5°` of the server aim. It then traces `ECC_Weapon` (ignoring owner + self) and applies
+within `MaxSpread + MagnetismDegrees + 5°` of the server aim. It then traces `ECC_Weapon` (ignoring owner + self) and applies
 `UGameplayStatics::ApplyPointDamage` with `DamageCauser = this`. **Headshot rule**: if the hit component is the
 victim's `GetHeadMesh()` and `bPrecision` and the victim's shield + overshield ≤ 0 → damage × `HeadshotMultiplier`.
 After damage it calls `ClientHitConfirmed` on the instigator's `AShieldbreakPlayerController` and
@@ -409,7 +410,8 @@ Rail Lance, Overshield, Aegis). Not an SMG or Plasma Rifle.
 - **Break Pulse prompt**: for `BreakPulseWindow + 0.25` s after `GetLastShieldBreakLocalTime()`, flash "PULSE" near the crosshair
   (teaches the timing).
 - Crosshair per weapon: dot + ring scaled by `GetCurrentSpreadDegrees()`. Red when a trace from the camera hits an enemy
-  character within range. Hit marker (X) for 0.2 s after `GetLastHitConfirmTime()`, larger and red on kills.
+  character within range. Hit marker (X) for 0.28 s after `GetLastHitConfirmTime()`: white on health, blue on shield,
+  a bursting ring on a shield pop, larger and red on kills (flags from `UShieldHealthComponent::ConfirmHit`).
   "HEADSHOT" text on headshot kills.
 - Damage direction arc toward `GetLastDamageSource()` for 1 s.
 - Bottom-right: weapon name, magazine/reserve or heat bar (OVERHEATED), reload progress. Grenade count. Holstered weapon name.

@@ -19,8 +19,10 @@
 #include "GameFramework/GameSession.h"
 #include "UI/SShieldbreakMainMenu.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -28,6 +30,7 @@
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Player/ShieldbreakPlayerState.h"
+#include "Player/ShieldbreakPlayerController.h"
 #include "Shield/ShieldHealthComponent.h"
 #include "Shield/ShieldTuningData.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -2095,34 +2098,171 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			return false;
 		}, 5.f });
 
-	Steps.Add({ TEXT("Shot recoil eases into the view"),
-		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
+	Steps.Add({ TEXT("Firing never moves the aim (no recoil)"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA));
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+				A->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+			}
+		},
 		[this](float Elapsed)
 		{
-			const AController* Controller = A ? A->GetController() : nullptr;
-			if (!Controller) { Check(TEXT("Recoil has a local controller"), false); return true; }
-			const float Pitch = static_cast<float>(FRotator::NormalizeAxis(Controller->GetControlRotation().Pitch));
+			AController* Controller = A ? A->GetController() : nullptr;
+			if (!Controller) { Check(TEXT("Firing never moves the aim (no recoil)"), false, TEXT("no local controller")); return true; }
+			const FRotator View = Controller->GetControlRotation();
 			if (Phase == 0 && Elapsed > 0.5f)
 			{
-				Value0 = Pitch;
-				A->AddViewKick(FRotator(2.f, 0.f, 0.f));
+				Controller->SetControlRotation(FRotator(5.f, 30.f, 0.f));
+				A->StartFire();
 				Mark = Now(); Phase = 1;
 			}
-			else if (Phase == 1)
+			else if (Phase == 1 && Now() - Mark > 0.9f) // two full bursts
 			{
-				// The first frame after the kick: some of it applied, not all.
-				const float Applied = Pitch - Value0;
-				Check(TEXT("Recoil is spread over more than one frame"), (Applied > 0.f && Applied < 1.99f) || GetWorld()->GetDeltaSeconds() > 0.08f,
-					FString::Printf(TEXT("%s of 2 deg in the first %s s"), *ShieldbreakSelfTestPrivate::Num(Applied), *ShieldbreakSelfTestPrivate::Num(Now() - Mark)));
-				Phase = 2;
-			}
-			else if (Phase == 2 && Now() - Mark > 0.3f)
-			{
-				Check(TEXT("...and the full kick lands within 0.3 s"), FMath::Abs(Pitch - Value0 - 2.f) < 0.03f && A->GetPendingViewKick().IsNearlyZero(0.01f),
-					FString::Printf(TEXT("turned %s deg"), *ShieldbreakSelfTestPrivate::Num(Pitch - Value0)));
+				A->StopFire();
+				const FRotator Delta = (View - FRotator(5.f, 30.f, 0.f)).GetNormalized();
+				Check(TEXT("Firing never moves the aim (no recoil)"), FMath::Abs(Delta.Pitch) < 0.01f && FMath::Abs(Delta.Yaw) < 0.01f,
+					FString::Printf(TEXT("pitch %s, yaw %s deg after two bursts"), *ShieldbreakSelfTestPrivate::Num(Delta.Pitch), *ShieldbreakSelfTestPrivate::Num(Delta.Yaw)));
 				return true;
 			}
 			return false;
+		}, 3.f });
+
+	// ---- Bullet magnetism: a near miss bends onto the body; a clear miss and a direct hit stay as aimed. ----
+	Steps.Add({ TEXT("Bullet magnetism bends a near miss onto the enemy"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f)));
+			B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(1000.f, 0.f, 1500.f), 180.f, false);
+			for (AShieldbreakCharacter* Dummy : { A.Get(), B.Get() })
+			{
+				if (Dummy && Dummy->GetCharacterMovement())
+				{
+					Dummy->GetCharacterMovement()->StopMovementImmediately();
+					Dummy->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+				}
+			}
+			if (A)
+			{
+				A->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+				A->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+			}
+		},
+		[this](float Elapsed)
+		{
+			using namespace ShieldbreakSelfTestPrivate;
+			const AShieldbreakWeapon* Weapon = A ? A->GetCurrentWeapon() : nullptr;
+			if (!Weapon || !B)
+			{
+				Check(TEXT("Bullet magnetism bends a near miss onto the enemy"), false, TEXT("no shooter, weapon or target"));
+				return true;
+			}
+			if (Elapsed < 0.5f)
+			{
+				return false;
+			}
+			const FVector Origin = A->GetAimOrigin();
+			auto HitsB = [this, Origin](const FVector& Dir)
+			{
+				FHitResult Hit;
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(SelfTestMagnetism), true, A.Get());
+				Params.AddIgnoredActor(A->GetCurrentWeapon());
+				return GetWorld()->LineTraceSingleByChannel(Hit, Origin, Origin + Dir * 3000.f, ECC_Weapon, Params) && Hit.GetActor() == B.Get();
+			};
+			const FVector Chest = B->GetActorLocation() + FVector(0.f, 0.f, 20.f);
+			const FVector NearMiss = (Chest + FVector(0.f, 50.f, 0.f) - Origin).GetSafeNormal();  // 12 cm past the edge at 10 m
+			const FVector WideMiss = (Chest + FVector(0.f, 150.f, 0.f) - Origin).GetSafeNormal(); // over a metre wide
+			const FVector OnTarget = (Chest + FVector(0.f, 15.f, 0.f) - Origin).GetSafeNormal();
+			const FVector Bent = Weapon->ApplyMagnetism(Origin, NearMiss);
+			Check(TEXT("Bullet magnetism bends a near miss onto the enemy"), !HitsB(NearMiss) && HitsB(Bent),
+				FString::Printf(TEXT("bent %s deg"), *Num(FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(Bent | NearMiss), -1.f, 1.f))))));
+			Check(TEXT("...a clear miss stays a miss"), Weapon->ApplyMagnetism(Origin, WideMiss).Equals(WideMiss, 1e-4f));
+			Check(TEXT("...a direct hit is left exactly as aimed"), Weapon->ApplyMagnetism(Origin, OnTarget).Equals(OnTarget, 1e-4f));
+			IConsoleVariable* AimAssist = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.AimAssist"));
+			if (AimAssist)
+			{
+				AimAssist->Set(0, ECVF_SetByCode);
+				Check(TEXT("...and nothing bends with aim assist off"), Weapon->ApplyMagnetism(Origin, NearMiss).Equals(NearMiss, 1e-4f));
+				AimAssist->Set(1, ECVF_SetByCode);
+			}
+			return true;
+		}, 3.f });
+
+	// ---- Aim slowdown also helps mouse players (lighter than on a controller, and with no tracking pull). ----
+	Steps.Add({ TEXT("Aim slowdown works with a mouse"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 1500.f)));
+			B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(1000.f, 20.f, 1534.f), 180.f, false); // chest at eye height
+			for (AShieldbreakCharacter* Dummy : { A.Get(), B.Get() })
+			{
+				if (Dummy && Dummy->GetCharacterMovement())
+				{
+					Dummy->GetCharacterMovement()->StopMovementImmediately();
+					Dummy->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+				}
+			}
+		},
+		[this](float Elapsed)
+		{
+			AController* Controller = A ? A->GetController() : nullptr;
+			if (!Controller || !B) { Check(TEXT("Aim slowdown works with a mouse"), false, TEXT("no local pawn")); return true; }
+			if (Elapsed < 0.4f)
+			{
+				Controller->SetControlRotation(FRotator::ZeroRotator);
+				return false;
+			}
+			if (Elapsed < 1.f)
+			{
+				return false;
+			}
+			const float Yaw = static_cast<float>(FRotator::NormalizeAxis(Controller->GetControlRotation().Yaw));
+			Check(TEXT("Aim slowdown works with a mouse"), A->GetAimAssistStrength() > 0.5f && !A->IsUsingGamepadLook(),
+				FString::Printf(TEXT("strength %s"), *ShieldbreakSelfTestPrivate::Num(A->GetAimAssistStrength())));
+			Check(TEXT("...without pulling a mouse player's view"), FMath::Abs(Yaw) < 0.01f, FString::Printf(TEXT("yaw %s"), *ShieldbreakSelfTestPrivate::Num(Yaw)));
+			ClearDummies();
+			return true;
+		}, 3.f });
+
+	// ---- Hit markers: every damage source tells the shooter whether it hit shield, popped it, or killed. ----
+	Steps.Add({ TEXT("Hit markers report shield hits, shield pops and kills"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA));
+			B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(600.f, 0.f, 0.f), 180.f, false);
+		},
+		[this](float Elapsed)
+		{
+			using namespace ShieldbreakSelfTestPrivate;
+			auto ShieldOf = [](const AShieldbreakCharacter* C) { return C && C->GetShieldHealth() ? C->GetShieldHealth()->GetShield() : 0.f; };
+			auto HealthOf = [](const AShieldbreakCharacter* C) { return C && C->GetShieldHealth() ? C->GetShieldHealth()->GetHealth() : 0.f; };
+			AShieldbreakPlayerController* PC = A ? Cast<AShieldbreakPlayerController>(A->GetController()) : nullptr;
+			if (!PC || !B) { Check(TEXT("Hit markers report shield hits, shield pops and kills"), false, TEXT("no player controller or target")); return true; }
+			if (Elapsed < 0.3f)
+			{
+				return false;
+			}
+			const float T = GetWorld()->GetTimeSeconds();
+			UGameplayStatics::ApplyDamage(B, 10.f, PC, A, UDamageType_Ballistic::StaticClass());
+			Check(TEXT("Hit markers report shield hits, shield pops and kills"),
+				PC->GetLastHitConfirmTime() >= T && PC->WasLastHitShield() && !PC->WasLastHitShieldBreak() && !PC->WasLastHitKill());
+			UGameplayStatics::ApplyDamage(B, ShieldOf(B) + 1.f, PC, A, UDamageType_Ballistic::StaticClass());
+			const UShieldbreakShieldVisual* Visual = B->FindComponentByClass<UShieldbreakShieldVisual>();
+			Check(TEXT("...a shield pop is its own marker"), PC->WasLastHitShieldBreak() && PC->GetLastShieldBreakConfirmTime() >= T);
+			Check(TEXT("...and bursts the shield bubble"), (Visual && Visual->IsBurstActive()) || !FApp::CanEverRender(), Visual ? TEXT("") : TEXT("no shield visual"));
+			UGameplayStatics::ApplyDamage(B, HealthOf(B) + 5.f, PC, A, UDamageType_Ballistic::StaticClass());
+			Check(TEXT("...and a kill is a kill marker"), PC->WasLastHitKill() && !B->IsAlive());
+			const float Before = PC->GetLastHitConfirmTime();
+			UGameplayStatics::ApplyDamage(A, 5.f, PC, A, UDamageType_Ballistic::StaticClass());
+			Check(TEXT("...hurting yourself gives no marker"), PC->GetLastHitConfirmTime() == Before);
+			ClearDummies();
+			return true;
 		}, 3.f });
 
 	Steps.Add({ TEXT("An interrupted locomotion fade does not pop"),

@@ -9,6 +9,18 @@
 #include "Engine/EngineBaseTypes.h"
 #include "ShieldbreakPlayerController.generated.h"
 
+/** What a confirmed hit did, for the hit marker (bit flags in ClientHitConfirmed). */
+namespace EShieldbreakHitFlags
+{
+	constexpr uint8 Kill = 1 << 0;
+	/** A killing headshot. */
+	constexpr uint8 Headshot = 1 << 1;
+	/** The hit took shield (or overshield). */
+	constexpr uint8 Shield = 1 << 2;
+	/** The hit popped the shield. */
+	constexpr uint8 ShieldBreak = 1 << 3;
+}
+
 UCLASS()
 class SHIELDBREAK_API AShieldbreakPlayerController : public APlayerController
 {
@@ -26,7 +38,8 @@ public:
 	bool IsHelpVisible() const;
 
 	// ---- Feedback (server -> owning client) ----
-	UFUNCTION(Client, Unreliable) void ClientHitConfirmed(bool bKill, bool bHeadshot);
+	/** A hit on an enemy (EShieldbreakHitFlags): the hit marker and its sound. */
+	UFUNCTION(Client, Unreliable) void ClientHitConfirmed(uint8 Flags);
 	/** A medal for this player (EShieldbreakMedal); queued for the HUD. */
 	UFUNCTION(Client, Reliable) void ClientMedal(uint8 Medal);
 	UFUNCTION(Client, Unreliable) void ClientDamagedFrom(FVector_NetQuantize SourceLocation);
@@ -35,6 +48,10 @@ public:
 	float GetLastHitConfirmTime() const { return LastHitConfirmTime; }
 	bool WasLastHitKill() const { return bLastHitKill; }
 	bool WasLastHitHeadshot() const { return bLastHitHeadshot; }
+	bool WasLastHitShield() const { return (LastHitFlags & EShieldbreakHitFlags::Shield) != 0; }
+	bool WasLastHitShieldBreak() const { return (LastHitFlags & EShieldbreakHitFlags::ShieldBreak) != 0; }
+	/** Last time a hit popped an enemy's shield (the marker's burst outlives later hits for a moment). */
+	float GetLastShieldBreakConfirmTime() const { return LastShieldBreakConfirmTime; }
 
 	struct FMedalPopup
 	{
@@ -96,6 +113,8 @@ private:
 	float LastHitConfirmTime = -100.f;
 	bool bLastHitKill = false;
 	bool bLastHitHeadshot = false;
+	uint8 LastHitFlags = 0;
+	float LastShieldBreakConfirmTime = -100.f;
 	TArray<FMedalPopup> MedalPopups;
 	FVector LastDamageSource = FVector::ZeroVector;
 	float LastDamagedTime = -100.f;

@@ -21,6 +21,9 @@ namespace ShieldbreakSettings
 	SHIELDBREAK_API void SetFieldOfView(float Value);
 	SHIELDBREAK_API bool GetInvertLook();
 	SHIELDBREAK_API void SetInvertLook(bool bInvert);
+	/** Halo-style aim assist (on by default): slowdown over enemies, stick tracking and bullet magnetism. */
+	SHIELDBREAK_API bool GetAimAssist();
+	SHIELDBREAK_API void SetAimAssist(bool bEnabled);
 	/** New-player tips at the start of the first match of each launch (on by default). */
 	SHIELDBREAK_API bool GetShowTips();
 	SHIELDBREAK_API void SetShowTips(bool bShow);

@@ -47,6 +47,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-03 Claude (cloud): **combat feel: no recoil, Halo-style aim assist, hit markers, shield pop** (Vincent's
+  request; see `docs/GAME_FEEL.md`). Shots never move the aim. Bullet magnetism applies to every input, slowdown to
+  stick and mouse, and tracking pull to the controller only. A setting turns it off. Hit markers come from
+  `UShieldHealthComponent::ConfirmHit` for every damage source. The shield pop has a new sound, sparks, a burst shell
+  and a view flash. New self-tests: no recoil, magnetism, mouse slowdown, hit-marker flags. Measure FPS before and after.
 - 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
   compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
   after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid

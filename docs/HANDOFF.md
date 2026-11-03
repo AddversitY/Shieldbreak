@@ -53,6 +53,11 @@ and a shadowed wall.
   `fill_<map>()` in `Design/maps/shieldbreak_maps.py` and checked by its validator (exposed floor now 10-18%,
   down from 31-48% after the 2× stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
 
+## Combat feel pass (2026-11-03)
+
+- No recoil, Halo-style aim assist (bullet magnetism, slowdown, controller tracking), clearer hit markers for every
+  damage source, and a bigger shield pop. See `GAME_FEEL.md`.
+
 ## Still open
 
 - All five launch maps have a first expansion to 2x X/Y (4x ground area), keeping
