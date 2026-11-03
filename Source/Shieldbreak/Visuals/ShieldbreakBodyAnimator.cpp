@@ -3,6 +3,7 @@
 #include "Shieldbreak.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -335,6 +336,7 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 			Piece->SetOnlyOwnerSee(true);
 			Piece->SetCastShadow(false);
 			Piece->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+			Piece->LightingChannels.bChannel1 = true; // the first-person fill light (UpdateFirstPersonArms)
 		}
 		else
 		{
@@ -394,6 +396,10 @@ void UShieldbreakBodyAnimator::SetArmorHidden(bool bHidden)
 
 namespace ShieldbreakBodyAnimatorPrivate
 {
+	// The first-person arms and gun get very little light from the scene, so against Spire's bright white walls they
+	// showed as black silhouettes (playtest 2026-11-03). A small unshadowed fill light on the camera that lights only them (lighting
+	// channel 1) brings back their colours. Candelas; 0 turns it off. Read when the arms are made.
+	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 40.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
@@ -587,6 +593,28 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		// Drawn with a fixed field of view and pulled toward the eye (the camera's first-person settings), so the
 		// arms keep their size when the player changes FOV or zooms, and don't poke through walls.
 		FirstPersonArms->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+		FirstPersonArms->LightingChannels.bChannel1 = true;
+		const float FillCandelas = CVarFirstPersonLight.GetValueOnGameThread();
+		if (FillCandelas > 0.f)
+		{
+			// Above and to the left of the eye, so the gun and hands get a soft key light from the upper left.
+			UPointLightComponent* Fill = NewObject<UPointLightComponent>(OwnerCharacter, TEXT("FirstPersonFill"));
+			Fill->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
+			Fill->SetRelativeLocation(FVector(10.f, -25.f, 30.f));
+			Fill->SetMobility(EComponentMobility::Movable);
+			Fill->SetIntensityUnits(ELightUnits::Candelas);
+			Fill->SetIntensity(FillCandelas);
+			Fill->SetAttenuationRadius(150.f);
+			Fill->SetSourceRadius(20.f);
+			Fill->SetLightColor(FLinearColor(1.f, 0.97f, 0.93f));
+			Fill->SetCastShadows(false);
+			Fill->SetAffectTranslucentLighting(false);
+			Fill->SetVolumetricScatteringIntensity(0.f);
+			Fill->LightingChannels.bChannel0 = false;
+			Fill->LightingChannels.bChannel1 = true;
+			Fill->bAffectsWorld = true;
+			Fill->RegisterComponent();
+		}
 		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
 		FirstPersonArms->RegisterComponent();

@@ -236,6 +236,12 @@ void AShieldbreakWeapon::OnEquipped()
 			Primitive->FirstPersonPrimitiveType = ViewType;
 			Primitive->MarkRenderStateDirty();
 		}
+		// In first person the gun also takes the camera's fill light, like the arms (ShieldbreakBodyAnimator).
+		const bool bFillLit = ViewType == EFirstPersonPrimitiveType::FirstPerson;
+		if (Primitive->LightingChannels.bChannel1 != bFillLit)
+		{
+			Primitive->SetLightingChannels(true, bFillLit, Primitive->LightingChannels.bChannel2);
+		}
 	}
 	SetActorHiddenInGame(false);
 	CurrentSpread = Stats.BaseSpreadDegrees;
