@@ -903,13 +903,15 @@ void AShieldbreakArena::BuildInteriorLights()
 	// strength are overridable (-SBLampSpacing= -SBLampCd=), and -SBPointLamps brings back the old even point lamps.
 	const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
 	const bool bSpots = !FParse::Param(FCommandLine::Get(), TEXT("SBPointLamps"));
-	float Spacing = bSpots ? 1700.f : 1300.f, Candelas = bSpots ? 150.f : 90.f;
+	// Spots: 24 m apart at 250 cd with an 18 m reach. Same gunmetal look as the old 17 m / 150 cd / 26 m grid in the
+	// 2026-11-03 Keel comparison (R41), for about half the lamps and roughly 5 FPS back.
+	float Spacing = bSpots ? 2400.f : 1300.f, Candelas = bSpots ? 250.f : 90.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampSpacing="), Spacing);
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampCd="), Candelas);
 	// How strongly each lamp lights the volumetric haze (its visible cone). -SBLampVol= to compare the cost.
 	float VolumetricScattering = bSpots ? 1.5f : 0.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampVol="), VolumetricScattering);
-	float Reach = bSpots ? 2600.f : Spacing * 1.9f;
+	float Reach = bSpots ? 1800.f : Spacing * 1.9f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampRadius="), Reach);
 	Spacing = FMath::Max(Spacing, 400.f);
 	const float CeilingZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z);
