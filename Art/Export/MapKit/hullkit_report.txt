@@ -1,15 +1,15 @@
-SM_H_WallMetal: 276 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel
-SM_H_WallBand: 256 tris, X 0.0..8.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel, M_GlowAmber
-SM_H_WallDark: 100 tris, X 0.0..12.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal
-SM_H_WallPlate: 292 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..200.0, slots M_Gunmetal, M_Steel, M_GlowAmber
-SM_H_BandPlates: 100 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel
-SM_H_BandAccent: 112 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel, M_GlowAmber
-SM_H_BandDark: 56 tris, X 0.0..5.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal
-SM_H_BandTriangles: 108 tris, X 0.0..5.0 Y -200.0..200.0 Z 0.0..100.0, slots M_Gunmetal, M_Steel
-SM_H_FloorMetal: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorMetal2: 108 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorCenter: 232 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorX: 100 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorPlates: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorSquares: 120 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_Gunmetal, M_Steel
-SM_H_FloorDark: 12 tris, X -200.0..200.0 Y -200.0..200.0 Z -4.0..0.0, slots M_Gunmetal
+SM_H_WallMetal: 276 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..200.0, slots M_HullFrame, M_HullPlate
+SM_H_WallBand: 256 tris, X 0.0..8.0 Y -200.0..200.0 Z 0.0..200.0, slots M_HullFrame, M_HullPlate, M_GlowAmber
+SM_H_WallDark: 100 tris, X 0.0..12.0 Y -200.0..200.0 Z 0.0..200.0, slots M_HullFrame
+SM_H_WallPlate: 292 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..200.0, slots M_HullFrame, M_HullPlate, M_GlowAmber
+SM_H_BandPlates: 100 tris, X 0.0..6.0 Y -200.0..200.0 Z 0.0..100.0, slots M_HullFrame, M_HullPlate
+SM_H_BandAccent: 112 tris, X 0.0..10.0 Y -200.0..200.0 Z 0.0..100.0, slots M_HullFrame, M_HullPlate, M_GlowAmber
+SM_H_BandDark: 56 tris, X 0.0..5.0 Y -200.0..200.0 Z 0.0..100.0, slots M_HullFrame
+SM_H_BandTriangles: 108 tris, X 0.0..5.0 Y -200.0..200.0 Z 0.0..100.0, slots M_HullFrame, M_HullPlate
+SM_H_FloorMetal: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorMetal2: 108 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorCenter: 232 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorX: 100 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorPlates: 188 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorSquares: 120 tris, X -200.0..200.0 Y -200.0..200.0 Z -6.0..0.0, slots M_HullFrame, M_HullDeck
+SM_H_FloorDark: 12 tris, X -200.0..200.0 Y -200.0..200.0 Z -4.0..0.0, slots M_HullFrame

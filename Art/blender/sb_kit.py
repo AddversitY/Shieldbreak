@@ -27,6 +27,10 @@ PALETTE = {
     "Undersuit": ((0.03, 0.03, 0.032), 0.1, 0.7, 0.0),
     "Visor": ((0.9, 0.42, 0.06), 0.95, 0.06, 0.25),
     "TeamGlow": ((1.0, 0.18, 0.08), 0.0, 0.3, 4.0),
+    # Keel's hull kit (build_hull_kit.py): fixed dark colours that the game leaves as they are (no map tint).
+    "HullPlate": ((0.10, 0.105, 0.115), 0.75, 0.5, 0.0),
+    "HullFrame": ((0.03, 0.032, 0.036), 0.8, 0.45, 0.0),
+    "HullDeck": ((0.13, 0.13, 0.135), 0.6, 0.55, 0.0),
 }
 
 

@@ -493,10 +493,10 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.KitGlow = FLinearColor(1.0f, 0.5f, 0.12f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
 		// Its own hull plating kit (2026-11-03, build_hull_kit.py): heavy gunmetal plates and frames with louvred amber
-		// light slots, so Keel reads as a warship's insides against Spire's white plates. (Tinting the Quaternius trim
-		// sheet darker had no visible effect.) -SBQuaterniusClad shows the old panels.
+		// light slots, so Keel reads as a warship's insides against Spire's white plates. Its colours are fixed in the
+		// kit's own palette slots (M_Hull*): the per-map tints set on the cladding at runtime showed no visible effect
+		// (R25-R28). -SBQuaterniusClad shows the old panels.
 		Keel.CladKit = TEXT("H");
-		Keel.CladTint = FLinearColor(0.17f, 0.17f, 0.18f); // the hull plates at about a third of Keel's Metal: dark gunmetal
 		Keel.bClad = true; // panelled hull plating, bands and deck plates (Quaternius kit) over every block
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).

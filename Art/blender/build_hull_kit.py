@@ -9,9 +9,9 @@ Where Spire's plates are smooth, pale and leaning, Keel's are a ship's insides: 
 horizontal courses, structural frames standing proud every couple of metres, louvred amber light slots and
 alternating tread bands. Low poly: plain boxes and extrusions, no bevels on the small parts.
 
-Mesh space and slots as in build_forerunner_kit.py: walls face +X from X = 0 (400 cm wide, centred on Y, base Z = 0),
-floors have their walking surface at Z = 0. M_Steel takes the map's Metal, M_Gunmetal its DarkMetal and M_GlowAmber
-its KitGlow (AShieldbreakArena::ApplyKitSurfaces).
+Mesh space as in build_forerunner_kit.py: walls face +X from X = 0 (400 cm wide, centred on Y, base Z = 0), floors
+have their walking surface at Z = 0. Slots M_HullPlate, M_HullFrame and M_HullDeck are fixed dark palette colours
+(sb_kit.PALETTE) that the game does not retint; M_GlowAmber is the amber light.
 
 Exported to Art/Export/MapKit (SM_H_<piece>.fbx) with hullkit_report.txt.
 """
@@ -20,7 +20,17 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sb_kit  # noqa: E402  (imports bpy first)
-from build_forerunner_kit import OUT, chamfer, floor_backing, plate, tile  # noqa: E402
+from build_forerunner_kit import OUT, chamfer, plate  # noqa: E402
+from build_forerunner_kit import tile as _tile  # noqa: E402
+
+
+def tile(name, x0, y0, x1, y1, mat="HullDeck", depth=4.0, bevel=1.0):
+    return _tile(name, x0, y0, x1, y1, mat, depth, bevel)
+
+
+def floor_backing():
+    """The dark deck under the seams, its top 1 cm below the plates'."""
+    return sb_kit.box("fback", (0.0, 0.0, -3.5), (400.0, 400.0, 5.0), "HullFrame", bevel=0.0)
 
 W = 200.0       # half width of a wall piece
 GLOW = "GlowAmber"
@@ -28,16 +38,16 @@ GLOW = "GlowAmber"
 
 def back(height):
     """The dark hull skin behind everything (2 cm), which the seams between the plates show."""
-    return plate("back", [(-W, 0), (W, 0), (W, height), (-W, height)], "Gunmetal", 2.0, bevel=0.0)
+    return plate("back", [(-W, 0), (W, 0), (W, height), (-W, height)], "HullFrame", 2.0, bevel=0.0)
 
 
-def rect(name, y0, z0, y1, z1, mat="Steel", depth=6.0, bevel=1.0):
+def rect(name, y0, z0, y1, z1, mat="HullPlate", depth=6.0, bevel=1.0):
     return plate(name, [(y0, z0), (y1, z0), (y1, z1), (y0, z1)], mat, depth, bevel)
 
 
 def frame(name, y, height, width=16.0, depth=10.0):
     """A structural frame standing proud of the plates, the full height of the piece."""
-    return rect(name, y - width * 0.5, 0.0, y + width * 0.5, height, "Gunmetal", depth, bevel=1.5)
+    return rect(name, y - width * 0.5, 0.0, y + width * 0.5, height, "HullFrame", depth, bevel=1.5)
 
 
 # ---- Wall rows (200 cm) ----
@@ -56,19 +66,19 @@ def wall_band():
              rect("slot", -186, 86, 186, 114, GLOW, 3.0, bevel=0.0)]
     for i in range(12):
         y = -176 + i * 32.0
-        parts.append(rect("louvre%d" % i, y - 4, 82, y + 4, 118, "Gunmetal", 8.0, bevel=0.0))
+        parts.append(rect("louvre%d" % i, y - 4, 82, y + 4, 118, "HullFrame", 8.0, bevel=0.0))
     return parts
 
 
 def wall_dark():
     """Dark hull skin with a frame down the middle: the lower, recessed walls."""
-    return [back(200), rect("dark", -196, 4, 196, 196, "Gunmetal", 5.0), frame("f", 0, 200, 20.0, 12.0)]
+    return [back(200), rect("dark", -196, 4, 196, 196, "HullFrame", 5.0), frame("f", 0, 200, 20.0, 12.0)]
 
 
 def wall_plate():
     """A pressure hatch: a dark recessed door plate in a heavy steel surround (the team bases)."""
     return [back(200),
-            plate("door", chamfer(-120, 20, 120, 180, 22), "Gunmetal", 3.0, bevel=0.8),
+            plate("door", chamfer(-120, 20, 120, 180, 22), "HullFrame", 3.0, bevel=0.8),
             rect("sb", -196, 4, 196, 20, depth=9.0), rect("st", -196, 180, 196, 196, depth=9.0),
             rect("sl", -196, 20, -120, 180, depth=9.0), rect("sr", 120, 20, 196, 180, depth=9.0),
             rect("lamp", -60, 186, 60, 192, GLOW, 10.0, bevel=0.0)]
@@ -84,11 +94,11 @@ def band_accent():
     """A plate with an amber line under a heavy rail: the tops of walls and slab edges."""
     return [back(100), rect("plate", -196, 4, 196, 62),
             rect("line", -196, 68, 196, 76, GLOW, 4.0, bevel=0.0),
-            rect("rail", -200, 82, 200, 100, "Gunmetal", 10.0, bevel=1.5)]
+            rect("rail", -200, 82, 200, 100, "HullFrame", 10.0, bevel=1.5)]
 
 
 def band_dark():
-    return [back(100), rect("dark", -196, 4, 196, 96, "Gunmetal", 5.0)]
+    return [back(100), rect("dark", -196, 4, 196, 96, "HullFrame", 5.0)]
 
 
 def band_triangles():
@@ -96,7 +106,7 @@ def band_triangles():
     parts = [back(100)]
     for i in range(8):
         y = -200 + i * 50.0
-        mat = "Steel" if i % 2 == 0 else "Gunmetal"
+        mat = "HullPlate" if i % 2 == 0 else "HullFrame"
         pts = [(y, 4), (y + 50, 4), (y + 50 - 30, 96), (y - 30, 96)]
         parts.append(plate("s%d" % i, [(max(min(p[0], W), -W), p[1]) for p in pts], mat, 5.0, bevel=0.0))
     return parts
@@ -118,7 +128,7 @@ def floor_metal2():
 
 def floor_center():
     """A dark hatch in a steel surround."""
-    return [floor_backing(), tile("c", -120, -120, 120, 120, "Gunmetal", 2.0),
+    return [floor_backing(), tile("c", -120, -120, 120, 120, "HullFrame", 2.0),
             tile("n", -198, 126, 198, 198), tile("s", -198, -198, 198, -126),
             tile("w", -198, -120, -126, 120), tile("e", 126, -120, 198, 120)]
 
@@ -145,7 +155,7 @@ def floor_squares():
 
 
 def floor_dark():
-    return [tile("dark", -200, -200, 200, 200, "Gunmetal", 4.0, bevel=0.0)]
+    return [tile("dark", -200, -200, 200, 200, "HullFrame", 4.0, bevel=0.0)]
 
 
 PIECES = {
