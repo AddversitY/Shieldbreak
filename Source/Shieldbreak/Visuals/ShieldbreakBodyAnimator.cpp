@@ -412,8 +412,10 @@ namespace ShieldbreakBodyAnimatorPrivate
 
 	const TCHAR* const ActionsFolder = TEXT("/Game/Characters/Heroes/Mannequin/Animations/Actions/");
 	const TCHAR* const PistolIdle = TEXT("/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Pistol/MM_Pistol_Idle_Hipfire.MM_Pistol_Idle_Hipfire");
-	/** Bones hidden on the arms: the head (we look out of it) and the legs. */
-	const TCHAR* const FirstPersonHiddenBones[] = { TEXT("neck_01"), TEXT("thigh_l"), TEXT("thigh_r") };
+	/** Bones hidden on the arms: the head (we look out of it), the legs, and the left arm: the pistol-idle pose holds
+	 * the left hand out on its own at the lower left of the view, which read as a stray shape (playtest 2026-11-03), so
+	 * the view shows only the gun and the hand holding it. */
+	const TCHAR* const FirstPersonHiddenBones[] = { TEXT("neck_01"), TEXT("thigh_l"), TEXT("thigh_r"), TEXT("upperarm_l") };
 
 	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
 	struct FActionTiming { float StartTime; float PlayRate; };
