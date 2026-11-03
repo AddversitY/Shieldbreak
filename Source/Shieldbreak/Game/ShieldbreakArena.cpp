@@ -10,6 +10,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
+#include "Audio/ShieldbreakAmbience.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/DirectionalLight.h"
@@ -224,6 +225,10 @@ void AShieldbreakArena::BeginPlay()
 
 	// Bots and pickups only in a match. The front end does not build an arena; this also covers a backdrop.
 	const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
+	if (GetNetMode() != NM_DedicatedServer && !(Rules && Rules->IsFrontEnd()))
+	{
+		ShieldbreakAmbience::Start(this, MapId, Layout.bIndoor, ShieldbreakMapArt::GetLook(MapId).Water);
+	}
 	if (HasAuthority() && GetNetMode() != NM_Client && Rules && !Rules->IsFrontEnd())
 	{
 		BuildWaypointGraph();
