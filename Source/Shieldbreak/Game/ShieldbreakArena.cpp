@@ -1090,8 +1090,12 @@ void AShieldbreakArena::SpawnLighting()
 			}
 			// Scanned-terrain maps: the fitted Nanite rocks in every cascade cost 1.1-1.3 ms of shadow depths (R15
 			// profile). Two cascades over the arena itself, and distance-field shadows (Lumen already builds the
-			// fields) past that. -SBSunCascades=, -SBSunShadowDist= and -SBNoSunDF for comparisons.
-			else if (ShieldbreakMapArt::TerrainScanReady(MapId))
+			// fields) past that. -SBSunCascades=, -SBSunShadowDist= and -SBNoSunDF for comparisons. The scanned-art
+			// maps (Sanctum: Nanite cliffs, trees and carved blocks) had the same cost and more: 3.2 ms of shadow
+			// depths on an 8192x2048 atlas (R44 profile). -SBFullSunShadows keeps the engine default there.
+			else if (ShieldbreakMapArt::TerrainScanReady(MapId)
+				|| (ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan"))
+					&& !FParse::Param(FCommandLine::Get(), TEXT("SBFullSunShadows"))))
 			{
 				int32 Cascades = 2;
 				float ShadowDistance = 6000.f;
