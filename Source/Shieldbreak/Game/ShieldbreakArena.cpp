@@ -590,10 +590,28 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 		{ TEXT("M_Steel"), TEXT("Panel"), Look.Metal }, { TEXT("M_Gunmetal"), TEXT("Panel"), Look.DarkMetal },
 		{ TEXT("M_Ivory"), TEXT("Stone"), Look.Carved }, { TEXT("M_Sand"), TEXT("Stone"), Look.Rock },
 		{ TEXT("M_Bark"), TEXT("Stone"), Look.Bark }, { TEXT("M_Olive"), TEXT("Grass"), Look.Foliage } };
+	// -SBKitAmber=<strength>: Keel's amber accents (M_HullAmber) on the glow material at that strength (0 turns them
+	// off), to find how much of the hull's warm cast is their bounce light. Unset keeps the authored material.
+	float KitAmber = -1.f;
+	FParse::Value(FCommandLine::Get(), TEXT("SBKitAmber="), KitAmber);
 	const TArray<FStaticMaterial>& Slots = Asset->GetStaticMaterials();
 	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
 		const FString Slot = Slots[Index].MaterialSlotName.ToString();
+		if (KitAmber >= 0.f && Slot.StartsWith(TEXT("M_HullAmber")) && GlowMaterial)
+		{
+			Mesh->SetMaterial(Index, GlowMaterial);
+			if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+			{
+				const FLinearColor Amber(1.0f, 0.5f, 0.12f);
+				MID->SetVectorParameterValue(TEXT("BaseColor"), Amber * 0.2f);
+				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Amber);
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), KitAmber);
+				MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
+				MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
+			}
+			continue;
+		}
 		if (Look.KitGlow.A > 0.f && Slot.StartsWith(TEXT("M_Glow")) && GlowMaterial)
 		{
 			// This map's glow colour instead of the kit's modelled cyan or amber.
