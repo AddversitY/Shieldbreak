@@ -76,7 +76,32 @@ def expected_sizes():
     return sizes
 
 
-def import_fbx(fbx):
+def expected_slots():
+    """name -> [slot names] from the Blender reports' '..., slots M_A, M_B' endings."""
+    slots = {}
+    for report in glob.glob(os.path.join(EXPORT, "MapKit", "*_report.txt")):
+        with open(report) as f:
+            for line in f:
+                match = re.match(r"(\S+): .*slots (.+)$", line.strip())
+                if match:
+                    slots[match.group(1)] = [s.strip() for s in match.group(2).split(",")]
+    return slots
+
+
+def import_fbx(fbx, want_slots=None):
+    """Imports (or reimports) one mesh. A reimport keeps the old asset's material slots, so when the Blender report
+    names different slots (a kit moved to other palette colours) the old asset is deleted and imported fresh."""
+    name, mesh = _import_fbx(fbx)
+    if want_slots and isinstance(mesh, unreal.StaticMesh):
+        have = sorted(str(s.material_slot_name) for s in mesh.get_editor_property("static_materials"))
+        if have != sorted(want_slots):
+            log("%s: slots %s changed to %s, importing fresh" % (name, have, sorted(want_slots)))
+            eal.delete_asset("%s/%s" % (DEST, name))
+            name, mesh = _import_fbx(fbx)
+    return name, mesh
+
+
+def _import_fbx(fbx):
     name = os.path.splitext(os.path.basename(fbx))[0]
     task = unreal.AssetImportTask()
     task.filename = fbx
@@ -112,10 +137,11 @@ def main():
     with open(os.path.join(EXPORT, "palette.json")) as f:
         palette = json.load(f)
     sizes = expected_sizes()
+    want_slots = expected_slots()
     problems = []
     fbxs = sorted(glob.glob(os.path.join(EXPORT, "MapKit", "*.fbx")))
     for fbx in fbxs:
-        name, mesh = import_fbx(fbx)
+        name, mesh = import_fbx(fbx, want_slots.get(os.path.splitext(os.path.basename(fbx))[0]))
         if not isinstance(mesh, unreal.StaticMesh):
             problems.append("import failed: " + name)
             continue
