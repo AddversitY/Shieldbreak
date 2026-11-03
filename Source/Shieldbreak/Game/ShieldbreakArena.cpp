@@ -2978,84 +2978,6 @@ void AShieldbreakArena::BuildTerrainScan()
 		}
 	}
 
-	// 3b. Dry sets (Bastion's snowfield): scree at the foot of the fortress walls and structures, and small clusters of
-	// stones across the open ground, so the snow isn't one flat sheet between the buildings. Low (under 45 cm) and
-	// unshadowed like the stones above: never cover, culled at 60 m. -SBNoScatter turns it off for comparisons.
-	int32 ScatterCount = 0;
-	if (!Set.bLush && Set.bStones && Stones.Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScatter")))
-	{
-		auto TryStone = [&](const FVector& Foot, float MinSize, float MaxSize)
-		{
-			if (FMath::Abs(Foot.X) > Half.X - 30.0 || FMath::Abs(Foot.Y) > Half.Y - 30.0)
-			{
-				return;
-			}
-			if (InsideBlock(Layout, Foot + FVector(0, 0, 20.0)) || !(OnSurface(Layout, Foot) || FMath::Abs(Foot.Z - Layout.FloorZ) < 5.0))
-			{
-				return;
-			}
-			UStaticMesh* Mesh = Stones[Random.RandRange(0, Stones.Num() - 1)];
-			const FVector Extent = Mesh->GetBoundingBox().GetSize();
-			const double Scale = FMath::Clamp(Random.FRandRange(MinSize, MaxSize) / FMath::Max(FMath::Max(Extent.X, Extent.Y), 1.0), 0.05, 8.0);
-			FTransform Transform(FRotator(0.f, Random.FRandRange(0.f, 360.f), 0.f), FVector::ZeroVector, FVector(Scale));
-			const FBox Placed = PlacedBounds(Mesh, Transform);
-			if (Placed.GetSize().Z > 45.0)
-			{
-				return;
-			}
-			Transform.SetTranslation(FVector(Foot.X, Foot.Y, Foot.Z - Placed.Min.Z - 6.0));
-			Place(Mesh, Transform, false, 6000);
-			++ScatterCount;
-		};
-		// Scree along the walls of the structures standing on the floor (rock blocks already have theirs).
-		const TSet<int32> RockSet(RockBlocks);
-		for (int32 Index = 0; Index < Layout.Blocks.Num(); ++Index)
-		{
-			const FShieldbreakMapBlock& Block = Layout.Blocks[Index];
-			if (RockSet.Contains(Index) || IsPerimeter(Layout, Block) || FMath::Abs(Block.Min.Z - Layout.FloorZ) > 5.0
-				|| Block.Max.Z - Block.Min.Z < 150.0)
-			{
-				continue;
-			}
-			const FVector Size = Block.Max - Block.Min;
-			const FVector Center = (Block.Min + Block.Max) * 0.5;
-			const FVector Normals[4] = { FVector(1, 0, 0), FVector(-1, 0, 0), FVector(0, 1, 0), FVector(0, -1, 0) };
-			for (const FVector& Normal : Normals)
-			{
-				const bool bAlongY = Normal.X != 0.0;
-				const double FaceLength = bAlongY ? Size.Y : Size.X;
-				const double Offset = bAlongY ? Size.X * 0.5 : Size.Y * 0.5;
-				const FVector Tangent = bAlongY ? FVector(0, 1, 0) : FVector(1, 0, 0);
-				for (double Along = -FaceLength * 0.5 + 80.0; Along < FaceLength * 0.5 - 80.0; Along += 300.0)
-				{
-					if (Random.FRand() > 0.35f)
-					{
-						continue;
-					}
-					TryStone(FVector(Center.X, Center.Y, Block.Min.Z) + Normal * (Offset + Random.FRandRange(30.f, 80.f))
-						+ Tangent * (Along + Random.FRandRange(-80.f, 80.f)), 20.f, 45.f);
-				}
-			}
-		}
-		// Clusters of two or three stones on the open ground, on a jittered 8 m grid.
-		for (double X = -Half.X + 400.0; X < Half.X - 400.0; X += 800.0)
-		{
-			for (double Y = -Half.Y + 400.0; Y < Half.Y - 400.0; Y += 800.0)
-			{
-				if (Random.FRand() > 0.3f)
-				{
-					continue;
-				}
-				const FVector Middle(X + Random.FRandRange(-300.f, 300.f), Y + Random.FRandRange(-300.f, 300.f), Layout.FloorZ);
-				const int32 Count = Random.RandRange(2, 3);
-				for (int32 Pebble = 0; Pebble < Count; ++Pebble)
-				{
-					TryStone(Middle + FVector(Random.FRandRange(-90.f, 90.f), Random.FRandRange(-90.f, 90.f), 0.0), 15.f, 40.f);
-				}
-			}
-		}
-	}
-
 	// 4. Cliffs round the map: rows on the barrier (the canyon walls), just behind it, and giant crags for the skyline.
 	// The landmark side (the arch, the watchtower) leaves its middle open in the near rows so the landmark shows.
 	// The cliffs stand beyond the walls; Lumen lights them, so they cast no sun shadows (see below).
@@ -3289,7 +3211,7 @@ void AShieldbreakArena::BuildTerrainScan()
 		Group.Value->RegisterComponent();
 		AddInstanceComponent(Group.Value);
 	}
-	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d scattered stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded); %d water sheets, %d trees, %d grass tufts."),
-		*Layout.DisplayName, *Look.ScanSet.ToString(), Surfaced, RockCount, RockBlocks.Num(), StoneCount, ScatterCount, CliffCount, Groups.Num(), Rocks.Num(), Cliffs.Num(), Giants.Num(),
+	UE_LOG(LogShieldbreak, Log, TEXT("%s scanned terrain (%s): %d surfaces, %d fitted rocks over %d rock blocks, %d stones, %d cliffs, %d meshes (%d rock, %d cliff, %d giant scans loaded); %d water sheets, %d trees, %d grass tufts."),
+		*Layout.DisplayName, *Look.ScanSet.ToString(), Surfaced, RockCount, RockBlocks.Num(), StoneCount, CliffCount, Groups.Num(), Rocks.Num(), Cliffs.Num(), Giants.Num(),
 		WaterCount, TreeCount, GrassCount);
 }
