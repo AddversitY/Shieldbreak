@@ -7,11 +7,11 @@ CladKit = "H" loads SM_H_<piece> from Art/MapKit (AShieldbreakArena::BuildCladdi
 
 Where Spire's plates are smooth, pale and leaning, Keel's are a ship's insides: thick rectangular hull plates in
 horizontal courses, structural frames standing proud every couple of metres, louvred amber light slots and
-alternating tread bands. Low poly: plain boxes and extrusions, no bevels on the small parts.
+alternating tread bands. The light slots are cool white, with amber kept to thin rail lines and hatch lamps. Low poly: plain boxes and extrusions, no bevels on the small parts.
 
 Mesh space as in build_forerunner_kit.py: walls face +X from X = 0 (400 cm wide, centred on Y, base Z = 0), floors
 have their walking surface at Z = 0. Slots M_HullPlate, M_HullFrame and M_HullDeck are fixed dark palette colours
-(sb_kit.PALETTE) that the game does not retint; M_HullLight is the (dimmer) amber light.
+(sb_kit.PALETTE) that the game does not retint; M_HullLight is the cool white light slots, M_HullAmber the amber accents.
 
 Exported to Art/Export/MapKit (SM_H_<piece>.fbx) with hullkit_report.txt.
 """
@@ -33,7 +33,8 @@ def floor_backing():
     return sb_kit.box("fback", (0.0, 0.0, -3.5), (400.0, 400.0, 5.0), "HullFrame", bevel=0.0)
 
 W = 200.0       # half width of a wall piece
-GLOW = "HullLight"
+GLOW = "HullLight"      # cool white light slots
+AMBER = "HullAmber"     # thin amber accents
 
 
 def back(height):
@@ -61,7 +62,7 @@ def wall_metal():
 
 
 def wall_band():
-    """Plates above and below a louvred amber light slot."""
+    """Plates above and below a louvred white light slot."""
     parts = [back(200), rect("low", -196, 4, 196, 78), rect("high", -196, 122, 196, 196),
              rect("slot", -186, 86, 186, 114, GLOW, 3.0, bevel=0.0)]
     for i in range(12):
@@ -81,7 +82,7 @@ def wall_plate():
             plate("door", chamfer(-120, 20, 120, 180, 22), "HullFrame", 3.0, bevel=0.8),
             rect("sb", -196, 4, 196, 20, depth=9.0), rect("st", -196, 180, 196, 196, depth=9.0),
             rect("sl", -196, 20, -120, 180, depth=9.0), rect("sr", 120, 20, 196, 180, depth=9.0),
-            rect("lamp", -60, 186, 60, 192, GLOW, 10.0, bevel=0.0)]
+            rect("lamp", -60, 186, 60, 192, AMBER, 10.0, bevel=0.0)]
 
 
 # ---- Band rows (100 cm) ----
@@ -93,7 +94,7 @@ def band_plates():
 def band_accent():
     """A plate with an amber line under a heavy rail: the tops of walls and slab edges."""
     return [back(100), rect("plate", -196, 4, 196, 62),
-            rect("line", -196, 68, 196, 76, GLOW, 4.0, bevel=0.0),
+            rect("line", -196, 68, 196, 76, AMBER, 4.0, bevel=0.0),
             rect("rail", -200, 82, 200, 100, "HullFrame", 10.0, bevel=1.5)]
 
 

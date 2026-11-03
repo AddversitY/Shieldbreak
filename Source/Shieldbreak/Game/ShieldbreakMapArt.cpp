@@ -490,7 +490,9 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Keel.DarkMetal = FLinearColor(0.09f, 0.10f, 0.12f);
 		Keel.Haze = FLinearColor(0.42f, 0.34f, 0.26f);
 		Keel.Trim = FLinearColor(1.0f, 0.42f, 0.08f);
-		Keel.KitGlow = FLinearColor(1.0f, 0.5f, 0.12f);
+		// Cool white kit glow (2026-11-03, R33): with amber glow strips everywhere the Lumen bounce turned the whole hull
+		// orange; amber stays on the trim, accents and the hull kit's rail lines.
+		Keel.KitGlow = FLinearColor(0.72f, 0.84f, 1.0f);
 		Keel.CladAccent = FLinearColor(1.0f, 0.45f, 0.08f);
 		// Its own hull plating kit (2026-11-03, build_hull_kit.py): heavy gunmetal plates and frames with louvred amber
 		// light slots, so Keel reads as a warship's insides against Spire's white plates. Its colours are fixed in the

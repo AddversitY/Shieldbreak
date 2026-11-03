@@ -30,11 +30,14 @@ PALETTE = {
     # Keel's hull kit (build_hull_kit.py): fixed dark colours that the game leaves as they are (no map tint).
     # Mostly dielectric and rough: as metal they mirrored the amber lights and the whole hull read orange (R31). Cool
     # grey so the white work lamps register against the amber, and a dimmer amber of its own (HullLight): with the kit's
-    # many light slots at full GlowAmber strength the bounce light turned every surface orange (R32).
+    # many light slots at full GlowAmber strength the bounce light turned every surface orange (R32). Even dimmed (R33)
+    # the amber slots outweighed the white lamps (blue channel ~20/255 across the frame), so the light slots are now cool
+    # white (HullLight) and amber is kept to thin accents: the rail lines and hatch lamps (HullAmber).
     "HullPlate": ((0.22, 0.235, 0.26), 0.3, 0.6, 0.0),
     "HullFrame": ((0.06, 0.065, 0.075), 0.4, 0.55, 0.0),
     "HullDeck": ((0.2, 0.2, 0.21), 0.25, 0.7, 0.0),
-    "HullLight": ((1.0, 0.55, 0.15), 0.0, 0.4, 2.0),
+    "HullLight": ((0.72, 0.84, 1.0), 0.0, 0.4, 2.5),
+    "HullAmber": ((1.0, 0.5, 0.12), 0.0, 0.4, 1.5),
 }
 
 
