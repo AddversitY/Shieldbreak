@@ -745,7 +745,13 @@ void AShieldbreakArena::BuildCladding()
 		// self light, as thin pieces laid on a block go dark under the sky light's occlusion).
 		if (bForerunner)
 		{
-			ApplyKitSurfaces(Instances, Look, 0.3f);
+			// CladTint scales the kit's metal (0.5 keeps the map's colours): Keel's hull plates go dark gunmetal while its
+			// trim and set pieces keep the map's Metal.
+			FShieldbreakMapLook KitLook = Look;
+			const FLinearColor Scale = CladTint * 2.f;
+			KitLook.Metal = FLinearColor(Look.Metal.R * Scale.R, Look.Metal.G * Scale.G, Look.Metal.B * Scale.B);
+			KitLook.DarkMetal = FLinearColor(Look.DarkMetal.R * Scale.R, Look.DarkMetal.G * Scale.G, Look.DarkMetal.B * Scale.B);
+			ApplyKitSurfaces(Instances, KitLook, 0.3f * FMath::Min(Scale.G, 1.f));
 		}
 		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
 		const TArray<FStaticMaterial>& Slots = bForerunner ? TArray<FStaticMaterial>() : Mesh->GetStaticMaterials();

@@ -496,6 +496,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		// light slots, so Keel reads as a warship's insides against Spire's white plates. (Tinting the Quaternius trim
 		// sheet darker had no visible effect.) -SBQuaterniusClad shows the old panels.
 		Keel.CladKit = TEXT("H");
+		Keel.CladTint = FLinearColor(0.17f, 0.17f, 0.18f); // the hull plates at about a third of Keel's Metal: dark gunmetal
 		Keel.bClad = true; // panelled hull plating, bands and deck plates (Quaternius kit) over every block
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
