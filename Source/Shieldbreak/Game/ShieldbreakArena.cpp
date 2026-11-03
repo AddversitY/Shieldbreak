@@ -3048,7 +3048,7 @@ void AShieldbreakArena::BuildTerrainScan()
 				}
 				const FVector Middle(X + Random.FRandRange(-300.f, 300.f), Y + Random.FRandRange(-300.f, 300.f), Layout.FloorZ);
 				const int32 Count = Random.RandRange(2, 3);
-				for (int32 Stone = 0; Stone < Count; ++Stone)
+				for (int32 Pebble = 0; Pebble < Count; ++Pebble)
 				{
 					TryStone(Middle + FVector(Random.FRandRange(-90.f, 90.f), Random.FRandRange(-90.f, 90.f), 0.0), 15.f, 40.f);
 				}
