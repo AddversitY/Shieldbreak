@@ -47,11 +47,15 @@ def palette_instance(slot, palette, master):
     if not key:
         return None
     path = "%s/MI_SB_%s" % (MATERIALS, key)
-    if eal.does_asset_exist(path):
+    # The kit-only colours (Keel's Hull*) follow palette.json on every run; the shared ones are left as they are.
+    if eal.does_asset_exist(path) and not key.startswith("Hull"):
         return unreal.load_asset(path)
     rgb, metallic, roughness, emissive = palette[key]
-    mi = tools.create_asset("MI_SB_" + key, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
-    mel.set_material_instance_parent(mi, master)
+    if eal.does_asset_exist(path):
+        mi = unreal.load_asset(path)
+    else:
+        mi = tools.create_asset("MI_SB_" + key, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        mel.set_material_instance_parent(mi, master)
     mel.set_material_instance_vector_parameter_value(mi, "BaseColor", unreal.LinearColor(rgb[0], rgb[1], rgb[2], 1))
     mel.set_material_instance_scalar_parameter_value(mi, "Metallic", metallic)
     mel.set_material_instance_scalar_parameter_value(mi, "Roughness", roughness)
