@@ -11,7 +11,7 @@ alternating tread bands. Low poly: plain boxes and extrusions, no bevels on the 
 
 Mesh space as in build_forerunner_kit.py: walls face +X from X = 0 (400 cm wide, centred on Y, base Z = 0), floors
 have their walking surface at Z = 0. Slots M_HullPlate, M_HullFrame and M_HullDeck are fixed dark palette colours
-(sb_kit.PALETTE) that the game does not retint; M_GlowAmber is the amber light.
+(sb_kit.PALETTE) that the game does not retint; M_HullLight is the (dimmer) amber light.
 
 Exported to Art/Export/MapKit (SM_H_<piece>.fbx) with hullkit_report.txt.
 """
@@ -33,7 +33,7 @@ def floor_backing():
     return sb_kit.box("fback", (0.0, 0.0, -3.5), (400.0, 400.0, 5.0), "HullFrame", bevel=0.0)
 
 W = 200.0       # half width of a wall piece
-GLOW = "GlowAmber"
+GLOW = "HullLight"
 
 
 def back(height):

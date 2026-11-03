@@ -28,10 +28,13 @@ PALETTE = {
     "Visor": ((0.9, 0.42, 0.06), 0.95, 0.06, 0.25),
     "TeamGlow": ((1.0, 0.18, 0.08), 0.0, 0.3, 4.0),
     # Keel's hull kit (build_hull_kit.py): fixed dark colours that the game leaves as they are (no map tint).
-    # Mostly dielectric and rough: as metal they mirrored the amber lights and the whole hull read orange (R31).
-    "HullPlate": ((0.15, 0.16, 0.18), 0.3, 0.62, 0.0),
-    "HullFrame": ((0.045, 0.048, 0.055), 0.4, 0.55, 0.0),
-    "HullDeck": ((0.17, 0.17, 0.18), 0.25, 0.7, 0.0),
+    # Mostly dielectric and rough: as metal they mirrored the amber lights and the whole hull read orange (R31). Cool
+    # grey so the white work lamps register against the amber, and a dimmer amber of its own (HullLight): with the kit's
+    # many light slots at full GlowAmber strength the bounce light turned every surface orange (R32).
+    "HullPlate": ((0.22, 0.235, 0.26), 0.3, 0.6, 0.0),
+    "HullFrame": ((0.06, 0.065, 0.075), 0.4, 0.55, 0.0),
+    "HullDeck": ((0.2, 0.2, 0.21), 0.25, 0.7, 0.0),
+    "HullLight": ((1.0, 0.55, 0.15), 0.0, 0.4, 2.0),
 }
 
 
