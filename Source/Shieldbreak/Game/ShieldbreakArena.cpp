@@ -726,8 +726,10 @@ void AShieldbreakArena::BuildCladding()
 	int32 Kinds = 0, Placed = 0;
 	for (const FShieldbreakArtGroup& Group : ShieldbreakMapArt::Cladding(MapId, Layout))
 	{
-		const bool bForerunner = Look.CladKit == FName(TEXT("F")) && !FParse::Param(FCommandLine::Get(), TEXT("SBQuaterniusClad"));
-		const FString Name = (bForerunner ? TEXT("SM_F_") : TEXT("SM_Q_")) + Group.Piece.ToString();
+		// Our own kits (Spire "F" Forerunner plates, Keel "H" hull plating, Art/blender/build_*_kit.py) use palette slots;
+		// "Q" is the Quaternius trim-sheet kit. -SBQuaterniusClad shows any map on the Quaternius panels.
+		const bool bForerunner = Look.CladKit != FName(TEXT("Q")) && !FParse::Param(FCommandLine::Get(), TEXT("SBQuaterniusClad"));
+		const FString Name = (bForerunner ? FString::Printf(TEXT("SM_%s_"), *Look.CladKit.ToString()) : FString(TEXT("SM_Q_"))) + Group.Piece.ToString();
 		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/%s/%s.%s"),
 			bForerunner ? TEXT("MapKit") : TEXT("SciFiKit"), *Name, *Name)) : nullptr;
 		if (!Mesh)
