@@ -12,6 +12,7 @@
 #include "Game/ShieldbreakGameMode.h"
 #include "Game/ShieldbreakGameInstance.h"
 #include "GameFramework/GameUserSettings.h"
+#include "GameFramework/PlayerInput.h"
 #include "Player/ShieldbreakInputSet.h"
 #include "HAL/FileManager.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -131,6 +132,14 @@ void AShieldbreakPlayerController::AddInputContext()
 void AShieldbreakPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+	// Development builds come with the engine's debug hotkeys (BaseInput.ini DebugExecBindings): F1 "viewmode
+	// wireframe", F2 unlit, F4/F5 lighting and shader-complexity views and more. F1 is our controls help, so pressing it
+	// in a playtest also turned the whole game to wireframe (2026-11-03). Drop them all; DefaultInput.ini clears them
+	// too, this keeps them gone whatever the config says. Shipping builds never had them.
+	if (PlayerInput)
+	{
+		PlayerInput->DebugExecBindings.Reset();
+	}
 	InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &AShieldbreakPlayerController::OnEscape);
 
 	UShieldbreakInputSet* Inputs = UShieldbreakInputSet::Get();
