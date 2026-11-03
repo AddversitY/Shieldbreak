@@ -1146,15 +1146,27 @@ void AShieldbreakArena::SpawnLighting()
 		}
 	}
 
+	const bool bScannedSky = (ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan")))
+		|| ShieldbreakMapArt::TerrainScanReady(MapId);
+	const bool bWantClouds = bScannedSky && !FParse::Param(FCommandLine::Get(), TEXT("SBNoClouds"))
+		&& (ShieldbreakMapArt::GetLook(MapId).bClouds || FParse::Param(FCommandLine::Get(), TEXT("SBClouds")));
 	if (ASkyAtmosphere* Atmosphere = World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, Params))
 	{
-		(void)Atmosphere;
+		// A scanned map without clouds (Creekbed): more aerosol haze and a tighter sun glow, so the sky has a bright
+		// band at the horizon and a halo round the sun instead of a flat gradient. Free next to the cloud layer.
+		// -SBNoSkyHaze keeps the engine default for comparisons.
+		USkyAtmosphereComponent* Air = Atmosphere->FindComponentByClass<USkyAtmosphereComponent>();
+		if (Air && bScannedSky && !bWantClouds && !FParse::Param(FCommandLine::Get(), TEXT("SBNoSkyHaze")))
+		{
+			Air->SetMieScatteringScale(0.008f); // engine default 0.004
+			Air->SetMieAnisotropy(0.85f);
+			Air->SetMieExponentialDistribution(1.6f);
+		}
 	}
 
-	// The scanned maps get a sky of real clouds (the engine's volumetric cloud layer) instead of a bare gradient.
-	// -SBNoClouds turns it off for comparisons.
-	if (((ShieldbreakMapArt::GetLook(MapId).bScan && !FParse::Param(FCommandLine::Get(), TEXT("SBNoScan")))
-		|| ShieldbreakMapArt::TerrainScanReady(MapId)) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoClouds")))
+	// The scanned maps get a sky of real clouds (the engine's volumetric cloud layer) instead of a bare gradient,
+	// except where the map's look turns them off. -SBNoClouds turns them off for comparisons, -SBClouds forces them on.
+	if (bWantClouds)
 	{
 		if (AVolumetricCloud* Clouds = World->SpawnActor<AVolumetricCloud>(AVolumetricCloud::StaticClass(), FTransform::Identity, Params))
 		{

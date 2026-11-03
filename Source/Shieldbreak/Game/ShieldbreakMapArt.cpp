@@ -539,6 +539,7 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Creekbed.Trim = FLinearColor(0.30f, 0.75f, 1.0f);
 		Creekbed.KitGlow = FLinearColor(0.30f, 0.72f, 1.0f);
 		Creekbed.bRockSkin = true;
+		Creekbed.bClouds = false;
 		Creekbed.ScanSet = TEXT("Creek");
 		// The creek over the bed between the banks (ankle deep), through the gorge under the arch, and the waterfall
 		// down the north cliff behind it.
