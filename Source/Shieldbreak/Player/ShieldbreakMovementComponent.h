@@ -24,7 +24,7 @@ public:
 	// ---- Tuning ----
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Sprint")
-	float SprintSpeed = 950.f;
+	float SprintSpeed = 1020.f;
 
 	/** Seconds of crouched jump-hold for a full Power Jump. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Power Jump")
@@ -43,10 +43,10 @@ public:
 	float SlideMinEntrySpeed = 650.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
-	float SlideEntryBoost = 350.f;
+	float SlideEntryBoost = 450.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
-	float SlideMaxSpeed = 1150.f;
+	float SlideMaxSpeed = 1450.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
 	float SlideExitSpeed = 380.f;
@@ -55,7 +55,7 @@ public:
 	float SlideFriction = 0.35f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
-	float SlideBraking = 350.f;
+	float SlideBraking = 530.f;
 
 	/** Seconds after walking or sliding off a ledge in which a jump still takes off, so a press a frame late at an
 	 *  edge isn't eaten (sb.CoyoteTime overrides it; 0 turns it off). */

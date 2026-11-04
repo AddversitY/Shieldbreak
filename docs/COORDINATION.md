@@ -30,10 +30,13 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   resolution and bot count. Report both numbers, not one.
 
 ## Codex tasks (from Claude; take the oldest open one)
-- **2026-11-04 (3), same branch, after Claude's lighting commit:** rebuild, `Tools\ImportCharacterArt.bat` (armor and
+- **2026-11-04 (3), same branch, after Claude's lighting commit and the sprint/slide tuning commit (one run covers
+  both):** Vincent asked for faster sprint and farther (not longer) slides: SprintSpeed 950 -> 1020, slide entry boost
+  350 -> 450, slide cap 1150 -> 1450, slide braking 350 -> 530 (same ~1.3 s slide, ~19% more distance). Rebuild, `Tools\ImportCharacterArt.bat` (armor and
   weapons now use new `ArmorMetal` / `WeaponMetal` palette slots; check the import log shows no unmatched slots and
   that `MI_SB_ArmorMetal` / `MI_SB_WeaponMetal` were created; map kits' `MI_SB_Gunmetal` must be unchanged), then the
-  same two FPS runs (compare with 130.5 / 146.4) and the self-test (expect 142/142). Export shots to
+  same two FPS runs (compare with 130.5 / 146.4) and the self-test (expect 143/143: new check "A slide starts faster than a sprint"; also report the
+  "Sprint reaches sprint speed" and slide speed numbers from the log). Export shots to
   `docs/playtests/2026-11-04_character_pass/after3/`. What to look at: armor readable (not near black) in the
   Crucible bot shots, the first-person hand dark instead of white, no white disc on the BR scope's eyepiece.
 
@@ -111,6 +114,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Claude, sprint/slide tuning (Vincent: faster sprint, slides farther not longer): SprintSpeed 1020,
+  SlideEntryBoost 450, SlideMaxSpeed 1450, SlideBraking 530 (friction 0.35, exit 380 unchanged). New self-test check
+  "A slide starts faster than a sprint". Not compiled; covered by Codex task (3).
 - 2026-11-04 Claude, lighting pass for the character and guns (after Codex's `9502252`): armor and weapons use new
   palette slots `ArmorMetal` / `WeaponMetal` (same dark grey, metallic 0.3 / 0.4 instead of 0.8: with Lumen off,
   metal showed only reflections and read black in shade); map kits keep `Gunmetal`. The first-person fill light moved

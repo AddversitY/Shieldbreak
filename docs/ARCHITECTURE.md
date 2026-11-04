@@ -178,15 +178,15 @@ with getter `GetPlayerColor()`.
 ### `UShieldbreakMovementComponent` : UCharacterMovementComponent (`Player/ShieldbreakMovementComponent.h`)
 Halo-style feel plus the **Momentum Carry** mechanic, network-predicted with a custom `FSavedMove`.
 - `enum ECustomMovementMode_Shieldbreak { CMOVE_None = 0, CMOVE_Slide = 1 };` (plain enum in header, `UENUM` not required)
-- Defaults: MaxWalkSpeed 600, MaxWalkSpeedCrouched 260, SprintSpeed 880, JumpZVelocity 640, GravityScale 0.9,
+- Defaults: MaxWalkSpeed 600, MaxWalkSpeedCrouched 260, SprintSpeed 1020, JumpZVelocity 640, GravityScale 0.9,
   AirControl 0.45, MaxAcceleration 4096, BrakingDecelerationWalking 2400, GroundFriction 8,
   BrakingDecelerationFalling 0, FallingLateralFriction 0, crouched half height 58, `bCanWalkOffLedgesWhenCrouching`,
   `NavAgentProps.bCanCrouch = true`.
 - Sprint: `void SetSprinting(bool)` sets `Safe_bWantsToSprint` (sent as `FLAG_Custom_0`). Sprint speed only
   applies while walking, not crouched, and moving forward-ish (dot(velocity dir, actor forward) > 0.5).
 - Slide: entered in `UpdateCharacterStateBeforeMovement` when walking + `bWantsToCrouch` + sprinting + 2D speed ≥ 650.
-  Entry boost +350 along velocity, capped at 1150 total. `PhysSlide` (`MOVE_Custom`/`CMOVE_Slide`): friction 0.35,
-  braking 350, gravity pulls along slopes (downhill slides accelerate), only lateral steering input. Exits
+  Entry boost +450 along velocity, capped at 1450 total. `PhysSlide` (`MOVE_Custom`/`CMOVE_Slide`): friction 0.35,
+  braking 530 (tuned 2026-11-04: ~19% farther than 1150/350, same ~1.3 s duration), gravity pulls along slopes (downhill slides accelerate), only lateral steering input. Exits
   (to walking) when speed < 380, crouch released, or no floor. Capsule stays crouched while sliding.
 - `IsMovingOnGround()` returns true while sliding (so jumping out of a slide works).
 - **Momentum Carry**: leaving a slide into falling (a jump) sets `bMomentumCarry` until landing. Horizontal speed

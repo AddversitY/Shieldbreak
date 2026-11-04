@@ -899,6 +899,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			else if (Phase == 2 && Now() - Mark > 0.15f)
 			{
 				Check(TEXT("Crouching at sprint speed starts a slide"), Move->IsSliding(), FString::Printf(TEXT("%s uu/s, mode %d"), *Num(Speed), static_cast<int32>(Move->MovementMode)));
+				Check(TEXT("A slide starts faster than a sprint"), Speed > Move->SprintSpeed,
+					FString::Printf(TEXT("%s uu/s 0.15 s in (sprint %s)"), *Num(Speed), *Num(Move->SprintSpeed)));
 				Value0 = Speed;
 				Phase = 3;
 			}
