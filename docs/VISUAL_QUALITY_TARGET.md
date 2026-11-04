@@ -41,6 +41,19 @@ The views confirm less pattern repetition and a more neutral room palette; they 
 box-shaped supports and flat ceiling. Those shapes still need architectural work. No Halo Infinite parity
 or completed visual section is claimed. Runtime checks and capture limitations are recorded in `COORDINATION.md`.
 
+## Ceiling framework increment
+
+The [updated spawn view](playtests/2026-11-03_spire-architecture-spawn.png) and
+[central view](playtests/2026-11-03_spire-architecture-central.png) show the original swept ceiling ribs,
+mechanical webs, spines and recessed light housings. Capture-only HUD suppression keeps these views clean.
+Their actual dimensions are 1920x1080, checked from both PNG data and the engine log. The first requested-1080
+capture was clamped to 888x500 and is not used as 1080p performance evidence.
+
+The framework adds depth above the routes. The lower supports still need more convincing construction and
+contact details, and the central condenser needs a stronger original silhouette. Existing first-person gun/hand
+finish and posing remain separate visual weaknesses found in the action captures. See `SPIRE_ART_PASS.md` for
+mesh authoring, clearance scope and exact verification limits.
+
 ## Asset preservation
 
 The desktop contains 725 ignored content files, approximately 19.11 GiB, including the Electric Dreams scan dependencies. These are intentionally local under the existing import/licensing workflow; do not add them wholesale to GitHub. `Tools/GetScanArt.bat` documents the source/import route. An integration manifest and the pre-integration configuration copy are in ignored `Saved/IntegrationBackup-20261103/`. The manifest inventories paths; it is not a second copy or an off-machine backup of the assets.

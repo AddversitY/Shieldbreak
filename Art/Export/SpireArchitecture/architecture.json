@@ -1,0 +1,58 @@
+{
+  "SM_SB_Spire_ArchAlloy": {
+    "triangles": 116,
+    "min": [
+      0,
+      -125.0,
+      30
+    ],
+    "max": [
+      2700,
+      125.0,
+      520
+    ],
+    "volume": 39660602.44361212
+  },
+  "SM_SB_Spire_ArchInset": {
+    "triangles": 128,
+    "min": [
+      25,
+      -75.0,
+      37.5
+    ],
+    "max": [
+      2630,
+      75.0,
+      456
+    ],
+    "volume": 35114942.336989105
+  },
+  "SM_SB_Spire_CeilingSpine": {
+    "triangles": 44,
+    "min": [
+      -1200,
+      -65,
+      0
+    ],
+    "max": [
+      1200,
+      65,
+      145
+    ],
+    "volume": 44843796.0
+  },
+  "SM_SB_Spire_LampHousing": {
+    "triangles": 112,
+    "min": [
+      -100.0,
+      -40.0,
+      0.0
+    ],
+    "max": [
+      100.0,
+      40.0,
+      20.0
+    ],
+    "volume": 157280.0
+  }
+}

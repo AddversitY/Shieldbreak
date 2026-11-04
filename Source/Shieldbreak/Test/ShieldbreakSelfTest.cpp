@@ -6,6 +6,7 @@
 #include "Camera/CameraActor.h"
 #include "Game/ShieldbreakTeams.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/HUD.h"
 #include "UnrealClient.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -2912,6 +2913,13 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			{
 				GameMode->SetBotCount(0);
 			}
+			if (FParse::Param(FCommandLine::Get(), TEXT("SBCleanShots")))
+			{
+				if (APlayerController* Viewer = GetWorld()->GetFirstPlayerController())
+				{
+					if (AHUD* Overlay = Viewer->GetHUD()) Overlay->bShowHUD = false;
+				}
+			}
 		},
 		[](float Elapsed) { return Elapsed > 9.f; }, 12.f }); // also waits out the controls overlay
 
@@ -2968,6 +2976,10 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					if (APlayerController* Viewer = GetWorld()->GetFirstPlayerController())
 					{
 						Viewer->SetViewTarget(ChaseCamera);
+						if (FParse::Param(FCommandLine::Get(), TEXT("SBCleanShots")))
+						{
+							if (AHUD* Overlay = Viewer->GetHUD()) Overlay->bShowHUD = false;
+						}
 					}
 					// Enclosed maps: the overhead views look in through a hidden ceiling; ground views keep it.
 					if (AShieldbreakArena* ViewArena = AShieldbreakArena::Find(GetWorld()))

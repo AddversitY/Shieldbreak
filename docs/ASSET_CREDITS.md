@@ -7,6 +7,13 @@ without source photographs or external textures. `Tools/create_spire_surfaces.py
 `M_SB_SpireSurface` and `MI_SB_SpireAlloy`, `MI_SB_SpireInset`, `MI_SB_SpireDeck` under
 `/Game/Shieldbreak/Art/Spire`. The packed colour/roughness/height texture and shader are Shieldbreak originals.
 
+## Original Spire ceiling framework (2026-11-03)
+
+Alloy ribs, inset webs, longitudinal spines and recessed lamp housings are original scripted geometry from
+`Art/build_spire_architecture.py` and the shared standard-Python mesh helper. Source OBJ files and the dimension
+manifest are in `Art/Export/SpireArchitecture`; four imported meshes live under `/Game/Shieldbreak/Art/Spire`.
+They use the original Spire surface materials above, without external models or textures.
+
 ## Original shield-hit material (2026-10-27)
 
 `/Game/Shieldbreak/Art/Materials/M_SB_ShieldImpact` is an original procedural

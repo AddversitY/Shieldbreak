@@ -10,16 +10,40 @@ import math
 OUT = Path(__file__).parent / 'Export' / 'Spire'
 
 
+def triangulate(profile):
+    """Ear-clip a simple CCW X/Z polygon, including the bent architectural profiles."""
+    def cross(a, b, c):
+        return (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])
+    remaining, triangles = list(range(len(profile))), []
+    while len(remaining) > 3:
+        for index, current in enumerate(remaining):
+            before, after = remaining[index-1], remaining[(index+1) % len(remaining)]
+            a, b, c = profile[before], profile[current], profile[after]
+            if cross(a, b, c) <= 1e-8:
+                continue
+            contains = any(all(value >= -1e-8 for value in (
+                cross(a, b, profile[other]), cross(b, c, profile[other]), cross(c, a, profile[other])))
+                for other in remaining if other not in (before, current, after))
+            if not contains:
+                triangles.append((before, current, after))
+                remaining.pop(index)
+                break
+        else:
+            raise ValueError('Profile is degenerate, self-intersecting or not counter-clockwise')
+    triangles.append(tuple(remaining))
+    return triangles
+
+
 class Mesh:
     def __init__(self):
         self.vertices, self.faces = [], []
 
     def prism(self, profile, front, back):
-        """CCW X/Z silhouette, extruded along Y; outward triangle winding."""
+        """CCW X/Z silhouette (possibly concave), extruded along Y; outward winding."""
         base, n = len(self.vertices), len(profile)
         self.vertices += [(x, y, z) for y in (front, back) for x, z in profile]
-        for i in range(1, n - 1):
-            self.faces += [(base, base+i, base+i+1), (base+n, base+n+i+1, base+n+i)]
+        for a, b, c in triangulate(profile):
+            self.faces += [(base+a, base+b, base+c), (base+n+a, base+n+c, base+n+b)]
         for i in range(n):
             j = (i + 1) % n
             self.faces += [(base+i, base+n+i, base+n+j), (base+i, base+n+j, base+j)]
@@ -29,7 +53,36 @@ class Mesh:
         self.prism([(l+bevel,b),(r-bevel,b),(r,b+bevel),(r,t-bevel),
                     (r-bevel,t),(l+bevel,t),(l,t-bevel),(l,b+bevel)], y-depth/2, y+depth/2)
 
-    def save(self, name):
+    def beveled_prism(self, profile, front, back, bevel):
+        """Extruded silhouette with actual chamfer faces around both broad faces, in centimetres."""
+        if not 0 < bevel < (back-front)/2:
+            raise ValueError('Chamfer must fit inside the extrusion depth')
+        inset = []
+        for index, point in enumerate(profile):
+            previous, following = profile[index-1], profile[(index+1) % len(profile)]
+            before = (point[0]-previous[0], point[1]-previous[1])
+            after = (following[0]-point[0], following[1]-point[1])
+            lengths = math.hypot(*before), math.hypot(*after)
+            normals = ((-before[1]/lengths[0], before[0]/lengths[0]),
+                       (-after[1]/lengths[1], after[0]/lengths[1]))
+            divisor = 1 + normals[0][0]*normals[1][0] + normals[0][1]*normals[1][1]
+            if divisor < 1e-5:
+                raise ValueError('Chamfer profile contains a folded edge')
+            inset.append((point[0]+bevel*(normals[0][0]+normals[1][0])/divisor,
+                          point[1]+bevel*(normals[0][1]+normals[1][1])/divisor))
+        cap = triangulate(inset)
+        base, count = len(self.vertices), len(profile)
+        rings = ((inset, front), (profile, front+bevel), (profile, back-bevel), (inset, back))
+        self.vertices += [(x, y, z) for points, y in rings for x, z in points]
+        for a, b, c in cap:
+            self.faces += [(base+a, base+b, base+c), (base+3*count+a, base+3*count+c, base+3*count+b)]
+        for ring in range(3):
+            lo, hi = base+ring*count, base+(ring+1)*count
+            for index in range(count):
+                following = (index+1) % count
+                self.faces += [(lo+index, hi+index, hi+following), (lo+index, hi+following, lo+following)]
+
+    def save(self, name, destination=None):
         # A closed, outward-wound solid has positive signed volume. Catch an
         # accidental mirrored silhouette before producing an imported asset.
         volume6 = 0.0
@@ -40,12 +93,17 @@ class Mesh:
                         + a[2]*(b[0]*c[1]-b[1]*c[0]))
         if volume6 <= 0:
             raise ValueError('Incorrect face winding: '+name)
-        OUT.mkdir(parents=True, exist_ok=True)
+        output = Path(destination) if destination is not None else OUT
+        output.mkdir(parents=True, exist_ok=True)
         lines = ['# Shieldbreak original modular environment art, centimetres', 'o '+name]
         lines += [f'v {x:.4f} {-y:.4f} {z:.4f}' for x,y,z in self.vertices]
         lines += ['f '+' '.join(str(i+1) for i in reversed(face)) for face in self.faces]
-        (OUT / (name+'.obj')).write_text('\n'.join(lines)+'\n', encoding='ascii')
+        (output / (name+'.obj')).write_text('\n'.join(lines)+'\n', encoding='ascii')
         print(name, len(self.vertices), 'vertices', len(self.faces), 'triangles')
+        return {'triangles': len(self.faces),
+                'min': [min(v[axis] for v in self.vertices) for axis in range(3)],
+                'max': [max(v[axis] for v in self.vertices) for axis in range(3)],
+                'volume': volume6 / 6.0}
 
 
 def build():

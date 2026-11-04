@@ -541,7 +541,7 @@ void AShieldbreakArena::BuildSpireArt()
 	}
 	// Authoring coordinates are local centimetres. Modules stay outside the walls,
 	// or flush with the floor at lifts, so collision, sight lines and jumps stay authored.
-	auto Module = [this](const TCHAR* Name, const TCHAR* Style, FLinearColor Tint)
+	auto Module = [this](const TCHAR* Name, const TCHAR* Style, FLinearColor Tint, const TCHAR* SurfaceKind = nullptr)
 	{
 		const FString Path = FString::Printf(TEXT("/Game/Shieldbreak/Art/Spire/%s.%s"), Name, Name);
 		UStaticMesh* Mesh = ShieldbreakArt::Load<UStaticMesh>(*Path);
@@ -549,6 +549,18 @@ void AShieldbreakArena::BuildSpireArt()
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("SpireArt"), Mesh);
 		Instances->SetCastShadow(false);
 		ApplySurface(Instances, Style, Tint);
+		if (SurfaceKind)
+		{
+			if (UMaterialInterface* Surface = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
+				TEXT("/Game/Shieldbreak/Art/Spire/MI_SB_Spire%s.MI_SB_Spire%s"), SurfaceKind, SurfaceKind)))
+			{
+				Instances->SetMaterial(0, Surface);
+				if (UMaterialInstanceDynamic* MID = Instances->CreateDynamicMaterialInstance(0))
+				{
+					MID->SetVectorParameterValue(TEXT("Tint"), Tint);
+				}
+			}
+		}
 		return Instances;
 	};
 	auto* Collectors = Module(TEXT("SM_SB_Spire_Collector"), TEXT("metal"), FLinearColor(0.32f, 0.40f, 0.43f));
@@ -579,7 +591,37 @@ void AShieldbreakArena::BuildSpireArt()
 			Collars->AddInstance(FTransform(FRotator::ZeroRotator, Lift.Base + FVector(0.f, 0.f, 1.f), FVector(1.f)));
 		}
 	}
-	for (auto* Instances : { Collectors, Panels, Collars })
+	UInstancedStaticMeshComponent* ArchAlloy = nullptr;
+	UInstancedStaticMeshComponent* ArchInsets = nullptr;
+	UInstancedStaticMeshComponent* Spines = nullptr;
+	if (Layout.bIndoor && Ceiling && !FParse::Param(FCommandLine::Get(), TEXT("SBNoSpireArchitecture")))
+	{
+		const FShieldbreakMapLook& Look = ShieldbreakMapArt::GetLook(MapId);
+		ArchAlloy = Module(TEXT("SM_SB_Spire_ArchAlloy"), TEXT("metal"), Look.Metal, TEXT("Alloy"));
+		ArchInsets = Module(TEXT("SM_SB_Spire_ArchInset"), TEXT("metal"), Look.DarkMetal, TEXT("Inset"));
+		Spines = Module(TEXT("SM_SB_Spire_CeilingSpine"), TEXT("metal"), Look.DarkMetal, TEXT("Inset"));
+		const double CeilingZ = Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z;
+		const double InnerY = Layout.HalfExtent.Y * 0.25;
+		const double SpanScale = (Layout.HalfExtent.Y - InnerY) / 2700.0;
+		const double StationSpacing = Layout.HalfExtent.X / 3.0;
+		for (int32 Station = -2; Station <= 2; ++Station)
+		{
+			for (const double Side : { -1.0, 1.0 })
+			{
+				const FTransform At(FRotator(0.f, Side * 90.0, 0.f),
+					FVector(Station * StationSpacing, Side * InnerY, CeilingZ - 300.0), FVector(SpanScale, 1.0, 1.0));
+				if (ArchAlloy) ArchAlloy->AddInstance(At);
+				if (ArchInsets) ArchInsets->AddInstance(At);
+				if (Station < 2 && Spines)
+				{
+					Spines->AddInstance(FTransform(FRotator::ZeroRotator,
+						FVector((Station + 0.5) * StationSpacing, Side * InnerY, CeilingZ - 160.0),
+						FVector(StationSpacing / 2400.0, 1.0, 1.0)));
+				}
+			}
+		}
+	}
+	for (auto* Instances : { Collectors, Panels, Collars, ArchAlloy, ArchInsets, Spines })
 	{
 		if (Instances)
 		{
@@ -589,6 +631,8 @@ void AShieldbreakArena::BuildSpireArt()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Spire art: %d collectors, %d service panels, %d lift collars (visual only)."),
 		Collectors ? Collectors->GetInstanceCount() : 0, Panels ? Panels->GetInstanceCount() : 0, Collars ? Collars->GetInstanceCount() : 0);
+	UE_LOG(LogShieldbreak, Log, TEXT("Spire ceiling: %d alloy ribs, %d recessed webs, %d spine sections (visual only, above ordinary jump/lift arcs)."),
+		ArchAlloy ? ArchAlloy->GetInstanceCount() : 0, ArchInsets ? ArchInsets->GetInstanceCount() : 0, Spines ? Spines->GetInstanceCount() : 0);
 }
 
 void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbreakMapLook& Look, float SelfLight) const
@@ -978,6 +1022,7 @@ void AShieldbreakArena::BuildInteriorLights()
 	const int32 CountX = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.X / Spacing));
 	const int32 CountY = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.Y / Spacing));
 	UInstancedStaticMeshComponent* Fixtures = nullptr;
+	UInstancedStaticMeshComponent* LampHousings = nullptr;
 	if (bSpots && CubeMesh && GlowMaterial)
 	{
 		Fixtures = AddDecoration<UInstancedStaticMeshComponent>(TEXT("LampFixture"), CubeMesh);
@@ -985,6 +1030,18 @@ void AShieldbreakArena::BuildInteriorLights()
 		if (UMaterialInstanceDynamic* MID = ApplySurface(Fixtures, TEXT("glow"), Look.InteriorLight))
 		{
 			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 9.f);
+		}
+		if (MapId == FName(TEXT("Spire")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoSpireArchitecture")))
+		{
+			if (UStaticMesh* Housing = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/Spire/SM_SB_Spire_LampHousing.SM_SB_Spire_LampHousing")))
+			{
+				LampHousings = AddDecoration<UInstancedStaticMeshComponent>(TEXT("LampHousing"), Housing);
+				LampHousings->SetCastShadow(false);
+				if (UMaterialInterface* Inset = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Spire/MI_SB_SpireInset.MI_SB_SpireInset")))
+				{
+					LampHousings->SetMaterial(0, Inset);
+				}
+			}
 		}
 	}
 	int32 Lamps = 0;
@@ -1020,6 +1077,11 @@ void AShieldbreakArena::BuildInteriorLights()
 					// A 1.6 x 0.5 m light panel flush under the ceiling, turned a quarter on alternate rows.
 					Fixtures->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f), FVector(At.X, At.Y, CeilingZ - 6.f),
 						FVector(1.6f, 0.5f, 0.06f)));
+					if (LampHousings)
+					{
+						LampHousings->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f),
+							FVector(At.X, At.Y, CeilingZ - 22.f), FVector(1.f)));
+					}
 				}
 			}
 			else
@@ -1045,6 +1107,11 @@ void AShieldbreakArena::BuildInteriorLights()
 	{
 		Fixtures->RegisterComponent();
 		AddInstanceComponent(Fixtures);
+	}
+	if (LampHousings)
+	{
+		LampHousings->RegisterComponent();
+		AddInstanceComponent(LampHousings);
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s: enclosed, %d interior %s (%.0f cm grid, %.0f cd)."), *Layout.DisplayName, Lamps,
 		bSpots ? TEXT("spot lamps") : TEXT("point lamps"), Spacing, Candelas);

@@ -2,12 +2,20 @@
 
 ## Current Spire art increment
 
+The ceiling now has original swept alloy ribs, recessed webs, connecting spines and physical lamp housings.
+Author/import/check commands are in `SPIRE_ART_PASS.md`; `-SBNoSpireArchitecture` compares them off.
+Clean proof captures are verified at 1920x1080; the raw fixed-view observation was 111.0 FPS with no bots.
+The Spire placement tour passed 29/29, including six lift landings. Final chamfer/housing refinements were
+checked afterward in the captures. The current ordinary-jump/lift clearance check leaves 70 cm; grenade stacks
+and arbitrary knockback are not covered. This remains an art increment, not a finished AAA environment.
+
 Spire now has its own larger cladding bays, continuous pier panels, quiet decks and original physically lit
 Alloy/Inset/Deck surfaces. Removed the shared painted grid from these surfaces and most neutral glow outlines.
 Its 22 m ceiling previously used lamps with an 18 m radius; Spire's lamps now reach 28 m at 2200 cd, and energy
 emission is reduced to keep cyan concentrated on the mechanism. Other maps' lamp defaults are retained.
 See `SPIRE_ART_PASS.md` for authoring/import commands and `COORDINATION.md` for exact checks and limitations.
-The structural silhouette is still boxy; overhead geometry and a moving player-view review are next.
+The lower structural silhouette is still boxy; a stronger central hero model, contact details and a moving
+player-view review are next.
 
 ## Current desktop integration
 

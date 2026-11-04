@@ -1,5 +1,19 @@
 # Desktop setup status
 
+## Local 3D authoring added 2026-11-03
+
+Portable Blender **4.5.15 LTS** is available at
+`Saved/Tools/Blender/blender-4.5.15-windows-x64/blender.exe`. A background factory-startup invocation
+reported `SHIELDBREAK_BLENDER_READY 4.5.15 LTS` and exited successfully (`Saved/Logs/BlenderSetup.log`).
+The archive came from the [official Blender 4.5 release directory](https://download.blender.org/release/Blender4.5/)
+and matched its published SHA-256:
+`52dd02fd74877fa08e74b67d7854cf32468a232c02aaa19b6844c91285574f8d`.
+The executable/archive remain ignored local tools. No Windows file associations, security settings or
+existing personal files were changed. Use `--background --factory-startup --python <authoring-script>`
+for the existing `Art/blender` pipeline; run expensive authoring, Unreal imports/builds and game tests sequentially.
+
+## Original engine/toolchain setup
+
 Setup completed and verified 2026-10-27 on the desktop at
 `C:\Users\addve\Documents\ChatGPT\Shieldbreak`.
 

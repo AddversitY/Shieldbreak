@@ -101,6 +101,11 @@ from Epic's free **Electric Dreams Env** sample (Fab; Epic content, licensed for
 
 ## Lighting lessons (2026-11-03)
 
+- **Spire is taller than Keel.** Its 22 m ceiling now uses a separate 28 m lamp reach and 2200 cd default;
+  Keel keeps the 18 m / 250 cd defaults below. The old 18 m radius left Spire's lower floor outside direct
+  lamp reach. Spire also uses a near-neutral lamp colour and 0.8 kit/core emission, with original alloy,
+  dark inset and quiet deck materials. Do not restore the shared glowing service-band recipe on its piers.
+
 - **Emissive strips light the room.** Under Lumen, the glow trim along block edges (`BuildTrim`) bounces as much light as
   the lamps do. In amber it turned Keel's whole gunmetal hull orange. A map's dominant tone comes from its trim colour,
   so keep the trim neutral or cool on maps whose surfaces should read as metal, and put warm colours on thin kit accents.

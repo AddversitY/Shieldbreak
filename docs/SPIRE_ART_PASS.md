@@ -26,6 +26,34 @@ This is a surface and lighting foundation, not the completed architectural secti
 `VISUAL_QUALITY_TARGET.md` for the larger-form, material, player-motion and performance acceptance criteria.
 Actual desktop results are recorded in `COORDINATION.md` after verification.
 
+## Ceiling framework (2026-11-03)
+
+`Art/build_spire_architecture.py` authors four original closed-solid modules without external models:
+
+| Module | Triangles | Placement |
+|---|---:|---|
+| Alloy rib cheeks and mounting shoe | 116 | Ten swept transverse ribs, starting at 19.3 m |
+| Recessed mechanical web | 128 | One between each rib's alloy cheeks |
+| Longitudinal spine | 44 | Eight sections connecting the ribs |
+| Recessed lamp housing | 112 | Around the existing eighteen ceiling light cards |
+
+Broad faces have geometric chamfers so they catch light; the helper now triangulates concave profiles safely.
+`Tools/check_spire_architecture.py` checks analytic concave/chamfer volumes, manifold edges, exported winding,
+ordinary jump/lift head clearance and continued generation of the earlier three modules. The current conservative
+clearance is 70 cm (rib underside 1930 cm; head envelope 1860 cm). This does not establish safety for arbitrary
+knockback or grenade-assisted stacks; those remain human playtests. No collision or nav geometry is added.
+
+Run the authoring script, then `Tools/ImportSpireArchitecture.bat`. The importer checks the exported manifest's
+axes, bounds and triangle counts. `-SBNoSpireArchitecture` disables ribs, webs, spines and lamp housings for review.
+`-SBCleanShots` hides the HUD only in the opt-in screenshot modes; ordinary play keeps its HUD.
+
+Final [spawn](playtests/2026-11-03_spire-architecture-spawn.png) and
+[central](playtests/2026-11-03_spire-architecture-central.png) views are verified 1920x1080, 100% screen percentage.
+Use `-ForceRes` for requested resolutions larger than the window work area; without it Unreal clamped the first
+1080p request to 888x500. That smaller run is excluded from the 1080p observation. Final fixed-view observation:
+111.0 FPS over 19.2 seconds with zero bots; no combat/performance benchmark claim. The Spire placement tour passed
+29/29 before the final edge chamfers/lamp housings; final rebuilt assets were then checked in the clean captures.
+
 ## Earlier pass (2026-10-27)
 
 The desktop synced merged main through `174ffd3` before this pass. Claude's
