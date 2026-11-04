@@ -919,16 +919,32 @@ void AShieldbreakCharacter::OnJumped_Implementation()
 void AShieldbreakCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
-	// A jump pressed just before touchdown goes off now. Jump() here is picked up by the next move (the engine
-	// clears jump input before movement events for exactly this), so it is predicted and replicated as usual.
+	// A jump pressed just before touchdown goes off on landing. The engine calls Landed() before it switches to
+	// walking, and that switch (ACharacter::OnMovementModeChanged) resets jump input, so the Jump() itself waits for
+	// OnMovementModeChanged below. Physics clears jump input before it moves, so the press then carries into the next
+	// move and is predicted and replicated like any other jump.
 	const UCharacterMovementComponent* Movement = GetCharacterMovement();
 	if (JumpBufferedUntil >= 0.f && GetWorld() && Movement && !bClientUpdating)
 	{
-		const bool bInTime = GetWorld()->GetTimeSeconds() <= JumpBufferedUntil;
+		bJumpOnLandPending = GetWorld()->GetTimeSeconds() <= JumpBufferedUntil && IsAlive();
 		JumpBufferedUntil = -1.f;
-		if (bInTime && IsAlive())
+	}
+}
+
+void AShieldbreakCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	if (bJumpOnLandPending)
+	{
+		const UCharacterMovementComponent* Movement = GetCharacterMovement();
+		if (Movement && Movement->IsMovingOnGround())
 		{
+			bJumpOnLandPending = false;
 			Jump();
+		}
+		else if (!Movement || !Movement->IsFalling())
+		{
+			bJumpOnLandPending = false;
 		}
 	}
 }

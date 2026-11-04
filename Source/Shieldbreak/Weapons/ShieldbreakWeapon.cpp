@@ -55,6 +55,8 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMesh->SetGenerateOverlapEvents(false);
 	WeaponMesh->SetCastShadow(false);
+	// Small moving props: their own mesh distance field made the scene's sky occlusion darken them to near black.
+	WeaponMesh->bAffectDistanceFieldLighting = false;
 	RootComponent = WeaponMesh;
 
 	BarrelMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BarrelMesh"));

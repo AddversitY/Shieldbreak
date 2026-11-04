@@ -83,7 +83,6 @@ def battle_rifle():
         p.append(k.box("shield_slot", (0, y, 7.1), (2.6, 0.8, 0.2), "Polymer", bevel=0))
     grooves(p, 1.75, -1.2, -6.0, -13.0, 0.3, 3.2, 1.4, "Gunmetal")    # grip
     grooves(p, 2.0, -14.8, -5.5, -12.5, 0.3, 6.0, 1.5, "Gunmetal")   # magazine ribs
-    p.append(k.cyl("reticle", (0, -12.1, 13.2), 0.7, 0.15, "GlowCyan", verts=10, bevel=0))
     p.append(k.box("selector", (-2.75, -1.5, -1.6), (0.4, 1.6, 0.9), "Steel", bevel=0.1))
     return p, (0, 48.2, 2.5)
 
@@ -140,11 +139,10 @@ def sniper():
     p.append(k.cyl("turret", (0, 5, 16), 1.2, 2.4, "Steel", axis="Z", verts=10))
     p.append(k.cyl("turret_side", (2.6, 5, 13), 1.2, 2.0, "Steel", axis="X", verts=10))
     p.append(k.box("strip", (2.85, 10, 4), (0.15, 18, 0.45), "GlowCyan", bevel=0))
-    # v2 detail: rail teeth, a bolt handle on the right, a glowing reticle and ribbed handguard.
+    # v2 detail: rail teeth, a bolt handle on the right and a ribbed handguard.
     rail_teeth(p, -11, 19, 9.1, 2.8)
     p.append(k.cyl("bolt", (-4.2, -10, 4.5), 0.7, 4.0, "Steel", axis="X", verts=8, bevel=0.1))
     p.append(k.ring("bolt_knob", (-6.4, -10, 4.5), 1.0, 0.6, "Polymer", axis="X", verts=10, tube_verts=6))
-    p.append(k.cyl("reticle", (0, -13.1, 13), 0.8, 0.15, "GlowCyan", verts=10, bevel=0))
     for y in (28, 32, 36, 40):
         for x in (2.55, -2.55):
             p.append(k.box("hg_slot", (x, y, 2.5), (0.2, 2.2, 3.4), "Polymer", bevel=0))

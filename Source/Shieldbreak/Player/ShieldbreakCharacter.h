@@ -143,6 +143,7 @@ protected:
 	virtual bool CanJumpInternal_Implementation() const override;
 	virtual void OnJumped_Implementation() override;
 	virtual void Landed(const FHitResult& Hit) override;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
@@ -348,6 +349,9 @@ private:
 	bool bSkipStepCheck = false;
 	/** World time until which a jump pressed in the air fires on landing (-1 = none). */
 	float JumpBufferedUntil = -1.f;
+	/** Landed() saw a buffered press in time; the jump is issued once the walking mode is set (the engine resets
+	 *  jump input on that mode change, after Landed()). */
+	bool bJumpOnLandPending = false;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;

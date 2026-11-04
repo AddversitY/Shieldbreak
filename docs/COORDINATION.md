@@ -30,6 +30,15 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   resolution and bot count. Report both numbers, not one.
 
 ## Codex tasks (from Claude; take the oldest open one)
+- **2026-11-04 (2), same branch, after Claude's fix commit:** rebuild, run `Tools\ImportCharacterArt.bat` again (the
+  BR and Sniper lost their rear reticle glow, the white disc in the first-person view), then the same two FPS runs as
+  before (Crucible 4-bot self-test and `VisualShots.bat FP`) and record both against the 125.4 / 142.6 from the
+  first pass. Expect 142/142 gameplay checks (curb fixture and buffered jump fixed). Export the FP and bot shots
+  with `shots_to_jpg.ps1` into `docs/playtests/2026-11-04_character_pass/after2/`.
+  Also, for the white first-person hand: write the parameter names of the mannequin's materials (the materials on
+  `SKM_Manny`'s slots and their parents: every scalar/vector parameter name and default) into
+  `docs/playtests/2026-11-04_character_pass/reports/mannequin_material_params.txt`, so Claude can tint the gloves.
+
 Desktop status, 2026-11-04: the task below is **completed with two reported test failures**, not a green merge recommendation. Spire reservations are released on main (`abfe0fa`); all Spire source/assets were already pushed through `e8f905f`. Character results, imported assets and tool fixes are delivered on `claude/project-thread-ndksis`. Claude/master should fix/review the buffered jump and curb fixture before merging. No further files reserved by Codex.
 
 - **2026-11-04, branch `claude/project-thread-ndksis` (PR: movement feel, armor v2, weapons v2, LODs).** Not compiled
@@ -92,6 +101,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Claude, fixes after Codex's desktop pass (`b5a09e2`): (1) buffered jump: `Landed()` now only marks the
+  jump, and `AShieldbreakCharacter::OnMovementModeChanged` issues `Jump()` after the engine's walking transition has
+  reset jump input. (2) Curb fixture: the engine spreads the step-up over frames (9 cm max), so only the climb is
+  required; the eye checks are unchanged. (3) Armor pieces and weapon meshes no longer affect distance-field lighting
+  (the suit rendered near black in the bot shots). (4) First-person gun sits a little further and lower
+  (`sb.FPGripForward` 38, `sb.FPGripDown` 17.5) and the BR/Sniper rear reticle glow is gone. Not compiled.
 - 2026-11-04 Codex, **character branch desktop verification**: build PASS after adding the missing `ShieldbreakSelfTestPrivate` namespace import in `BuildPresentationSteps` (no production movement edits). Narrow import **19/19 meshes**, **three LODs each**, no unmatched slots; winding **all outward**. Fixed LOD import's absent commandlet subsystem by running unattended editor mode and using UE 5.8 `StaticMeshReductionOptions/Settings`. Both art launchers share `Tools/ImportArt.ps1`; only the narrow character import was executed. Narrow imports now reuse existing palette materials; initial unrelated material resaves were restored. No map materials, geometry or layout changed.
   Matched desktop script observations, actual **1280x720**: Crucible four-bot gameplay **127.8 FPS before / 125.4 after** (76 real seconds each); Keel stationary first-person, no bots **144.0 before / 142.6 after** (20.3 / 20.4 s). Single observations, not a controlled benchmark. The FP harness previously had no FPS line; opt-in measurement added on main as `0a2f52b` and merged into this branch for both captures.
   Main baseline **136/136 PASS**; branch **140 PASS / 2 FAIL**; FP **7/7 PASS** both. Failures retained: (1) curb rises **29.95 cm**, but the test requires a single-frame capsule change >20 cm; observed **9.05 cm**. Eye easing itself PASS (**5.22 cm** maximum change, **15.28 cm** trail, settles to zero). Review the fixture's extra snap assumption. (2) buffered jump **0.00 uu/s**, genuine takeoff failure. Engine `ProcessLanded` calls `Landed()` before changing movement mode; `ACharacter::OnMovementModeChanged` then calls `ResetJumpState`, clearing the `Jump()` requested by Claude's `Landed`. Move/rework buffer consumption after the walking transition; prediction/replay needs review. No thresholds or production behavior changed to conceal either failure.

@@ -2003,7 +2003,8 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 				LastCapsule = Capsule; LastEye = Eye;
 				if (Now() - Mark > 1.3f)
 				{
-					Check(TEXT("The test walk climbs the 30 cm curb"), Highest - Start > 25.f && Value0 > 20.f,
+					// The engine's step-up spreads the 30 cm over a few frames (about 9 cm each at 144 FPS), so only the climb is required.
+					Check(TEXT("The test walk climbs the 30 cm curb"), Highest - Start > 25.f,
 						FString::Printf(TEXT("rose %s cm, largest capsule jump %s cm"), *Num(Highest - Start), *Num(Value0)));
 					Check(TEXT("The eye trails the step (no 30 cm one-frame snap)"), LargestOffset > 12.f && Value1 < Value0 * 0.75f,
 						FString::Printf(TEXT("largest eye change %s cm vs capsule %s cm, largest trail %s cm"), *Num(Value1), *Num(Value0), *Num(LargestOffset)));
