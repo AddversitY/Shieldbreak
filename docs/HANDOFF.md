@@ -2,6 +2,10 @@
 
 ## Movement, characters and guns (Claude, branch `claude/project-thread-ndksis`)
 
+Desktop verification complete, with **two failures for Claude/master to resolve before merging**. Build/import/winding pass; 19 character/weapon meshes have three LODs. Gameplay is **140 pass / 2 fail**: buffered jump never takes off, and the curb fixture expects an unjustified >20 cm single-frame capsule jump despite climbing the full 29.95 cm. Step-camera easing, coyote time and existing animation-continuity checks pass. See the detailed diagnosis in `COORDINATION.md` and [review evidence](playtests/2026-11-04_character_pass/README.md).
+
+Before/after at actual 1280x720: four-bot Crucible **127.8 / 125.4 FPS**; zero-bot fixed first-person Keel **144.0 / 142.6 FPS**. These are individual script observations. Codex fixed the test namespace and LOD tooling, preserved the two failing checks, and made no production movement edits. Spire work is already pushed through `e8f905f`; map reservations released on main in `abfe0fa`. No files reserved by Codex; local Android configuration and ignored scans retained.
+
 Vincent's focus away from the maps: smoothness and physics, the plain character, the guns and the first-person view.
 The camera now eases over steps, jumps forgive a late press at a ledge (coyote time) and an early press before
 landing (jump buffer), the armor is a layered v2 set with a new helmet, the guns got a detail pass, and weapons and

@@ -1933,6 +1933,7 @@ void AShieldbreakSelfTest::BuildSteps()
 
 void AShieldbreakSelfTest::BuildPresentationSteps()
 {
+	using namespace ShieldbreakSelfTestPrivate;
 	Steps.Add({ TEXT("Crouch camera settles without a capsule-height pop"),
 		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
 		[this](float Elapsed)

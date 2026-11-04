@@ -93,7 +93,7 @@ def master_material():
     return mat
 
 
-def palette_instances(master):
+def palette_instances(master, reuse_existing=False):
     with open(os.path.join(EXPORT, "palette.json")) as f:
         palette = json.load(f)
     instances = {}
@@ -101,6 +101,9 @@ def palette_instances(master):
         path = "%s/MI_SB_%s" % (MATERIALS, name)
         if eal.does_asset_exist(path):
             mi = unreal.load_asset(path)
+            if reuse_existing:
+                instances["M_" + name] = mi
+                continue
         else:
             mi = tools.create_asset("MI_SB_" + name, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
         mel.set_material_instance_parent(mi, master)
@@ -315,16 +318,20 @@ def set_lods(mesh, folder):
     if not settings:
         return ""
     subsystem = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
-    options = unreal.EditorScriptingMeshReductionOptions()
+    if subsystem is None:
+        raise RuntimeError("LOD generation needs editor mode: use Tools/ImportCharacterArt.bat")
+    options = unreal.StaticMeshReductionOptions()
     options.set_editor_property("auto_compute_lod_screen_size", False)
     reductions = []
     for fraction, screen in settings:
-        entry = unreal.EditorScriptingMeshReductionSettings()
+        entry = unreal.StaticMeshReductionSettings()
         entry.set_editor_property("percent_triangles", fraction)
         entry.set_editor_property("screen_size", screen)
         reductions.append(entry)
     options.set_editor_property("reduction_settings", reductions)
     count = subsystem.set_lods(mesh, options)
+    if count != len(settings):
+        raise RuntimeError("Expected %d LODs for %s, got %d" % (len(settings), mesh.get_name(), count))
     tris = [mesh.get_num_triangles(i) for i in range(max(count, 0))]
     return ", LODs %d (tris %s)" % (count, "/".join(str(t) for t in tris))
 
@@ -344,9 +351,9 @@ def describe(mesh):
 def main():
     # The legacy FBX importer turns SOCKET_ empties into sockets and honors FbxImportUI.
     unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX 0")
-    master = master_material()
-    instances = palette_instances(master)
     only = [f.strip() for f in os.environ.get("SB_IMPORT_FOLDERS", "").split(",") if f.strip()]
+    master = master_material()
+    instances = palette_instances(master, reuse_existing=bool(only))
     if only:
         # A narrow pass: meshes only. Textures, the world material and audio stay as they are.
         log("FBX folders: " + ", ".join(only))
