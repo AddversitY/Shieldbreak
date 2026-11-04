@@ -107,6 +107,8 @@ private:
 	bool IsLinkWalkable(const FVector& From, const FVector& To) const;
 	/** Enclosed maps: a grid of lamps under the ceiling (no sun or sky reaches the floor). -SBNoInteriorLights to compare. */
 	void BuildInteriorLights();
+	/** Three practical projectors integrated into the original Spire condenser V2; no per-frame gameplay work. */
+	void BuildSpireHeroLights();
 	/** One-way: dropping off a ledge from From lands at To. */
 	bool IsDropLink(const FVector& From, const FVector& To) const;
 	void AddLink(int32 From, int32 To);

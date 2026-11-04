@@ -27,6 +27,9 @@ PALETTE = {
     "Undersuit": ((0.03, 0.03, 0.032), 0.1, 0.7, 0.0),
     "Visor": ((0.9, 0.42, 0.06), 0.95, 0.06, 0.25),
     "TeamGlow": ((1.0, 0.18, 0.08), 0.0, 0.3, 4.0),
+    # Spire's induction machinery: restrained, unlit bronze and small neutral practical emitters.
+    "SpireBronze": ((0.22, 0.10, 0.045), 0.72, 0.48, 0.0),
+    "SpireLamp": ((0.90, 0.94, 1.0), 0.0, 0.35, 1.2),
     # Keel's hull kit (build_hull_kit.py): fixed dark colours that the game leaves as they are (no map tint).
     # Mostly dielectric and rough: as metal they mirrored the amber lights and the whole hull read orange (R31). Cool
     # grey so the white work lamps register against the amber, and a dimmer amber of its own (HullLight): with the kit's

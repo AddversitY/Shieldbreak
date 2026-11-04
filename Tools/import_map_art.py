@@ -37,9 +37,11 @@ def instanced_usage():
         material = unreal.load_asset("%s/%s" % (MATERIALS, name))
         if not material:
             raise RuntimeError("Missing %s/%s: run Tools/ImportArt.bat first" % (MATERIALS, name))
-        mel.set_material_usage(material, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES)
-        mel.recompile_material(material)
-        eal.save_loaded_asset(material)
+        usage = unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES
+        if not mel.has_material_usage(material, usage):
+            mel.set_base_material_usage(material, usage, True)
+            mel.recompile_material(material)
+            eal.save_loaded_asset(material)
 
 
 def palette_instance(slot, palette, master):
@@ -47,8 +49,8 @@ def palette_instance(slot, palette, master):
     if not key:
         return None
     path = "%s/MI_SB_%s" % (MATERIALS, key)
-    # The kit-only colours (Keel's Hull*) follow palette.json on every run; the shared ones are left as they are.
-    if eal.does_asset_exist(path) and not key.startswith("Hull"):
+    # Own kit colours (Keel Hull*, Spire machinery) follow palette.json; shared colours are retained.
+    if eal.does_asset_exist(path) and not key.startswith(("Hull", "Spire")):
         return unreal.load_asset(path)
     rgb, metallic, roughness, emissive = palette[key]
     if eal.does_asset_exist(path):
@@ -144,6 +146,18 @@ def main():
     want_slots = expected_slots()
     problems = []
     fbxs = sorted(glob.glob(os.path.join(EXPORT, "MapKit", "*.fbx")))
+    # Optional narrow import for new hero work. Default behavior remains the complete kit import.
+    command_line = unreal.SystemLibrary.get_command_line()
+    prefix_match = re.search(r'(?:^|\s)-SBMapArtPrefix=([A-Za-z0-9_]+)(?:\s|$)', command_line)
+    if '-SBMapArtPrefix=' in command_line and not prefix_match:
+        raise RuntimeError('Invalid -SBMapArtPrefix (use a plain mesh-name prefix)')
+    if prefix_match:
+        prefix = prefix_match.group(1)
+        fbxs = [path for path in fbxs if os.path.splitext(os.path.basename(path))[0].startswith(prefix)]
+        sizes = {name: size for name, size in sizes.items() if name.startswith(prefix)}
+        if not fbxs or not sizes:
+            raise RuntimeError('No FBX/report entries matched '+prefix)
+        log('narrow import: '+prefix)
     for fbx in fbxs:
         name, mesh = import_fbx(fbx, want_slots.get(os.path.splitext(os.path.basename(fbx))[0]))
         if not isinstance(mesh, unreal.StaticMesh):

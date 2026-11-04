@@ -2,6 +2,12 @@
 
 ## Current Spire art increment
 
+The central condenser now defaults to an original detailed three-vane/iris assembly, with bronze conduits,
+modeled practical projectors and localized shadows. `-SBLegacySpireCondenser` shows the retained earlier model.
+Authoring is `Tools/BuildSpireHero.ps1`; its narrow import is `Tools/ImportSpireHero.bat`. The finalized Spire tour
+passed 29/29 at verified 1080p (76.3 average FPS in the four-bot fixture). See `SPIRE_ART_PASS.md` for actual
+captures, import scope, clearance and measurement limits. Next: actual red/blue actors and full-roster frame pacing.
+
 The ceiling now has original swept alloy ribs, recessed webs, connecting spines and physical lamp housings.
 Author/import/check commands are in `SPIRE_ART_PASS.md`; `-SBNoSpireArchitecture` compares them off.
 Clean proof captures are verified at 1920x1080; the raw fixed-view observation was 111.0 FPS with no bots.
@@ -14,7 +20,7 @@ Alloy/Inset/Deck surfaces. Removed the shared painted grid from these surfaces a
 Its 22 m ceiling previously used lamps with an 18 m radius; Spire's lamps now reach 28 m at 2200 cd, and energy
 emission is reduced to keep cyan concentrated on the mechanism. Other maps' lamp defaults are retained.
 See `SPIRE_ART_PASS.md` for authoring/import commands and `COORDINATION.md` for exact checks and limitations.
-The lower structural silhouette is still boxy; a stronger central hero model, contact details and a moving
+The lower structural silhouette is still boxy; construction/contact details, actual-team readability and a moving
 player-view review are next.
 
 ## Current desktop integration

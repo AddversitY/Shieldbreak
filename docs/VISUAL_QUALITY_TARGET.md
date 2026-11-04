@@ -54,6 +54,18 @@ contact details, and the central condenser needs a stronger original silhouette.
 finish and posing remain separate visual weaknesses found in the action captures. See `SPIRE_ART_PASS.md` for
 mesh authoring, clearance scope and exact verification limits.
 
+## Original induction condenser
+
+The new [bridge detail](playtests/2026-11-03_spire-condenser-bridge.png) and
+[ground-floor sightline](playtests/2026-11-03_spire-condenser-floor.png) show the original three-vane condenser,
+iris and curved bronze conduits. The [earlier model](playtests/2026-11-03_spire-condenser-legacy.png) remains
+available for comparison. These are actual 1080p game captures, with capture-only HUD suppression.
+
+The first close-up exposed overly strong projector hotspots; the final version uses a darker hero alloy and
+400 cd practicals. The first ground camera was under a bridge and was moved to a clear actual floor sightline.
+The new sculpture provides a more specific focal point, while lower structural detail and full-roster/moving-view
+checks remain open. The finalized four-bot Spire tour passed 29/29; see `COORDINATION.md` for scope and measurements.
+
 ## Asset preservation
 
 The desktop contains 725 ignored content files, approximately 19.11 GiB, including the Electric Dreams scan dependencies. These are intentionally local under the existing import/licensing workflow; do not add them wholesale to GitHub. `Tools/GetScanArt.bat` documents the source/import route. An integration manifest and the pre-integration configuration copy are in ignored `Saved/IntegrationBackup-20261103/`. The manifest inventories paths; it is not a second copy or an off-machine backup of the assets.

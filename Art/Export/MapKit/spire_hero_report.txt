@@ -1,0 +1,1 @@
+SM_SB_Kit_CondenserV2: 17456 tris, X -729.7..1057.5 Y -945.0..945.0 Z -275.0..0.0, slots M_Gunmetal, M_Steel, M_GlowCyan, M_SpireBronze, M_SpireLamp

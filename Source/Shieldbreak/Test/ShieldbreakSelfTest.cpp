@@ -2955,6 +2955,13 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		// Player-height views across the map (what someone actually sees), from a side court and along a diagonal.
 		AddView(TEXT("4_ground"), FVector(Center.X - Extent.X * 0.58f, Center.Y + Extent.Y * 0.4f, Floor + 470.f), FVector(Center.X, Center.Y, Floor + 350.f));
 		AddView(TEXT("5_ground"), FVector(Center.X + Extent.X * 0.3f, Center.Y - Extent.Y * 0.62f, Floor + 470.f), FVector(Center.X - Extent.X * 0.2f, Center.Y + Extent.Y * 0.2f, Floor + 350.f));
+		if (Arena && Arena->GetMapId() == FName(TEXT("Spire")) && FParse::Param(FCommandLine::Get(), TEXT("SBHeroShots")))
+		{
+			// Actual current bridge/floor eye heights. Keep these before the spawn view so the final FPS
+			// fixture still measures the same spawn camera as the existing comparison mode.
+			AddView(TEXT("6_hero_bridge"), FVector(-1800.f, 0.f, 870.f), FVector(0.f, 0.f, 2060.f));
+			AddView(TEXT("7_hero_floor"), FVector(-1200.f, -3000.f, 170.f), FVector(0.f, 0.f, 2060.f));
+		}
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{
 			const FTransform& Spawn = Arena->GetSpawnTransforms()[0];

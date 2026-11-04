@@ -721,8 +721,10 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		}
 		else if (Id == TEXT("Spire"))
 		{
-			// A hard-light condenser over the energy column (hangs 4.2 m from the 22 m ceiling; the crown is at 11 m).
-			Group(Groups, TEXT("Condenser")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			// Original triad induction assembly above the ordinary player/lift envelope. Keep Claude's earlier
+			// stepped-ring model available for direct comparison, without deleting or reimporting its asset.
+			const TCHAR* Piece = FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpireCondenser")) ? TEXT("Condenser") : TEXT("CondenserV2");
+			Group(Groups, Piece).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
 		}
 		return Groups;
 	}

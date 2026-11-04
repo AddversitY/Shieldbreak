@@ -216,6 +216,7 @@ void AShieldbreakArena::BeginPlay()
 		if (Layout.bIndoor)
 		{
 			BuildInteriorLights();
+			BuildSpireHeroLights();
 		}
 		else
 		{
@@ -743,13 +744,18 @@ void AShieldbreakArena::BuildMapArt()
 		}
 		const FString Name = TEXT("SM_SB_Kit_") + Group.Piece.ToString();
 		UStaticMesh* Mesh = Group.Instances.Num() > 0 ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *Name, *Name)) : nullptr;
+		if (!Mesh && Group.Piece == FName(TEXT("CondenserV2")))
+		{
+			UE_LOG(LogShieldbreak, Warning, TEXT("Condenser V2 asset missing; retaining the original Spire condenser."));
+			Mesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_Condenser.SM_SB_Kit_Condenser"));
+		}
 		if (!Mesh)
 		{
 			continue;
 		}
 		// One instanced component per piece: a draw call or two per kind, however many stand around the map.
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("MapArt"), Mesh);
-		Instances->SetCastShadow(false);
+		Instances->SetCastShadow(Group.Piece == FName(TEXT("CondenserV2")));
 		// Without Lumen, distance-field sky occlusion left the kit near black up close (sunlit tops included), so it
 		// stays out of the distance fields. Lumen needs them to light it, so with Lumen it stays in.
 		Instances->bAffectDistanceFieldLighting = ShieldbreakArenaPrivate::UsesLumen();
@@ -758,6 +764,13 @@ void AShieldbreakArena::BuildMapArt()
 		const bool bFlush = Group.Piece == TEXT("Relief") || Group.Piece == TEXT("Fascia") || Group.Piece == TEXT("Inlay");
 		// The rock skin takes its block's colour, so a sand bank and a red-rock mesa stay apart.
 		FShieldbreakMapLook GroupLook = Look;
+		if (Group.Piece == FName(TEXT("CondenserV2")))
+		{
+			// The hero's machined alloy is darker than the architectural ceramic around it. Its practical
+			// lights reveal the chamfers instead of bleaching the entire assembly into one white shape.
+			GroupLook.Metal = FLinearColor(0.30f, 0.35f, 0.40f);
+			GroupLook.DarkMetal = FLinearColor(0.06f, 0.08f, 0.10f);
+		}
 		if (Group.SurfaceTint.A > 0.f)
 		{
 			GroupLook.Rock = Group.SurfaceTint;
@@ -1097,7 +1110,10 @@ void AShieldbreakArena::BuildInteriorLights()
 			Lamp->SetIntensity(Candelas);
 			Lamp->SetAttenuationRadius(Reach);
 			Lamp->SetLightColor(Look.InteriorLight);
-			Lamp->SetCastShadows(false);
+			const bool bSpireKeyShadow = bSpireLighting && !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpireCondenser"))
+				&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoSpireKeyShadows"))
+				&& IY == CountY / 2 && (IX == CountX / 2 || IX + 1 == CountX / 2);
+			Lamp->SetCastShadows(bSpireKeyShadow);
 			Lamp->SetVolumetricScatteringIntensity(VolumetricScattering);
 			Lamp->RegisterComponent();
 			++Lamps;
@@ -1115,6 +1131,42 @@ void AShieldbreakArena::BuildInteriorLights()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s: enclosed, %d interior %s (%.0f cm grid, %.0f cd)."), *Layout.DisplayName, Lamps,
 		bSpots ? TEXT("spot lamps") : TEXT("point lamps"), Spacing, Candelas);
+}
+
+void AShieldbreakArena::BuildSpireHeroLights()
+{
+	if (MapId != FName(TEXT("Spire")) || !Ceiling || GetNetMode() == NM_DedicatedServer
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpireCondenser"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBNoSpireHeroLights"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBNoMapArt")))
+	{
+		return;
+	}
+	const double CeilingZ = Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z;
+	for (const double Angle : { 0.0, 120.0, 240.0 })
+	{
+		const double Radians = FMath::DegreesToRadians(Angle);
+		const FVector Housing(840.0 * FMath::Cos(Radians), 840.0 * FMath::Sin(Radians), CeilingZ - 210.0);
+		const FVector Direction = (FVector(0.0, 0.0, CeilingZ - 110.0) - Housing).GetSafeNormal();
+		auto* Projector = NewObject<USpotLightComponent>(this);
+		Projector->SetupAttachment(Root);
+		Projector->SetMobility(EComponentMobility::Movable);
+		// Forty cm puts the source just in front of the modeled barrel/lens, rather than inside its shadow.
+		Projector->SetRelativeLocation(Housing + Direction * 40.0);
+		Projector->SetRelativeRotation(Direction.Rotation());
+		Projector->SetInnerConeAngle(24.f);
+		Projector->SetOuterConeAngle(42.f);
+		Projector->SetSourceRadius(8.f);
+		Projector->SetIntensityUnits(ELightUnits::Candelas);
+		Projector->SetIntensity(400.f);
+		Projector->SetAttenuationRadius(1400.f);
+		Projector->SetLightColor(FLinearColor(0.90f, 0.94f, 1.f));
+		Projector->SetCastShadows(true);
+		Projector->SetVolumetricScatteringIntensity(0.f);
+		Projector->RegisterComponent();
+		AddInstanceComponent(Projector);
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("Spire condenser V2: three shadowed practical projectors, 400 cd / 14 m, no volumetric scattering."));
 }
 
 void AShieldbreakArena::BuildSpawnPoints()

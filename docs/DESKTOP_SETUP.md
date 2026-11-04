@@ -9,7 +9,7 @@ The archive came from the [official Blender 4.5 release directory](https://downl
 and matched its published SHA-256:
 `52dd02fd74877fa08e74b67d7854cf32468a232c02aaa19b6844c91285574f8d`.
 The executable/archive remain ignored local tools. No Windows file associations, security settings or
-existing personal files were changed. Use `--background --factory-startup --python <authoring-script>`
+existing personal files were changed. Use `--background --factory-startup --python-exit-code 1 --python <authoring-script>`
 for the existing `Art/blender` pipeline; run expensive authoring, Unreal imports/builds and game tests sequentially.
 
 ## Original engine/toolchain setup

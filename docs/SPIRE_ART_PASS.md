@@ -54,6 +54,36 @@ Use `-ForceRes` for requested resolutions larger than the window work area; with
 111.0 FPS over 19.2 seconds with zero bots; no combat/performance benchmark claim. The Spire placement tour passed
 29/29 before the final edge chamfers/lamp housings; final rebuilt assets were then checked in the clean captures.
 
+## Induction condenser V2 (2026-11-03)
+
+`Art/blender/build_spire_hero.py` authors the original three-vane ceiling assembly: segmented retainers,
+machined iris, closed curved conduits, bronze hardware and three integrated practical projectors. The imported
+mesh is **17,456 triangles**, ceiling-pivoted, Z -275..0 cm. Its lowest surface is 19.25 m in the current map,
+leaving 65 cm against the conservative ordinary-jump/lift head envelope. Arbitrary knockback/grenade stacks remain
+outside that offline check. The assembly is visual only and does not change routes or collision.
+
+Build with `Tools/BuildSpireHero.ps1` (optional `-BlenderExe`), import with `Tools/ImportSpireHero.bat`.
+The importer supports `-SBMapArtPrefix=SM_SB_Kit_CondenserV2` to import just this mesh/report, and only enables
+shared instancing usage when absent. Existing palette values are preserved; `SpireBronze` and `SpireLamp` are
+new entries/material instances. The editable generated Blender scene is local at
+`Saved/Art/Generated/CondenserV2.blend`; the checked-in Python/FBX/report reproduce the asset.
+
+Three 400 cd / 14 m projectors match the modeled housings and lenses; two central ceiling lamps now cast shadows.
+`-SBLegacySpireCondenser` retains Claude's earlier mesh and prior lamp shadow treatment for comparison.
+`-SBNoSpireHeroLights` and `-SBNoSpireKeyShadows` isolate the respective lighting costs.
+
+Use `-SBShots -SBHeroShots -SBCleanShots` for the two additional art cameras at actual bridge/floor eye heights.
+The ordinary spawn camera remains last for the fixed-view observation. The first floor camera was obstructed
+by a bridge; the committed one has an unobstructed sightline checked against the layout and in the capture.
+Proof: [bridge](playtests/2026-11-03_spire-condenser-bridge.png),
+[floor](playtests/2026-11-03_spire-condenser-floor.png),
+[retained model](playtests/2026-11-03_spire-condenser-legacy.png).
+
+Editor build/import/geometry checks pass. Final Spire tour **29/29**, including six lift landings and no stuck
+bots; its four-bot observation was 76.3 average FPS at verified 1920x1080, 100% screen percentage. Single empty-view
+observations were 101.7 FPS new / 102.8 FPS retained; these are not a controlled benchmark or proof of parity.
+Full seven-bot frame pacing, real-team readability and human moving-view review remain next.
+
 ## Earlier pass (2026-10-27)
 
 The desktop synced merged main through `174ffd3` before this pass. Claude's

@@ -7,6 +7,14 @@ without source photographs or external textures. `Tools/create_spire_surfaces.py
 `M_SB_SpireSurface` and `MI_SB_SpireAlloy`, `MI_SB_SpireInset`, `MI_SB_SpireDeck` under
 `/Game/Shieldbreak/Art/Spire`. The packed colour/roughness/height texture and shader are Shieldbreak originals.
 
+## Original Spire induction condenser V2 (2026-11-03)
+
+`Art/blender/build_spire_hero.py` authors `SM_SB_Kit_CondenserV2`, including the iris, swept vanes, curved conduits,
+retainers and practical housings. It is original scripted geometry with no external model or texture source.
+The new `SpireBronze` and `SpireLamp` palette materials are also originals. Source FBX/report are under
+`Art/Export/MapKit`; the imported mesh is `/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_CondenserV2`.
+Claude's earlier `SM_SB_Kit_Condenser` and its authoring source are retained.
+
 ## Original Spire ceiling framework (2026-11-03)
 
 Alloy ribs, inset webs, longitudinal spines and recessed lamp housings are original scripted geometry from

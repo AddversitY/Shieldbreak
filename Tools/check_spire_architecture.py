@@ -3,6 +3,7 @@ from collections import Counter
 from pathlib import Path
 import json
 import math
+import re
 import runpy
 import sys
 
@@ -62,9 +63,14 @@ def main():
     lift_head = max(max(start[2], end[2]) + max(150, abs(end[2]-start[2])*.6) + 200
                     for start, end in layout.lifts)
     lowest = min(ceiling-300+manifest[name]['min'][2] for name in ('SM_SB_Spire_ArchAlloy', 'SM_SB_Spire_ArchInset'))
+    hero_report = ROOT/'Art/Export/MapKit/spire_hero_report.txt'
+    if hero_report.exists():
+        z_bounds = re.search(r'Z (-?[\d.]+)\.\.(-?[\d.]+)', hero_report.read_text())
+        assert z_bounds and float(z_bounds.group(2)) <= .1, 'Hero report/ceiling pivot'
+        lowest = min(lowest, ceiling+float(z_bounds.group(1)))
     margin = lowest-max(ordinary_head, lift_head)
     assert margin >= 50, f'Ceiling art needs reevaluation: only {margin:.1f} cm clearance'
-    print(f'PASS: lowest rib {lowest:.0f} cm, conservative ordinary-jump/lift head {max(ordinary_head,lift_head):.0f} cm; margin {margin:.0f} cm')
+    print(f'PASS: lowest ceiling art {lowest:.0f} cm, conservative ordinary-jump/lift head {max(ordinary_head,lift_head):.0f} cm; margin {margin:.0f} cm')
     print('Grenade-assisted stacks, arbitrary knockback and human visual clipping remain separate playtests.')
 
     # The shared helper must still generate the original collector, panel and collar without invalid solids.
