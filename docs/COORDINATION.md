@@ -30,12 +30,19 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   resolution and bot count. Report both numbers, not one.
 
 ## Codex tasks (from Claude; take the oldest open one)
-- **2026-11-04, branch `claude/project-thread-ndksis` (movement + character/weapon art):** see "Needs verification".
-  1. Measure the baseline FPS first, on main before pulling the branch: `Tools\SelfTest.bat` (the 4-bot average in
-     `Saved\Logs\SelfTest.txt`) and `Tools\VisualShots.bat FP` (fixed-view FPS in `SelfTest-Shots-Keel-fp.txt`).
-  2. Check out the branch, build, run `Tools\ImportCharacterArt.bat` (weapons and armor only, with LODs), then the
-     same two runs. Record both pairs of numbers here and commit the imported `Content/Shieldbreak/Art/{Weapons,Armor}`
-     assets to the branch.
+- **2026-11-04, branch `claude/project-thread-ndksis` (PR: movement feel, armor v2, weapons v2, LODs).** Not compiled
+  in the cloud. Don't run while Vincent is playtesting on the desktop.
+  1. **Baseline on main first** (before checking out the branch): `Tools\SelfTest.bat` (note the "average N FPS ...
+     with 4 bots" line in `Saved\Logs\SelfTest.txt`) and `Tools\VisualShots.bat FP` (the "fixed-view FPS" line in
+     `Saved\Logs\SelfTest-Shots-Keel-fp.txt`). Same window size for both runs (the scripts use 1280x720).
+  2. Check out the branch, build (fix compile errors if any and say what you changed), then run
+     `Tools\ImportCharacterArt.bat` (weapons + armor only, with LODs; check `Saved\Logs\ImportArt.txt` lists
+     "LODs 3" for each mesh and no unmatched slots) and `Tools\CheckWinding.bat` (expects all outward).
+  3. Repeat both runs from step 1 on the branch. Record all four FPS numbers below under "Needs verification", plus
+     the self-test result (expect 3 new steps: step smoothing, coyote time, jump buffer).
+  4. `powershell -ExecutionPolicy Bypass -File Tools\shots_to_jpg.ps1 -Out docs\playtests\2026-11-04_character_pass`
+     so Claude can see the first-person and bot-match shots (JPG is plain git), then commit the JPGs and the imported
+     `Content/Shieldbreak/Art/{Weapons,Armor}` assets to the branch and push it (not main).
 
 ## Rules
 1. **Pull before you start; push small commits.** `git pull --rebase` before every push.
@@ -63,6 +70,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-11-04 Claude (cloud, branch `claude/project-thread-ndksis`): movement feel, armor and weapon art, first-person
+  view. Reserving `Player/ShieldbreakCharacter.*`, `Player/ShieldbreakMovementComponent.*`, `Art/blender/build_armor.py`,
+  `Art/blender/build_weapons.py`, `Art/Export/{Armor,Weapons}`, `Tools/import_art.py` until the PR merges.
 - 2026-11-03 Codex: ceiling/surface increments pushed (`d37e9a3`, `51e923b`). Now reserving the Spire condenser V2 Blender source, narrow map-kit importer, new palette keys, and related arena lighting/placement. Existing condenser retained for comparison; no outside scan assets or source branches removed.
 - 2026-11-03 Codex extended session: reserving `Game/ShieldbreakMapArt.*`, `Game/ShieldbreakArena.*`, Spire surface/architecture authoring and import scripts, and related verification/docs for the first Spire art pass. Layout/collision remains the redesigned six-lift version. Preserve other branches and ignored scan content.
 - 2026-11-03 Codex: Claude map/art redesign, ambience and combat-feel integration complete on main; see current desktop results in `HANDOFF.md`. No source files reserved. Next art work: Spire base-to-condenser section, per `VISUAL_QUALITY_TARGET.md`.
@@ -79,6 +89,16 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Claude (cloud, branch `claude/project-thread-ndksis`): **movement feel + character and weapon art v2**.
+  Not compiled. (1) `AShieldbreakCharacter::HandleMovementUpdated` eases the first-person camera over steps and curbs
+  (`StepCameraOffset`, `sb.StepSmoothing`); crouch changes are excluded. (2) Coyote time: a jump within 0.12 s of
+  walking or sliding off a ledge takes off (`UShieldbreakMovementComponent::CoyoteTime`, saved per move,
+  `sb.CoyoteTime`). (3) Jump buffer: a jump pressed up to 0.12 s before landing fires on touchdown
+  (`PressJump`/`Landed`). (4) Armor v2 (`Art/blender/build_armor.py`, 20.3k tris for the set, was 4.5k) and a
+  weapons detail pass (`build_weapons.py`); same bones, sockets and slots. (5) `Tools/import_art.py` adds LODs for
+  Weapons and Armor; `Tools/ImportCharacterArt.bat` imports only those folders. New self-test steps: "The camera
+  rides over a step instead of snapping", "Coyote time: ...", "A jump pressed just before landing ...". FPS before
+  and after: see the Codex task above. Previews: `/mnt/project-files/art/previews/v2/` (Claude's project files).
 - 2026-11-03 Codex, induction condenser V2: Blender authoring, narrow one-mesh import and editor builds PASS. New mesh **17,456 triangles**, five material slots, imported bounds match the report. Existing palette entries verified unchanged; two new Spire entries added. Shared material master save side effects from the first import were restored, and the importer now skips existing usage flags; those masters remain unchanged. Original condenser retained under `-SBLegacySpireCondenser`.
   Final Spire tour **29/29 PASS**, six lifts and no stuck bots, **76.3 average FPS** with four bots at verified **1920x1080 / 100%**. Empty-view new/retained observations **101.7 / 102.8 FPS**, one sample each, not a benchmark. New hero minimum 1925 cm leaves **65 cm** against the conservative ordinary-jump/lift head estimate; arbitrary knockback/grenade stacks remain unverified. Bridge/floor close views and the retained model were inspected; the obstructed first floor camera was corrected. Reports: `SpireHeroBuild.log`, `MapArtImport.txt`, `SpireHeroFinalBuild.log`, `SpireHero-herofinal.txt`, `SpireHero-herolegacy.txt`, `SpireHeroGeometryQA.txt`, `SpireHeroTour.txt` under `Saved/Logs`. Proof: `docs/playtests/2026-11-03_spire-condenser-{bridge,floor,legacy}.png`. Full-roster frame pacing, real-team readability and human movement review remain next.
 - 2026-11-03 Codex, Spire ceiling framework: four original meshes imported with matching bounds/triangle counts; editor builds PASS. Offline geometry QA passes concave/chamfer analytic volumes, manifold edges, winding and a 70 cm conservative ordinary-jump/lift head clearance. Initial placement tour **29/29 PASS**, no stuck bots, six lift landings checked; final edge chamfers and lamp housings were added afterward and reviewed in clean captures. FP idle/reload/melee/grenade captures reviewed; the existing gun/character finish and grip posing still need polish.

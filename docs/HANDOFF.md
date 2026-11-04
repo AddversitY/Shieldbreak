@@ -1,4 +1,12 @@
-# Handoff (2026-11-03)
+# Handoff (2026-11-04)
+
+## Movement, characters and guns (Claude, branch `claude/project-thread-ndksis`)
+
+Vincent's focus away from the maps: smoothness and physics, the plain character, the guns and the first-person view.
+The camera now eases over steps, jumps forgive a late press at a ledge (coyote time) and an early press before
+landing (jump buffer), the armor is a layered v2 set with a new helmet, the guns got a detail pass, and weapons and
+armor get LODs on import. Claude and Codex split the work (see the top of `COORDINATION.md`); Codex builds, imports
+and measures FPS before and after on the desktop.
 
 ## Current Spire art increment
 
