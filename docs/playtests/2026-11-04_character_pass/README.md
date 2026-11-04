@@ -1,5 +1,39 @@
 # Desktop character verification — 2026-11-04
 
+## Task (3): sprint/slide and lighting (`9716ade` + `71047da`)
+
+Build and narrow import pass. Gameplay **142 pass / 1 fail**; FP **7/7 pass**.
+One focused 60 FPS capped presentation run passes **42/42**, under a different frame sampling condition.
+The original failure is preserved: maximum eye change **5.95 cm**, capsule **7.93 cm**, trail **13.66 cm**,
+narrowly missing the `eye < capsule * 0.75` assertion. At 60 FPS these measure **11.65 / 16.45 / 16.45 cm**.
+Claude should review both the assertion and camera behavior across frame rates; no threshold was changed.
+
+| Observation, same desktop and actual 1280x720 | After2 | After3 |
+|---|---:|---:|
+| Crucible, four bots, 76 real seconds | 130.5 FPS | 128.5 FPS |
+| Keel fixed FP, no bots | 146.4 FPS (20.3 s) | 149.9 FPS (19.5 s) |
+| Sprint sample | 924.03 uu/s | 1020.00 uu/s |
+| Slide sample at 0.15 s | 1036.96 uu/s | 1293.60 uu/s |
+| Slide sample at 0.45 s | 835.13 uu/s | 1014.16 uu/s |
+
+Individual script observations, not a controlled benchmark. New faster-than-sprint slide check passes.
+Slide duration and distance were not separately measured; the tuning's ~19% distance description is not
+an actual desktop measurement. No network/latency or human feel acceptance in this task.
+
+The import initially retained old `M_Gunmetal` display slot names despite the FBX containing the new names.
+`Tools/import_art.py` now resets character material conflicts and uses the authoritative imported names
+before binding the palette; reports include every slot/material path. Final verification loads both new
+materials, confirms their bindings and three LODs on all 19 meshes. Map Gunmetal's before/after SHA256 is
+identical. Existing map and material assets are untouched; two new character material instances are included.
+
+- [Gameplay](reports/after3-selftest.txt), [FP](reports/after3-fp.txt), [60 FPS diagnostic](reports/after3-presentation60.txt).
+- [Import and slot paths](reports/after3-import.txt), [material verification](reports/after3-material-verification.json).
+- [FP view](after3/keel_fp_fp_0_idle_br_0.jpg), [bot view](after3/bot_1.jpg); 23 JPGs in `after3/`.
+
+Visual acceptance: the BR eyepiece is dark, resolving the white disc. Gloves remain white and armor remains
+near-black in the actual captures, despite correct new palette bindings. These two goals remain open for Claude.
+Local originals and stale-slot diagnostics are retained under `Saved/CharacterVerification-20261104/After3/`.
+
 ## Follow-up after Claude's `eba0b73`
 
 Build PASS; narrow character reimport PASS (19 meshes, three LODs each, all slots matched).

@@ -299,6 +299,10 @@ def import_fbx(fbx, destination):
     ui.import_materials = False
     ui.import_textures = False
     ui.import_animations = False
+    if os.path.basename(destination) in LOD_SETTINGS:
+        # Character FBX files own their named palette slots. Reimports otherwise
+        # retain old slot names, silently binding renamed surfaces to old materials.
+        ui.set_editor_property("reset_to_fbx_on_material_conflict", True)
     ui.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
     data = ui.static_mesh_import_data
     data.combine_meshes = True
@@ -372,6 +376,16 @@ def main():
             log("FAILED " + fbx)
             continue
         materials = mesh.get_editor_property("static_materials")
+        if folder in LOD_SETTINGS:
+            # UE can preserve the display slot name even when its imported name
+            # has changed. Scripted character assets use the FBX-authored names.
+            for index, slot in enumerate(materials):
+                imported_name = str(slot.get_editor_property("imported_material_slot_name"))
+                if imported_name and imported_name != "None":
+                    slot.set_editor_property("material_slot_name", unreal.Name(imported_name))
+                    materials[index] = slot
+            mesh.set_editor_property("static_materials", materials)
+            materials = mesh.get_editor_property("static_materials")
         missing = []
         for index, slot in enumerate(materials):
             name = str(slot.material_slot_name)
@@ -383,7 +397,11 @@ def main():
                 missing.append(name)
         lod_note = set_lods(mesh, folder)
         eal.save_asset(path)
-        log("%s: %s%s%s" % (path, describe(mesh), lod_note, (", unmatched slots " + ", ".join(missing)) if missing else ""))
+        bindings = ", ".join("%s -> %s" % (slot.material_slot_name,
+                             slot.material_interface.get_path_name() if slot.material_interface else "None")
+                             for slot in mesh.get_editor_property("static_materials"))
+        log("%s: %s%s%s, slots [%s]" % (path, describe(mesh), lod_note,
+            (", unmatched slots " + ", ".join(missing)) if missing else "", bindings))
     out = os.path.join(PROJECT, "Saved", "Logs", "ImportArt.txt")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:
