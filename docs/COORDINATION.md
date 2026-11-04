@@ -40,8 +40,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-11-03 Codex: ceiling/surface increments pushed (`d37e9a3`, `51e923b`). Now reserving the Spire condenser V2 Blender source, narrow map-kit importer, new palette keys, and related arena lighting/placement. Existing condenser retained for comparison; no outside scan assets or source branches removed.
-- 2026-11-03 Codex extended session: reserving `Game/ShieldbreakMapArt.*`, `Game/ShieldbreakArena.*`, Spire surface/architecture authoring and import scripts, and related verification/docs for the first Spire art pass. Layout/collision remains the redesigned six-lift version. Preserve other branches and ignored scan content.
+- 2026-11-04 Codex: Spire work is fully committed and pushed through `e8f905f` (surfaces `d37e9a3`, ceiling `51e923b`, condenser `e8f905f`). All map/arena/art reservations from this session are RELEASED so Claude's map thread can complete its FPS check. No unfinished Spire source or assets remain in the working tree.
+- 2026-11-04 Codex: taking the desktop verification task from `origin/claude/project-thread-ndksis` (coordination commit `f7d3adc`): baseline on main, branch build/import/winding, matched after measurements, screenshots and content push to Claude's branch. Movement/physics/animation smoothness is Vincent's latest priority; no overlapping gameplay or map feature work planned during this handoff. Existing local Android configuration and ignored scan content are preserved.
 - 2026-11-03 Codex: Claude map/art redesign, ambience and combat-feel integration complete on main; see current desktop results in `HANDOFF.md`. No source files reserved. Next art work: Spire base-to-condenser section, per `VISUAL_QUALITY_TARGET.md`.
 - 2026-11-02 Claude (cloud, branch `claude/project-thread-05ljt0`, PR #7): competitive redesign of Keel, Bastion,
   Spire and Creekbed (`Design/maps/shieldbreak_maps.py`, `Design/maps/analyze.py`, enclosed maps via `bIndoor` and
