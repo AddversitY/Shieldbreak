@@ -362,7 +362,7 @@ def build(verts, j, jt):
     head_c = head_c - Vector((0, 0, 0.8))
     dome = ellipsoid("helmet", head_c, (11.0, 12.6, 12.6), "Team", segments=16, rings=10, shape=helmet_shape)
     cut(dome, head_c - Vector((0, 0, 12.2)), (0, 0, -1), fill=True)
-    paint(dome, lambda c, n: "Gunmetal" if c.z < head_c.z - 6.0 or n.z < -0.6 else "Team")
+    paint(dome, lambda c, n: "ArmorMetal" if c.z < head_c.z - 6.0 or n.z < -0.6 else "Team")
     smooth_by_angle(dome, 22)
 
     def visor_test(c, n):
@@ -372,19 +372,19 @@ def build(verts, j, jt):
     smooth_by_angle(visor, 22)
     solidify(visor, 0.5)
     hb = bvh_of(dome)
-    brow = conform("brow", hb, head_c + Vector((0, 11.5, 4.6)), (0, 1, 0.45), up, 10.0, 1.3, "Gunmetal",
+    brow = conform("brow", hb, head_c + Vector((0, 11.5, 4.6)), (0, 1, 0.45), up, 10.0, 1.3, "ArmorMetal",
                    thickness=0.8, offset=0.7, res=(8, 2), chamfer=0.5, bevel=0.25)
     helmet_parts = [dome, visor, brow]
     for s, sx in side.items():
         ear = head_c + Vector((sx * 10.9, -1.5, -1.5))
-        helmet_parts.append(k.cyl("ear_" + s, ear, 3.0, 2.0, "Gunmetal", axis="X", verts=8, bevel=0.4))
+        helmet_parts.append(k.cyl("ear_" + s, ear, 3.0, 2.0, "ArmorMetal", axis="X", verts=8, bevel=0.4))
         helmet_parts.append(k.cyl("ear_glow_" + s, ear + Vector((sx * 1.05, 0, 0)), 1.3, 0.3, "TeamGlow", axis="X", verts=8, bevel=0))
         # Jaw vents either side of the chin.
         helmet_parts.append(conform("jaw_" + s, hb, head_c + Vector((sx * 5.5, 11.0, -8.0)), (sx * 0.5, 1, -0.1), up, 2.2, 2.4,
-                                    "Gunmetal", thickness=0.7, offset=0.5, res=(2, 3), chamfer=0.3, bevel=0.2))
+                                    "ArmorMetal", thickness=0.7, offset=0.5, res=(2, 3), chamfer=0.3, bevel=0.2))
     # Mouth guard: a squared, vented block under the visor.
     chin = head_c + Vector((0, 11.6, -8.6))
-    helmet_parts.append(k.box("mouthguard", chin, (8.0, 3.4, 5.4), "Gunmetal", bevel=1.0, segments=2, taper=(0.72, 0.8)))
+    helmet_parts.append(k.box("mouthguard", chin, (8.0, 3.4, 5.4), "ArmorMetal", bevel=1.0, segments=2, taper=(0.72, 0.8)))
     for i in range(3):
         helmet_parts.append(k.box("mouth_vent", chin + Vector((0, 1.75, 1.4 - i * 1.4)), (4.4, 0.3, 0.5), "Polymer", bevel=0))
     pieces["head"] = helmet_parts
@@ -392,7 +392,7 @@ def build(verts, j, jt):
     # ---- Torso under-layer: hulls fitted to the skin, dark.
     chest = gather(verts, ["spine_05", "spine_04", "clavicle_l", "clavicle_r"], 0.55,
                    clip=lambda c: c.z > j["spine_04"].z - 2)
-    chest_hull = plate("chest_base", chest, 2.2, lambda c, n: "Gunmetal" if n.z > -0.3 else "Undersuit",
+    chest_hull = plate("chest_base", chest, 2.2, lambda c, n: "ArmorMetal" if n.z > -0.3 else "Undersuit",
                        cuts=[(j["neck_01"] + Vector((0, 0, 4)), (0, 0, 1))], scale=(1.06, 1.05, 1.0), pivot=j["spine_05"], simplify=8)
     cb = bvh_of(chest_hull)
     s5 = j["spine_05"]
@@ -404,24 +404,24 @@ def build(verts, j, jt):
         torso.append(conform("rib_" + s, cb, s5 + Vector((sx * 14.5, 6.0, -8.0)), (sx * 1, 0.45, 0), up, 4.5, 5.0, "Team",
                              thickness=1.0, offset=0.8, res=(4, 5), chamfer=0.5))
         # Shoulder yokes over the trapezius.
-        torso.append(conform("yoke_" + s, cb, s5 + Vector((sx * 9.0, -1.0, 10.5)), (sx * 0.2, 0, 1), (0, 1, 0), 5.0, 9.0, "Gunmetal",
+        torso.append(conform("yoke_" + s, cb, s5 + Vector((sx * 9.0, -1.0, 10.5)), (sx * 0.2, 0, 1), (0, 1, 0), 5.0, 9.0, "ArmorMetal",
                              thickness=1.0, offset=0.7, res=(4, 6), chamfer=0.4))
         # Back plates either side of the pack.
         torso.append(conform("lat_" + s, cb, s5 + Vector((sx * 11.0, -12.0, -2.0)), (sx * 0.4, -1, 0), up, 6.0, 9.0, "Team",
                              thickness=1.0, offset=0.8, chamfer=0.45))
-    torso.append(conform("sternum", cb, s5 + Vector((0, 15.5, -5.0)), (0, 1, 0), up, 2.4, 9.0, "Gunmetal", thickness=1.4,
+    torso.append(conform("sternum", cb, s5 + Vector((0, 15.5, -5.0)), (0, 1, 0), up, 2.4, 9.0, "ArmorMetal", thickness=1.4,
                          offset=1.3, res=(2, 6), chamfer=0.4, taper=0.6))
     torso.append(conform("sternum_light", cb, s5 + Vector((0, 15.5, -9.0)), (0, 1, 0), up, 0.5, 2.6, "TeamGlow", thickness=0.3,
                          offset=2.9, res=(1, 2), chamfer=0.0, bevel=0))
     # Backpack: the power cell, with two glowing vents and two exhaust ports.
     pack_c = s5 + Vector((0, -19.5, -2.0))
-    torso.append(k.box("pack", pack_c, (19.0, 8.0, 24.0), "Gunmetal", bevel=1.6, segments=2, taper=(0.86, 0.92)))
+    torso.append(k.box("pack", pack_c, (19.0, 8.0, 24.0), "ArmorMetal", bevel=1.6, segments=2, taper=(0.86, 0.92)))
     torso.append(k.box("pack_cap", pack_c + Vector((0, -4.1, 2.5)), (13.0, 1.4, 14.0), "Team", bevel=0.5, segments=2))
     for sx in (1, -1):
         torso.append(k.box("pack_vent", pack_c + Vector((sx * 4.4, -4.85, -1.5)), (1.0, 0.4, 9.0), "TeamGlow", bevel=0))
         torso.append(k.cyl("pack_port", pack_c + Vector((sx * 5.5, -1.0, -13.0)), 2.0, 2.4, "Polymer", axis="Z", verts=10, bevel=0.3))
     # Collar ring around the neck.
-    torso.append(k.cyl("collar", j["neck_01"] + Vector((0, 1.0, -2.0)), 9.0, 4.0, "Gunmetal", axis="Z", verts=20, bevel=0.6, radius2=8.0))
+    torso.append(k.cyl("collar", j["neck_01"] + Vector((0, 1.0, -2.0)), 9.0, 4.0, "ArmorMetal", axis="Z", verts=20, bevel=0.6, radius2=8.0))
     pieces["spine_05"] = torso
 
     # ---- Abdomen: a dark core with three stacked armour bands at the front.
@@ -431,20 +431,20 @@ def build(verts, j, jt):
     abdomen = [belly_hull]
     for i, dz in enumerate((5.0, 0.0, -5.0)):
         abdomen.append(conform("band_%d" % i, bb, j["spine_03"] + Vector((0, 12.0, dz)), (0, 1, 0), up, 9.5 - i * 0.6, 2.1,
-                               "Gunmetal", thickness=1.0, offset=0.9, res=(6, 2), chamfer=0.5, curve=0.6))
+                               "ArmorMetal", thickness=1.0, offset=0.9, res=(6, 2), chamfer=0.5, curve=0.6))
     pieces["spine_03"] = abdomen
 
     # ---- Pelvis: belt, a front plate and hip plates.
     hips = gather(verts, ["pelvis"], 0.6, clip=lambda c: c.z > j["thigh_l"].z - 9)
-    hip_hull = plate("pelvis", hips, 2.0, lambda c, n: "Gunmetal" if c.z > j["pelvis"].z + 2 else "Undersuit",
+    hip_hull = plate("pelvis", hips, 2.0, lambda c, n: "ArmorMetal" if c.z > j["pelvis"].z + 2 else "Undersuit",
                      scale=(1.05, 1.05, 1.0), pivot=j["pelvis"], simplify=10)
     hb = bvh_of(hip_hull)
-    pelvis = [hip_hull, conform("codpiece", hb, j["pelvis"] + Vector((0, 13.0, -2.0)), (0, 1, 0.1), up, 6.0, 5.0, "Gunmetal",
+    pelvis = [hip_hull, conform("codpiece", hb, j["pelvis"] + Vector((0, 13.0, -2.0)), (0, 1, 0.1), up, 6.0, 5.0, "ArmorMetal",
                                 thickness=1.2, offset=0.8, res=(4, 4), chamfer=0.2, taper=-0.6)]
     for s, sx in side.items():
         pelvis.append(conform("hip_" + s, hb, j["pelvis"] + Vector((sx * 14.0, 2.0, -3.0)), (sx, 0.2, 0), up, 6.0, 6.0, "Team",
                               thickness=1.0, offset=0.9, res=(5, 5), chamfer=0.45))
-    pelvis.append(k.box("buckle", j["pelvis"] + Vector((0, 14.2, 4.5)), (6.0, 1.2, 2.6), "Gunmetal", bevel=0.4, segments=2))
+    pelvis.append(k.box("buckle", j["pelvis"] + Vector((0, 14.2, 4.5)), (6.0, 1.2, 2.6), "ArmorMetal", bevel=0.4, segments=2))
     pieces["pelvis"] = pelvis
 
     for s, sx in side.items():
@@ -454,7 +454,7 @@ def build(verts, j, jt):
                           clip=lambda c, s=s: (c - j["upperarm_" + s]).length < 15)
         sh = j["upperarm_" + s]
         arm_dir = (j["lowerarm_" + s] - sh).normalized()
-        sh_hull = plate("shoulder_base_" + s, shoulder, 2.4, lambda c, n: "Gunmetal",
+        sh_hull = plate("shoulder_base_" + s, shoulder, 2.4, lambda c, n: "ArmorMetal",
                         cuts=[(sh + arm_dir * 12, arm_dir), (sh - out * 6, -out)], scale=(1.08, 1.08, 1.08), pivot=sh, simplify=10)
         sb = bvh_of(sh_hull)
         pauldron_n = (out * 0.75 + up * 0.65).normalized()
@@ -462,13 +462,13 @@ def build(verts, j, jt):
                      conform("pauldron_" + s, sb, sh + out * 4.0 + up * 4.0, pauldron_n, (0, 1, 0), 9.0, 10.5, "Team",
                              thickness=1.6, offset=1.8, res=(7, 7), chamfer=0.35, curve=1.0),
                      conform("pauldron_trim_" + s, sb, sh + out * 9.5 - up * 1.5 + arm_dir * 3.0, (out * 0.95 + up * 0.2).normalized(),
-                             (0, 1, 0), 2.0, 8.0, "Gunmetal", thickness=1.0, offset=2.4, res=(2, 6), chamfer=0.5)]
+                             (0, 1, 0), 2.0, 8.0, "ArmorMetal", thickness=1.0, offset=2.4, res=(2, 6), chamfer=0.5)]
         # Upper-arm guard below the pauldron, so the bicep isn't bare undersuit.
         upper = gather(verts, ["upperarm_" + s, "upperarm_twist_01_" + s, "upperarm_twist_02_" + s], 0.5)
         ulen = (j["lowerarm_" + s] - sh).length
         upper = [p for p in upper if 11 < (p - sh).dot(arm_dir) < ulen - 4]
         if upper:
-            arm_parts.append(plate("bicep_" + s, upper, 1.0, lambda c, n: "Gunmetal", simplify=10))
+            arm_parts.append(plate("bicep_" + s, upper, 1.0, lambda c, n: "ArmorMetal", simplify=10))
         pieces["upperarm_" + s] = arm_parts
 
         # ---- Forearms: a dark gauntlet with a team plate on the outside and a wrist cuff.
@@ -477,7 +477,7 @@ def build(verts, j, jt):
         fdir = (wr - el).normalized()
         flen = (wr - el).length
         fore = [p for p in fore if 6 < (p - el).dot(fdir) < flen - 2]
-        fore_hull = plate("forearm_base_" + s, fore, 1.4, lambda c, n: "Gunmetal", simplify=10)
+        fore_hull = plate("forearm_base_" + s, fore, 1.4, lambda c, n: "ArmorMetal", simplify=10)
         fb = bvh_of(fore_hull)
         outer = (out - fdir * out.dot(fdir)).normalized()
         topn = (up - fdir * up.dot(fdir)).normalized()
@@ -487,7 +487,7 @@ def build(verts, j, jt):
             fore_hull,
             conform("vambrace_" + s, fb, mid, plate_n, fdir, 4.2, flen * 0.36, "Team", thickness=1.2, offset=1.0,
                     res=(5, 6), chamfer=0.5, curve=0.4, taper=0.3),
-            conform("cuff_" + s, fb, el + fdir * (flen - 4.0), topn, fdir, 4.6, 1.3, "Gunmetal", thickness=0.8, offset=1.6,
+            conform("cuff_" + s, fb, el + fdir * (flen - 4.0), topn, fdir, 4.6, 1.3, "ArmorMetal", thickness=0.8, offset=1.6,
                     res=(6, 1), chamfer=0.2),
         ]
         pieces["lowerarm_" + s].append(conform("vambrace_light_" + s, bvh_of(pieces["lowerarm_" + s][1]), mid + fdir * (flen * 0.12),
@@ -506,7 +506,7 @@ def build(verts, j, jt):
             thigh_hull,
             conform("thigh_plate_" + s, tb, tmid, (sx * 0.25, 1, 0), -tdir, 6.5, tlen * 0.3, "Team", thickness=1.3,
                     offset=1.0, res=(5, 7), chamfer=0.45, curve=0.5, taper=-0.2),
-            conform("thigh_side_" + s, tb, tmid + Vector((0, 0, 2.0)), (sx, 0.1, 0), -tdir, 4.0, tlen * 0.22, "Gunmetal",
+            conform("thigh_side_" + s, tb, tmid + Vector((0, 0, 2.0)), (sx, 0.1, 0), -tdir, 4.0, tlen * 0.22, "ArmorMetal",
                     thickness=1.0, offset=0.8, res=(3, 5), chamfer=0.4),
             k.box("pouch_" + s, tmid + out * 10.0 - tdir * 3.0 + Vector((0, -1.5, 0)), (3.2, 7.0, 8.0), "Polymer", bevel=0.8, segments=2),
         ]
@@ -517,11 +517,11 @@ def build(verts, j, jt):
         cdir = (ankle - knee).normalized()
         clen = (ankle - knee).length
         shin = [p for p in shin if -4 < (p - knee).dot(cdir) < clen - 7]
-        shin_hull = plate("shin_base_" + s, shin, 1.4, lambda c, n: "Gunmetal" if n.y > -0.3 else "Undersuit", simplify=10)
+        shin_hull = plate("shin_base_" + s, shin, 1.4, lambda c, n: "ArmorMetal" if n.y > -0.3 else "Undersuit", simplify=10)
         cbv = bvh_of(shin_hull)
         pieces["calf_" + s] = [
             shin_hull,
-            conform("knee_" + s, cbv, knee + Vector((0, 6.0, -1.0)), (sx * 0.15, 1, 0.15), up, 5.0, 4.6, "Gunmetal",
+            conform("knee_" + s, cbv, knee + Vector((0, 6.0, -1.0)), (sx * 0.15, 1, 0.15), up, 5.0, 4.6, "ArmorMetal",
                     thickness=1.6, offset=1.6, res=(5, 5), chamfer=0.7, curve=0.6),
             conform("greave_" + s, cbv, knee + cdir * (clen * 0.48) + Vector((0, 4.0, 0)), (sx * 0.15, 1, 0), -cdir, 5.0, clen * 0.28,
                     "Team", thickness=1.2, offset=1.0, res=(5, 7), chamfer=0.45, curve=0.4, taper=0.35),
@@ -531,13 +531,13 @@ def build(verts, j, jt):
 
         # ---- Boots: a hull with a thick sole and a toe cap.
         foot = gather(verts, ["foot_" + s, "ball_" + s], 0.5)
-        boot = plate("boot_" + s, foot, 1.6, lambda c, n, ankle=ankle: "Polymer" if c.z < 3 else "Gunmetal",
+        boot = plate("boot_" + s, foot, 1.6, lambda c, n, ankle=ankle: "Polymer" if c.z < 3 else "ArmorMetal",
                      cuts=[((0, 0, -0.8), (0, 0, -1))], simplify=10)
         ball = j["ball_" + s]
         pieces["foot_" + s] = [
             boot,
             k.box("sole_" + s, Vector((ball.x - sx * 0.6, (ankle.y + ball.y) * 0.5 + 2.0, 0.2)), (10.0, 28.0, 2.2), "Polymer", bevel=0.6, segments=2),
-            k.box("toecap_" + s, ball + Vector((0, 5.0, 2.6)), (9.0, 6.0, 4.2), "Gunmetal", bevel=1.2, segments=2, taper=(0.8, 0.7)),
+            k.box("toecap_" + s, ball + Vector((0, 5.0, 2.6)), (9.0, 6.0, 4.2), "ArmorMetal", bevel=1.2, segments=2, taper=(0.8, 0.7)),
         ]
     return pieces
 

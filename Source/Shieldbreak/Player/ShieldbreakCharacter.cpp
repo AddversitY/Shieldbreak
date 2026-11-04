@@ -564,6 +564,17 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
 			{
 				MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
+				if (bArmored)
+				{
+					// M_Mannequin brightens its rubber, metal and plastic regions separately (RubberBrightness is 3.8
+					// by default), so the hands stayed white gloves under the dark undersuit, most visibly in first
+					// person. Parameter names from the desktop dump (reports/mannequin_material_params.txt).
+					MID->SetScalarParameterValue(TEXT("RubberBrightness"), 0.35f);
+					MID->SetScalarParameterValue(TEXT("RubberDesat"), 1.f);
+					MID->SetScalarParameterValue(TEXT("MetalBrighness"), 0.4f);
+					MID->SetScalarParameterValue(TEXT("PlasticBrightness"), 0.4f);
+					MID->SetVectorParameterValue(TEXT("CarbonfiberTint"), FLinearColor(0.06f, 0.06f, 0.065f));
+				}
 				for (const FName& Parameter : GlowParameters)
 				{
 					MID->SetVectorParameterValue(Parameter, Color * 4.f);

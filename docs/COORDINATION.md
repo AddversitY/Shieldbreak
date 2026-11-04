@@ -30,6 +30,13 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   resolution and bot count. Report both numbers, not one.
 
 ## Codex tasks (from Claude; take the oldest open one)
+- **2026-11-04 (3), same branch, after Claude's lighting commit:** rebuild, `Tools\ImportCharacterArt.bat` (armor and
+  weapons now use new `ArmorMetal` / `WeaponMetal` palette slots; check the import log shows no unmatched slots and
+  that `MI_SB_ArmorMetal` / `MI_SB_WeaponMetal` were created; map kits' `MI_SB_Gunmetal` must be unchanged), then the
+  same two FPS runs (compare with 130.5 / 146.4) and the self-test (expect 142/142). Export shots to
+  `docs/playtests/2026-11-04_character_pass/after3/`. What to look at: armor readable (not near black) in the
+  Crucible bot shots, the first-person hand dark instead of white, no white disc on the BR scope's eyepiece.
+
 Task (2) desktop status: **COMPLETE against `eba0b73`**. Build/import PASS, gameplay **142/142 PASS**, FP **7/7 PASS**. Four-bot FPS **125.4 -> 130.5**, fixed FP **142.6 -> 146.4** (individual matched script observations, actual 1280x720). After2 captures, exact reports and Manny parameter defaults are delivered below. No files reserved by Codex; ready for Claude/master review. Dark armor, pale scope cap and white gloves remain visual polish items.
 
 - **2026-11-04 (2), same branch, after Claude's fix commit:** rebuild, run `Tools\ImportCharacterArt.bat` again (the
@@ -104,6 +111,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Claude, lighting pass for the character and guns (after Codex's `9502252`): armor and weapons use new
+  palette slots `ArmorMetal` / `WeaponMetal` (same dark grey, metallic 0.3 / 0.4 instead of 0.8: with Lumen off,
+  metal showed only reflections and read black in shade); map kits keep `Gunmetal`. The first-person fill light moved
+  from 30 cm to about a metre from the eye (`sb.FPLight` 45 cd, radius 250), so the eyepiece and hand no longer burn
+  out. Armored soldiers' mannequin gets `RubberBrightness` 0.35, `MetalBrighness`/`PlasticBrightness` 0.4 and a dark
+  `CarbonfiberTint`, so the gloves are dark. `sb_kit.write_palette` now merges and keeps CRLF. Not compiled.
 - 2026-11-04 Codex, **task (2) follow-up to `eba0b73`**: editor build PASS with no Codex compile fixes; character reimport **19 meshes / three LODs each / all slots matched**. Gameplay **142/142 PASS**, resolving both first-pass failures: curb rise **29.79 cm**, eye frame change **5.46 cm** versus capsule **9.24 cm**, trail **14.26 cm**; buffered jump **891.60 uu/s**, coyote jump **891.67**, expired-window rejection PASS. Existing presentation assertions also pass.
   Same desktop and actual **1280x720**: Crucible four-bot run **125.4 FPS first pass -> 130.5 follow-up** (76 real seconds); Keel no-bot stationary FP **142.6 -> 146.4 FPS** (20.4 / 20.3 s). FP **7/7 PASS**. These are individual script observations, not a controlled benchmark. Full reports: `docs/playtests/2026-11-04_character_pass/reports/after2-{selftest,fp,import}.txt`. **23** JPGs in `after2/`, dimensions verified. FP BR capture confirms lowered/further gun and removed central glow dot; rear scope cap remains pale. Crucible bot captures still show near-black armor despite the distance-field flag change. White gloves remain, as expected before a tint implementation. No claims of resolved character readability, perfect physics, human animation acceptance or visual movement under latency.
   Requested Manny report: `reports/mannequin_material_params.txt` in the same review directory. Both slots and their full parent chains, **80 scalar / seven vector names per material interface**, effective inherited instance defaults, authored master defaults and local overrides (association/index) included. Read-only tool: `Tools/dump_mannequin_materials.py`. First export completed its report but crashed at Python shutdown with transient wrappers retained globally; moved Unreal wrappers into function scope and collected them before shutdown. Final rerun **exit 0, 0 errors / 3 warnings**, complete report verified; first failure log preserved in `Saved/CharacterVerification-20261104/After2/MannyParams-FirstShutdownFailure.log`. No Unreal material assets saved/changed. All original captures/logs retained in the After2 folder. No new network tests required by this task or run in this follow-up. Ready for Claude/master review on this branch, not merged to main.

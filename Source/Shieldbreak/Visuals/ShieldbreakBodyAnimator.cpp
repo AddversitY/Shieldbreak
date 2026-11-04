@@ -405,7 +405,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// The first-person arms and gun get very little light from the scene, so against Spire's bright white walls they
 	// showed as black silhouettes (playtest 2026-11-03). A small unshadowed fill light on the camera that lights only them (lighting
 	// channel 1) brings back their colours. Candelas; 0 turns it off. Read when the arms are made.
-	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 20.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
+	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 45.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
@@ -605,14 +605,17 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		const float FillCandelas = CVarFirstPersonLight.GetValueOnGameThread();
 		if (FillCandelas > 0.f)
 		{
-			// Above and to the left of the eye, so the gun and hands get a soft key light from the upper left.
+			// Above, behind and to the left of the eye, so the gun and hands get a soft key light from the upper left.
+			// It used to sit 30 cm from the eye: by the inverse square the parts nearest the camera (the scope's
+			// eyepiece, the hand) got several times the light of the gun's body and burned out white (desktop shots
+			// 2026-11-04). About a metre away the whole gun is lit evenly; the intensity is raised to match.
 			UPointLightComponent* Fill = NewObject<UPointLightComponent>(OwnerCharacter, TEXT("FirstPersonFill"));
 			Fill->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
-			Fill->SetRelativeLocation(FVector(10.f, -25.f, 30.f));
+			Fill->SetRelativeLocation(FVector(-20.f, -40.f, 50.f));
 			Fill->SetMobility(EComponentMobility::Movable);
 			Fill->SetIntensityUnits(ELightUnits::Candelas);
 			Fill->SetIntensity(FillCandelas);
-			Fill->SetAttenuationRadius(150.f);
+			Fill->SetAttenuationRadius(250.f);
 			Fill->SetSourceRadius(20.f);
 			Fill->SetLightColor(FLinearColor(1.f, 0.97f, 0.93f));
 			Fill->SetCastShadows(false);

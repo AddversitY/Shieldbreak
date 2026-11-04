@@ -13,6 +13,11 @@ from mathutils import Matrix, Vector
 # name: (base color RGB linear, metallic, roughness, emissive strength)
 PALETTE = {
     "Gunmetal": ((0.1, 0.105, 0.115), 0.8, 0.42, 0.0),
+    # Armor and weapon metal: Gunmetal is mostly metal, and with Lumen off a metal surface only shows what it
+    # reflects, so the suit and guns read near black in shade (desktop shots 2026-11-04). These keep the same dark
+    # grey but light like painted metal. Separate keys so the map kits' Gunmetal is unchanged.
+    "ArmorMetal": ((0.075, 0.08, 0.09), 0.3, 0.45, 0.0),
+    "WeaponMetal": ((0.07, 0.072, 0.08), 0.4, 0.38, 0.0),
     "Steel": ((0.32, 0.34, 0.36), 0.9, 0.3, 0.0),
     "Polymer": ((0.03, 0.031, 0.034), 0.0, 0.6, 0.0),
     "Olive": ((0.11, 0.13, 0.075), 0.2, 0.55, 0.0),
@@ -247,7 +252,15 @@ def bounds(obj):
 
 
 def write_palette(path):
-    """palette.json for Tools/import_art.py: name -> [rgb, metallic, roughness, emissive]."""
+    """palette.json for Tools/import_art.py: name -> [rgb, metallic, roughness, emissive]. Entries other scripts added
+    are kept, and the file keeps the CRLF line endings the desktop checkout writes, so a rerun only shows real edits."""
     import json
-    with open(path, "w") as f:
-        json.dump({name: [list(rgb), m, r, e] for name, (rgb, m, r, e) in PALETTE.items()}, f, indent=1)
+    import os
+    data = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+    for name, (rgb, m, r, e) in PALETTE.items():
+        data[name] = [list(rgb), m, r, e]
+    with open(path, "w", newline="") as f:
+        f.write(json.dumps(data, indent=1).replace("\n", "\r\n") + "\r\n")
