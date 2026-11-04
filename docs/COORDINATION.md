@@ -39,6 +39,8 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (3) desktop status: **IN PROGRESS** on `claude/project-thread-ndksis`, code prerequisites `9716ade` and `71047da`, desktop starting revision `705fc9c`. Build/import/tests and after3 captures will run sequentially. Do not start a duplicate job; check the active desktop process and `Saved/CharacterVerification-20261104/After3/` first.
+
 - **2026-11-04 (3), same branch, after Claude's lighting commit and the sprint/slide tuning commit (one run covers
   both):** Vincent asked for faster sprint and farther (not longer) slides: SprintSpeed 950 -> 1020, slide entry boost
   350 -> 450, slide cap 1150 -> 1450, slide braking 350 -> 530 (same ~1.3 s slide, ~19% more distance). Rebuild, `Tools\ImportCharacterArt.bat` (armor and
