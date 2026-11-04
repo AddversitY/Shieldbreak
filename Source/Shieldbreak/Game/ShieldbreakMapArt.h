@@ -51,6 +51,8 @@ struct FShieldbreakMapLook
 	FLinearColor Trim = FLinearColor(0.25f, 0.8f, 1.f);
 	/** Recolours the kit's M_Glow* slots (cyan or amber as modelled) to this colour; alpha 0 keeps them as modelled. */
 	FLinearColor KitGlow = FLinearColor::Transparent;
+	/** Energy emission on the kit's M_Glow slots; ordinary architectural panels should not become room lights. */
+	float KitGlowStrength = 6.f;
 	/** Volumetric cloud layer over the scanned maps. Creekbed goes without (about 8 FPS, Vincent 2026-11-03) and gets a
 	 *  hazier sky instead. */
 	bool bClouds = true;

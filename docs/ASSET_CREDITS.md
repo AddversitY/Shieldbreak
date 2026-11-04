@@ -1,5 +1,12 @@
 # Asset Credits and Imported Content Paths
 
+## Original Spire architectural surfaces (2026-11-03)
+
+`Art/textures/make_spire_surfaces.py` authors `T_SB_SpireSurfaceMasks.png` from seeded numerical noise,
+without source photographs or external textures. `Tools/create_spire_surfaces.py` builds the world-projected
+`M_SB_SpireSurface` and `MI_SB_SpireAlloy`, `MI_SB_SpireInset`, `MI_SB_SpireDeck` under
+`/Game/Shieldbreak/Art/Spire`. The packed colour/roughness/height texture and shader are Shieldbreak originals.
+
 ## Original shield-hit material (2026-10-27)
 
 `/Game/Shieldbreak/Art/Materials/M_SB_ShieldImpact` is an original procedural

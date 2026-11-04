@@ -246,16 +246,39 @@ namespace ShieldbreakMapArtPrivate
 		return Entries[0].Recipe; // anything else clads like stone
 	}
 
+	/** Spire's structure reads in long vertical bays, with quiet decks. The generic recipe deliberately
+	 *  alternates service bands for Keel; using it here turned every pier into a stack of glowing tiles. */
+	const FCladRecipe& SpireCladRecipe(FName Style)
+	{
+		static const FCladRecipe Structure = { TEXT("BandDark"), { TEXT("WallMetal"), TEXT("WallMetal") },
+			TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorMetal2"), TEXT("FloorMetal2") } };
+		static const FCladRecipe Deck = { TEXT("BandDark"), { TEXT("WallDark"), TEXT("WallDark") },
+			TEXT("BandDark"), TEXT("BandDark"), { TEXT("FloorMetal2"), TEXT("FloorMetal2") } };
+		return Style == FName(TEXT("floor")) || Style == FName(TEXT("dark")) || Style == FName(TEXT("bridge"))
+			|| Style == FName(TEXT("ramp")) ? Deck : Structure;
+	}
+
 	double CladRowHeight(const TCHAR* Piece) { return FCString::Strncmp(Piece, TEXT("Band"), 4) == 0 ? 100.0 : 200.0; }
 
 	/** Panels over one wall face (At: the face's centre on the ground plan, Normal: out of the face), in rows from
 	 *  Bottom up, stretched a little so whole rows and whole tiles fill the face exactly. */
 	void CladFace(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector2D& At, const FVector2D& Normal,
-		double Width, double Bottom, double Height)
+		double Width, double Bottom, double Height, bool bStructuralBays = false)
 	{
-		constexpr double Proud = 2.0, TileWidth = 400.0;
+		constexpr double Proud = 2.0;
+		const double TileWidth = bStructuralBays ? 800.0 : 400.0;
 		TArray<const TCHAR*, TInlineAllocator<12>> Rows;
-		if (Height <= 70.0)
+		if (bStructuralBays && Height > 150.0)
+		{
+			// Whole-height panels on the freestanding piers; large bays on broad walls. Keep the bevel depth
+			// in X unchanged, so this surface change does not encroach farther into routes or conceal players.
+			const int32 Panels = Width < 650.0 ? 1 : FMath::Max(1, FMath::RoundToInt(Height / 650.0));
+			for (int32 Index = 0; Index < Panels; ++Index)
+			{
+				Rows.Add(Recipe.Main[0]);
+			}
+		}
+		else if (Height <= 70.0)
 		{
 			Rows.Add(Recipe.Edge);
 		}
@@ -296,7 +319,7 @@ namespace ShieldbreakMapArtPrivate
 			for (int32 Index = 0; Index < Tiles; ++Index)
 			{
 				const FVector2D P = At + Normal * Proud + Tangent * (-Width * 0.5 + Tile * (Index + 0.5));
-				Instances.Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(P.X, P.Y, Z), FVector(1.0, Tile / TileWidth, Stretch)));
+				Instances.Add(FTransform(FRotator(0.f, Yaw, 0.f), FVector(P.X, P.Y, Z), FVector(1.0, Tile / 400.0, Stretch)));
 			}
 			Z += RowHeight;
 		}
@@ -304,10 +327,10 @@ namespace ShieldbreakMapArtPrivate
 
 	/** Plates over a block's top, Lift above it, run along its long side and checkered between the recipe's two. */
 	void CladTop(TArray<FShieldbreakArtGroup>& Groups, const FCladRecipe& Recipe, const FVector& Min, const FVector& Max,
-		const TCHAR* Piece = nullptr, double Z = 0.0)
+		const TCHAR* Piece = nullptr, double Z = 0.0, double TileSize = 400.0)
 	{
 		// The plates are two-sided (M_SB_Trim), so the same piece also lines an underside.
-		constexpr double Lift = 1.0, TileSize = 400.0;
+		constexpr double Lift = 1.0;
 		const bool bUnder = Piece != nullptr;
 		const FVector Size = Max - Min;
 		const bool bAlongX = Size.X >= Size.Y;
@@ -323,7 +346,7 @@ namespace ShieldbreakMapArtPrivate
 				const FVector2D Offset = bAlongX ? FVector2D(U, V) : FVector2D(V, U);
 				Group(Groups, bUnder ? Piece : Recipe.Floor[(I + J) % 2], bUnder ? FLinearColor::Transparent : Recipe.FloorTint).Add(
 					FTransform(FRotator(0.f, bAlongX ? 0.f : 90.f, 0.f),
-					FVector(Center.X + Offset.X, Center.Y + Offset.Y, bUnder ? Z - Lift : Max.Z + Lift), FVector(TileLong / TileSize, TileShort / TileSize, 1.0)));
+						FVector(Center.X + Offset.X, Center.Y + Offset.Y, bUnder ? Z - Lift : Max.Z + Lift), FVector(TileLong / 400.0, TileShort / 400.0, 1.0)));
 			}
 		}
 	}
@@ -549,16 +572,17 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		Spire.GroundStyle = TEXT("stone");
 		Spire.Ground = FLinearColor(0.36f, 0.38f, 0.42f);
 		Spire.Rock = FLinearColor(0.40f, 0.42f, 0.46f);
-		Spire.Metal = FLinearColor(0.80f, 0.82f, 0.86f); // Forerunner silver-white
-		Spire.DarkMetal = FLinearColor(0.24f, 0.27f, 0.31f);
+		Spire.Metal = FLinearColor(0.46f, 0.51f, 0.56f); // satin alloy: highlights carry the silver, not a near-white albedo
+		Spire.DarkMetal = FLinearColor(0.10f, 0.13f, 0.16f);
 		Spire.Haze = FLinearColor(0.55f, 0.66f, 0.80f);
 		Spire.Trim = FLinearColor(0.22f, 0.62f, 1.0f);
 		Spire.KitGlow = FLinearColor(0.3f, 0.7f, 1.0f);
+		Spire.KitGlowStrength = 0.8f;
 		Spire.CladAccent = FLinearColor(0.2f, 0.6f, 1.0f);
 		Spire.bClad = true;
 		// Its own kit (2026-11-02): large silver plates split by angled seams, so it no longer reads as Keel in blue.
 		Spire.CladKit = TEXT("F");
-		Spire.InteriorLight = FLinearColor(0.80f, 0.90f, 1.f); // cool white hard light
+		Spire.InteriorLight = FLinearColor(0.90f, 0.94f, 1.f); // near-neutral key; cyan belongs to the energy mechanism
 		return Out;
 	}();
 	static const FShieldbreakMapLook Default;
@@ -576,10 +600,11 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 		return Groups;
 	}
 	const FVector2D Half = Layout.HalfExtent;
+	const bool bSpireBays = MapId == FName(TEXT("Spire")) && !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpirePanels"));
 	auto Inside = [&Half](const FVector2D& P) { return FMath::Abs(P.X) < Half.X - 1.0 && FMath::Abs(P.Y) < Half.Y - 1.0; };
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		const FCladRecipe& Recipe = CladRecipe(Block.Style);
+		const FCladRecipe& Recipe = bSpireBays ? SpireCladRecipe(Block.Style) : CladRecipe(Block.Style);
 		const FVector Size = Block.Max - Block.Min;
 		const FVector2D Center((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5);
 		const double Bottom = FMath::Max(Block.Min.Z, static_cast<double>(Layout.FloorZ));
@@ -598,27 +623,28 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 			{
 				continue;
 			}
-			CladFace(Groups, Recipe, At, Face.Normal, Face.Width, Bottom, Height);
+			CladFace(Groups, Recipe, At, Face.Normal, Face.Width, Bottom, Height, bSpireBays);
 		}
 		if (Recipe.Floor[0] && Inside(Center))
 		{
-			CladTop(Groups, Recipe, Block.Min, Block.Max);
+			CladTop(Groups, Recipe, Block.Min, Block.Max, nullptr, 0.0, bSpireBays ? 800.0 : 400.0);
 		}
 		// Raised slabs (roofs, walkways) are seen from below too.
 		if (Inside(Center) && Block.Min.Z - Layout.FloorZ >= 150.0 && Size.Z <= 100.0)
 		{
-			CladTop(Groups, Recipe, Block.Min, Block.Max, TEXT("FloorDark"), Block.Min.Z);
+			CladTop(Groups, Recipe, Block.Min, Block.Max, TEXT("FloorDark"), Block.Min.Z, bSpireBays ? 800.0 : 400.0);
 		}
 	}
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
-		const FCladRecipe& Recipe = CladRecipe(Ramp.Style);
+		const FCladRecipe& Recipe = bSpireBays ? SpireCladRecipe(Ramp.Style) : CladRecipe(Ramp.Style);
 		if (!Recipe.Floor[0])
 		{
 			continue;
 		}
 		// The ramp's top surface runs along the centreline from Start to End (AShieldbreakArena::AddRamp).
-		constexpr double Lift = 1.0, TileSize = 400.0;
+		constexpr double Lift = 1.0;
+		const double TileSize = bSpireBays ? 800.0 : 400.0;
 		const FVector Delta = Ramp.End - Ramp.Start;
 		const double Length = Delta.Size();
 		const FRotator Rotation = Delta.Rotation();
@@ -631,7 +657,7 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 			for (int32 J = 0; J < ShortTiles; ++J)
 			{
 				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Across * (-Ramp.Width * 0.5 + TileShort * (J + 0.5));
-				const FVector Scale(TileLong / TileSize, TileShort / TileSize, 1.0);
+				const FVector Scale(TileLong / 400.0, TileShort / 400.0, 1.0);
 				Group(Groups, Recipe.Floor[(I + J) % 2], Recipe.FloorTint).Add(FTransform(Rotation, P + Up * Lift, Scale));
 				Group(Groups, TEXT("FloorDark")).Add(FTransform(Rotation, P - Up * (Ramp.Thickness + Lift), Scale));
 			}
@@ -644,7 +670,7 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Cladding(FName MapId, const FShi
 			for (int32 I = 0; I < LongTiles; ++I)
 			{
 				const FVector P = Ramp.Start + Along * (TileLong * (I + 0.5)) + Normal * (Ramp.Width * 0.5 + 2.0) - Up * Ramp.Thickness;
-				Group(Groups, Recipe.Edge).Add(FTransform(EdgeRotation, P, FVector(1.0, TileLong / TileSize, Ramp.Thickness / 100.0)));
+				Group(Groups, Recipe.Edge).Add(FTransform(EdgeRotation, P, FVector(1.0, TileLong / 400.0, Ramp.Thickness / 100.0)));
 			}
 		}
 	}

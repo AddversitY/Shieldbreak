@@ -1,5 +1,33 @@
 # Spire environment and action animations
 
+## Architectural surface pass (2026-11-03)
+
+The competitive redesign is now the baseline: enclosed 144 x 72 m, six gravity lifts. The four-lift
+records below describe the earlier layout. This pass retains the redesigned collision, routes and item anchors.
+
+Spire uses its own cladding recipe: tall piers have continuous vertical panels, broad walls have roughly
+6.5 m bays, and decks use 8 m modules. Neutral supports no longer have glowing outlines on both ends.
+Team-coloured portals and the central mechanism retain their orientation cues. Keel's service-band recipe
+and other maps' cladding remain the existing treatment. `-SBLegacySpirePanels` compares the previous panel
+recipe/material bindings and trim; it is a diagnostic, not an exact replay of every earlier palette setting.
+
+`Art/textures/make_spire_surfaces.py` generates an original, deterministic 1024-square packed texture:
+colour variation, roughness variation and micro-height. There are no panel seams painted into it. Run
+`Tools/MakeSpireSurfaces.bat` to build the Spire-only world-projected master and Alloy/Inset/Deck instances.
+The shader uses three triplanar packed-texture samples with filtered surface-gradient bump. Its physical
+texture scale is independent of the scaled cladding meshes. Shared world, weapon and armor materials are retained.
+
+Spire's old lamps had an 18 m attenuation radius under a 22 m ceiling, so their direct lighting did not reach
+the lower floor. Spire now has a separate 28 m reach and 2200 cd default, with a near-neutral colour. The core
+and kit emission are reduced so cyan energy acts as a focal accent rather than the main room light. Keel's
+lamp defaults are unchanged; existing lamp comparison arguments still work.
+
+This is a surface and lighting foundation, not the completed architectural section. See
+`VISUAL_QUALITY_TARGET.md` for the larger-form, material, player-motion and performance acceptance criteria.
+Actual desktop results are recorded in `COORDINATION.md` after verification.
+
+## Earlier pass (2026-10-27)
+
 The desktop synced merged main through `174ffd3` before this pass. Claude's
 first-person arms, native body animation, original weapons/armor, world
 materials, mountains, trim and action-animation integration are retained.

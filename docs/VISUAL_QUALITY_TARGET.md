@@ -29,6 +29,18 @@ Lighting should reveal the architecture and guide attention while leaving enemie
 4. Compare frame time and visible stutter on the RTX 2080 Ti with the same scene, resolution and settings. Report the actual settings and workload; screenshot-only FPS is not combat performance.
 5. Obtain Vincent's visual feedback on this section before extending the treatment to all five maps.
 
+## First surface and lighting increment
+
+Matched updated views: [spawn](playtests/2026-11-03_spire-surfaces-spawn.png),
+[central room](playtests/2026-11-03_spire-surfaces-central.png). Spire now uses larger structural bays,
+quieter decks and its own original alloy/inset/deck materials. Most neutral glow outlines are removed.
+The ceiling lamps now reach the lower floor, and the energy surfaces no longer provide the main room wash.
+The excessive grain seen in the first material experiment was reduced before committing this version.
+
+The views confirm less pattern repetition and a more neutral room palette; they also expose the remaining
+box-shaped supports and flat ceiling. Those shapes still need architectural work. No Halo Infinite parity
+or completed visual section is claimed. Runtime checks and capture limitations are recorded in `COORDINATION.md`.
+
 ## Asset preservation
 
 The desktop contains 725 ignored content files, approximately 19.11 GiB, including the Electric Dreams scan dependencies. These are intentionally local under the existing import/licensing workflow; do not add them wholesale to GitHub. `Tools/GetScanArt.bat` documents the source/import route. An integration manifest and the pre-integration configuration copy are in ignored `Saved/IntegrationBackup-20261103/`. The manifest inventories paths; it is not a second copy or an off-machine backup of the assets.

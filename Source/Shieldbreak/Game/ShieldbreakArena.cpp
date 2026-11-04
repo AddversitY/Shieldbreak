@@ -283,7 +283,7 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 		{
 			MID->SetVectorParameterValue(TEXT("BaseColor"), Color * 0.2f);
 			MID->SetVectorParameterValue(TEXT("EmissiveColor"), Color);
-			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+			MID->SetScalarParameterValue(TEXT("EmissiveStrength"), ShieldbreakMapArt::GetLook(MapId).KitGlowStrength);
 			MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
 			MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
 		}
@@ -431,6 +431,9 @@ void AShieldbreakArena::BuildTrim()
 	const FLinearColor Colors[3] = { ShieldbreakMapArt::GetLook(MapId).Trim, TrimRed, TrimBlue };
 	// Enclosed maps: half as bright, or the strips bloom the dim halls out to a wash. -SBTrimGlow=<strength> to compare.
 	float TrimGlow = Layout.bIndoor ? 7.f : 14.f;
+	const bool bSpireStructure = MapId == FName(TEXT("Spire"))
+		&& !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpirePanels"));
+	if (bSpireStructure) TrimGlow = 2.5f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBTrimGlow="), TrimGlow);
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
@@ -453,6 +456,13 @@ void AShieldbreakArena::BuildTrim()
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
 		const FVector3f Size(Block.Max - Block.Min);
+		// Quiet structural piers and perimeter bays. Team portals retain their colour, and the central
+		// mechanism retains its energy; neutral supports no longer wear glowing outlines at both ends.
+		if (bSpireStructure && Block.Style != RedStyle && Block.Style != BlueStyle
+			&& Block.Style != FName(TEXT("tower")))
+		{
+			continue;
+		}
 		// Sanctum's twist on the stone walkways: a thin line of hard light along each long edge, just under the lip.
 		if (bCarvedStone && Block.Style == FName(TEXT("bridge")) && Size.Z < 120.f)
 		{
@@ -625,7 +635,7 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			{
 				MID->SetVectorParameterValue(TEXT("BaseColor"), Look.KitGlow * 0.2f);
 				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Look.KitGlow);
-				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), Look.KitGlowStrength);
 				MID->SetScalarParameterValue(TEXT("Metallic"), 0.f);
 				MID->SetScalarParameterValue(TEXT("Roughness"), 0.4f);
 			}
@@ -640,10 +650,24 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(FName(Entry.Kind));
 			if (World && *World)
 			{
-				Mesh->SetMaterial(Index, *World);
+				UMaterialInterface* Surface = *World;
+				const bool bSpireSurface = MapId == FName(TEXT("Spire"))
+					&& !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpirePanels"));
+				const bool bAlloy = Slot.StartsWith(TEXT("M_Steel")) || Slot.StartsWith(TEXT("M_Ivory"));
+				const bool bInset = Slot.StartsWith(TEXT("M_Gunmetal"));
+				if (bSpireSurface && (bAlloy || bInset))
+				{
+					const TCHAR* Kind = bInset ? TEXT("Inset") : Asset->GetName().StartsWith(TEXT("SM_F_Floor")) ? TEXT("Deck") : TEXT("Alloy");
+					if (UMaterialInterface* SpireMaterial = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
+						TEXT("/Game/Shieldbreak/Art/Spire/MI_SB_Spire%s.MI_SB_Spire%s"), Kind, Kind)))
+					{
+						Surface = SpireMaterial;
+					}
+				}
+				Mesh->SetMaterial(Index, Surface);
 				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
 				{
-					MID->SetVectorParameterValue(TEXT("Tint"), Entry.Tint);
+					MID->SetVectorParameterValue(TEXT("Tint"), bSpireSurface && Slot.StartsWith(TEXT("M_Ivory")) ? Look.Metal : Entry.Tint);
 					MID->SetScalarParameterValue(TEXT("SelfLight"), SelfLight);
 				}
 			}
@@ -770,7 +794,14 @@ void AShieldbreakArena::BuildCladding()
 		// self light, as thin pieces laid on a block go dark under the sky light's occlusion).
 		if (bForerunner)
 		{
-			ApplyKitSurfaces(Instances, Look, 0.3f);
+			const bool bSpireSurface = MapId == FName(TEXT("Spire"))
+				&& !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpirePanels"));
+			FShieldbreakMapLook SurfaceLook = Look;
+			if (bSpireSurface && Group.Piece.ToString().StartsWith(TEXT("Floor")))
+			{
+				SurfaceLook.Metal = FLinearColor(0.23f, 0.28f, 0.32f);
+			}
+			ApplyKitSurfaces(Instances, SurfaceLook, bSpireSurface ? 0.06f : 0.3f);
 		}
 		// The trim-sheet slots (Tools/import_scifi_kit.py's M_SB_Trim) take this map's metal and accent colours.
 		const TArray<FStaticMaterial>& Slots = bForerunner ? TArray<FStaticMaterial>() : Mesh->GetStaticMaterials();
@@ -929,12 +960,17 @@ void AShieldbreakArena::BuildInteriorLights()
 	// Spots: 24 m apart at 250 cd with an 18 m reach. Same gunmetal look as the old 17 m / 150 cd / 26 m grid in the
 	// 2026-11-03 Keel comparison (R41), for about half the lamps and roughly 5 FPS back.
 	float Spacing = bSpots ? 2400.f : 1300.f, Candelas = bSpots ? 250.f : 90.f;
+	const bool bSpireLighting = MapId == FName(TEXT("Spire")) && bSpots
+		&& !FParse::Param(FCommandLine::Get(), TEXT("SBLegacySpirePanels"));
+	if (bSpireLighting) Candelas = 2200.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampSpacing="), Spacing);
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampCd="), Candelas);
 	// How strongly each lamp lights the volumetric haze (its visible cone). -SBLampVol= to compare the cost.
 	float VolumetricScattering = bSpots ? 1.5f : 0.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampVol="), VolumetricScattering);
-	float Reach = bSpots ? 1800.f : Spacing * 1.9f;
+	// Spire's 22 m ceiling put the floor beyond the old 18 m lamp radius, leaving the cyan core to light
+	// the whole room. Its neutral key light must actually reach the lower routes.
+	float Reach = bSpireLighting ? 2800.f : bSpots ? 1800.f : Spacing * 1.9f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBLampRadius="), Reach);
 	Spacing = FMath::Max(Spacing, 400.f);
 	const float CeilingZ = static_cast<float>(Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z);

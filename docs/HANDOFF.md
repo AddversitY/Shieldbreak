@@ -1,5 +1,14 @@
 # Handoff (2026-11-03)
 
+## Current Spire art increment
+
+Spire now has its own larger cladding bays, continuous pier panels, quiet decks and original physically lit
+Alloy/Inset/Deck surfaces. Removed the shared painted grid from these surfaces and most neutral glow outlines.
+Its 22 m ceiling previously used lamps with an 18 m radius; Spire's lamps now reach 28 m at 2200 cd, and energy
+emission is reduced to keep cyan concentrated on the mechanism. Other maps' lamp defaults are retained.
+See `SPIRE_ART_PASS.md` for authoring/import commands and `COORDINATION.md` for exact checks and limitations.
+The structural silhouette is still boxy; overhead geometry and a moving player-view review are next.
+
 ## Current desktop integration
 
 Main now combines Claude's map/art redesign and ambience through `48e0789` with the combat-feel pass
