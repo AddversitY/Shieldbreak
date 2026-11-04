@@ -73,8 +73,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - 2026-11-04 Claude (cloud, branch `claude/project-thread-ndksis`): movement feel, armor and weapon art, first-person
   view. Reserving `Player/ShieldbreakCharacter.*`, `Player/ShieldbreakMovementComponent.*`, `Art/blender/build_armor.py`,
   `Art/blender/build_weapons.py`, `Art/Export/{Armor,Weapons}`, `Tools/import_art.py` until the PR merges.
-- 2026-11-03 Codex: ceiling/surface increments pushed (`d37e9a3`, `51e923b`). Now reserving the Spire condenser V2 Blender source, narrow map-kit importer, new palette keys, and related arena lighting/placement. Existing condenser retained for comparison; no outside scan assets or source branches removed.
-- 2026-11-03 Codex extended session: reserving `Game/ShieldbreakMapArt.*`, `Game/ShieldbreakArena.*`, Spire surface/architecture authoring and import scripts, and related verification/docs for the first Spire art pass. Layout/collision remains the redesigned six-lift version. Preserve other branches and ignored scan content.
+- 2026-11-04 Codex: Spire work is fully committed and pushed through `e8f905f` (surfaces `d37e9a3`, ceiling `51e923b`, condenser `e8f905f`). All map/arena/art reservations from this session are RELEASED so Claude's map thread can complete its FPS check. No unfinished Spire source or assets remain in the working tree.
+- 2026-11-04 Codex: taking the desktop verification task from `origin/claude/project-thread-ndksis` (coordination commit `f7d3adc`): baseline on main, branch build/import/winding, matched after measurements, screenshots and content push to Claude's branch. Movement/physics/animation smoothness is Vincent's latest priority; no overlapping gameplay or map feature work planned during this handoff. Existing local Android configuration and ignored scan content are preserved.
 - 2026-11-03 Codex: Claude map/art redesign, ambience and combat-feel integration complete on main; see current desktop results in `HANDOFF.md`. No source files reserved. Next art work: Spire base-to-condenser section, per `VISUAL_QUALITY_TARGET.md`.
 - 2026-11-02 Claude (cloud, branch `claude/project-thread-05ljt0`, PR #7): competitive redesign of Keel, Bastion,
   Spire and Creekbed (`Design/maps/shieldbreak_maps.py`, `Design/maps/analyze.py`, enclosed maps via `bIndoor` and
@@ -89,6 +89,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Codex desktop baseline: main `abfe0fa` gameplay **136/136 PASS**, four-bot fixture **127.8 FPS** at actual 1280x720. The requested FP script initially passed 7/7 but had no FPS measurement. Added a 20-second stationary first-person observation to this opt-in test; build PASS, baseline FP **7/7 PASS**, **144.0 FPS over 20.3 s**, actual 1280x720, no bots. The identical harness will be used on Claude's branch. Reports and pre-import captures retained in `Saved/CharacterVerification-20261104/Baseline`.
 - 2026-11-04 Claude (cloud, branch `claude/project-thread-ndksis`): **movement feel + character and weapon art v2**.
   Not compiled. (1) `AShieldbreakCharacter::HandleMovementUpdated` eases the first-person camera over steps and curbs
   (`StepCameraOffset`, `sb.StepSmoothing`); crouch changes are excluded. (2) Coyote time: a jump within 0.12 s of

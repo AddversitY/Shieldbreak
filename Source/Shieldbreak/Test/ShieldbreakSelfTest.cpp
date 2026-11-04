@@ -3317,5 +3317,22 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					B->ThrowGrenade();
 				}
 			}, { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f }, 1.5f);
+		// FP captures also need a repeatable performance observation. Keep the
+		// possessed pawn and camera stationary after all action clips have ended.
+		Steps.Add({ TEXT("First-person fixed-view FPS (20 s)"),
+			[this]()
+			{
+				if (B) { B->Destroy(); B = nullptr; }
+				Value0 = static_cast<float>(GFrameCounter);
+				Value1 = static_cast<float>(FPlatformTime::Seconds());
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 20.f) { return false; }
+				const double Seconds = FPlatformTime::Seconds() - Value1;
+				Lines.Add(FString::Printf(TEXT("INFO  fixed-view FPS %.1f over %.1f s (first person, no bots)"),
+					(GFrameCounter - Value0) / Seconds, Seconds));
+				return true;
+			}, 25.f });
 	}
 }
