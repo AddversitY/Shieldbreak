@@ -57,6 +57,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
 	float SlideBraking = 350.f;
 
+	/** Seconds after walking or sliding off a ledge in which a jump still takes off, so a press a frame late at an
+	 *  edge isn't eaten (sb.CoyoteTime overrides it; 0 turns it off). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Jump")
+	float CoyoteTime = 0.12f;
+
 	/** Lateral steering acceleration while sliding (uu/s^2). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shieldbreak|Slide")
 	float SlideSteerAcceleration = 700.f;
@@ -69,6 +74,11 @@ public:
 	/** 0..1 Power Jump charge (0 when not charging). */
 	float GetPowerJumpCharge() const { return PowerJumpChargeTime > 0.f ? JumpCharge / PowerJumpChargeTime : 0.f; }
 	bool IsChargingPowerJump() const { return Safe_bWantsPowerJump && JumpCharge > 0.f; }
+
+	/** True while falling within CoyoteTime of leaving the ground without a jump: a jump still takes off. */
+	bool HasCoyoteTime() const { return CoyoteTimeLeft > 0.f && IsFalling(); }
+	/** The character's jump went off: no second, coyote, jump from the same fall. */
+	void ConsumeCoyoteTime() { CoyoteTimeLeft = 0.f; }
 
 	/** Called by the owning character from input or AI. */
 	void SetSprinting(bool bSprint);
@@ -89,6 +99,9 @@ public:
 
 	/** Seconds charged so far (saved per move so replays match the server). */
 	float JumpCharge = 0.f;
+
+	/** Seconds of coyote time left in this fall (saved per move like JumpCharge). */
+	float CoyoteTimeLeft = 0.f;
 
 protected:
 	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds) override;

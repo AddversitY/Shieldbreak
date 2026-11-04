@@ -41,6 +41,8 @@
 #include "Visuals/ShieldbreakArt.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
+#include "Engine/CollisionProfile.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Materials/Material.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
@@ -156,6 +158,42 @@ void AShieldbreakSelfTest::ClearDummies()
 	Mark = -1.f;
 	Value0 = Value1 = 0.f;
 	Phase = 0;
+}
+
+AActor* AShieldbreakSelfTest::SpawnTestBlock(const FVector& BaseCenter, const FVector& Size)
+{
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UWorld* World = GetWorld();
+	if (!Cube || !World)
+	{
+		return nullptr;
+	}
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AStaticMeshActor* Block = World->SpawnActor<AStaticMeshActor>(BaseCenter + FVector(0.f, 0.f, Size.Z * 0.5f), FRotator::ZeroRotator, Params);
+	if (!Block)
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Mesh = Block->GetStaticMeshComponent();
+	Mesh->SetMobility(EComponentMobility::Movable);
+	Mesh->SetStaticMesh(Cube);
+	Mesh->SetWorldScale3D(Size / 100.f); // the engine cube is 100 cm
+	Mesh->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	Spawned.Add(Block);
+	return Block;
+}
+
+float AShieldbreakSelfTest::FloorZ(const FVector& Location) const
+{
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakSelfTestFloor), false);
+	for (AActor* Actor : Spawned) { Params.AddIgnoredActor(Actor); }
+	if (GetWorld() && GetWorld()->LineTraceSingleByChannel(Hit, Location + FVector(0.f, 0.f, 50.f), Location - FVector(0.f, 0.f, 2000.f), ECC_Visibility, Params))
+	{
+		return static_cast<float>(Hit.ImpactPoint.Z);
+	}
+	return static_cast<float>(Location.Z) - 100.f;
 }
 
 void AShieldbreakSelfTest::Damage(AShieldbreakCharacter* Target, float Amount, TSubclassOf<UDamageType> Type, AActor* Causer)
@@ -1932,6 +1970,154 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			}
 			return false;
 		}, 4.f });
+	// ---- Movement feel: step smoothing, coyote time, jump buffering ----
+	Steps.Add({ TEXT("The camera rides over a step instead of snapping"),
+		[this]()
+		{
+			ClearDummies();
+			const float Floor = FloorZ(RunwayStart);
+			// A 30 cm curb, 2 m deep, 3-5 m ahead: walked up, across and off.
+			SpawnTestBlock(FVector(RunwayStart.X + 400.f, RunwayStart.Y, Floor), FVector(200.f, 400.f, 30.f));
+			A = PossessLocalDummy(FTransform(RunwayStart));
+			Value0 = Value1 = 0.f; // largest single-frame capsule / eye change while walking
+		},
+		[this](float Elapsed)
+		{
+			if (!A || !A->GetFirstPersonCamera()) { Check(TEXT("Step view has a local pawn"), false); return true; }
+			const float Capsule = static_cast<float>(A->GetActorLocation().Z);
+			const float Eye = static_cast<float>(A->GetFirstPersonCamera()->GetComponentLocation().Z);
+			static float LastCapsule = 0.f, LastEye = 0.f, Highest = 0.f, Start = 0.f, LargestOffset = 0.f;
+			if (Phase == 0 && Elapsed > 0.8f)
+			{
+				LastCapsule = Start = Highest = Capsule; LastEye = Eye; LargestOffset = 0.f;
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1)
+			{
+				A->AddMovementInput(FVector::ForwardVector, 1.f);
+				Value0 = FMath::Max(Value0, FMath::Abs(Capsule - LastCapsule));
+				Value1 = FMath::Max(Value1, FMath::Abs(Eye - LastEye));
+				Highest = FMath::Max(Highest, Capsule);
+				LargestOffset = FMath::Max(LargestOffset, FMath::Abs(A->GetStepCameraOffset()));
+				LastCapsule = Capsule; LastEye = Eye;
+				if (Now() - Mark > 1.3f)
+				{
+					Check(TEXT("The test walk climbs the 30 cm curb"), Highest - Start > 25.f && Value0 > 20.f,
+						FString::Printf(TEXT("rose %s cm, largest capsule jump %s cm"), *Num(Highest - Start), *Num(Value0)));
+					Check(TEXT("The eye trails the step (no 30 cm one-frame snap)"), LargestOffset > 12.f && Value1 < Value0 * 0.75f,
+						FString::Printf(TEXT("largest eye change %s cm vs capsule %s cm, largest trail %s cm"), *Num(Value1), *Num(Value0), *Num(LargestOffset)));
+					Mark = Now(); Phase = 2;
+				}
+			}
+			else if (Phase == 2 && Now() - Mark > 0.6f)
+			{
+				Check(TEXT("...and settles back to eye height"), FMath::Abs(A->GetStepCameraOffset()) < 1.f,
+					FString::Printf(TEXT("offset %s cm 0.6 s after stopping"), *Num(A->GetStepCameraOffset())));
+				return true;
+			}
+			return false;
+		}, 6.f });
+
+	Steps.Add({ TEXT("Coyote time: a jump just after walking off a ledge still goes off"),
+		[this]()
+		{
+			ClearDummies();
+			const float Floor = FloorZ(RunwayStart);
+			// A 1.5 m ledge whose edge is 2 m ahead.
+			SpawnTestBlock(FVector(RunwayStart.X, RunwayStart.Y, Floor), FVector(400.f, 400.f, 150.f));
+			A = SpawnDummy(FVector(RunwayStart.X, RunwayStart.Y, Floor + 150.f + 100.f), 0.f, true);
+		},
+		[this](float Elapsed)
+		{
+			UShieldbreakMovementComponent* Move = A ? A->GetShieldbreakMovement() : nullptr;
+			if (!Move) { Check(TEXT("Coyote test has a moving pawn"), false); return true; }
+			const float Vz = static_cast<float>(A->GetVelocity().Z);
+			if (Elapsed > 0.6f && Phase <= 1) { A->AddMovementInput(FVector::ForwardVector, 1.f); }
+			if (Phase == 0 && Elapsed > 0.6f && Move->IsMovingOnGround()) { Phase = 1; }
+			else if (Phase == 1 && Move->IsFalling())
+			{
+				Mark = Now(); Phase = 2; // walked off the edge
+			}
+			else if (Phase == 2 && Now() - Mark > 0.06f)
+			{
+				A->PressJump(); Value0 = Vz; Mark = Now(); Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				Value0 = FMath::Max(Value0, Vz);
+				if (Now() - Mark > 0.2f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("A jump 0.06 s after leaving the ledge takes off"), Value0 > Move->JumpZVelocity * 0.7f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s (jump %s)"), *Num(Value0), *Num(Move->JumpZVelocity)));
+					Phase = 4;
+				}
+			}
+			else if (Phase == 4 && Move->IsMovingOnGround())
+			{
+				// Back onto the ledge for the late press.
+				A->SetActorLocation(FVector(RunwayStart.X, RunwayStart.Y, FloorZ(RunwayStart) + 150.f + 100.f), false, nullptr, ETeleportType::ResetPhysics);
+				Move->StopMovementImmediately();
+				Mark = Now(); Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 0.5f) { Phase = 6; }
+			else if (Phase == 6)
+			{
+				A->AddMovementInput(FVector::ForwardVector, 1.f);
+				if (Move->IsFalling()) { Mark = Now(); Phase = 7; }
+			}
+			else if (Phase == 7 && Now() - Mark > 0.2f)
+			{
+				// Past the window and too high above the floor for the landing buffer: nothing happens.
+				A->PressJump(); Value0 = Vz; Mark = Now(); Phase = 8;
+			}
+			else if (Phase == 8)
+			{
+				Value0 = FMath::Max(Value0, Vz);
+				if (Now() - Mark > 0.15f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("...but a press 0.2 s into the fall does not (no air jumps)"), Value0 < 50.f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s"), *Num(Value0)));
+					return true;
+				}
+			}
+			return false;
+		}, 8.f });
+
+	Steps.Add({ TEXT("A jump pressed just before landing goes off on touchdown"),
+		[this]() { ClearDummies(); A = SpawnDummy(RangeA, 0.f, true); },
+		[this](float Elapsed)
+		{
+			UShieldbreakMovementComponent* Move = A ? A->GetShieldbreakMovement() : nullptr;
+			if (!Move) { Check(TEXT("Jump buffer test has a moving pawn"), false); return true; }
+			const float Z = static_cast<float>(A->GetActorLocation().Z);
+			const float Vz = static_cast<float>(A->GetVelocity().Z);
+			if (Phase == 0 && Elapsed > 0.6f && Move->IsMovingOnGround())
+			{
+				Value0 = Z; // standing height
+				A->PressJump(); Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.1f) { A->ReleaseJump(); Phase = 2; }
+			else if (Phase == 2 && Move->IsFalling() && Vz < 0.f && Z - Value0 < 60.f)
+			{
+				A->PressJump(); Value1 = 0.f; Mark = Now(); Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				// Only count take-off speed once the pawn has been back on the ground (or the press landed as a normal jump).
+				if (Vz > 0.f) { Value1 = FMath::Max(Value1, Vz); }
+				if (Now() - Mark > 0.3f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("The early press jumps again on landing"), Value1 > Move->JumpZVelocity * 0.7f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s after pressing %s cm above the floor"), *Num(Value1), *Num(60.f)));
+					return true;
+				}
+			}
+			return false;
+		}, 5.f });
+
 	Steps.Add({ TEXT("Directional gait keeps its cycle through a turn"),
 		[this]()
 		{

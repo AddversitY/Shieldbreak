@@ -46,6 +46,10 @@ private:
 
 	AShieldbreakCharacter* SpawnDummy(const FVector& Location, float Yaw, bool bWithController);
 	void ClearDummies();
+	/** A solid box (engine cube) with its base centered on BaseCenter, removed by ClearDummies. */
+	AActor* SpawnTestBlock(const FVector& BaseCenter, const FVector& Size);
+	/** Height of the floor under Location (traced down 20 m), or Location.Z - 100 if nothing is there. */
+	float FloorZ(const FVector& Location) const;
 	/** A dummy with a frozen bot controller, so it has a PlayerState and a team. */
 	AShieldbreakCharacter* SpawnTeamDummy(const FVector& Location, float Yaw, uint8 Team);
 	/** Kills a team dummy and destroys its controller so the game mode can't respawn it. */

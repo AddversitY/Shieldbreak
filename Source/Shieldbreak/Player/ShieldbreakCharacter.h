@@ -101,6 +101,14 @@ public:
 	void ToggleZoom();
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
+	/** The jump button went down (input, AI and the self-test). On the ground it jumps, or starts a Power Jump charge
+	 *  when crouched. In the air it is remembered for JumpBufferTime, so a press just before landing still jumps. */
+	void PressJump();
+	void ReleaseJump();
+
+	/** Local player's view: how far the camera trails the capsule after a step up (negative) or down (positive), in
+	 *  cm. Stepping onto a curb moves the capsule up to 45 cm in one frame; the eye follows over about 0.2 s. */
+	float GetStepCameraOffset() const { return StepCameraOffset; }
 
 	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
 	void NotifyGamepadLook();
@@ -133,6 +141,8 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual bool CanJumpInternal_Implementation() const override;
+	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
@@ -254,6 +264,12 @@ private:
 	void SetAegisRaisedInternal(bool bRaise);
 	void UpdateCamoVisuals();
 	void UpdateCrouchCamera(float DeltaSeconds);
+	/** Puts the camera at the eye height plus the crouch and step offsets. bInsideMovementScope: called from a crouch
+	 *  callback, inside the capsule's deferred movement scope. */
+	void ApplyCameraHeight(bool bInsideMovementScope);
+	/** After every move: spots a step up or down (a height change steeper than any walkable slope) and lets the
+	 *  camera trail it instead of snapping. */
+	UFUNCTION() void HandleMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 	UFUNCTION() void OnRep_AegisRaised();
 	UFUNCTION() void OnRep_CamoEnd();
 
@@ -326,6 +342,12 @@ private:
 	float LastServerMeleeTime = -100.f;
 	float LastShieldValue = -1.f;
 	float CrouchCameraOffset = 0.f;
+	float StepCameraOffset = 0.f;
+	bool bWasGroundedForStep = false;
+	/** A crouch change moved the capsule during this move: not a step. */
+	bool bSkipStepCheck = false;
+	/** World time until which a jump pressed in the air fires on landing (-1 = none). */
+	float JumpBufferedUntil = -1.f;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;

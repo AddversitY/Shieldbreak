@@ -65,6 +65,17 @@ namespace ShieldbreakCharacterPrivate
 	constexpr float AimAssistPullDegreesPerSecond = 9.f;
 	/** Seconds after the last stick input that a player still counts as on a controller. */
 	constexpr float AimAssistMemory = 2.f;
+
+	// Movement feel: forgiving jump timing and a camera that rides over steps instead of snapping.
+	/** A jump pressed this long before landing still goes off on touchdown. */
+	constexpr float JumpBufferTime = 0.12f;
+	/** Steepest per-move rise still treated as walking a slope (tan of the 44.8 degree walkable limit is ~0.99). */
+	constexpr float StepSlope = 1.05f;
+	/** How fast the eye catches up after a step (1/s): 30 cm closes to under 2 cm in 0.2 s. */
+	constexpr float StepCameraSettleRate = 15.f;
+	constexpr float MaxStepCameraOffset = 32.f;
+	TAutoConsoleVariable<int32> CVarStepSmoothing(TEXT("sb.StepSmoothing"), 1,
+		TEXT("1: the first-person camera eases over steps and curbs. 0: it snaps with the capsule."));
 }
 
 AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectInitializer)
@@ -210,6 +221,8 @@ void AShieldbreakCharacter::BeginPlay()
 	// The color may have been applied before the mannequin existed; force a re-apply now.
 	AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
 	ApplyPlayerColor();
+
+	OnCharacterMovementUpdated.AddDynamic(this, &AShieldbreakCharacter::HandleMovementUpdated);
 
 	if (ShieldHealth)
 	{
@@ -621,6 +634,7 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 void AShieldbreakCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	bSkipStepCheck = true;
 	if (IsLocallyControlled() && IsPlayerControlled())
 	{
 		CrouchCameraOffset += ScaledHalfHeightAdjust;
@@ -631,6 +645,7 @@ void AShieldbreakCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHa
 void AShieldbreakCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	bSkipStepCheck = true;
 	if (IsLocallyControlled() && IsPlayerControlled())
 	{
 		CrouchCameraOffset -= ScaledHalfHeightAdjust;
@@ -643,30 +658,69 @@ void AShieldbreakCharacter::UpdateCrouchCamera(float DeltaSeconds)
 	if (!FirstPersonCamera || !GetWorld() || bDeathHandled) { return; }
 	// Compensate the capsule's immediate height change, then settle visually.
 	// Movement/collision and saved-move prediction still take effect immediately.
-	CrouchCameraOffset *= FMath::Exp(-18.f * FMath::Max(0.f, DeltaSeconds));
+	const float Dt = FMath::Max(0.f, DeltaSeconds);
+	CrouchCameraOffset *= FMath::Exp(-18.f * Dt);
 	if (FMath::Abs(CrouchCameraOffset) < 0.01f) { CrouchCameraOffset = 0.f; }
+	StepCameraOffset *= FMath::Exp(-ShieldbreakCharacterPrivate::StepCameraSettleRate * Dt);
+	if (FMath::Abs(StepCameraOffset) < 0.01f) { StepCameraOffset = 0.f; }
+	// Crouch callbacks execute inside the capsule's deferred movement scope.
+	// A normal MoveComponent-based setter converts against its old transform
+	// and loses this compensation. Match ACharacter's mesh-offset handling;
+	// the enclosing movement scope updates the attached camera afterward.
+	ApplyCameraHeight(DeltaSeconds <= 0.f);
+}
+
+void AShieldbreakCharacter::ApplyCameraHeight(bool bInsideMovementScope)
+{
+	if (!FirstPersonCamera || !GetWorld()) { return; }
+	const float Offset = CrouchCameraOffset + StepCameraOffset;
 	FVector Relative = FirstPersonCamera->GetRelativeLocation();
-	Relative.Z = BaseEyeHeight + CrouchCameraOffset;
-	if (!FMath::IsNearlyZero(CrouchCameraOffset))
+	Relative.Z = BaseEyeHeight + Offset;
+	if (!FMath::IsNearlyZero(Offset))
 	{
 		const FVector Start = GetActorLocation() + FVector(0.f, 0.f, BaseEyeHeight);
 		FHitResult Hit;
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakCrouchCamera), false, this);
-		if (GetWorld()->SweepSingleByObjectType(Hit, Start, Start + FVector(0.f, 0.f, CrouchCameraOffset), FQuat::Identity,
+		if (GetWorld()->SweepSingleByObjectType(Hit, Start, Start + FVector(0.f, 0.f, Offset), FQuat::Identity,
 			FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeSphere(6.f), Params))
 		{
 			Relative.Z = Hit.bStartPenetrating ? BaseEyeHeight : Hit.Location.Z - GetActorLocation().Z;
 		}
 	}
-	if (DeltaSeconds <= 0.f)
+	if (bInsideMovementScope)
 	{
-		// Crouch callbacks execute inside the capsule's deferred movement scope.
-		// A normal MoveComponent-based setter converts against its old transform
-		// and loses this compensation. Match ACharacter's mesh-offset handling;
-		// the enclosing movement scope updates the attached camera afterward.
 		FirstPersonCamera->GetRelativeLocation_DirectMutable() = Relative;
 	}
 	else { FirstPersonCamera->SetRelativeLocation(Relative); }
+}
+
+void AShieldbreakCharacter::HandleMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
+{
+	using namespace ShieldbreakCharacterPrivate;
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	// Replayed moves after a server correction re-run old steps; the eye already rode over those.
+	if (!Movement || bClientUpdating)
+	{
+		return;
+	}
+	const bool bGrounded = Movement->IsMovingOnGround();
+	const bool bCheck = bGrounded && bWasGroundedForStep && !bSkipStepCheck;
+	bWasGroundedForStep = bGrounded;
+	bSkipStepCheck = false;
+	if (!bCheck || bDeathHandled || !IsLocallyControlled() || !IsPlayerControlled() || CVarStepSmoothing.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
+	const FVector NewLocation = GetActorLocation();
+	const float Rise = static_cast<float>(NewLocation.Z - OldLocation.Z);
+	const float Across = static_cast<float>(FVector::Dist2D(NewLocation, OldLocation));
+	// Slopes rise at most about as fast as they run; a step lifts the capsule much faster. Teleports are bigger.
+	if (FMath::Abs(Rise) > Across * StepSlope + 1.f && FMath::Abs(Rise) <= Movement->MaxStepHeight + 5.f)
+	{
+		StepCameraOffset = FMath::Clamp(StepCameraOffset - Rise, -MaxStepCameraOffset, MaxStepCameraOffset);
+		ApplyCameraHeight(false);
+	}
 }
 
 void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -826,7 +880,10 @@ void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 	}
 }
 
-void AShieldbreakCharacter::Input_JumpStarted()
+void AShieldbreakCharacter::Input_JumpStarted() { PressJump(); }
+void AShieldbreakCharacter::Input_JumpCompleted() { ReleaseJump(); }
+
+void AShieldbreakCharacter::PressJump()
 {
 	// Crouched on the ground: start charging a Power Jump (launches on release). Otherwise jump instantly.
 	UShieldbreakMovementComponent* Movement = GetShieldbreakMovement();
@@ -835,10 +892,13 @@ void AShieldbreakCharacter::Input_JumpStarted()
 		Movement->SetChargingPowerJump(true);
 		return;
 	}
+	// In the air (and past the coyote window) the press can't jump now; keep it for the landing.
+	JumpBufferedUntil = (Movement && Movement->IsFalling() && !Movement->HasCoyoteTime() && GetWorld())
+		? GetWorld()->GetTimeSeconds() + ShieldbreakCharacterPrivate::JumpBufferTime : -1.f;
 	Jump();
 }
 
-void AShieldbreakCharacter::Input_JumpCompleted()
+void AShieldbreakCharacter::ReleaseJump()
 {
 	if (UShieldbreakMovementComponent* Movement = GetShieldbreakMovement())
 	{
@@ -846,6 +906,50 @@ void AShieldbreakCharacter::Input_JumpCompleted()
 	}
 	StopJumping();
 }
+
+void AShieldbreakCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+	if (UShieldbreakMovementComponent* Movement = GetShieldbreakMovement())
+	{
+		Movement->ConsumeCoyoteTime();
+	}
+}
+
+void AShieldbreakCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+	// A jump pressed just before touchdown goes off now. Jump() here is picked up by the next move (the engine
+	// clears jump input before movement events for exactly this), so it is predicted and replicated as usual.
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (JumpBufferedUntil >= 0.f && GetWorld() && Movement && !bClientUpdating)
+	{
+		const bool bInTime = GetWorld()->GetTimeSeconds() <= JumpBufferedUntil;
+		JumpBufferedUntil = -1.f;
+		if (bInTime && IsAlive())
+		{
+			Jump();
+		}
+	}
+}
+
+bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
+{
+	// Unlike the default, jumping is allowed while crouched (and so out of a slide). A ledge just walked off still
+	// counts as ground for UShieldbreakMovementComponent::CoyoteTime (the engine has already counted that fall as
+	// this jump, so JumpCurrentCount is 1 here).
+	if (!IsAlive())
+	{
+		return false;
+	}
+	if (JumpIsAllowedInternal())
+	{
+		return true;
+	}
+	const UShieldbreakMovementComponent* Movement = GetShieldbreakMovement();
+	return Movement && Movement->HasCoyoteTime() && Movement->IsJumpAllowed() && JumpCurrentCount <= 1 && !bWasJumping;
+}
+
 void AShieldbreakCharacter::Input_FireStarted() { StartFire(); }
 void AShieldbreakCharacter::Input_FireCompleted() { StopFire(); }
 void AShieldbreakCharacter::Input_Zoom() { ToggleZoom(); }
@@ -860,12 +964,6 @@ void AShieldbreakCharacter::Input_SprintStarted() { SetSprinting(true); }
 void AShieldbreakCharacter::Input_SprintCompleted() { SetSprinting(false); }
 void AShieldbreakCharacter::Input_CrouchStarted() { StartCrouchOrSlide(); }
 void AShieldbreakCharacter::Input_CrouchCompleted() { StopCrouchOrSlide(); }
-
-bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
-{
-	// Unlike the default, jumping is allowed while crouched (and so out of a slide).
-	return IsAlive() && JumpIsAllowedInternal();
-}
 
 // ---- Actions ----
 
