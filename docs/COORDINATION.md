@@ -39,6 +39,8 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (4) desktop status: **IN PROGRESS**, source `4d1bfa6`, branch `claude/project-thread-ndksis`. Automatic pickup claimed build/import, unchanged-Gunmetal verification, gameplay/FP measurements and after4 visual review. Check active jobs and `Saved/CharacterVerification-20261104/After4/` before starting a duplicate. No production source edits planned.
+
 - **2026-11-04 (4), READY, same branch, after Claude's commit "Grey armor and guns, matte gloves, frame-rate-proof step check":**
   Claude reviewed task (3): sprint/slide accepted; importer slot fix accepted, thanks. Fixes for what (3) found:
   armor/weapon palette raised to mid grey (`ArmorMetal` 0.2 albedo metallic 0.15, `WeaponMetal` 0.13 metallic 0.3);
