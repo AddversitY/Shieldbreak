@@ -9,6 +9,9 @@
   sets "Tint" per piece) gets one instance per surface kind (MI_SB_World_<Kind>, see WORLD_STYLES).
 - Art/Export/Audio/*.wav (made by Art/audio/make_music.py) become sound waves in /Game/Shieldbreak/Art/Audio; MUS_* loop.
 - Writes Saved/Logs/ImportArt.txt with each mesh's triangles, bounds and sockets, so the cloud can check the axes.
+- Weapons and armor get two reduced LODs (LOD_SETTINGS): soldiers far away cost a quarter of the triangles.
+- SB_IMPORT_FOLDERS=Weapons,Armor (environment variable) limits the FBX import to those Art/Export subfolders, so a
+  character or weapon pass doesn't reimport (and touch) the map kits.
 
 Run with Tools/ImportArt.bat.
 """
@@ -31,6 +34,13 @@ WORLD_STYLES = {
     "Tile": ("T_SB_Tile", 600.0, 0.0, 0.6, 0.55),
     "Stone": ("T_SB_Stone", 700.0, 0.0, 0.85, 0.85),
     "Grass": ("T_SB_Grass", 300.0, 0.0, 0.95, 0.6),
+}
+# Art/Export subfolder -> [(fraction of LOD0 triangles, screen size where the LOD starts)], LOD0 first. Screen size is
+# the bounding sphere's share of the screen: a 30 cm armor piece is about 0.06 at 6 m and 0.025 at 15 m with the
+# default field of view; a 90 cm rifle about 0.1 at 10 m. The first-person gun fills the screen and stays at LOD0.
+LOD_SETTINGS = {
+    "Weapons": [(1.0, 1.0), (0.5, 0.1), (0.25, 0.04)],
+    "Armor": [(1.0, 1.0), (0.5, 0.06), (0.25, 0.025)],
 }
 lines = []
 tools = unreal.AssetToolsHelpers.get_asset_tools()
@@ -299,6 +309,26 @@ def import_fbx(fbx, destination):
     return unreal.load_asset(path), path
 
 
+def set_lods(mesh, folder):
+    """Generates reduced LODs for meshes in LOD_SETTINGS folders. Returns a short note for the log."""
+    settings = LOD_SETTINGS.get(folder)
+    if not settings:
+        return ""
+    subsystem = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+    options = unreal.EditorScriptingMeshReductionOptions()
+    options.set_editor_property("auto_compute_lod_screen_size", False)
+    reductions = []
+    for fraction, screen in settings:
+        entry = unreal.EditorScriptingMeshReductionSettings()
+        entry.set_editor_property("percent_triangles", fraction)
+        entry.set_editor_property("screen_size", screen)
+        reductions.append(entry)
+    options.set_editor_property("reduction_settings", reductions)
+    count = subsystem.set_lods(mesh, options)
+    tris = [mesh.get_num_triangles(i) for i in range(max(count, 0))]
+    return ", LODs %d (tris %s)" % (count, "/".join(str(t) for t in tris))
+
+
 def describe(mesh):
     box = mesh.get_bounding_box()
     text = "tris %d, bounds min (%.1f, %.1f, %.1f) max (%.1f, %.1f, %.1f)" % (
@@ -316,13 +346,20 @@ def main():
     unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX 0")
     master = master_material()
     instances = palette_instances(master)
-    textures = import_textures()
-    if textures:
-        world = world_material(textures.get("T_SB_Panel") or next(iter(textures.values())))
-        world_instances(world, textures)
-    import_audio()
+    only = [f.strip() for f in os.environ.get("SB_IMPORT_FOLDERS", "").split(",") if f.strip()]
+    if only:
+        # A narrow pass: meshes only. Textures, the world material and audio stay as they are.
+        log("FBX folders: " + ", ".join(only))
+    else:
+        textures = import_textures()
+        if textures:
+            world = world_material(textures.get("T_SB_Panel") or next(iter(textures.values())))
+            world_instances(world, textures)
+        import_audio()
     for fbx in sorted(glob.glob(os.path.join(EXPORT, "*", "*.fbx"))):
         folder = os.path.basename(os.path.dirname(fbx))
+        if only and folder not in only:
+            continue
         mesh, path = import_fbx(fbx, "%s/%s" % (ROOT, folder))
         if not mesh:
             log("FAILED " + fbx)
@@ -337,8 +374,9 @@ def main():
                 mesh.set_material(index, instances[key])
             else:
                 missing.append(name)
+        lod_note = set_lods(mesh, folder)
         eal.save_asset(path)
-        log("%s: %s%s" % (path, describe(mesh), (", unmatched slots " + ", ".join(missing)) if missing else ""))
+        log("%s: %s%s%s" % (path, describe(mesh), lod_note, (", unmatched slots " + ", ".join(missing)) if missing else ""))
     out = os.path.join(PROJECT, "Saved", "Logs", "ImportArt.txt")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:

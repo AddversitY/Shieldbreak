@@ -14,6 +14,29 @@ note; this file is the log.
 | **PC session** (desktop is the build machine; the laptop notes below are historical) | Build with UE 5.8, run the game, self-test, screenshots, editor/Python asset work, Epic launcher / Fab downloads, Git LFS content pushes | This cloud session cannot compile or launch Unreal | `Content/`, `Tools/`, `Source/Shieldbreak/Test/`, `PlayTest.bat`, build/perf config, `docs/ASSET_CREDITS.md` |
 | **Code session** (cloud only) | Fast C++ feature work, design docs | Compiling, running, opening assets | Gameplay features: `Game/`, `Player/`, `Weapons/`, `AI/`, `UI/`, `Visuals/`, `Audio/`, `Shield/` |
 
+## Who does what: Claude and Codex (agreed with Vincent, 2026-11-04)
+Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretch his usage limits.
+- **Claude (cloud):** design, gameplay C++, scripted Blender art (weapons, armor, kits) and the self-test checks
+  for its own changes. Works on a `claude/...` branch and opens a PR; Vincent merges.
+- **Codex (desktop):** builds, `Tools\SelfTest.bat`, network scripts, map tours, imports (`Tools\ImportArt.bat`,
+  `Tools\ImportCharacterArt.bat`), FPS before/after measurements, screenshots, Git LFS content pushes, and narrow,
+  fully specified tasks that a "Codex task" entry below spells out (files, exact change, how to check it).
+  Codex fixes compile errors in Claude's code directly and records what it changed.
+- **Areas:** Claude's map thread owns the maps (`Design/maps/`, `Game/ShieldbreakArena.*`, `Game/ShieldbreakMapArt.*`,
+  map kits). Codex reserves map files here before an art pass and the map thread checks this file before editing them.
+  Movement, characters, weapons and the first-person view are Claude's current focus (branch
+  `claude/project-thread-ndksis`).
+- **Performance rule (Vincent):** every change gets an FPS figure before and after, on the same machine, map,
+  resolution and bot count. Report both numbers, not one.
+
+## Codex tasks (from Claude; take the oldest open one)
+- **2026-11-04, branch `claude/project-thread-ndksis` (movement + character/weapon art):** see "Needs verification".
+  1. Measure the baseline FPS first, on main before pulling the branch: `Tools\SelfTest.bat` (the 4-bot average in
+     `Saved\Logs\SelfTest.txt`) and `Tools\VisualShots.bat FP` (fixed-view FPS in `SelfTest-Shots-Keel-fp.txt`).
+  2. Check out the branch, build, run `Tools\ImportCharacterArt.bat` (weapons and armor only, with LODs), then the
+     same two runs. Record both pairs of numbers here and commit the imported `Content/Shieldbreak/Art/{Weapons,Armor}`
+     assets to the branch.
+
 ## Rules
 1. **Pull before you start; push small commits.** `git pull --rebase` before every push.
 2. **Reserve files before big edits.** Add a line under "In progress" below (and message the other
