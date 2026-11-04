@@ -16,6 +16,23 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sb_kit as k  # noqa: E402
 
 
+def rail_teeth(p, y0, y1, z, width, step=1.6, mat="Gunmetal"):
+    """Cross-slots along a top rail: small raised teeth every step cm (reads as an accessory rail up close)."""
+    y = y0
+    while y <= y1:
+        p.append(k.box("tooth", (0, y, z), (width, 0.8, 0.6), mat, bevel=0.1))
+        y += step
+
+
+def grooves(p, x, y, z0, z1, depth, length, step, mat="Gunmetal"):
+    """Horizontal ribs down a grip or magazine face (both sides when x != 0)."""
+    z = z0
+    while z >= z1:
+        for side in ((x, -x) if x else (0,)):
+            p.append(k.box("groove", (side, y, z), (depth, length, 0.45), mat, bevel=0.08))
+        z -= step
+
+
 def battle_rifle():
     """Warden BR: long bullpup, top scope, olive handguard, three-round burst."""
     p = []
@@ -56,6 +73,18 @@ def battle_rifle():
     # Ammo counter on the back of the receiver (faces the player).
     p.append(k.box("counter", (0, -20, 8.4), (3.0, 5, 0.6), "GlowCyan", bevel=0.1))
     p.append(k.box("strip", (2.9, -4, 6.5), (0.15, 14, 0.4), "GlowCyan", bevel=0))
+    # v2 detail (2026-11-04), mostly where the first-person view sees it: the top, the back and the right side.
+    rail_teeth(p, -11, 15, 9.95, 2.8)
+    p.append(k.box("ejection_port", (-2.7, -14, 3.2), (0.4, 7.0, 3.0), "Polymer", bevel=0.2))
+    p.append(k.box("port_cover", (-2.95, -14, 5.0), (0.3, 7.6, 0.6), "Steel", bevel=0.1))
+    p.append(k.box("charging_handle", (0, -33, 8.6), (3.4, 2.4, 1.4), "Steel", bevel=0.3))
+    p.append(k.box("heat_shield", (0, 25, 6.6), (4.4, 16, 0.9), "Gunmetal", bevel=0.3))
+    for y in (19, 22, 25, 28, 31):
+        p.append(k.box("shield_slot", (0, y, 7.1), (2.6, 0.8, 0.2), "Polymer", bevel=0))
+    grooves(p, 1.75, -1.2, -6.0, -13.0, 0.3, 3.2, 1.4, "Gunmetal")    # grip
+    grooves(p, 2.0, -14.8, -5.5, -12.5, 0.3, 6.0, 1.5, "Gunmetal")   # magazine ribs
+    p.append(k.cyl("reticle", (0, -12.1, 13.2), 0.7, 0.15, "GlowCyan", verts=10, bevel=0))
+    p.append(k.box("selector", (-2.75, -1.5, -1.6), (0.4, 1.6, 0.9), "Steel", bevel=0.1))
     return p, (0, 48.2, 2.5)
 
 
@@ -75,6 +104,14 @@ def sidearm():
     for x in (1.72, -1.72):
         p.append(k.box("strip", (x, 5.5, 3.4), (0.12, 14, 0.45), "GlowCyan", bevel=0))
     p.append(k.box("mag_base", (0, -3.4, -11.8), (3.6, 7.0, 1.2), "Gunmetal", bevel=0.3))
+    # v2 detail: rear slide serrations, sight dots, an ejection port and grip ribs.
+    for i in range(5):
+        p.append(k.box("serration", (0, -5.2 + i * 0.8, 3.0), (3.6, 0.3, 3.0), "Polymer", bevel=0))
+    for x in (0.7, -0.7):
+        p.append(k.box("sight_dot", (x, -6.25, 6.0), (0.4, 0.1, 0.4), "GlowCyan", bevel=0))
+    p.append(k.box("sight_dot_front", (0, 16.45, 6.15), (0.35, 0.1, 0.35), "GlowCyan", bevel=0))
+    p.append(k.box("ejection_port", (-1.6, 4.0, 3.6), (0.3, 4.0, 1.8), "Polymer", bevel=0.1))
+    grooves(p, 1.62, -3.6, -4.5, -10.0, 0.25, 5.4, 1.1, "Gunmetal")
     return p, (0, 18.4, 2.2)
 
 
@@ -103,6 +140,14 @@ def sniper():
     p.append(k.cyl("turret", (0, 5, 16), 1.2, 2.4, "Steel", axis="Z", verts=10))
     p.append(k.cyl("turret_side", (2.6, 5, 13), 1.2, 2.0, "Steel", axis="X", verts=10))
     p.append(k.box("strip", (2.85, 10, 4), (0.15, 18, 0.45), "GlowCyan", bevel=0))
+    # v2 detail: rail teeth, a bolt handle on the right, a glowing reticle and ribbed handguard.
+    rail_teeth(p, -11, 19, 9.1, 2.8)
+    p.append(k.cyl("bolt", (-4.2, -10, 4.5), 0.7, 4.0, "Steel", axis="X", verts=8, bevel=0.1))
+    p.append(k.ring("bolt_knob", (-6.4, -10, 4.5), 1.0, 0.6, "Polymer", axis="X", verts=10, tube_verts=6))
+    p.append(k.cyl("reticle", (0, -13.1, 13), 0.8, 0.15, "GlowCyan", verts=10, bevel=0))
+    for y in (28, 32, 36, 40):
+        for x in (2.55, -2.55):
+            p.append(k.box("hg_slot", (x, y, 2.5), (0.2, 2.2, 3.4), "Polymer", bevel=0))
     return p, (0, 78.2, 2)
 
 
@@ -132,6 +177,13 @@ def rocket_launcher():
     for x in (7.05, -7.05):
         p.append(k.box("ammo_light", (x, -22, tube_z + 2), (0.15, 3, 1.2), "GlowAmber", bevel=0))
         p.append(k.box("ammo_light2", (x, -22, tube_z - 1), (0.15, 3, 1.2), "GlowAmber", bevel=0))
+    # v2 detail: grip ribs around the tube, a carry handle and a rear blast shroud.
+    for y in (-6, 14, 30):
+        p.append(k.cyl("tube_band", (0, y, tube_z), 6.6, 2.2, "Gunmetal", verts=8, bevel=0.3))
+    p.append(k.box("handle_post", (0, -10, tube_z + 7.6), (2.0, 2.0, 3.0), "Gunmetal", bevel=0.3))
+    p.append(k.box("handle_post", (0, 8, tube_z + 7.6), (2.0, 2.0, 3.0), "Gunmetal", bevel=0.3))
+    p.append(k.box("handle", (0, -1, tube_z + 9.6), (2.4, 21, 1.8), "Polymer", bevel=0.5, segments=2))
+    p.append(k.cyl("shroud", (0, -41.5, tube_z), 7.4, 3, "Gunmetal", verts=8, bevel=0.4, radius2=8.2))
     return p, (0, 52, tube_z)
 
 
