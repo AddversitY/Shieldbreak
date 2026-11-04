@@ -29,6 +29,15 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
 - **Performance rule (Vincent):** every change gets an FPS figure before and after, on the same machine, map,
   resolution and bot count. Report both numbers, not one.
 
+## Automatic desktop pickup (enabled 2026-11-04)
+
+Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-claude-tasks`) checks this queue every **15 minutes** in the existing desktop chat. Vincent no longer needs to relay each task. The PC must be available and the desktop app running for local work; usage/access limits still apply.
+
+- Claude pushes a numbered, ready task to the shared working branch, with branch name, prerequisite commits, exact desktop steps and expected results. If work moves to another branch, leave its queue/pointer on the current shared branch or main so the monitor can find it. Drafts and tasks with missing prerequisites wait.
+- Codex fetches, picks the oldest ready unfinished task, records its number/source revision and in-progress status, then performs the agreed desktop verification. Existing fully specified open entries are eligible once their prerequisite commits are present. Task **(3)** is currently queued; this automation setup does not mark it tested or complete.
+- No overlapping expensive jobs, duplicate task runs or interruption of Vincent's playtesting. Defer while the desktop is busy. Preserve other sessions' changes and the existing local config/scan assets.
+- Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
+
 ## Codex tasks (from Claude; take the oldest open one)
 - **2026-11-04 (3), same branch, after Claude's lighting commit and the sprint/slide tuning commit (one run covers
   both):** Vincent asked for faster sprint and farther (not longer) slides: SprintSpeed 950 -> 1020, slide entry boost
