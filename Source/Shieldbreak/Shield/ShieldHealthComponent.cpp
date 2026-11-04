@@ -9,6 +9,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/ShieldbreakPlayerController.h"
 
 UShieldHealthComponent::UShieldHealthComponent()
 {
@@ -182,8 +183,12 @@ float UShieldHealthComponent::ApplyShieldbreakDamage(float Damage, const UDamage
 	const UShieldbreakDamageType* SBType = Cast<UShieldbreakDamageType>(DamageType);
 	const float ShieldMultiplier = SBType ? SBType->ShieldDamageMultiplier : 1.f;
 
+	const float ShieldBefore = Shield + Overshield;
+	const bool bHadShield = Shield > 0.f;
 	const float Leftover = AbsorbWithShield(Damage, ShieldMultiplier);
 	const float HealthDamage = Leftover * (SBType ? SBType->HealthDamageMultiplier : 1.f);
+	const bool bShieldHit = Shield + Overshield < ShieldBefore;
+	const bool bShieldBroke = bHadShield && Shield <= 0.f;
 
 	ResetRechargeDelay(SBType ? SBType->RechargeDelayExtension : 0.f);
 
@@ -200,7 +205,26 @@ float UShieldHealthComponent::ApplyShieldbreakDamage(float Damage, const UDamage
 		}
 	}
 
+	ConfirmHit(InstigatedBy, bShieldHit, bShieldBroke, bHeadshot);
 	return Damage;
+}
+
+void UShieldHealthComponent::ConfirmHit(AController* InstigatedBy, bool bShieldHit, bool bShieldBroke, bool bHeadshot) const
+{
+	// Every weapon, grenade, rocket and melee lands here, so they all give the shooter the same hit marker. Hurting
+	// yourself or a teammate gives none.
+	AShieldbreakPlayerController* ShooterPC = Cast<AShieldbreakPlayerController>(InstigatedBy);
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!ShooterPC || !OwnerPawn || OwnerPawn->GetController() == InstigatedBy || ShieldbreakTeams::AreTeammates(InstigatedBy, GetOwner()))
+	{
+		return;
+	}
+	uint8 Flags = 0;
+	if (bDead) { Flags |= EShieldbreakHitFlags::Kill; }
+	if (bDead && bHeadshot) { Flags |= EShieldbreakHitFlags::Headshot; }
+	if (bShieldHit) { Flags |= EShieldbreakHitFlags::Shield; }
+	if (bShieldBroke) { Flags |= EShieldbreakHitFlags::ShieldBreak; }
+	ShooterPC->ClientHitConfirmed(Flags);
 }
 
 void UShieldHealthComponent::ApplyShieldOnlyDamage(float Damage, AController* InstigatedBy)

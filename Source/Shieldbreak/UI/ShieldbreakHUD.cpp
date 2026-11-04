@@ -246,6 +246,13 @@ void AShieldbreakHUD::DrawShieldAndHealth(AShieldbreakCharacter* Character)
 		Box(X, BarY, SegW * SegFill, BarH, Fill);
 	}
 
+	// Your own shield just popped: a quick blue flash over the view (one translucent tile, fading in 0.3 s).
+	const float PopAge = Now - Shield->GetLastShieldBreakLocalTime();
+	if (Shield->GetLastShieldBreakLocalTime() >= 0.f && PopAge >= 0.f && PopAge < 0.3f)
+	{
+		Box(0.f, 0.f, Canvas->ClipX, Canvas->ClipY, FLinearColor(0.35f, 0.75f, 1.f, 0.22f * FMath::Square(1.f - PopAge / 0.3f)));
+	}
+
 	// Empty: flash red.
 	if (Shield->GetShield() <= 0.f && FMath::Fmod(Now, 0.5f) < 0.25f)
 	{
@@ -375,18 +382,38 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 	Box(CX - 2.f * S, CY - 2.f * S, 4.f * S, 4.f * S, ReticleColor);
 	Circle(CX, CY, RingRadius + 6.f * S, ReticleColor, 1.5f * S, 28);
 
-	// Hit marker.
-	if (PC && Now - PC->GetLastHitConfirmTime() < 0.2f)
+	// Hit marker: an X that pops out a little bigger and settles as it fades. White on health, shield blue on a
+	// shielded hit, red on a kill. Popping a shield adds a ring bursting outward, so you know the head is open.
+	if (PC)
 	{
-		const bool bKill = PC->WasLastHitKill();
-		const float Inner = (bKill ? 10.f : 7.f) * S;
-		const float Outer = (bKill ? 22.f : 15.f) * S;
-		const FLinearColor MarkColor = bKill ? Danger : White;
-		const float Thick = (bKill ? 3.f : 2.f) * S;
-		for (const FVector2D Dir : { FVector2D(1.f, 1.f), FVector2D(-1.f, 1.f), FVector2D(1.f, -1.f), FVector2D(-1.f, -1.f) })
+		constexpr float MarkerLife = 0.28f;
+		const float Age = Now - PC->GetLastHitConfirmTime();
+		if (Age >= 0.f && Age < MarkerLife)
 		{
-			const FVector2D N = Dir.GetSafeNormal();
-			Line(CX + N.X * Inner, CY + N.Y * Inner, CX + N.X * Outer, CY + N.Y * Outer, MarkColor, Thick);
+			const bool bKill = PC->WasLastHitKill();
+			const bool bBreak = PC->WasLastHitShieldBreak();
+			const float T = Age / MarkerLife;
+			const float Pop = 1.f + 0.35f * FMath::Square(1.f - FMath::Min(1.f, Age / 0.08f));
+			const float Size = (bKill ? 1.45f : bBreak ? 1.25f : 1.f) * Pop;
+			const float Inner = 7.f * S * Size;
+			const float Outer = 15.f * S * Size;
+			FLinearColor MarkColor = bKill ? Danger : (PC->WasLastHitShield() ? ShieldBright : White);
+			MarkColor.A *= 1.f - T * T;
+			const float Thick = (bKill ? 3.f : bBreak ? 2.5f : 2.f) * S;
+			for (const FVector2D Dir : { FVector2D(1.f, 1.f), FVector2D(-1.f, 1.f), FVector2D(1.f, -1.f), FVector2D(-1.f, -1.f) })
+			{
+				const FVector2D N = Dir.GetSafeNormal();
+				Line(CX + N.X * Inner, CY + N.Y * Inner, CX + N.X * Outer, CY + N.Y * Outer, MarkColor, Thick);
+			}
+		}
+		constexpr float BurstLife = 0.35f;
+		const float BurstAge = Now - PC->GetLastShieldBreakConfirmTime();
+		if (BurstAge >= 0.f && BurstAge < BurstLife)
+		{
+			const float T = BurstAge / BurstLife;
+			const float Ease = 1.f - FMath::Square(1.f - T);
+			const FLinearColor BurstColor(ShieldBright.R, ShieldBright.G, ShieldBright.B, 0.9f * (1.f - T));
+			Circle(CX, CY, FMath::Lerp(14.f, 42.f, Ease) * S, BurstColor, FMath::Lerp(3.f, 1.f, T) * S, 32);
 		}
 	}
 	if (PC && PC->WasLastHitHeadshot() && PC->WasLastHitKill() && Now - PC->GetLastHitConfirmTime() < 1.f)

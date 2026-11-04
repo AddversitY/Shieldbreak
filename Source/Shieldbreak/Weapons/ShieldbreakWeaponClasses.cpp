@@ -24,6 +24,9 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.ReloadTime = 2.f;
 	Stats.ZoomFOV = 40.f;
 	Stats.RecoilPitch = 0.35f;
+	// Battle Rifle: generous at mid range, like a Halo precision rifle.
+	Stats.MagnetismDegrees = 1.1f;
+	Stats.MagnetismRange = 7000.f;
 	Stats.Color = FLinearColor(0.28f, 0.32f, 0.26f);
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
@@ -55,6 +58,9 @@ AWeapon_SniperRifle::AWeapon_SniperRifle()
 	Stats.ReloadTime = 2.6f;
 	Stats.ZoomFOV = 18.f;
 	Stats.RecoilPitch = 1.8f;
+	// Sniper: a small cone, so the shot still has to be lined up.
+	Stats.MagnetismDegrees = 0.5f;
+	Stats.MagnetismRange = 12000.f;
 	Stats.Color = FLinearColor(0.12f, 0.12f, 0.14f);
 	Stats.TracerColor = FLinearColor(1.f, 1.f, 0.9f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
@@ -113,6 +119,9 @@ AWeapon_Sidearm::AWeapon_Sidearm()
 	Stats.ReloadTime = 1.4f;
 	Stats.ZoomFOV = 55.f;
 	Stats.RecoilPitch = 0.6f;
+	// Sidearm: short range, the widest cone.
+	Stats.MagnetismDegrees = 1.3f;
+	Stats.MagnetismRange = 4500.f;
 	Stats.Color = FLinearColor(0.22f, 0.22f, 0.25f);
 	Stats.TracerColor = FLinearColor(1.f, 0.85f, 0.45f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
@@ -144,6 +153,9 @@ AWeapon_RailLance::AWeapon_RailLance()
 	Stats.ReloadTime = 0.f;
 	Stats.ZoomFOV = 45.f;
 	Stats.RecoilPitch = 1.5f;
+	// Rail Lance.
+	Stats.MagnetismDegrees = 0.7f;
+	Stats.MagnetismRange = 9000.f;
 	Stats.Color = FLinearColor(0.85f, 0.88f, 0.92f);
 	Stats.TracerColor = FLinearColor(0.2f, 0.95f, 1.f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();

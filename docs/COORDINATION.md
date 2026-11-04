@@ -40,6 +40,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-11-03 Codex: integrating Claude map/art redesign, ambience and combat-feel branches on main; desktop build, gameplay/network verification and Spire visual review in progress. Local config backed up and stashed; ignored licensed scan assets retained in place.
 - 2026-11-02 Claude (cloud, branch `claude/project-thread-05ljt0`, PR #7): competitive redesign of Keel, Bastion,
   Spire and Creekbed (`Design/maps/shieldbreak_maps.py`, `Design/maps/analyze.py`, enclosed maps via `bIndoor` and
   `BuildInteriorLights` in `ShieldbreakArena.cpp`), plus a first per-map look pass. See `docs/MAPS.md`.
@@ -58,6 +59,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   `Saved/Screenshots/Shots`. The imported kit and `Design/maps/Sanctum.png` are committed on the branch. Kit lighting
   notes: the kit ISMs stay out of distance-field lighting (they rendered near black inside its range), and pieces
   laid flush on blocks (Relief, Fascia, Inlay) get `SelfLight` 0.35.
+- 2026-11-03 Claude (cloud): **combat feel: no recoil, Halo-style aim assist, hit markers, shield pop** (Vincent's
+  request; see `docs/GAME_FEEL.md`). Shots never move the aim. Bullet magnetism applies to every input, slowdown to
+  stick and mouse, and tracking pull to the controller only. A setting turns it off. Hit markers come from
+  `UShieldHealthComponent::ConfirmHit` for every damage source. The shield pop has a new sound, sparks, a burst shell
+  and a view flash. New self-tests: no recoil, magnetism, mouse slowdown, hit-marker flags. Measure FPS before and after.
 - 2026-10-29 Claude (cloud): **characters skipping as they move** (Vincent: "not playable"; same branch, PR #5). Not
   compiled here. Two fixes. (1) `ShieldbreakBodyAnimInstance.cpp` `LockRoot` pins the root bone to the ref pose
   after every sample. The Lyra locomotion clips can carry root motion, which nothing extracted, so the body slid

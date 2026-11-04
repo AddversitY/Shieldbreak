@@ -211,15 +211,25 @@ void AShieldbreakPlayerController::OnPause()
 
 // ---- Feedback ----
 
-void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(bool bKill, bool bHeadshot)
+void AShieldbreakPlayerController::ClientHitConfirmed_Implementation(uint8 Flags)
 {
+	const bool bKill = (Flags & EShieldbreakHitFlags::Kill) != 0;
+	const bool bShieldBreak = (Flags & EShieldbreakHitFlags::ShieldBreak) != 0;
 	if (const UWorld* World = GetWorld())
 	{
 		LastHitConfirmTime = World->GetTimeSeconds();
+		if (bShieldBreak)
+		{
+			LastShieldBreakConfirmTime = LastHitConfirmTime;
+		}
 	}
+	LastHitFlags = Flags;
 	bLastHitKill = bKill;
-	bLastHitHeadshot = bHeadshot;
-	FShieldbreakSFX::Play2D(this, bKill ? EShieldbreakSound::KillMarker : EShieldbreakSound::HitMarker);
+	bLastHitHeadshot = (Flags & EShieldbreakHitFlags::Headshot) != 0;
+	// The kill sound wins; a shield pop gets its own bright crack so the shooter knows the head is open.
+	FShieldbreakSFX::Play2D(this, bKill ? EShieldbreakSound::KillMarker
+		: bShieldBreak ? EShieldbreakSound::ShieldBreakMarker
+		: (Flags & EShieldbreakHitFlags::Shield) ? EShieldbreakSound::ShieldHitMarker : EShieldbreakSound::HitMarker);
 }
 
 void AShieldbreakPlayerController::ClientMedal_Implementation(uint8 Medal)

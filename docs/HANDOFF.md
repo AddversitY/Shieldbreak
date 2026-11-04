@@ -62,6 +62,10 @@ and a shadowed wall.
   silver-white and blue, Creekbed red rock in warm light).
 - One self-test check, the gun hand through an interrupted fade (501 cm/s), fails on the desktop and is unrelated
   to maps.
+## Combat feel pass (2026-11-03)
+
+- No recoil, Halo-style aim assist (bullet magnetism, slowdown, controller tracking), clearer hit markers for every
+  damage source, and a bigger shield pop. See `GAME_FEEL.md`.
 
 ## Still open
 

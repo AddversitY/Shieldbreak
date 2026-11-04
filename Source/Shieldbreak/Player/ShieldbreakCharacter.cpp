@@ -52,13 +52,16 @@ namespace ShieldbreakCharacterPrivate
 	constexpr float DeathCameraBack = 280.f;
 	constexpr float DeathCameraUp = 140.f;
 
-	// Controller aim assist, Halo-style: friction slows the stick near an enemy; magnetism eases the view along.
-	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: controller players get aim assist (friction and gentle tracking)."));
+	// Aim assist, Halo-style: friction slows the aim near an enemy, the stick view eases along with them, and the
+	// weapons bend near misses onto the body (bullet magnetism, AShieldbreakWeapon::ApplyMagnetism).
+	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: players get aim assist (slowdown, controller tracking, bullet magnetism). 0: none."));
 	/** Assist cone half-width at the target (cm): about a body's width either side of the chest. */
 	constexpr float AimAssistRadius = 90.f;
 	constexpr float AimAssistMaxRange = 6000.f;
 	/** Stick speed multiplier with the crosshair dead on an enemy. */
 	constexpr float AimAssistFriction = 0.45f;
+	/** Mouse speed multiplier dead on an enemy: a gentle drag, so flicks still feel 1:1. */
+	constexpr float AimAssistMouseFriction = 0.75f;
 	constexpr float AimAssistPullDegreesPerSecond = 9.f;
 	/** Seconds after the last stick input that a player still counts as on a controller. */
 	constexpr float AimAssistMemory = 2.f;
@@ -575,15 +578,6 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
 	if (bLocalPlayerView)
 	{
-		// Shot recoil eases into the view (a 20 ms time constant: ~90% within 50 ms), so bursts read as a kick
-		// rather than a frame-to-frame jump. The total turn is unchanged.
-		if (!PendingViewKick.IsNearlyZero(0.001f))
-		{
-			const float Portion = DeltaSeconds > 0.f ? 1.f - FMath::Exp(-DeltaSeconds / 0.02f) : 0.f;
-			const FRotator Step = PendingViewKick.IsNearlyZero(0.01f) ? PendingViewKick : PendingViewKick * Portion;
-			PendingViewKick -= Step;
-			Controller->SetControlRotation(Controller->GetControlRotation() + Step);
-		}
 		UpdateAimAssist(DeltaSeconds);
 		if (!bDeathHandled) { UpdateCrouchCamera(DeltaSeconds); }
 	}
@@ -722,7 +716,8 @@ void AShieldbreakCharacter::Input_Move(const FInputActionValue& Value)
 
 void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 {
-	const FVector2D Axis = Value.Get<FVector2D>();
+	// Aim assist slowdown, lighter than on a controller: the mouse drags a little while the crosshair is on an enemy.
+	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, ShieldbreakCharacterPrivate::AimAssistMouseFriction, AimAssistStrength);
 	// Zoomed aim is slower so the scope stays usable.
 	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
@@ -747,13 +742,23 @@ void AShieldbreakCharacter::NotifyGamepadLook()
 	}
 }
 
+bool AShieldbreakCharacter::IsAimAssistEnabled() const
+{
+	return IsPlayerControlled() && ShieldbreakCharacterPrivate::CVarAimAssist.GetValueOnGameThread() != 0 && ShieldbreakSettings::GetAimAssist();
+}
+
+bool AShieldbreakCharacter::IsUsingGamepadLook() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() - LastGamepadLookTime <= ShieldbreakCharacterPrivate::AimAssistMemory;
+}
+
 void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 {
 	using namespace ShieldbreakCharacterPrivate;
 	AimAssistStrength = 0.f;
 	UWorld* World = GetWorld();
-	if (!World || !Controller || !IsAlive() || CVarAimAssist.GetValueOnGameThread() == 0
-		|| World->GetTimeSeconds() - LastGamepadLookTime > AimAssistMemory)
+	if (!World || !Controller || !IsAlive() || !IsAimAssistEnabled())
 	{
 		return;
 	}
@@ -806,7 +811,9 @@ void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 
 	// Magnetism: ease the view toward the target, gently, and only while the player is aiming or moving (it helps
 	// track a strafing enemy; it never snaps or aims for a player who isn't touching the controls).
-	const bool bActive = GetLastMovementInputVector().SizeSquared() > 0.01f || World->GetTimeSeconds() - LastGamepadLookTime < 0.1f;
+	// Mouse players only get the slowdown: a mouse aims precisely and the pull would feel like the view drifting.
+	const bool bActive = IsUsingGamepadLook()
+		&& (GetLastMovementInputVector().SizeSquared() > 0.01f || World->GetTimeSeconds() - LastGamepadLookTime < 0.1f);
 	if (bActive)
 	{
 		const FRotator ToTarget = (BestPoint - Eye).Rotation();
@@ -1078,11 +1085,7 @@ void AShieldbreakCharacter::DoMelee()
 
 	if (bWasAlive)
 	{
-		const bool bKill = !Best->IsAlive();
-		if (AShieldbreakPlayerController* MyPC = Cast<AShieldbreakPlayerController>(GetController()))
-		{
-			MyPC->ClientHitConfirmed(bKill, false);
-		}
+		// The hit marker comes from the victim's shield component.
 		if (AShieldbreakPlayerController* VictimPC = Cast<AShieldbreakPlayerController>(Best->GetController()))
 		{
 			VictimPC->ClientDamagedFrom(FVector_NetQuantize(GetActorLocation()));

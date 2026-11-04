@@ -63,7 +63,12 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float OverheatLockout = 2.f;
 	/** 0 = no zoom. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ZoomFOV = 0.f;
+	/** Cosmetic only: how hard the gun model jumps in the hands on each shot. Shots never move the aim (no recoil). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float RecoilPitch = 0.2f;
+	/** Bullet magnetism (Halo-style aim assist, player shots only): a shot that would pass within this many degrees
+	 *  of an enemy's body bends onto it. 0 = none. Full strength out to half of MagnetismRange, fading to 0 at it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float MagnetismDegrees = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float MagnetismRange = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FLinearColor Color = FLinearColor(0.2f, 0.2f, 0.2f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FLinearColor TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") TSubclassOf<UDamageType> DamageType;
@@ -133,6 +138,10 @@ public:
 	bool HasAmmo() const;
 	float GetCurrentSpreadDegrees() const;
 
+	/** Bullet magnetism: Direction bent onto the enemy body it narrowly misses from Origin (unchanged when the shot
+	 *  already hits a character, nothing is close enough, or aim assist is off). Owning machine, before the server RPC. */
+	FVector ApplyMagnetism(const FVector& Origin, const FVector& Direction) const;
+
 	/** Server. */
 	void AddReserveAmmo(int32 Amount);
 
@@ -160,7 +169,6 @@ private:
 	void ApplyArt();
 	void PlayShotEffects(bool bLocalView);
 	void SpawnImpactFX(const FHitResult& Hit) const;
-	void ApplyRecoil();
 	EShieldbreakSound GetShotSound() const;
 
 	UFUNCTION(Server, Reliable) void ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction);

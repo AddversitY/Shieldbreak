@@ -102,14 +102,14 @@ public:
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
 
-	/** Local player: turns the view by Kick (shot recoil), eased in over about 50 ms instead of in one frame. */
-	void AddViewKick(const FRotator& Kick) { PendingViewKick += Kick; }
-	/** Recoil still to be applied to the view (for the self-test). */
-	FRotator GetPendingViewKick() const { return PendingViewKick; }
-
 	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
 	void NotifyGamepadLook();
+	/** 0..1: how close the crosshair is to an enemy (drives the slowdown). */
 	float GetAimAssistStrength() const { return AimAssistStrength; }
+	/** A human player with aim assist on (the Aim assist setting and sb.AimAssist). Bots never get it. */
+	bool IsAimAssistEnabled() const;
+	/** True while the right stick was used recently: full slowdown and tracking. Mouse players get a lighter slowdown. */
+	bool IsUsingGamepadLook() const;
 
 	// ---- Action animations (cosmetic) ----
 
@@ -225,7 +225,7 @@ private:
 	void Input_Move(const FInputActionValue& Value);
 	void Input_Look(const FInputActionValue& Value);
 	void Input_LookGamepad(const FInputActionValue& Value);
-	/** Controller aim assist (local player only): slows the stick over an enemy and gently tracks them. */
+	/** Aim assist (local player only): slows the aim over an enemy and, on a controller, gently tracks them. */
 	void UpdateAimAssist(float DeltaSeconds);
 	void Input_JumpStarted();
 	void Input_JumpCompleted();
@@ -326,7 +326,6 @@ private:
 	float LastServerMeleeTime = -100.f;
 	float LastShieldValue = -1.f;
 	float CrouchCameraOffset = 0.f;
-	FRotator PendingViewKick = FRotator::ZeroRotator;
 	bool bZoomed = false;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;
