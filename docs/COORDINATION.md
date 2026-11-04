@@ -30,6 +30,8 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   resolution and bot count. Report both numbers, not one.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (2) desktop status: **COMPLETE against `eba0b73`**. Build/import PASS, gameplay **142/142 PASS**, FP **7/7 PASS**. Four-bot FPS **125.4 -> 130.5**, fixed FP **142.6 -> 146.4** (individual matched script observations, actual 1280x720). After2 captures, exact reports and Manny parameter defaults are delivered below. No files reserved by Codex; ready for Claude/master review. Dark armor, pale scope cap and white gloves remain visual polish items.
+
 - **2026-11-04 (2), same branch, after Claude's fix commit:** rebuild, run `Tools\ImportCharacterArt.bat` again (the
   BR and Sniper lost their rear reticle glow, the white disc in the first-person view), then the same two FPS runs as
   before (Crucible 4-bot self-test and `VisualShots.bat FP`) and record both against the 125.4 / 142.6 from the
@@ -39,7 +41,7 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
   `SKM_Manny`'s slots and their parents: every scalar/vector parameter name and default) into
   `docs/playtests/2026-11-04_character_pass/reports/mannequin_material_params.txt`, so Claude can tint the gloves.
 
-Desktop status, 2026-11-04: the task below is **completed with two reported test failures**, not a green merge recommendation. Spire reservations are released on main (`abfe0fa`); all Spire source/assets were already pushed through `e8f905f`. Character results, imported assets and tool fixes are delivered on `claude/project-thread-ndksis`. Claude/master should fix/review the buffered jump and curb fixture before merging. No further files reserved by Codex.
+Historical first-pass status, before `eba0b73` (superseded by task (2) above): the task below completed with two reported test failures. Spire reservations were released on main (`abfe0fa`); all Spire source/assets were already pushed through `e8f905f`. Character results, imported assets and tool fixes were delivered on `claude/project-thread-ndksis`. The buffered jump and curb fixture were then fixed by Claude and now pass.
 
 - **2026-11-04, branch `claude/project-thread-ndksis` (PR: movement feel, armor v2, weapons v2, LODs).** Not compiled
   in the cloud. Don't run while Vincent is playtesting on the desktop.
@@ -81,6 +83,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
+- 2026-11-04 Codex: task (2) against `eba0b73` complete; no files reserved. Build, narrow character import and both script checks finished; Manny parameters exported read-only. No production gameplay, map or material edits. Local Android config retained; no engine/build process running at handoff.
 - 2026-11-04 Codex: desktop character verification finished; yielding the checkout to Claude/master on `claude/project-thread-ndksis`. No build/game/import processes left running at handoff. The pre-existing local Android settings in `Config/DefaultEngine.ini` and ignored scan dependencies are retained. Movement, physics and animation smoothness remain Vincent's highest priority.
 - 2026-11-04 Claude (cloud, branch `claude/project-thread-ndksis`): movement feel, armor and weapon art, first-person
   view. Reserving `Player/ShieldbreakCharacter.*`, `Player/ShieldbreakMovementComponent.*`, `Art/blender/build_armor.py`,
@@ -101,6 +104,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Codex, **task (2) follow-up to `eba0b73`**: editor build PASS with no Codex compile fixes; character reimport **19 meshes / three LODs each / all slots matched**. Gameplay **142/142 PASS**, resolving both first-pass failures: curb rise **29.79 cm**, eye frame change **5.46 cm** versus capsule **9.24 cm**, trail **14.26 cm**; buffered jump **891.60 uu/s**, coyote jump **891.67**, expired-window rejection PASS. Existing presentation assertions also pass.
+  Same desktop and actual **1280x720**: Crucible four-bot run **125.4 FPS first pass -> 130.5 follow-up** (76 real seconds); Keel no-bot stationary FP **142.6 -> 146.4 FPS** (20.4 / 20.3 s). FP **7/7 PASS**. These are individual script observations, not a controlled benchmark. Full reports: `docs/playtests/2026-11-04_character_pass/reports/after2-{selftest,fp,import}.txt`. **23** JPGs in `after2/`, dimensions verified. FP BR capture confirms lowered/further gun and removed central glow dot; rear scope cap remains pale. Crucible bot captures still show near-black armor despite the distance-field flag change. White gloves remain, as expected before a tint implementation. No claims of resolved character readability, perfect physics, human animation acceptance or visual movement under latency.
+  Requested Manny report: `reports/mannequin_material_params.txt` in the same review directory. Both slots and their full parent chains, **80 scalar / seven vector names per material interface**, effective inherited instance defaults, authored master defaults and local overrides (association/index) included. Read-only tool: `Tools/dump_mannequin_materials.py`. First export completed its report but crashed at Python shutdown with transient wrappers retained globally; moved Unreal wrappers into function scope and collected them before shutdown. Final rerun **exit 0, 0 errors / 3 warnings**, complete report verified; first failure log preserved in `Saved/CharacterVerification-20261104/After2/MannyParams-FirstShutdownFailure.log`. No Unreal material assets saved/changed. All original captures/logs retained in the After2 folder. No new network tests required by this task or run in this follow-up. Ready for Claude/master review on this branch, not merged to main.
 - 2026-11-04 Claude, fixes after Codex's desktop pass (`b5a09e2`): (1) buffered jump: `Landed()` now only marks the
   jump, and `AShieldbreakCharacter::OnMovementModeChanged` issues `Jump()` after the engine's walking transition has
   reset jump input. (2) Curb fixture: the engine spreads the step-up over frames (9 cm max), so only the climb is

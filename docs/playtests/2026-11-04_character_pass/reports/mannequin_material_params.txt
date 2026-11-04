@@ -1,0 +1,591 @@
+Manny material scalar/vector parameters (asset defaults, not runtime dynamic instances)
+Mesh: /Game/Characters/Heroes/Mannequin/Meshes/SKM_Manny.SKM_Manny
+Instance values below are effective inherited asset defaults; local overrides are also listed.
+Master values are authored defaults. Named lookups use GlobalParameter; override records include association/index.
+No assets modified or saved.
+
+SLOT 0: M_torso
+  MATERIAL /Game/Characters/Heroes/Mannequin/Materials/Instances/Manny/MI_Manny_02_Blue.MI_Manny_02_Blue [MaterialInstanceConstant]
+    scalar parameters: 80
+      BO_Height = 0
+      BO_Height_02 = 0
+      BO_Height_03 = 0
+      BaseColorFallOff = 1
+      CC_occlusion = 5
+      CarbonFiberAniso = 0.75
+      Carbon_CCR_max = 0.649999976
+      Carbon_CCR_min = 0.25999999
+      Carbon_CC_Max = 0.716000021
+      Carbon_CC_Min = 0.0199999996
+      ChromaticCurve = 0
+      CubePatternMagnitude = 10
+      CubePatternSize = 0.100000001
+      D_occlusion = 1.25
+      D_occlusion_EC = 0.400000006
+      D_occlusion_min = 0.100000001
+      DetailN_metal_UV = 36
+      EdgeGlowFreqPow = 1
+      EdgeGlowFrequency = 12
+      EdgeGlowFresnel = 4
+      EdgeGlowMagnitude = 0
+      EmissiveStrength = 16
+      EmissiveStrength2 = 64
+      EmissiveStrength3 = 256
+      EnergyConservation = 1
+      FlatDetailNormal_metal = 0.25
+      FlatNormal = 0
+      GlowBrightness = 0.5
+      HeightRatio_Input = 0.135000005
+      HeightRatio_Input_02 = 0.0320000015
+      HeightRatio_Input_03 = 0
+      KillAge = 0
+      KillEdge = 5
+      KillEdgeMagnitude = 100
+      KillEdgePow = 2
+      KillPropigation = 150
+      LineBrightness = 4
+      LineDesat = 0.75
+      LogoPos_X = -0.240999997
+      LogoPos_Y = 0.259000003
+      MetalBrighness = 1
+      Metal_CCR_max = 0.181999996
+      Metal_CCR_min = 0.00999999978
+      Metal_CC_Max = 1
+      Metal_CC_Min = 0.939999998
+      MipLevel_01 = 1
+      MipLevel_02 = 3
+      MipLevel_03 = 5
+      OrangePeelFaltness1Max = 0.976000011
+      OrangePeelFaltness1Min = 0.939999998
+      OrangePeelFaltnessMax = 0.984000027
+      OrangePeelFaltnessMin = 0.879999995
+      Orangepeel_UV = 5
+      Orangepeel_UV1 = 1
+      PlasticBrightness = 1
+      PlasticDesat = 0
+      R_carbon_max = 0.50999999
+      R_carbon_min = 0.395999998
+      R_line = 0.899999976
+      R_max = 1.07000005
+      R_min = 0.128000006
+      RubberBrightness = 3.79999995
+      RubberDesat = 0.5
+      S_carbon_Max = 0.5
+      S_carbon_Min = 0.25
+      S_max = 0.550000012
+      S_min = 0.449999988
+      S_occlusion = 1.39999998
+      SamplePos = 0.5
+      Scale = 0.0759999976
+      SpawnAge = 1
+      SpawnPropigation = 200
+      diffraction_Exp = 0.409714013
+      diffraction_Intensity = 16
+      diffraction_Pow = 1.79999995
+      diffraction_Ref = 0.840967
+      diffraction_SpreadHArdness = -0.858726025
+      diffraction_SpreadRadus = 0.5
+      diffraction_k = 0.639339983
+      metallic = 0.783999979
+    local scalar overrides: 17
+      BO_Height [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      BO_Height_02 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      BO_Height_03 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      EmissiveStrength [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 16
+      EmissiveStrength2 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 64
+      EmissiveStrength3 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 256
+      GlowBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      HeightRatio_Input [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.135000005
+      HeightRatio_Input_02 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.0320000015
+      HeightRatio_Input_03 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      LogoPos_X [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = -0.240999997
+      LogoPos_Y [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.259000003
+      MipLevel_01 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      MipLevel_02 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 3
+      MipLevel_03 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 5
+      Scale [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.0759999976
+      RefractionDepthBias [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+    vector parameters: 7
+      CarbonfiberTint = (r=0.270000011, g=0.270000011, b=0.270000011, a=1)
+      EdgeGlowColor = (r=0, g=0, b=1, a=1)
+      EmissiveColor = (r=0, g=0.420022011, b=1, a=1)
+      EmissiveColor2 = (r=0, g=0.896269977, b=1, a=1)
+      EmissiveColor3 = (r=0, g=0.723055005, b=1, a=1)
+      HitPosition0 = (r=0, g=10, b=136, a=0)
+      TeamColor = (r=0.0552330017, g=0.359822005, b=0.968999982, a=1)
+    local vector overrides: 3
+      EmissiveColor [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0, g=0.420022011, b=1, a=1)
+      EmissiveColor2 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0, g=0.896269977, b=1, a=1)
+      EmissiveColor3 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0, g=0.723055005, b=1, a=1)
+  PARENT /Game/Characters/Heroes/Mannequin/Materials/Instances/Manny/MI_Manny_01_Blue.MI_Manny_01_Blue [MaterialInstanceConstant]
+    scalar parameters: 80
+      BO_Height = 0
+      BO_Height_02 = 0
+      BO_Height_03 = 0
+      BaseColorFallOff = 1
+      CC_occlusion = 5
+      CarbonFiberAniso = 0.75
+      Carbon_CCR_max = 0.649999976
+      Carbon_CCR_min = 0.25999999
+      Carbon_CC_Max = 0.716000021
+      Carbon_CC_Min = 0.0199999996
+      ChromaticCurve = 0
+      CubePatternMagnitude = 10
+      CubePatternSize = 0.100000001
+      D_occlusion = 1.25
+      D_occlusion_EC = 0.400000006
+      D_occlusion_min = 0.100000001
+      DetailN_metal_UV = 36
+      EdgeGlowFreqPow = 1
+      EdgeGlowFrequency = 12
+      EdgeGlowFresnel = 4
+      EdgeGlowMagnitude = 0
+      EmissiveStrength = 5
+      EmissiveStrength2 = 5
+      EmissiveStrength3 = 5
+      EnergyConservation = 1
+      FlatDetailNormal_metal = 0.25
+      FlatNormal = 0
+      GlowBrightness = 0.5
+      HeightRatio_Input = 0.200000003
+      HeightRatio_Input_02 = 0.100000001
+      HeightRatio_Input_03 = 0
+      KillAge = 0
+      KillEdge = 5
+      KillEdgeMagnitude = 100
+      KillEdgePow = 2
+      KillPropigation = 150
+      LineBrightness = 4
+      LineDesat = 0.75
+      LogoPos_X = 0
+      LogoPos_Y = 0
+      MetalBrighness = 1
+      Metal_CCR_max = 0.181999996
+      Metal_CCR_min = 0.00999999978
+      Metal_CC_Max = 1
+      Metal_CC_Min = 0.939999998
+      MipLevel_01 = 1
+      MipLevel_02 = 3
+      MipLevel_03 = 6
+      OrangePeelFaltness1Max = 0.976000011
+      OrangePeelFaltness1Min = 0.939999998
+      OrangePeelFaltnessMax = 0.984000027
+      OrangePeelFaltnessMin = 0.879999995
+      Orangepeel_UV = 5
+      Orangepeel_UV1 = 1
+      PlasticBrightness = 1
+      PlasticDesat = 0
+      R_carbon_max = 0.50999999
+      R_carbon_min = 0.395999998
+      R_line = 0.899999976
+      R_max = 1.07000005
+      R_min = 0.128000006
+      RubberBrightness = 3.79999995
+      RubberDesat = 0.5
+      S_carbon_Max = 0.5
+      S_carbon_Min = 0.25
+      S_max = 0.550000012
+      S_min = 0.449999988
+      S_occlusion = 1.39999998
+      SamplePos = 0.5
+      Scale = 1
+      SpawnAge = 1
+      SpawnPropigation = 200
+      diffraction_Exp = 0.409714013
+      diffraction_Intensity = 16
+      diffraction_Pow = 1.79999995
+      diffraction_Ref = 0.840967
+      diffraction_SpreadHArdness = -0.858726025
+      diffraction_SpreadRadus = 0.5
+      diffraction_k = 0.639339983
+      metallic = 0.783999979
+    local scalar overrides: 51
+      BaseColorFallOff [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      D_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.25
+      D_occlusion_EC [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.400000006
+      D_occlusion_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.100000001
+      EnergyConservation [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      LineBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 4
+      LineDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.75
+      MetalBrighness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      PlasticBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      PlasticDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      RubberBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 3.79999995
+      RubberDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      Carbon_CC_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.716000021
+      Carbon_CC_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.0199999996
+      Carbon_CCR_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.649999976
+      Carbon_CCR_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25999999
+      CC_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 5
+      Metal_CC_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      Metal_CC_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.939999998
+      Metal_CCR_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.181999996
+      Metal_CCR_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.00999999978
+      diffraction_Exp [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.409714013
+      diffraction_Intensity [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 16
+      diffraction_k [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.639339983
+      diffraction_Pow [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.79999995
+      diffraction_Ref [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.840967
+      diffraction_SpreadHArdness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = -0.858726025
+      diffraction_SpreadRadus [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      SamplePos [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      DetailN_metal_UV [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 36
+      FlatDetailNormal_metal [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25
+      FlatNormal [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      Orangepeel_UV [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 5
+      Orangepeel_UV1 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      OrangePeelFaltness1Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.976000011
+      OrangePeelFaltness1Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.939999998
+      OrangePeelFaltnessMax [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.984000027
+      OrangePeelFaltnessMin [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.879999995
+      R_carbon_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.50999999
+      R_carbon_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.395999998
+      R_line [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.899999976
+      R_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.07000005
+      R_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.128000006
+      CarbonFiberAniso [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.75
+      metallic [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.783999979
+      S_carbon_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      S_carbon_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25
+      S_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.550000012
+      S_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.449999988
+      S_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.39999998
+      RefractionDepthBias [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+    vector parameters: 7
+      CarbonfiberTint = (r=0.270000011, g=0.270000011, b=0.270000011, a=1)
+      EdgeGlowColor = (r=0, g=0, b=1, a=1)
+      EmissiveColor = (r=0, g=1, b=1, a=1)
+      EmissiveColor2 = (r=0, g=1, b=1, a=1)
+      EmissiveColor3 = (r=0, g=1, b=1, a=1)
+      HitPosition0 = (r=0, g=10, b=136, a=0)
+      TeamColor = (r=0.0552330017, g=0.359822005, b=0.968999982, a=1)
+    local vector overrides: 2
+      CarbonfiberTint [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0.270000011, g=0.270000011, b=0.270000011, a=1)
+      TeamColor [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0.0552330017, g=0.359822005, b=0.968999982, a=1)
+  PARENT /Game/Characters/Heroes/Mannequin/Materials/M_Mannequin.M_Mannequin [Material]
+    scalar parameters: 80
+      BO_Height = 0
+      BO_Height_02 = 0
+      BO_Height_03 = 0
+      BaseColorFallOff = 0
+      CC_occlusion = 1
+      CarbonFiberAniso = 1
+      Carbon_CCR_max = 0
+      Carbon_CCR_min = 0
+      Carbon_CC_Max = 1
+      Carbon_CC_Min = 1
+      ChromaticCurve = 0
+      CubePatternMagnitude = 10
+      CubePatternSize = 0.100000001
+      D_occlusion = 1
+      D_occlusion_EC = 1
+      D_occlusion_min = 0.449999988
+      DetailN_metal_UV = 12
+      EdgeGlowFreqPow = 1
+      EdgeGlowFrequency = 12
+      EdgeGlowFresnel = 4
+      EdgeGlowMagnitude = 0
+      EmissiveStrength = 5
+      EmissiveStrength2 = 5
+      EmissiveStrength3 = 5
+      EnergyConservation = 1
+      FlatDetailNormal_metal = 0
+      FlatNormal = 0
+      GlowBrightness = 0.5
+      HeightRatio_Input = 0.200000003
+      HeightRatio_Input_02 = 0.100000001
+      HeightRatio_Input_03 = 0
+      KillAge = 0
+      KillEdge = 5
+      KillEdgeMagnitude = 100
+      KillEdgePow = 2
+      KillPropigation = 150
+      LineBrightness = 0
+      LineDesat = 0
+      LogoPos_X = 0
+      LogoPos_Y = 0
+      MetalBrighness = 1
+      Metal_CCR_max = 0
+      Metal_CCR_min = 0
+      Metal_CC_Max = 1
+      Metal_CC_Min = 1
+      MipLevel_01 = 1
+      MipLevel_02 = 3
+      MipLevel_03 = 6
+      OrangePeelFaltness1Max = 0
+      OrangePeelFaltness1Min = 0
+      OrangePeelFaltnessMax = 0
+      OrangePeelFaltnessMin = 0
+      Orangepeel_UV = 24
+      Orangepeel_UV1 = 24
+      PlasticBrightness = 1
+      PlasticDesat = 0
+      R_carbon_max = 1
+      R_carbon_min = 1
+      R_line = 1
+      R_max = 1
+      R_min = 0
+      RubberBrightness = 1
+      RubberDesat = 0
+      S_carbon_Max = 0.550000012
+      S_carbon_Min = 0.119999997
+      S_max = 0.5
+      S_min = 0.5
+      S_occlusion = 1
+      SamplePos = 0.5
+      Scale = 1
+      SpawnAge = 1
+      SpawnPropigation = 200
+      diffraction_Exp = 3
+      diffraction_Intensity = 1
+      diffraction_Pow = 1.5
+      diffraction_Ref = 0.0149999997
+      diffraction_SpreadHArdness = 0
+      diffraction_SpreadRadus = 0.5
+      diffraction_k = 2.5999999
+      metallic = 0
+    vector parameters: 7
+      CarbonfiberTint = (r=0.5, g=0.5, b=0.5, a=1)
+      EdgeGlowColor = (r=0, g=0, b=1, a=1)
+      EmissiveColor = (r=0, g=1, b=1, a=1)
+      EmissiveColor2 = (r=0, g=1, b=1, a=1)
+      EmissiveColor3 = (r=0, g=1, b=1, a=1)
+      HitPosition0 = (r=0, g=10, b=136, a=0)
+      TeamColor = (r=0.5625, g=0.470084012, b=0.287921011, a=1)
+
+SLOT 1: M_HeadLegs
+  MATERIAL /Game/Characters/Heroes/Mannequin/Materials/Instances/Manny/MI_Manny_01_Blue.MI_Manny_01_Blue [MaterialInstanceConstant]
+    scalar parameters: 80
+      BO_Height = 0
+      BO_Height_02 = 0
+      BO_Height_03 = 0
+      BaseColorFallOff = 1
+      CC_occlusion = 5
+      CarbonFiberAniso = 0.75
+      Carbon_CCR_max = 0.649999976
+      Carbon_CCR_min = 0.25999999
+      Carbon_CC_Max = 0.716000021
+      Carbon_CC_Min = 0.0199999996
+      ChromaticCurve = 0
+      CubePatternMagnitude = 10
+      CubePatternSize = 0.100000001
+      D_occlusion = 1.25
+      D_occlusion_EC = 0.400000006
+      D_occlusion_min = 0.100000001
+      DetailN_metal_UV = 36
+      EdgeGlowFreqPow = 1
+      EdgeGlowFrequency = 12
+      EdgeGlowFresnel = 4
+      EdgeGlowMagnitude = 0
+      EmissiveStrength = 5
+      EmissiveStrength2 = 5
+      EmissiveStrength3 = 5
+      EnergyConservation = 1
+      FlatDetailNormal_metal = 0.25
+      FlatNormal = 0
+      GlowBrightness = 0.5
+      HeightRatio_Input = 0.200000003
+      HeightRatio_Input_02 = 0.100000001
+      HeightRatio_Input_03 = 0
+      KillAge = 0
+      KillEdge = 5
+      KillEdgeMagnitude = 100
+      KillEdgePow = 2
+      KillPropigation = 150
+      LineBrightness = 4
+      LineDesat = 0.75
+      LogoPos_X = 0
+      LogoPos_Y = 0
+      MetalBrighness = 1
+      Metal_CCR_max = 0.181999996
+      Metal_CCR_min = 0.00999999978
+      Metal_CC_Max = 1
+      Metal_CC_Min = 0.939999998
+      MipLevel_01 = 1
+      MipLevel_02 = 3
+      MipLevel_03 = 6
+      OrangePeelFaltness1Max = 0.976000011
+      OrangePeelFaltness1Min = 0.939999998
+      OrangePeelFaltnessMax = 0.984000027
+      OrangePeelFaltnessMin = 0.879999995
+      Orangepeel_UV = 5
+      Orangepeel_UV1 = 1
+      PlasticBrightness = 1
+      PlasticDesat = 0
+      R_carbon_max = 0.50999999
+      R_carbon_min = 0.395999998
+      R_line = 0.899999976
+      R_max = 1.07000005
+      R_min = 0.128000006
+      RubberBrightness = 3.79999995
+      RubberDesat = 0.5
+      S_carbon_Max = 0.5
+      S_carbon_Min = 0.25
+      S_max = 0.550000012
+      S_min = 0.449999988
+      S_occlusion = 1.39999998
+      SamplePos = 0.5
+      Scale = 1
+      SpawnAge = 1
+      SpawnPropigation = 200
+      diffraction_Exp = 0.409714013
+      diffraction_Intensity = 16
+      diffraction_Pow = 1.79999995
+      diffraction_Ref = 0.840967
+      diffraction_SpreadHArdness = -0.858726025
+      diffraction_SpreadRadus = 0.5
+      diffraction_k = 0.639339983
+      metallic = 0.783999979
+    local scalar overrides: 51
+      BaseColorFallOff [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      D_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.25
+      D_occlusion_EC [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.400000006
+      D_occlusion_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.100000001
+      EnergyConservation [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      LineBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 4
+      LineDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.75
+      MetalBrighness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      PlasticBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      PlasticDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      RubberBrightness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 3.79999995
+      RubberDesat [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      Carbon_CC_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.716000021
+      Carbon_CC_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.0199999996
+      Carbon_CCR_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.649999976
+      Carbon_CCR_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25999999
+      CC_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 5
+      Metal_CC_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      Metal_CC_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.939999998
+      Metal_CCR_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.181999996
+      Metal_CCR_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.00999999978
+      diffraction_Exp [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.409714013
+      diffraction_Intensity [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 16
+      diffraction_k [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.639339983
+      diffraction_Pow [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.79999995
+      diffraction_Ref [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.840967
+      diffraction_SpreadHArdness [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = -0.858726025
+      diffraction_SpreadRadus [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      SamplePos [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      DetailN_metal_UV [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 36
+      FlatDetailNormal_metal [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25
+      FlatNormal [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+      Orangepeel_UV [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 5
+      Orangepeel_UV1 [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1
+      OrangePeelFaltness1Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.976000011
+      OrangePeelFaltness1Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.939999998
+      OrangePeelFaltnessMax [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.984000027
+      OrangePeelFaltnessMin [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.879999995
+      R_carbon_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.50999999
+      R_carbon_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.395999998
+      R_line [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.899999976
+      R_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.07000005
+      R_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.128000006
+      CarbonFiberAniso [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.75
+      metallic [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.783999979
+      S_carbon_Max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.5
+      S_carbon_Min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.25
+      S_max [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.550000012
+      S_min [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0.449999988
+      S_occlusion [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 1.39999998
+      RefractionDepthBias [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = 0
+    vector parameters: 7
+      CarbonfiberTint = (r=0.270000011, g=0.270000011, b=0.270000011, a=1)
+      EdgeGlowColor = (r=0, g=0, b=1, a=1)
+      EmissiveColor = (r=0, g=1, b=1, a=1)
+      EmissiveColor2 = (r=0, g=1, b=1, a=1)
+      EmissiveColor3 = (r=0, g=1, b=1, a=1)
+      HitPosition0 = (r=0, g=10, b=136, a=0)
+      TeamColor = (r=0.0552330017, g=0.359822005, b=0.968999982, a=1)
+    local vector overrides: 2
+      CarbonfiberTint [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0.270000011, g=0.270000011, b=0.270000011, a=1)
+      TeamColor [association=<MaterialParameterAssociation.GLOBAL_PARAMETER: 2>, index=-1] = (r=0.0552330017, g=0.359822005, b=0.968999982, a=1)
+  PARENT /Game/Characters/Heroes/Mannequin/Materials/M_Mannequin.M_Mannequin [Material]
+    scalar parameters: 80
+      BO_Height = 0
+      BO_Height_02 = 0
+      BO_Height_03 = 0
+      BaseColorFallOff = 0
+      CC_occlusion = 1
+      CarbonFiberAniso = 1
+      Carbon_CCR_max = 0
+      Carbon_CCR_min = 0
+      Carbon_CC_Max = 1
+      Carbon_CC_Min = 1
+      ChromaticCurve = 0
+      CubePatternMagnitude = 10
+      CubePatternSize = 0.100000001
+      D_occlusion = 1
+      D_occlusion_EC = 1
+      D_occlusion_min = 0.449999988
+      DetailN_metal_UV = 12
+      EdgeGlowFreqPow = 1
+      EdgeGlowFrequency = 12
+      EdgeGlowFresnel = 4
+      EdgeGlowMagnitude = 0
+      EmissiveStrength = 5
+      EmissiveStrength2 = 5
+      EmissiveStrength3 = 5
+      EnergyConservation = 1
+      FlatDetailNormal_metal = 0
+      FlatNormal = 0
+      GlowBrightness = 0.5
+      HeightRatio_Input = 0.200000003
+      HeightRatio_Input_02 = 0.100000001
+      HeightRatio_Input_03 = 0
+      KillAge = 0
+      KillEdge = 5
+      KillEdgeMagnitude = 100
+      KillEdgePow = 2
+      KillPropigation = 150
+      LineBrightness = 0
+      LineDesat = 0
+      LogoPos_X = 0
+      LogoPos_Y = 0
+      MetalBrighness = 1
+      Metal_CCR_max = 0
+      Metal_CCR_min = 0
+      Metal_CC_Max = 1
+      Metal_CC_Min = 1
+      MipLevel_01 = 1
+      MipLevel_02 = 3
+      MipLevel_03 = 6
+      OrangePeelFaltness1Max = 0
+      OrangePeelFaltness1Min = 0
+      OrangePeelFaltnessMax = 0
+      OrangePeelFaltnessMin = 0
+      Orangepeel_UV = 24
+      Orangepeel_UV1 = 24
+      PlasticBrightness = 1
+      PlasticDesat = 0
+      R_carbon_max = 1
+      R_carbon_min = 1
+      R_line = 1
+      R_max = 1
+      R_min = 0
+      RubberBrightness = 1
+      RubberDesat = 0
+      S_carbon_Max = 0.550000012
+      S_carbon_Min = 0.119999997
+      S_max = 0.5
+      S_min = 0.5
+      S_occlusion = 1
+      SamplePos = 0.5
+      Scale = 1
+      SpawnAge = 1
+      SpawnPropigation = 200
+      diffraction_Exp = 3
+      diffraction_Intensity = 1
+      diffraction_Pow = 1.5
+      diffraction_Ref = 0.0149999997
+      diffraction_SpreadHArdness = 0
+      diffraction_SpreadRadus = 0.5
+      diffraction_k = 2.5999999
+      metallic = 0
+    vector parameters: 7
+      CarbonfiberTint = (r=0.5, g=0.5, b=0.5, a=1)
+      EdgeGlowColor = (r=0, g=0, b=1, a=1)
+      EmissiveColor = (r=0, g=1, b=1, a=1)
+      EmissiveColor2 = (r=0, g=1, b=1, a=1)
+      EmissiveColor3 = (r=0, g=1, b=1, a=1)
+      HitPosition0 = (r=0, g=10, b=136, a=0)
+      TeamColor = (r=0.5625, g=0.470084012, b=0.287921011, a=1)

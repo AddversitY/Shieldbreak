@@ -1,5 +1,34 @@
 # Desktop character verification — 2026-11-04
 
+## Follow-up after Claude's `eba0b73`
+
+Build PASS; narrow character reimport PASS (19 meshes, three LODs each, all slots matched).
+Gameplay **142/142 PASS**, FP **7/7 PASS**. Both first-pass movement failures are resolved.
+
+| Observation, same desktop and actual 1280x720 | First character pass | Follow-up |
+|---|---:|---:|
+| Crucible, four bots, 76 real seconds | 125.4 FPS | 130.5 FPS |
+| Keel fixed first-person, no bots, about 20 seconds | 142.6 FPS | 146.4 FPS |
+
+These remain individual script observations, not a controlled benchmark.
+Buffered jump now reaches 891.60 uu/s; coyote jump 891.67, with expired-window rejection passing.
+The curb rises 29.79 cm; maximum eye change 5.46 cm versus capsule 9.24 cm, with 14.26 cm trail.
+
+- [Follow-up gameplay](reports/after2-selftest.txt), [FP report](reports/after2-fp.txt), [import report](reports/after2-import.txt).
+- [FP view](after2/keel_fp_fp_0_idle_br_0.jpg), [bot view](after2/bot_1.jpg); all 23 follow-up JPGs are in `after2/`.
+- [Manny material parameter defaults](reports/mannequin_material_params.txt): both slots and complete parent chains,
+  80 scalar and seven vector names each, instance effective defaults, master defaults and local overrides.
+  Reproduce read-only using `Tools/dump_mannequin_materials.py` with the Unreal Python commandlet.
+
+The weapon is visibly lower/further and the central rear-scope glow is gone. The scope cap is still pale,
+gloves are still white, and armor remains very dark in these bot shots. Those visual issues need further work.
+The parameter dump changes no assets. Its first run finished the report but hit a Python shutdown crash;
+function-scoped Unreal wrappers and explicit collection fixed shutdown (final exit 0, no errors, three warnings).
+The first failure log and original run artifacts are retained in `Saved/CharacterVerification-20261104/After2/`.
+No production source changes by Codex, network rerun or human feel acceptance in this follow-up.
+
+## First-pass evidence (historical)
+
 Baseline: main `abfe0fa`, with identical FP measurement instrumentation from `0a2f52b`.
 After: Claude's `f7d3adc` character branch plus merged instrumentation and desktop fixes.
 Machine: RTX 2080 Ti desktop, UE 5.8.4. Actual captures are 1280x720 in both sets.
