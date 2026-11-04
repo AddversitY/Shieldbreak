@@ -1,5 +1,33 @@
 # Desktop character verification — 2026-11-04
 
+## Automatic task (4), `4d1bfa6`
+
+Build/import PASS; gameplay **143/143 PASS**, FP **7/7 PASS**. Actual palette values match the updated source:
+ArmorMetal RGB **(0.20,0.21,0.23)**, metallic **0.15**, roughness **0.50**; WeaponMetal RGB
+**(0.13,0.135,0.15)**, metallic **0.30**, roughness **0.40**. Bindings and three LODs verified on 19 meshes;
+shared map Gunmetal unchanged. Codex added import-report logging of the two palette instances; no production source edits.
+
+The revised step assertion passes: maximum eye change **5.75 cm**, curb **29.93 cm**, capsule frame **6.66 cm**,
+trail **12.63 cm**. Claude changed the assertion to compare against curb height; production camera behavior
+was not changed in this pass. Passing it does not establish all-frame-rate or human animation acceptance.
+
+| Observation, same desktop and actual 1280x720 | After3 | After4 |
+|---|---:|---:|
+| Crucible, four bots | 128.5 FPS (76 s) | 132.2 FPS (74 s) |
+| Keel fixed FP, no bots | 149.9 FPS (19.5 s) | 145.7 FPS (20.4 s) |
+
+Individual script observations, not a controlled benchmark or demonstrated gain/loss.
+
+- [Gameplay](reports/after4-selftest.txt), [FP](reports/after4-fp.txt), [import with values](reports/after4-import.txt).
+- [Actual material verification](reports/after4-material-verification.json).
+- [FP idle](after4/keel_fp_fp_0_idle_br_0.jpg), [bot view](after4/bot_1.jpg); 23 JPGs in `after4/`.
+
+**Visual goals remain open:** gloves still appear white; armor is still very dark, with accents more legible
+than its grey surfaces. Gun rails/edges show highlights, but much of the body remains near-black; grey/detail
+goal is only partial. The scope eyepiece stays dark. Palette values/bindings are correct, so Claude needs
+runtime material/lighting investigation rather than assuming those visual goals passed. No network/latency,
+human feel or other-map tests in this task. Originals and read-only verification in `Saved/CharacterVerification-20261104/After4/`.
+
 ## Task (3): sprint/slide and lighting (`9716ade` + `71047da`)
 
 Build and narrow import pass. Gameplay **142 pass / 1 fail**; FP **7/7 pass**.

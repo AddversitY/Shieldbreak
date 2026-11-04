@@ -117,6 +117,9 @@ def palette_instances(master, reuse_existing=False):
         mel.set_material_instance_scalar_parameter_value(mi, "EmissiveStrength", emissive)
         eal.save_asset(path)
         instances["M_" + name] = mi
+        if name in CHARACTER_PALETTE:
+            log("%s: BaseColor %s, Metallic %.3f, Roughness %.3f, EmissiveStrength %.3f" %
+                (path, tuple(rgb), metallic, roughness, emissive))
     log("%d palette instances" % len(instances))
     return instances
 
