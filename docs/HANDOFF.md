@@ -1,4 +1,26 @@
-# Handoff (2026-10-27)
+# Handoff (2026-11-03)
+
+## Current desktop integration
+
+Main now combines Claude's map/art redesign and ambience through `48e0789` with the combat-feel pass
+`6fed6cf`. Both source branches and the previous local `redesign` branch are retained. Do not restart from
+the older main art or overwrite the ignored scan dependencies. The previous desktop tip is also saved as
+`backup/redesign-before-integration-20261103`.
+
+Editor build passed. The normal-timing rendered offscreen gameplay rerun passed **136/136**, with 124.2 average
+FPS during its four-bot fixture at 1280x720 (not a controlled benchmark). The first hidden-window run was
+135/136: the sampled gun-kick peak was only 0.40 degrees, with 16.6 average bot-match FPS. A controlled 60 Hz
+presentation run passed 36/36; the normal-timing rerun measured 1.44 degrees and passed without code or threshold
+changes. Low-frame-rate presentation still needs human review; the initial observation is not erased by the rerun.
+
+Keel and Spire local joins, the 4v4 regression (20 balanced samples), and delayed shield feedback all passed.
+No internet or eight-human validation is implied. All 2,021 tracked content files are present as real files,
+with no unresolved LFS pointers. Local scan content remains intentionally ignored, approximately 19.11 GiB.
+
+Vincent's priority is a substantial visual-quality improvement, using Halo Infinite as the benchmark with the
+ambition to exceed it. The first section to finish is Spire's base-to-central-condenser view. See
+`VISUAL_QUALITY_TARGET.md` for the observed problems and acceptance evidence. No new environment art was
+authored during integration; the following older sections are historical and contain superseded verification notes.
 
 Pickup note for the unified branch. The log of who verified what is `docs/COORDINATION.md`.
 Design is `docs/DESIGN.md`. Code map is `docs/ARCHITECTURE.md`. The menu is `docs/MAIN_MENU.md`.

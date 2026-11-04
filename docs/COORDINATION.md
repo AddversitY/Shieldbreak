@@ -40,7 +40,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
 ## In progress
-- 2026-11-03 Codex: integrating Claude map/art redesign, ambience and combat-feel branches on main; desktop build, gameplay/network verification and Spire visual review in progress. Local config backed up and stashed; ignored licensed scan assets retained in place.
+- 2026-11-03 Codex: Claude map/art redesign, ambience and combat-feel integration complete on main; see current desktop results in `HANDOFF.md`. No source files reserved. Next art work: Spire base-to-condenser section, per `VISUAL_QUALITY_TARGET.md`.
 - 2026-11-02 Claude (cloud, branch `claude/project-thread-05ljt0`, PR #7): competitive redesign of Keel, Bastion,
   Spire and Creekbed (`Design/maps/shieldbreak_maps.py`, `Design/maps/analyze.py`, enclosed maps via `bIndoor` and
   `BuildInteriorLights` in `ShieldbreakArena.cpp`), plus a first per-map look pass. See `docs/MAPS.md`.
@@ -54,6 +54,8 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-03 Codex integration supersedes older pending-build notes below: editor build PASS; rendered normal-timing offscreen gameplay **136/136 PASS**; controlled 60 Hz presentation **36/36 PASS**; Keel/Spire local joins PASS; 4v4 PASS (20 balanced samples); shield events with configured 80 ms lag / 20 ms variance PASS. Reports: `Saved/Logs/IntegrationBuild.log`, `IntegrationSelfTestFinal.txt`, `SelfTest-Presentation.txt`, `IntegrationNetworkKeel.txt`, `IntegrationNetworkSpire.txt`, `Integration4v4.txt`, `IntegrationShieldNetwork.txt`.
+  Initial hidden-window gameplay was **135/136**, gun-kick peak 0.40 degrees and 16.6 average four-bot FPS. The normal-timing offscreen rerun passed with a 1.44-degree kick and 124.2 average four-bot FPS; no code or thresholds changed. These fixtures are not a performance benchmark or proof of low-FPS presentation quality. Preserve both reports (`IntegrationSelfTestInitial.txt` and `IntegrationSelfTestFinal.txt`). User playtesting and the first finished art section remain next.
 - Map art kit (branch `claude/project-thread-km43pg`): verified on the desktop 2026-10-30. Build OK, import
   `RESULT OK, 16 meshes`, self-test 126/126, every map tour passes (Sanctum 25/25), Sanctum shots in
   `Saved/Screenshots/Shots`. The imported kit and `Design/maps/Sanctum.png` are committed on the branch. Kit lighting
@@ -105,9 +107,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   VSync, frame cap, volumes, FOV, sensitivity, invert, tips, key rebinding). There is one
   `UShieldbreakGameInstance`, in `Game/ShieldbreakGameInstance.*`, for connection recovery.
 - Menu music plays on the front end. The cracked-shield emblem is `Content/Splash/Emblem.png`.
-- Renderer: Lumen GI off (`r.DynamicGlobalIlluminationMethod=0`), reflections screen-space
-  (`r.ReflectionMethod=2`), virtual shadow maps off, motion blur off. The arena also adds a
-  shadowless fill light. This is the dark-walls fix. It has not been re-screenshotted here.
+- Renderer: the arena's post-process volume now enables Lumen GI and reflections by default,
+  overriding the older config defaults. `-SBNoLumen` compares the previous path. Virtual
+  shadow maps and motion blur remain off. See `MAP_ART_STYLE.md` for the November 3 lighting work.
 
 ### Historical requests (already covered by later PC records, or obsolete)
 - **Roadmap item 3: maps** (commit "Map framework and five launch maps"). See docs/MAPS.md for the overview images.

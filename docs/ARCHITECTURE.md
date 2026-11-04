@@ -15,8 +15,9 @@ Mastery mechanics that are in: Overcharge Vent, Break Pulse, Momentum Carry and 
 
 Original weapon, armor, world materials, the cracked-shield emblem and menu music live under
 `Content/Shieldbreak` and `Content/Splash`. Lyra mannequin/weapon meshes are still the imported
-placeholder art. Lumen and virtual shadow maps are **off** (`Config/DefaultEngine.ini`); shadowed
-walls were near-black with them on. The HUD and menus are Canvas and Slate. Enhanced Input
+placeholder art. The arena's post-process volume enables **Lumen GI and reflections** by default;
+`-SBNoLumen` compares the previous rendering path. The config's disabled GI/reflection defaults
+do not describe that runtime override. Virtual shadow maps remain off. The HUD and menus are Canvas and Slate. Enhanced Input
 actions are created in C++.
 
 There is one `UShieldbreakGameInstance` (`Game/ShieldbreakGameInstance.*`). It keeps connection
