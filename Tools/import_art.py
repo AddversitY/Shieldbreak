@@ -38,6 +38,9 @@ WORLD_STYLES = {
 # Art/Export subfolder -> [(fraction of LOD0 triangles, screen size where the LOD starts)], LOD0 first. Screen size is
 # the bounding sphere's share of the screen: a 30 cm armor piece is about 0.06 at 6 m and 0.025 at 15 m with the
 # default field of view; a 90 cm rifle about 0.1 at 10 m. The first-person gun fills the screen and stays at LOD0.
+# Palette entries owned by the character art: a narrow (SB_IMPORT_FOLDERS) import still rewrites their values,
+# so tuning them in palette.json reaches the game without a full import. Map kits never use them.
+CHARACTER_PALETTE = ("ArmorMetal", "WeaponMetal")
 LOD_SETTINGS = {
     "Weapons": [(1.0, 1.0), (0.5, 0.1), (0.25, 0.04)],
     "Armor": [(1.0, 1.0), (0.5, 0.06), (0.25, 0.025)],
@@ -101,7 +104,7 @@ def palette_instances(master, reuse_existing=False):
         path = "%s/MI_SB_%s" % (MATERIALS, name)
         if eal.does_asset_exist(path):
             mi = unreal.load_asset(path)
-            if reuse_existing:
+            if reuse_existing and name not in CHARACTER_PALETTE:
                 instances["M_" + name] = mi
                 continue
         else:

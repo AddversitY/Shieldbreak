@@ -574,6 +574,15 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 					MID->SetScalarParameterValue(TEXT("MetalBrighness"), 0.4f);
 					MID->SetScalarParameterValue(TEXT("PlasticBrightness"), 0.4f);
 					MID->SetVectorParameterValue(TEXT("CarbonfiberTint"), FLinearColor(0.06f, 0.06f, 0.065f));
+					// The gloves are the carbon-fibre region: dark tint alone left them white in first person (after3
+					// shots), because their clear coat and diffraction sheen mirror the fill light. Matte them.
+					MID->SetScalarParameterValue(TEXT("Carbon_CC_Min"), 0.f);
+					MID->SetScalarParameterValue(TEXT("Carbon_CC_Max"), 0.f);
+					MID->SetScalarParameterValue(TEXT("R_carbon_min"), 0.75f);
+					MID->SetScalarParameterValue(TEXT("R_carbon_max"), 0.85f);
+					MID->SetScalarParameterValue(TEXT("S_carbon_Min"), 0.15f);
+					MID->SetScalarParameterValue(TEXT("S_carbon_Max"), 0.25f);
+					MID->SetScalarParameterValue(TEXT("diffraction_Intensity"), 0.f);
 				}
 				for (const FName& Parameter : GlowParameters)
 				{

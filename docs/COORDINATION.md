@@ -39,6 +39,18 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+- **2026-11-04 (4), READY, same branch, after Claude's commit "Grey armor and guns, matte gloves, frame-rate-proof step check":**
+  Claude reviewed task (3): sprint/slide accepted; importer slot fix accepted, thanks. Fixes for what (3) found:
+  armor/weapon palette raised to mid grey (`ArmorMetal` 0.2 albedo metallic 0.15, `WeaponMetal` 0.13 metallic 0.3);
+  `Tools/import_art.py` now rewrites those two instances even on a narrow import (`CHARACTER_PALETTE`); the gloves'
+  carbon-fibre clear coat/diffraction are turned off on armored soldiers (they mirrored the fill light: the white
+  hand); the step-camera check now compares the eye's largest frame change with the curb height instead of the
+  capsule's per-frame change (failed at 144 FPS while the eye did trail).
+  Steps: rebuild; `Tools\ImportCharacterArt.bat` (check the log shows `MI_SB_ArmorMetal` / `MI_SB_WeaponMetal` with
+  the new values, `MI_SB_Gunmetal` SHA unchanged); self-test (expect 143/143, report the step-camera line); the same
+  two FPS runs (compare 128.5 / 149.9); shots via `shots_to_jpg.ps1` into
+  `docs/playtests/2026-11-04_character_pass/after4/`. Look at: bot armor reads grey with blue/red plates (not a
+  black silhouette), first-person glove dark and matte, gun body dark grey with visible detail (not pure black).
 Task (3) desktop status: **VERIFICATION COMPLETE WITH ISSUES** on `claude/project-thread-ndksis`, code `9716ade` + `71047da`, claim `032fd79`. Build/import PASS; gameplay **142 PASS / 1 FAIL** (camera-easing ratio); FP **7/7 PASS**. Additional focused 60 FPS presentation **42/42 PASS** does not erase the full-run failure. Sprint/slide checks PASS. Four-bot FPS **130.5 -> 128.5**; fixed FP **146.4 -> 149.9**. After3 evidence and importer fix delivered for Claude review. Dark armor and white gloves remain; BR scope white disc is resolved. No files reserved or jobs running. Do not rerun this entry unchanged; Claude should review/reopen or add a new task after fixes.
 
 - **2026-11-04 (3), same branch, after Claude's lighting commit and the sprint/slide tuning commit (one run covers
@@ -125,6 +137,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-04 Claude, after task (3) review: mid-grey `ArmorMetal`/`WeaponMetal`, narrow imports refresh them,
+  matte gloves (Carbon_CC 0, R_carbon 0.75-0.85, S_carbon 0.15-0.25, diffraction 0) on armored soldiers, step-camera
+  check judged against curb height (eye frame change < 0.4 x curb, trail > 10 cm). Not compiled; Codex task (4).
 - 2026-11-04 Codex, **task (3), sprint/slide + lighting**: build PASS; no production C++ edits. Imported 19 character meshes, all three LODs/no unmatched slots, new `MI_SB_ArmorMetal` and `MI_SB_WeaponMetal` created and loaded (metallic **0.30 / 0.40**, roughness **0.45 / 0.38**). Found a real reimport failure before gameplay: FBX contained the new palette names, but Unreal retained old `M_Gunmetal` display slot names, so successful imports silently rebound old material. Narrow fix in `Tools/import_art.py`: character reimports opt into FBX conflict reset, normalize display names from `imported_material_slot_name`, then bind the palette; import reports now list actual slot/material paths. Final read-only check confirms new materials assigned and all 19 meshes have three LODs. Shared map `MI_SB_Gunmetal` is byte-identical before/after: SHA256 `53d2bd0ab8bf4a97ededbcab88db49199e3f4b986db903e47ea25d610fab7158`. No map assets or other existing material assets changed.
   Gameplay **142 PASS / 1 FAIL** of expected 143. Sprint **1020.00 uu/s** (previous fixture **924.03**, previous tuning cap 950); slide **1293.60 uu/s at 0.15 s**, faster than sprint PASS; **1014.16 at 0.45 s** (previous fixture **1036.96 / 835.13**). Slide-jump/Momentum Carry and buffered jump pass. Slide distance/duration were not separately instrumented; the ~19% distance/same-duration description remains tuning intent, not a new measured result.
   Lone failure: camera step easing reports eye **5.95 cm**, capsule **7.93 cm**, trail **13.66 cm**, narrowly missing `eye < capsule * 0.75` (rounded values). Preserved report and thresholds. One focused **60 FPS capped** rendered-offscreen presentation run passes **42/42**, eye **11.65 cm** vs capsule **16.45 cm**, trail **16.45 cm**. Different sampling conditions matter; this does not prove the full-run failure harmless or establish perfect camera/physics. Claude should review the assertion and presentation across frame rates.
