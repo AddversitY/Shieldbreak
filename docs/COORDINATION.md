@@ -31,6 +31,8 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
 
 ## Automatic desktop pickup (enabled 2026-11-04)
 
+**PAUSED FOR THE NIGHT at Vincent's request after task (5).** Task (5) results are pushed as `d7cb2f4`; no desktop test/build/import is running. Task (6) is queued but has not started. Automation `shieldbreak-pick-up-claude-tasks` is PAUSED; resume only when Vincent asks to continue. No files reserved by Codex.
+
 Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-claude-tasks`) checks this queue every **15 minutes** in the existing desktop chat. Vincent no longer needs to relay each task. The PC must be available and the desktop app running for local work; usage/access limits still apply.
 
 - Claude pushes a numbered, ready task to the shared working branch, with branch name, prerequisite commits, exact desktop steps and expected results. If work moves to another branch, leave its queue/pointer on the current shared branch or main so the monitor can find it. Drafts and tasks with missing prerequisites wait.
