@@ -39,6 +39,8 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (5) desktop status: **IN PROGRESS**, source `aad1a24`, branch `claude/project-thread-ndksis`. Automatic desktop pickup: sequential build, narrow import and actual three-palette/unchanged-Gunmetal verification, full gameplay/FP measurements and after5 captures. Check active jobs and `Saved/CharacterVerification-20261104/After5/` before starting a duplicate. No production source edits planned.
+
 - **2026-11-05 (5), READY, same branch, after Claude's commit "Matte suit under the armor; grey guns":** Claude
   reviewed task (4), thanks. Armor reads fine when lit (Keel third-person shots are grey/silver); Crucible bot_1 is
   backlit, not a material fault. The white glove was M_Mannequin itself, so armored soldiers now wear
