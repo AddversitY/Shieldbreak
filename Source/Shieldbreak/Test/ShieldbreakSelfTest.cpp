@@ -384,11 +384,25 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				return false; // give the arms a moment to take the gun
 			}
-			Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
-			Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
+			if (Phase == 0)
+			{
+				Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
+				Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
+				Mark = Now();
+				Phase = 1;
+				return false;
+			}
+			// The index finger curls onto the trigger socket instead of pointing out through the receiver.
+			const float FingerError = Animator ? Animator->GetTriggerFingerError() : -1.f;
+			if (Now() - Mark < 1.f && !(FingerError >= 0.f && FingerError < 1.5f))
+			{
+				return false;
+			}
+			Check(TEXT("...with the index finger on the trigger"), FingerError >= 0.f && FingerError < 2.f,
+				FString::Printf(TEXT("finger pad %s cm from the trigger (%s)"), *ShieldbreakSelfTestPrivate::Num(FingerError), *GetNameSafe(Weapon)));
 			ClearDummies();
 			return true;
-		}, 5.f });
+		}, 6.f });
 
 	// ---- Controller aim assist: with the stick in use, the view eases onto an enemy just off the crosshair. ----
 	{

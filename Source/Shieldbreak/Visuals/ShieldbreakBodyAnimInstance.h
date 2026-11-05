@@ -45,6 +45,8 @@ private:
 	static void LockRoot(FPoseContext& Output);
 	void ApplyAction(FPoseContext& Output) const;
 	void ApplyAimPitch(FPoseContext& Output) const;
+	/** Curls the right index finger (CCD over index_01/02_r) so its pad rests on TriggerTarget (hand_r space). */
+	void ApplyTriggerFinger(FPoseContext& Output) const;
 
 	FTrack Current;
 	FTrack Previous;
@@ -69,6 +71,8 @@ private:
 	float KickPitch = 0.f;
 	float KickVelocity = 0.f;
 	float SeenKickTotal = 0.f;
+	float TriggerWeight = 0.f;
+	FVector TriggerTarget = FVector::ZeroVector;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -94,6 +98,11 @@ public:
 	float GetAimPitch() const { return AimPitch; }
 	/** Diagnostic snapshot; completes any in-flight animation work before reading. */
 	float GetLocomotionPhase() const { return GetProxyOnGameThread<FShieldbreakBodyAnimProxy>().GetCyclePhase(); }
+
+	/** First-person arms: Weight 0-1 of curling the index finger onto the gun's trigger, at Target in hand_r bone
+	 *  space. 0 leaves the finger as the animation has it. */
+	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace) { TriggerWeight = Weight; TriggerTarget = TargetInHandSpace; }
+	const FVector& GetTriggerTarget() const { return TriggerTarget; }
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -134,4 +143,6 @@ private:
 	FVector AimAxis = FVector::RightVector;
 	/** Sum of every AddFireKick strength; the proxy applies the difference since its last update. */
 	float KickTotal = 0.f;
+	float TriggerWeight = 0.f;
+	FVector TriggerTarget = FVector::ZeroVector;
 };

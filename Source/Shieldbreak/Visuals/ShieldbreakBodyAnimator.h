@@ -64,6 +64,9 @@ public:
 	USkeletalMeshComponent* GetFirstPersonArms() const;
 	/** True when the arms are on screen and the equipped gun should go in their hand. */
 	bool HasFirstPersonArms() const;
+	/** First person: cm between the index finger's pad and the gun's "Trigger" socket (last evaluated pose), or -1
+	 *  when there are no arms or the gun has no trigger socket. */
+	float GetTriggerFingerError() const;
 
 	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
 	 *  weapon's recoil (degrees), so heavier guns kick harder. */
@@ -147,6 +150,12 @@ private:
 	float FirstPersonEquipEnd = -1.f;
 	float SwapLower = 0.f;
 	float AppliedSwapLower = 0.f;
+	/** How far the index finger is curled onto the trigger (eases out for actions and swaps). */
+	float TriggerFingerWeight = 0.f;
+	/** Finds the equipped gun's "Trigger" socket and hands the arms' anim instance the finger target. */
+	void UpdateTriggerFinger(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
+	/** The equipped gun's mesh with a "Trigger" socket, or null. */
+	class UStaticMeshComponent* GetTriggerMesh() const;
 	void ApplyFirstPersonArmsTransform(float Dip);
 	/** Steps the first-person motion springs and writes FirstPersonMotion. */
 	void UpdateFirstPersonMotion(float DeltaSeconds);

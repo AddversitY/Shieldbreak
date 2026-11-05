@@ -41,6 +41,16 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 ## Codex tasks (from Claude; take the oldest open one)
 Task (5) desktop status: **IN PROGRESS**, source `aad1a24`, branch `claude/project-thread-ndksis`. Automatic desktop pickup: sequential build, narrow import and actual three-palette/unchanged-Gunmetal verification, full gameplay/FP measurements and after5 captures. Check active jobs and `Saved/CharacterVerification-20261104/After5/` before starting a duplicate. No production source edits planned.
 
+- **2026-11-05 (6), READY after (5) completes, same branch, after Claude's commit "Trigger finger: curl the
+  first-person index finger onto a real trigger":** Vincent saw the first-person index finger go through the gun.
+  All five guns now have a trigger blade and a `SOCKET_Trigger` (Unreal socket "Trigger"); the first-person arms
+  curl `index_01/02_r` onto it (CCD in the anim proxy, eased out during actions/swaps). Calibration now logs
+  `First-person hand joints in grip space for <idle>: ...` (thumb/index/middle/ring/pinky positions in gun space).
+  Steps: rebuild; `Tools\ImportCharacterArt.bat` (check each weapon lists a `Trigger` socket); self-test (expect
+  145/145, new "...with the index finger on the trigger", report its cm); FPS runs (compare with task (5));
+  `VisualShots.bat FP` and copy every "hand joints in grip space" log line (BR and sidearm at least) into
+  `docs/playtests/2026-11-04_character_pass/reports/after6-hand-joints.txt`; shots into `after6/`, plus one
+  close crop of the hand on the BR if the shot tool allows. Look at: finger on the trigger, nothing through the gun.
 - **2026-11-05 (5), READY, same branch, after Claude's commit "Matte suit under the armor; grey guns":** Claude
   reviewed task (4), thanks. Armor reads fine when lit (Keel third-person shots are grey/silver); Crucible bot_1 is
   backlit, not a material fault. The white glove was M_Mannequin itself, so armored soldiers now wear
@@ -151,6 +161,9 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   verification records below. No files reserved; main is the shared handoff.
 
 ## Needs verification (code session → PC)
+- 2026-11-05 Claude, task (6): trigger blades + `Trigger` sockets on all guns (FBX re-exported), first-person trigger
+  finger IK (`FShieldbreakBodyAnimProxy::ApplyTriggerFinger`), hand-joint log at calibration, self-test check for the
+  finger. Not compiled.
 - 2026-11-05 Claude, task (5): armored soldiers' mannequin slots use `MI_SB_Polymer` (replaces the M_Mannequin glove
   tuning, which had no visible effect); `ApplyPlayerColor` re-runs when the armor state changes, PlayerState or not;
   `WeaponMetal` (0.24, 0.245, 0.26) m 0.2 r 0.42, `Polymer` (0.06, 0.062, 0.068) r 0.62. Not compiled.

@@ -13,6 +13,33 @@ namespace ShieldbreakBodyAnimPrivate
 	constexpr float MaxAimPitch = 70.f;
 	/** Actions replace this bone and everything below it (arms, head, the gun hand); legs and pelvis keep moving. */
 	const TCHAR* const ActionRootBone = TEXT("spine_01");
+	/** The trigger finger, hand to tip. The CCD bends 01 and 02; 03 (the last phalanx) follows 02. */
+	const TCHAR* const TriggerHand = TEXT("hand_r");
+	const TCHAR* const TriggerChain[] = { TEXT("index_01_r"), TEXT("index_02_r"), TEXT("index_03_r") };
+	/** cm from index_03_r's joint to the middle of the finger pad. */
+	constexpr float TriggerPadLength = 1.6f;
+
+	FCompactPoseBoneIndex FindCompactBone(const FCompactPose& Pose, const TCHAR* Name)
+	{
+		const FBoneContainer& Bones = Pose.GetBoneContainer();
+		const int32 MeshIndex = Bones.GetPoseBoneIndexForBoneName(FName(Name));
+		return MeshIndex != INDEX_NONE ? Bones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshIndex)) : FCompactPoseBoneIndex(INDEX_NONE);
+	}
+
+	/** Bone's transform relative to Ancestor (child * parent order), or false when Ancestor isn't above it. */
+	bool TransformRelativeTo(const FCompactPose& Pose, FCompactPoseBoneIndex Bone, FCompactPoseBoneIndex Ancestor, FTransform& Out)
+	{
+		Out = FTransform::Identity;
+		for (FCompactPoseBoneIndex Index = Bone; Index.IsValid(); Index = Pose.GetParentBoneIndex(Index))
+		{
+			if (Index == Ancestor)
+			{
+				return true;
+			}
+			Out = Out * Pose[Index];
+		}
+		return false;
+	}
 }
 
 // ---- Anim instance (game thread) ----
@@ -124,6 +151,8 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	SeenKickTotal = Instance->KickTotal;
 	TargetAimPitch = FMath::Clamp(Instance->AimPitch, -ShieldbreakBodyAnimPrivate::MaxAimPitch, ShieldbreakBodyAnimPrivate::MaxAimPitch);
 	AimAxis = Instance->AimAxis.GetSafeNormal();
+	TriggerWeight = FMath::Clamp(Instance->TriggerWeight, 0.f, 1.f);
+	TriggerTarget = Instance->TriggerTarget;
 }
 
 void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
@@ -294,7 +323,74 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 
 	ApplyAction(Output);
 	ApplyAimPitch(Output);
+	ApplyTriggerFinger(Output);
 	return true;
+}
+
+void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const
+{
+	using namespace ShieldbreakBodyAnimPrivate;
+	if (TriggerWeight <= 0.01f)
+	{
+		return;
+	}
+	FCompactPose& Pose = Output.Pose;
+	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, TriggerHand);
+	FCompactPoseBoneIndex Chain[UE_ARRAY_COUNT(TriggerChain)];
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(TriggerChain); ++Index)
+	{
+		Chain[Index] = FindCompactBone(Pose, TriggerChain[Index]);
+		if (!Chain[Index].IsValid())
+		{
+			return;
+		}
+	}
+	if (!Hand.IsValid())
+	{
+		return;
+	}
+
+	const FTransform Original[2] = { Pose[Chain[0]], Pose[Chain[1]] };
+	auto Pad = [&](FTransform* OutJoints) -> FVector
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			TransformRelativeTo(Pose, Chain[Index], Hand, OutJoints[Index]);
+		}
+		const FVector Last = OutJoints[2].GetLocation();
+		return Last + (Last - OutJoints[1].GetLocation()).GetSafeNormal() * TriggerPadLength;
+	};
+
+	// Cyclic coordinate descent, tip joint first, a few passes, each turn capped so the finger never flips.
+	FTransform Joints[3];
+	for (int32 Pass = 0; Pass < 6; ++Pass)
+	{
+		for (int32 Joint = 1; Joint >= 0; --Joint)
+		{
+			const FVector Tip = Pad(Joints);
+			const FVector Pivot = Joints[Joint].GetLocation();
+			const FVector From = (Tip - Pivot).GetSafeNormal();
+			const FVector To = (TriggerTarget - Pivot).GetSafeNormal();
+			if (From.IsNearlyZero() || To.IsNearlyZero())
+			{
+				continue;
+			}
+			FQuat Delta = FQuat::FindBetweenNormals(From, To);
+			FVector Axis; float Angle;
+			Delta.ToAxisAndAngle(Axis, Angle);
+			Delta = FQuat(Axis, FMath::Min(Angle, FMath::DegreesToRadians(30.f)));
+			// Joint's parent rotation in hand space; rotate the joint by Delta in that space.
+			FTransform Parent;
+			TransformRelativeTo(Pose, Pose.GetParentBoneIndex(Chain[Joint]), Hand, Parent);
+			const FQuat ParentRotation = Parent.GetRotation();
+			FTransform& Local = Pose[Chain[Joint]];
+			Local.SetRotation((ParentRotation.Inverse() * Delta * ParentRotation * Local.GetRotation()).GetNormalized());
+		}
+	}
+	for (int32 Joint = 0; Joint < 2; ++Joint)
+	{
+		Pose[Chain[Joint]].SetRotation(FQuat::Slerp(Original[Joint].GetRotation(), Pose[Chain[Joint]].GetRotation(), TriggerWeight).GetNormalized());
+	}
 }
 
 void FShieldbreakBodyAnimProxy::ApplyAction(FPoseContext& Output) const

@@ -208,6 +208,26 @@ def rail_lance():
     return p, (0, 50, 2)
 
 
+# Trigger blade inside each guard (y front of blade, top z, bottom z) and where the index finger's pad rests on it
+# (SOCKET_Trigger, Unreal socket "Trigger": the first-person arms curl the trigger finger onto it). Before this the
+# guns had no trigger, and the first-person index finger stuck straight out through the receiver (playtest
+# 2026-11-05).
+TRIGGERS = {
+    "SM_SB_BattleRifle": ((5.4, -5.2, -8.0), (0, 3.7, -7.0)),
+    "SM_SB_Sidearm": ((3.9, -3.5, -5.6), (0, 2.4, -4.8)),
+    "SM_SB_Sniper": ((5.0, -5.2, -8.0), (0, 3.4, -7.0)),
+    "SM_SB_RocketLauncher": ((5.4, -2.8, -5.6), (0, 3.7, -4.6)),
+    "SM_SB_RailLance": ((5.4, -5.2, -8.0), (0, 3.7, -7.0)),
+}
+
+
+def trigger_blade(front_y, top, bottom):
+    """A curved trigger: a blade raked back toward its tip, 0.8 cm thick."""
+    mid = (top + bottom) * 0.5
+    return k.profile("trigger", [(front_y - 0.9, top), (front_y, top), (front_y - 0.1, mid), (front_y - 0.6, bottom),
+                                 (front_y - 1.2, bottom + 0.3), (front_y - 0.9, mid)], 0.8, "Steel", bevel=0.15)
+
+
 WEAPONS = {
     "SM_SB_BattleRifle": battle_rifle,
     "SM_SB_Sidearm": sidearm,
@@ -230,8 +250,11 @@ def main():
     for name, build in WEAPONS.items():
         k.reset_scene()
         parts, muzzle = build()
+        blade, rest = TRIGGERS[name]
+        parts.append(trigger_blade(*blade))
         obj = k.join(name, parts)
         k.socket("Muzzle", muzzle, obj)
+        k.socket("Trigger", rest, obj)
         report.append("%s: %d tris, %d materials, bounds %s" % (name, k.triangle_count(obj), len(obj.data.materials), k.bounds(obj)))
         k.export_fbx(os.path.join(out_dir, name + ".fbx"), [obj])
         if "--render" in sys.argv:

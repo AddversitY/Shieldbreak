@@ -696,6 +696,63 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		UpdateFirstPersonMotion(World->GetDeltaSeconds());
 		ApplyFirstPersonArmsTransform(Dip);
 	}
+	UpdateTriggerFinger(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
+}
+
+UStaticMeshComponent* UShieldbreakBodyAnimator::GetTriggerMesh() const
+{
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	if (!Weapon || !FirstPersonArms || !Weapon->GetRootComponent() || Weapon->GetRootComponent()->GetAttachParent() != FirstPersonArms)
+	{
+		return nullptr;
+	}
+	TInlineComponentArray<UStaticMeshComponent*> Meshes(Weapon);
+	for (UStaticMeshComponent* Mesh : Meshes)
+	{
+		if (Mesh->DoesSocketExist(TEXT("Trigger")))
+		{
+			return Mesh;
+		}
+	}
+	return nullptr;
+}
+
+void UShieldbreakBodyAnimator::UpdateTriggerFinger(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
+{
+	// The animation's index finger points straight along the gun (Lyra's trigger discipline), and on our wider
+	// receivers it stuck out through the side (playtest 2026-11-05). Curl it onto the trigger instead; ease out while
+	// an action or a swap moves the hand.
+	UStaticMeshComponent* Gun = bHolding ? GetTriggerMesh() : nullptr;
+	TriggerFingerWeight = FMath::FInterpConstantTo(TriggerFingerWeight, Gun ? 1.f : 0.f, DeltaSeconds, 1.f / 0.12f);
+	if (!Gun && TriggerFingerWeight <= 0.f)
+	{
+		Instance->SetTriggerFinger(0.f, FVector::ZeroVector);
+		return;
+	}
+	if (Gun)
+	{
+		const FTransform Hand = FirstPersonArms->GetSocketTransform(TEXT("hand_r"), RTS_World);
+		Instance->SetTriggerFinger(TriggerFingerWeight, Hand.InverseTransformPosition(Gun->GetSocketLocation(TEXT("Trigger"))));
+	}
+	else
+	{
+		Instance->SetTriggerFinger(TriggerFingerWeight, Instance->GetTriggerTarget());
+	}
+}
+
+float UShieldbreakBodyAnimator::GetTriggerFingerError() const
+{
+	const UStaticMeshComponent* Gun = GetTriggerMesh();
+	if (!Gun || !FirstPersonArms || FirstPersonArms->GetBoneIndex(TEXT("index_03_r")) == INDEX_NONE)
+	{
+		return -1.f;
+	}
+	const FVector Middle = FirstPersonArms->GetBoneLocation(TEXT("index_02_r"));
+	const FVector Last = FirstPersonArms->GetBoneLocation(TEXT("index_03_r"));
+	// Same pad point as the anim instance (1.6 cm past the last joint), in world space (the arms are unscaled).
+	const FVector Pad = Last + (Last - Middle).GetSafeNormal() * 1.6f;
+	return static_cast<float>(FVector::Dist(Pad, Gun->GetSocketLocation(TEXT("Trigger"))));
 }
 
 namespace ShieldbreakBodyAnimatorPrivate
@@ -844,4 +901,19 @@ void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
 	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform);
 	UE_LOG(LogShieldbreak, Log, TEXT("First-person arms placed for %s: offset %s, rotation %s."),
 		*GetNameSafe(CalibratedIdle), *Location.ToCompactString(), *Rotation.Rotator().ToCompactString());
+	// Where the hand's joints sit in the gun's own mesh space (X across, Y along the barrel, Z up; the gun attaches to
+	// this socket unrotated), so the grips and receivers can be fitted around the real hand pose.
+	FString Joints;
+	for (const TCHAR* Bone : { TEXT("hand_r"), TEXT("thumb_01_r"), TEXT("thumb_02_r"), TEXT("thumb_03_r"), TEXT("index_01_r"),
+		TEXT("index_02_r"), TEXT("index_03_r"), TEXT("middle_01_r"), TEXT("middle_02_r"), TEXT("middle_03_r"), TEXT("ring_01_r"),
+		TEXT("ring_03_r"), TEXT("pinky_01_r"), TEXT("pinky_03_r") })
+	{
+		if (FirstPersonArms->GetBoneIndex(Bone) != INDEX_NONE)
+		{
+			const FVector Local = SocketComponent.InverseTransformPosition(
+				FirstPersonArms->GetBoneTransform(FirstPersonArms->GetBoneIndex(Bone), FTransform::Identity).GetLocation());
+			Joints += FString::Printf(TEXT(" %s=(%.1f,%.1f,%.1f)"), Bone, Local.X, Local.Y, Local.Z);
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("First-person hand joints in grip space for %s:%s"), *GetNameSafe(CalibratedIdle), *Joints);
 }
