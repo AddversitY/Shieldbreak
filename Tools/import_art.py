@@ -40,7 +40,7 @@ WORLD_STYLES = {
 # default field of view; a 90 cm rifle about 0.1 at 10 m. The first-person gun fills the screen and stays at LOD0.
 # Palette entries owned by the character art: a narrow (SB_IMPORT_FOLDERS) import still rewrites their values,
 # so tuning them in palette.json reaches the game without a full import. Map kits never use them.
-CHARACTER_PALETTE = ("ArmorMetal", "WeaponMetal")
+CHARACTER_PALETTE = ("ArmorMetal", "WeaponMetal", "Polymer")
 LOD_SETTINGS = {
     "Weapons": [(1.0, 1.0), (0.5, 0.1), (0.25, 0.04)],
     "Armor": [(1.0, 1.0), (0.5, 0.06), (0.25, 0.025)],

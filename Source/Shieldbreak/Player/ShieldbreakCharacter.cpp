@@ -5,6 +5,7 @@
 #include "Audio/ShieldbreakSFX.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Visuals/ShieldbreakShieldVisual.h"
+#include "Visuals/ShieldbreakArt.h"
 #include "Game/ShieldbreakTeams.h"
 #include "Game/ShieldbreakObjectives.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -536,58 +537,55 @@ void AShieldbreakCharacter::TintMesh(UStaticMeshComponent* MeshComponent, const 
 void AShieldbreakCharacter::ApplyPlayerColor()
 {
 	// A dead body is unpossessed and loses its PlayerState: keep the team color it died in rather than going grey.
-	if (!GetPlayerState() && AppliedColor.A >= 0.f)
+	const bool bArmoredNow = BodyAnimator && BodyAnimator->HasArmor();
+	if (!GetPlayerState() && AppliedColor.A >= 0.f && bArmoredNow == bAppliedArmored)
 	{
 		return;
 	}
-	const FLinearColor Color = GetPlayerColor();
-	if (Color.Equals(AppliedColor))
+	const FLinearColor Color = GetPlayerState() || AppliedColor.A < 0.f ? GetPlayerColor() : AppliedColor;
+	if (Color.Equals(AppliedColor) && bArmoredNow == bAppliedArmored)
 	{
 		return;
 	}
 	AppliedColor = Color;
+	bAppliedArmored = bArmoredNow;
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
 
-	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips. Under our
-	// armor the mannequin is a dark undersuit and only its strips keep the team color.
+	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips.
 	const bool bArmored = BodyAnimator && BodyAnimator->HasArmor();
 	if (bArmored)
 	{
 		BodyAnimator->SetArmorColor(Color);
 	}
-	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
+	USkeletalMeshComponent* Body = GetMesh();
+	if (!Body || !Body->GetSkeletalMeshAsset())
 	{
-		static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
-		for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+		return;
+	}
+	if (bArmored)
+	{
+		// Under the armor the mannequin is a plain matte suit in our own polymer material. M_Mannequin's gloves stayed
+		// white whatever its brightness, clear-coat and tint parameters were set to (desktop shots after3 and after4),
+		// so it is swapped out rather than tuned. The first-person arms copy the body's materials, so they match.
+		if (UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer")))
 		{
-			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
+			for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
 			{
-				MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
-				if (bArmored)
-				{
-					// M_Mannequin brightens its rubber, metal and plastic regions separately (RubberBrightness is 3.8
-					// by default), so the hands stayed white gloves under the dark undersuit, most visibly in first
-					// person. Parameter names from the desktop dump (reports/mannequin_material_params.txt).
-					MID->SetScalarParameterValue(TEXT("RubberBrightness"), 0.35f);
-					MID->SetScalarParameterValue(TEXT("RubberDesat"), 1.f);
-					MID->SetScalarParameterValue(TEXT("MetalBrighness"), 0.4f);
-					MID->SetScalarParameterValue(TEXT("PlasticBrightness"), 0.4f);
-					MID->SetVectorParameterValue(TEXT("CarbonfiberTint"), FLinearColor(0.06f, 0.06f, 0.065f));
-					// The gloves are the carbon-fibre region: dark tint alone left them white in first person (after3
-					// shots), because their clear coat and diffraction sheen mirror the fill light. Matte them.
-					MID->SetScalarParameterValue(TEXT("Carbon_CC_Min"), 0.f);
-					MID->SetScalarParameterValue(TEXT("Carbon_CC_Max"), 0.f);
-					MID->SetScalarParameterValue(TEXT("R_carbon_min"), 0.75f);
-					MID->SetScalarParameterValue(TEXT("R_carbon_max"), 0.85f);
-					MID->SetScalarParameterValue(TEXT("S_carbon_Min"), 0.15f);
-					MID->SetScalarParameterValue(TEXT("S_carbon_Max"), 0.25f);
-					MID->SetScalarParameterValue(TEXT("diffraction_Intensity"), 0.f);
-				}
-				for (const FName& Parameter : GlowParameters)
-				{
-					MID->SetVectorParameterValue(Parameter, Color * 4.f);
-				}
+				Body->SetMaterial(Slot, Suit);
+			}
+			return;
+		}
+	}
+	static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
+	for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+	{
+		if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
+		{
+			MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
+			for (const FName& Parameter : GlowParameters)
+			{
+				MID->SetVectorParameterValue(Parameter, Color * 4.f);
 			}
 		}
 	}

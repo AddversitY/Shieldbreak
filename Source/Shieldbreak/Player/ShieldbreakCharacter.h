@@ -335,6 +335,8 @@ private:
 
 	TWeakObjectPtr<AShieldbreakWeapon> VisualEquippedWeapon;
 	FLinearColor AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
+	/** The armor can attach after the first tint; the suit material is swapped in when it does. */
+	bool bAppliedArmored = false;
 	float LastLocalMeleeTime = -100.f;
 	/** Last time the right stick moved the view; aim assist only helps controller players. */
 	float LastGamepadLookTime = -100.f;
