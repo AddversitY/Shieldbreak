@@ -71,7 +71,8 @@ def battle_rifle():
     p.append(k.cyl("scope_eye", (0, -10.5, 13.2), 2.4, 3, "Polymer", verts=12))
     p.append(k.cyl("lens", (0, 17.05, 13.2), 2.1, 0.2, "Lens", verts=12, bevel=0))
     # Ammo counter on the back of the receiver (faces the player).
-    p.append(k.box("counter", (0, -20, 8.4), (3.0, 5, 0.6), "GlowCyan", bevel=0.1))
+    p.append(k.box("counter_bezel", (0, -20, 8.25), (3.6, 5.6, 0.5), "Polymer", bevel=0.15))
+    p.append(k.box("counter", (0, -20, 8.55), (3.0, 5, 0.3), "Display", bevel=0.05))
     p.append(k.box("strip", (2.9, -4, 6.5), (0.15, 14, 0.4), "GlowCyan", bevel=0))
     # v2 detail (2026-11-04), mostly where the first-person view sees it: the top, the back and the right side.
     rail_teeth(p, -11, 15, 9.95, 2.8)
@@ -84,6 +85,13 @@ def battle_rifle():
     grooves(p, 1.75, -1.2, -6.0, -13.0, 0.3, 3.2, 1.4, "WeaponMetal")    # grip
     grooves(p, 2.0, -14.8, -5.5, -12.5, 0.3, 6.0, 1.5, "WeaponMetal")   # magazine ribs
     p.append(k.box("selector", (-2.75, -1.5, -1.6), (0.4, 1.6, 0.9), "Steel", bevel=0.1))
+    # v3 (2026-11-05): a range display on the scope's left (the side the first-person view sees), panel seams and
+    # bolts on the receiver, so the big flat sides break up at first-person distance.
+    scope_display(p, (0, 2, 13.2), 2.1, 9.0)
+    for y in (-26, -9, 12):
+        p.append(k.box("seam", (-2.62, y, 2.0), (0.15, 0.35, 8.5), "Polymer", bevel=0))
+    for y, z in ((-30, 6.2), (-30, -1.5), (8, 6.2), (8, -1.5)):
+        p.append(k.cyl("bolt", (-2.7, y, z), 0.45, 0.3, "Steel", axis="X", verts=6, bevel=0))
     return p, (0, 48.2, 2.5)
 
 
@@ -146,6 +154,9 @@ def sniper():
     for y in (28, 32, 36, 40):
         for x in (2.55, -2.55):
             p.append(k.box("hg_slot", (x, y, 2.5), (0.2, 2.2, 3.4), "Polymer", bevel=0))
+    scope_display(p, (0, 4, 13), 2.4, 11.0)
+    for y in (-12, 2, 18):
+        p.append(k.box("seam", (-2.82, y, 1.8), (0.15, 0.35, 8.0), "Polymer", bevel=0))
     return p, (0, 78.2, 2)
 
 
@@ -219,6 +230,18 @@ TRIGGERS = {
     "SM_SB_RocketLauncher": ((5.4, -2.8, -5.6), (0, 3.7, -4.6)),
     "SM_SB_RailLance": ((5.4, -5.2, -8.0), (0, 3.7, -7.0)),
 }
+
+
+def scope_display(p, scope_center, scope_radius, length):
+    """A slim range display clamped to the scope's left side: housing, bezel and a dim screen with two readout bars."""
+    x, y, z = scope_center
+    side = x - scope_radius - 0.7
+    p.append(k.box("display_housing", (side, y, z), (1.4, length, scope_radius * 1.5), "WeaponMetal", bevel=0.3))
+    p.append(k.box("display_bezel", (side - 0.75, y, z), (0.2, length - 1.0, scope_radius * 1.2), "Polymer", bevel=0))
+    p.append(k.box("display", (side - 0.86, y, z), (0.05, length - 2.0, scope_radius * 0.9), "Display", bevel=0))
+    for dz, w in ((0.35, 0.55), (-0.35, 0.3)):
+        p.append(k.box("readout", (side - 0.9, y - length * 0.1, z + dz * scope_radius), (0.04, (length - 3.0) * w, 0.25),
+                       "GlowCyan", bevel=0))
 
 
 def trigger_blade(front_y, top, bottom):

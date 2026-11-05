@@ -570,7 +570,9 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 		// Under the armor the mannequin is a plain matte suit in our own polymer material. M_Mannequin's gloves stayed
 		// white whatever its brightness, clear-coat and tint parameters were set to (desktop shots after3 and after4),
 		// so it is swapped out rather than tuned. The first-person arms copy the body's materials, so they match.
-		if (UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer")))
+		UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer"));
+		Suit = Suit ? Suit : ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"));
+		if (Suit)
 		{
 			for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
 			{

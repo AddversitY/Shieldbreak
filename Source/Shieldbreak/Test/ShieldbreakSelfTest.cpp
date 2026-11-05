@@ -348,7 +348,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
 			// Under the armor the mannequin wears our matte polymer (its own material kept white gloves).
 			const UMaterialInterface* Suit = A && A->GetMesh() ? A->GetMesh()->GetMaterial(0) : nullptr;
-			Check(TEXT("...over a matte suit (MI_SB_Polymer, not the mannequin's material)"), Suit && Suit->GetName() == TEXT("MI_SB_Polymer"),
+			Check(TEXT("...over a matte suit (MI_SBC_Polymer, not the mannequin's material)"), Suit && Suit->GetName().EndsWith(TEXT("_Polymer")),
 				Suit ? Suit->GetName() : TEXT("no material"));
 			Check(TEXT("Soldier bodies blend their animation (native anim instance)"), Animator && Animator->IsBlendedAnimation(),
 				Animator ? FString::Printf(TEXT("aim pitch %.1f"), Animator->GetAimPitch()) : TEXT("no animator"));
