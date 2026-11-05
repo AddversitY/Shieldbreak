@@ -46,6 +46,8 @@ namespace ShieldbreakCharacterPrivate
 	const FLinearColor VisorColor(1.f, 0.65f, 0.08f);
 	const FLinearColor AegisColor(0.2f, 0.75f, 1.f);
 	const FLinearColor UndersuitColor(0.035f, 0.036f, 0.04f);
+	/** For FPS A/B runs: 0 keeps the mannequin's own (team-tinted) material under the armor on new spawns. */
+	TAutoConsoleVariable<int32> CVarArmorSuit(TEXT("sb.ArmorSuit"), 1, TEXT("1: armored soldiers wear the matte polymer suit (new spawns)."));
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
@@ -563,7 +565,7 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 	{
 		return;
 	}
-	if (bArmored)
+	if (bArmored && ShieldbreakCharacterPrivate::CVarArmorSuit.GetValueOnGameThread() != 0)
 	{
 		// Under the armor the mannequin is a plain matte suit in our own polymer material. M_Mannequin's gloves stayed
 		// white whatever its brightness, clear-coat and tint parameters were set to (desktop shots after3 and after4),

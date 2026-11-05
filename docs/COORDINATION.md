@@ -33,7 +33,7 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
 
 Storage cleanup at Vincent's request (2026-11-04 local): freed **6.44 GiB**, about **74 GiB free** immediately afterward. Removed only verified untracked `Intermediate/`, project `DerivedDataCache/`, **1,976 generated screenshot files older than 2026-11-04** under `Saved/Screenshots/`, and the redundant Blender 4.5.15 ZIP after confirming the extracted executable remains. Some historical raw `Saved/Screenshots` references below are now obsolete; committed review images and all current character verification evidence remain. Source, all 2,760 Content files including ignored scans, Git history/stashes, local config/backups, binaries, Unreal and extracted Blender retained. Git LFS fsck PASS; no tracked deletions. Next build regenerates its cache/PCH and may take longer. No build/game test run after cleanup; overnight automation remains PAUSED. Itemized local deletion manifest: `Saved/StorageCleanup-20261104.json`. External ElectricDreams sample (~56 GiB logical) and Windows.old (~47 GiB logical, includes old Users) were measured only and left untouched pending user direction.
 
-**PAUSED FOR THE NIGHT at Vincent's request after task (5).** Task (5) results are pushed as `d7cb2f4`; no desktop test/build/import is running. Task (6) is queued but has not started. Automation `shieldbreak-pick-up-claude-tasks` is PAUSED; resume only when Vincent asks to continue. No files reserved by Codex.
+**RESUMED (Vincent, 2026-11-05 20:59 UTC: "Resume development of shield break").** Automation can run again; task (6) is READY. The Codex chat's own pause should be lifted too.
 
 Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-claude-tasks`) checks this queue every **15 minutes** in the existing desktop chat. Vincent no longer needs to relay each task. The PC must be available and the desktop app running for local work; usage/access limits still apply.
 
@@ -43,18 +43,22 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
-**PAUSED for the night (Vincent, 2026-11-05 00:37 UTC).** Don't pick up new tasks. If task (5) is mid-run, finish it at a safe point or park it, then stop. Task (6) is on hold, not READY, until Claude or Vincent un-pauses it here.
-
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
-- **2026-11-05 (6), ON HOLD (paused), after (5) completes, same branch, after Claude's commit "Trigger finger: curl the
-  first-person index finger onto a real trigger":** Vincent saw the first-person index finger go through the gun.
+- **2026-11-05 (6), READY, same branch, at Claude's commit "Fix inverted normals on guns and armor; dimmer FP fill"
+  (includes "Trigger finger: curl the first-person index finger onto a real trigger"):** Claude reviewed task (5), thanks for
+  the SkeletalMesh usage fix and the `sb.FPLight 0` diagnostic. Root cause of the black guns/armor: `Tools/import_art.py`
+  imported the FBX normals, which `export_fbx`'s mirror leaves pointing inward (the map importers already compute
+  them; see `import_map_art.py`). It now uses `FBXNIM_COMPUTE_NORMALS` too. `sb.FPLight` default 45 -> 15 cd (the
+  glove clipped). New `sb.ArmorSuit 0` for an FPS A/B of the suit material. Also (6) as first written below:
+  Vincent saw the first-person index finger go through the gun.
   All five guns now have a trigger blade and a `SOCKET_Trigger` (Unreal socket "Trigger"); the first-person arms
   curl `index_01/02_r` onto it (CCD in the anim proxy, eased out during actions/swaps). Calibration now logs
   `First-person hand joints in grip space for <idle>: ...` (thumb/index/middle/ring/pinky positions in gun space).
   Steps: rebuild; `Tools\ImportCharacterArt.bat` (check each weapon lists a `Trigger` socket); self-test (expect
   145/145, new "...with the index finger on the trigger", report its cm); FPS runs (compare with task (5));
-  `VisualShots.bat FP` and copy every "hand joints in grip space" log line (BR and sidearm at least) into
+  FPS: task (5) measured 120.6 / 113.4 (was 132.2 / 145.7); please run each FPS measurement twice, and once more
+  each with `sb.ArmorSuit 0`, so we can tell noise from a real cost. `VisualShots.bat FP` and copy every "hand joints in grip space" log line (BR and sidearm at least) into
   `docs/playtests/2026-11-04_character_pass/reports/after6-hand-joints.txt`; shots into `after6/`, plus one
   close crop of the hand on the BR if the shot tool allows. Look at: finger on the trigger, nothing through the gun.
 - **2026-11-05 (5), READY, same branch, after Claude's commit "Matte suit under the armor; grey guns":** Claude

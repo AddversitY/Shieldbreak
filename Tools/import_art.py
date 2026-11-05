@@ -323,7 +323,10 @@ def import_fbx(fbx, destination):
     data.combine_meshes = True
     data.auto_generate_collision = False
     data.generate_lightmap_u_vs = False
-    data.normal_import_method = unreal.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS
+    # Normals from the triangle winding, as the map importers do (import_map_art.py): export_fbx's mirror leaves the
+    # exported normals pointing inward, so the guns and armor were lit from behind. Their lit sides read black and
+    # only edges caught light, whatever the palette (desktop shots after3-after5, 2026-11-05).
+    data.normal_import_method = unreal.FBXNormalImportMethod.FBXNIM_COMPUTE_NORMALS
     data.import_uniform_scale = 1.0
     task.options = ui
     tools.import_asset_tasks([task])

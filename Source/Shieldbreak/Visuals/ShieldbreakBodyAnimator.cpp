@@ -404,8 +404,9 @@ namespace ShieldbreakBodyAnimatorPrivate
 {
 	// The first-person arms and gun get very little light from the scene, so against Spire's bright white walls they
 	// showed as black silhouettes (playtest 2026-11-03). A small unshadowed fill light on the camera that lights only them (lighting
-	// channel 1) brings back their colours. Candelas; 0 turns it off. Read when the arms are made.
-	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 45.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
+	// channel 1) brings back their colours. Candelas; 0 turns it off. Read when the arms are made. 45 cd burned the
+	// matte glove white (after5); the gun read black because its normals were inverted, not for lack of light.
+	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 15.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
