@@ -1,0 +1,463 @@
+{
+ "BR_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   2.038,
+   1.979,
+   2.015,
+   2.027
+  ]
+ },
+ "BR_FP": {
+  "count": 8,
+  "mono": false,
+  "seconds": [
+   0.514,
+   0.516,
+   0.516,
+   0.503,
+   0.515,
+   0.515,
+   0.518,
+   0.517
+  ]
+ },
+ "BR_FPTail": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   2.151,
+   2.179,
+   2.132
+  ]
+ },
+ "BR_Reload": {
+  "count": 2,
+  "mono": false,
+  "seconds": [
+   1.913,
+   1.913
+  ]
+ },
+ "BR_TP": {
+  "count": 8,
+  "mono": true,
+  "seconds": [
+   0.533,
+   0.51,
+   0.517,
+   0.521,
+   0.5,
+   0.518,
+   0.5,
+   0.502
+  ]
+ },
+ "BR_TPTail": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   2.108,
+   2.093,
+   2.123
+  ]
+ },
+ "DryFire_Energy": {
+  "count": 2,
+  "mono": true,
+  "seconds": [
+   0.18,
+   0.18
+  ]
+ },
+ "DryFire_Heavy": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   0.291,
+   0.291,
+   0.348
+  ]
+ },
+ "DryFire_Light": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   0.079,
+   0.093,
+   0.079
+  ]
+ },
+ "DryFire_Rifle": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   0.11,
+   0.107,
+   0.104
+  ]
+ },
+ "Footstep": {
+  "count": 10,
+  "mono": true,
+  "seconds": [
+   0.228,
+   0.227,
+   0.223,
+   0.23,
+   0.238,
+   0.241,
+   0.226,
+   0.23,
+   0.226,
+   0.228
+  ]
+ },
+ "Grenade_Bounce": {
+  "count": 6,
+  "mono": true,
+  "seconds": [
+   0.441,
+   0.447,
+   0.441,
+   0.444,
+   0.44,
+   0.441
+  ]
+ },
+ "Grenade_Explosion": {
+  "count": 5,
+  "mono": true,
+  "seconds": [
+   1.881,
+   1.751,
+   2.172,
+   2.797,
+   1.759
+  ]
+ },
+ "Grenade_Explosion_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   1.42,
+   1.59,
+   1.42,
+   1.42
+  ]
+ },
+ "Grenade_Explosion_FP": {
+  "count": 5,
+  "mono": false,
+  "seconds": [
+   2.079,
+   1.869,
+   2.937,
+   2.932,
+   2.057
+  ]
+ },
+ "Grenade_Throw": {
+  "count": 4,
+  "mono": false,
+  "seconds": [
+   0.315,
+   0.315,
+   0.316,
+   0.316
+  ]
+ },
+ "Land": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   0.423,
+   0.365,
+   0.365,
+   0.365
+  ]
+ },
+ "Rail_Charge": {
+  "count": 1,
+  "mono": false,
+  "seconds": [
+   2.4
+  ]
+ },
+ "Rail_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   2.341,
+   2.307,
+   2.413,
+   2.405
+  ]
+ },
+ "Rail_FP": {
+  "count": 4,
+  "mono": false,
+  "seconds": [
+   1.224,
+   1.224,
+   1.224,
+   1.224
+  ]
+ },
+ "Rail_FPTail": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   2.631,
+   2.619,
+   2.619
+  ]
+ },
+ "Rail_TP": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   1.25,
+   1.224,
+   1.24,
+   1.276
+  ]
+ },
+ "Rail_TPTail": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   2.522,
+   2.522,
+   2.567
+  ]
+ },
+ "Rocket_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   3.873,
+   3.405,
+   3.873,
+   3.405
+  ]
+ },
+ "Rocket_FP": {
+  "count": 4,
+  "mono": false,
+  "seconds": [
+   0.935,
+   0.935,
+   0.935,
+   0.935
+  ]
+ },
+ "Rocket_FPTail": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   2.739,
+   1.906,
+   2.748
+  ]
+ },
+ "Rocket_Reload": {
+  "count": 2,
+  "mono": false,
+  "seconds": [
+   2.961,
+   2.961
+  ]
+ },
+ "Rocket_TP": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   1.062,
+   1.108,
+   1.071,
+   1.087
+  ]
+ },
+ "Rocket_TPTail": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   1.853,
+   2.739,
+   2.716
+  ]
+ },
+ "Shield_Impact": {
+  "count": 6,
+  "mono": true,
+  "seconds": [
+   0.205,
+   0.241,
+   0.27,
+   0.247,
+   0.266,
+   0.232
+  ]
+ },
+ "Shield_Low": {
+  "count": 1,
+  "mono": true,
+  "seconds": [
+   0.21
+  ]
+ },
+ "Shield_Pop": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   0.54,
+   0.54,
+   0.539
+  ]
+ },
+ "Shield_Recharge": {
+  "count": 1,
+  "mono": false,
+  "seconds": [
+   2.206
+  ]
+ },
+ "Sidearm_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   1.845,
+   1.869,
+   1.785,
+   1.728
+  ]
+ },
+ "Sidearm_FP": {
+  "count": 6,
+  "mono": false,
+  "seconds": [
+   0.521,
+   0.532,
+   0.521,
+   0.524,
+   0.531,
+   0.535
+  ]
+ },
+ "Sidearm_FPTail": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   1.479,
+   1.448,
+   1.467
+  ]
+ },
+ "Sidearm_Reload": {
+  "count": 2,
+  "mono": false,
+  "seconds": [
+   1.298,
+   1.298
+  ]
+ },
+ "Sidearm_TP": {
+  "count": 6,
+  "mono": true,
+  "seconds": [
+   0.477,
+   0.515,
+   0.513,
+   0.5,
+   0.499,
+   0.481
+  ]
+ },
+ "Sidearm_TPTail": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   1.444,
+   1.447,
+   1.45
+  ]
+ },
+ "Sniper_Bolt": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   0.42,
+   0.402,
+   0.387
+  ]
+ },
+ "Sniper_Dist": {
+  "count": 4,
+  "mono": true,
+  "seconds": [
+   2.64,
+   2.912,
+   3.169,
+   2.713
+  ]
+ },
+ "Sniper_FP": {
+  "count": 5,
+  "mono": false,
+  "seconds": [
+   0.924,
+   0.926,
+   0.925,
+   0.925,
+   0.926
+  ]
+ },
+ "Sniper_FPTail": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   2.393,
+   2.385,
+   1.66
+  ]
+ },
+ "Sniper_Reload": {
+  "count": 2,
+  "mono": false,
+  "seconds": [
+   2.493,
+   2.493
+  ]
+ },
+ "Sniper_TP": {
+  "count": 5,
+  "mono": true,
+  "seconds": [
+   1.064,
+   1.063,
+   1.071,
+   1.028,
+   1.049
+  ]
+ },
+ "Sniper_TPTail": {
+  "count": 3,
+  "mono": true,
+  "seconds": [
+   2.365,
+   1.614,
+   2.384
+  ]
+ },
+ "Weapon_Raise": {
+  "count": 3,
+  "mono": false,
+  "seconds": [
+   0.744,
+   0.698,
+   0.69
+  ]
+ }
+}
