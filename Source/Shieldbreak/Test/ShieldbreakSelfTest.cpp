@@ -9,6 +9,7 @@
 #include "GameFramework/HUD.h"
 #include "UnrealClient.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakArena.h"
@@ -155,9 +156,93 @@ void AShieldbreakSelfTest::ClearDummies()
 	Spawned.Reset();
 	A = nullptr;
 	B = nullptr;
+	ViewOverviewIfUnpossessed();
 	Mark = -1.f;
 	Value0 = Value1 = 0.f;
 	Phase = 0;
+}
+
+void AShieldbreakSelfTest::ViewOverviewIfUnpossessed()
+{
+	using namespace ShieldbreakSelfTestPrivate;
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || PC->GetPawn())
+	{
+		return;
+	}
+	const AActor* Target = PC->GetViewTarget();
+	// A step's own camera (chase shots) or the body the player is watching after a death stays put.
+	if (Target && Target != PC && IsValid(Target) && !Target->IsActorBeingDestroyed())
+	{
+		return;
+	}
+	if (!OverviewCamera)
+	{
+		FActorSpawnParameters CameraParams;
+		CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		const FVector Mid = (RangeA + RangeB) * 0.5f;
+		const FVector Eye = Mid + FVector(0.f, -700.f, 260.f);
+		OverviewCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(),
+			FTransform((Mid + FVector(0.f, 0.f, 60.f) - Eye).Rotation(), Eye), CameraParams);
+	}
+	if (OverviewCamera)
+	{
+		PC->SetViewTarget(OverviewCamera);
+	}
+}
+
+void AShieldbreakSelfTest::CheckViewNotInsideCharacter()
+{
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || !PC->PlayerCameraManager || InsideViewReports.Num() >= 20)
+	{
+		return;
+	}
+	const FVector Eye = PC->PlayerCameraManager->GetCameraLocation();
+	const AActor* Viewer = PC->GetViewTarget();
+	const FString StepName = Steps.IsValidIndex(StepIndex) ? Steps[StepIndex].Name : FString(TEXT("start"));
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		AShieldbreakCharacter* Character = *It;
+		if (!Character->IsAlive() || Character->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+		if (Character != Viewer)
+		{
+			if (Viewer && Viewer == ChaseCamera)
+			{
+				continue; // the bot-match chase camera trails a live bot; others may wander through it
+			}
+			// Someone else's body: the eye must be outside their capsule (plus a hand's width).
+			const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+			const FVector Local = Capsule->GetComponentTransform().InverseTransformPosition(Eye);
+			const float Radius = Capsule->GetUnscaledCapsuleRadius() + 10.f;
+			const float HalfHeight = Capsule->GetUnscaledCapsuleHalfHeight() + 10.f;
+			const float Z = FMath::Max(0.f, FMath::Abs(Local.Z) - (HalfHeight - Radius));
+			if (FVector2D(Local.X, Local.Y).SizeSquared() + Z * Z < Radius * Radius)
+			{
+				InsideViewReports.Add(FString::Printf(TEXT("%s: camera inside %s"), *StepName, *Character->GetName()));
+			}
+			continue;
+		}
+		// The viewer's own pawn: nothing third-person may draw near the eye (only the first-person arms and gun).
+		TInlineComponentArray<UPrimitiveComponent*> Primitives(Character);
+		for (const UPrimitiveComponent* Primitive : Primitives)
+		{
+			if (!Primitive->IsRegistered() || !Primitive->IsVisible() || Primitive->bHiddenInGame || Primitive->bOwnerNoSee
+				|| Primitive->bOnlyOwnerSee || Primitive->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson
+				|| Primitive->IsA<UShapeComponent>())
+			{
+				continue;
+			}
+			const FBoxSphereBounds& Bounds = Primitive->Bounds;
+			if (Bounds.GetBox().ExpandBy(15.f).IsInside(Eye))
+			{
+				InsideViewReports.Add(FString::Printf(TEXT("%s: own %s draws at the eye"), *StepName, *Primitive->GetName()));
+			}
+		}
+	}
 }
 
 AActor* AShieldbreakSelfTest::SpawnTestBlock(const FVector& BaseCenter, const FVector& Size)
@@ -212,6 +297,8 @@ void AShieldbreakSelfTest::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	ViewOverviewIfUnpossessed();
+	CheckViewNotInsideCharacter();
 
 	if (StepIndex >= 0 && Steps.IsValidIndex(StepIndex))
 	{
@@ -257,6 +344,9 @@ void AShieldbreakSelfTest::Finish()
 {
 	bFinished = true;
 	ClearDummies();
+	Check(TEXT("The camera never sits inside a character or draws the viewer's own body"), InsideViewReports.Num() == 0,
+		InsideViewReports.Num() == 0 ? FString(TEXT("checked every frame"))
+			: FString::Printf(TEXT("%d frames, first: %s"), InsideViewReports.Num(), *InsideViewReports[0]));
 
 	Lines.Add(FString::Printf(TEXT("RESULT %d passed, %d failed"), Passed, Failed));
 	const FString Path = FPaths::ProjectSavedDir() / TEXT("Logs") / (ModeTag == TEXT("Bot") ? FString(TEXT("SelfTest.txt")) : FString::Printf(TEXT("SelfTest-%s.txt"), *ModeTag));

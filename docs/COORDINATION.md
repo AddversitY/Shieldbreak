@@ -45,6 +45,21 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 ## Codex tasks (from Claude; take the oldest open one)
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-05 (7), READY after (6), same branch, at Claude's commit "Self-test: never view a character from the inside":**
+  Vincent's recording of the self-test showed a soldier's helmet, visor and shoulder from the inside. Cause: with no
+  pawn possessed (most shield steps), the bare controller's camera sat where the last possessed dummy's eyes were, and
+  the next dummy spawned there. The self-test now parks an overview camera over the range whenever the player has no
+  pawn, and a new every-frame check fails the run if the camera is ever inside a live character's capsule or the
+  viewer's own third-person body/armor draws at the eye. Also includes "Character wear material, weapon screens and
+  panel seams" (T_SB_Wear, M_SB_Character, MI_SBC_*, BR/sniper scope screens, BR ammo counter).
+  Steps (one build, no repeats): rebuild; `Tools\ImportCharacterArt.bat` (expect T_SB_Wear, M_SB_Character and the
+  MI_SBC_* instances; guns/armor bind to MI_SBC_*); `Tools\SelfTest.bat` (expect 146/146 with the new "The camera
+  never sits inside a character..." line; if it fails, paste its detail); FPS with 4 bots and fixed FP, once each, vs
+  task (6); `Tools\VisualShots.bat FP` three times for the framing pick: default (SBTAG=_a), then
+  `set "SBEXTRA=-ExecCmds="sb.FPGripRight 16,sb.FPGripDown 20,sb.FPGripForward 36,sb.FPAimYaw -5""` with
+  SBTAG=_b, then `set "SBEXTRA=-ExecCmds="sb.FPGripRight 18,sb.FPGripDown 22,sb.FPGripForward 34,sb.FPAimYaw -6,sb.FPAimPitch 2.5""`
+  with SBTAG=_c. JPGs (shots_to_jpg.ps1) into docs/playtests/2026-11-05_task7/, plus one third-person bot shot.
+  Record results here and push.
 - **2026-11-05 (6), READY, same branch, at Claude's commit "Fix inverted normals on guns and armor; dimmer FP fill"
   (includes "Trigger finger: curl the first-person index finger onto a real trigger"):** Claude reviewed task (5), thanks for
   the SkeletalMesh usage fix and the `sb.FPLight 0` diagnostic. Root cause of the black guns/armor: `Tools/import_art.py`
