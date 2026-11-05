@@ -336,11 +336,11 @@ void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const
 	}
 	FCompactPose& Pose = Output.Pose;
 	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, TriggerHand);
-	FCompactPoseBoneIndex Chain[UE_ARRAY_COUNT(TriggerChain)];
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(TriggerChain); ++Index)
+	const FCompactPoseBoneIndex Chain[] = { FindCompactBone(Pose, TriggerChain[0]), FindCompactBone(Pose, TriggerChain[1]),
+		FindCompactBone(Pose, TriggerChain[2]) };
+	for (const FCompactPoseBoneIndex& Bone : Chain)
 	{
-		Chain[Index] = FindCompactBone(Pose, TriggerChain[Index]);
-		if (!Chain[Index].IsValid())
+		if (!Bone.IsValid())
 		{
 			return;
 		}
