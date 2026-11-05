@@ -265,6 +265,20 @@ namespace ShieldbreakSFXPrivate
 			S.AddTone(0.3f, 4800.f, 1350.f, 0.12f, 0.0005f, 0.04f);
 			return S.ToPCM(0.8f);
 		}
+		case EShieldbreakSound::GrenadeThrow:
+		{
+			FSynth S(0.3f, 32);
+			S.AddNoise(0.6f, 900.f, 2600.f, 0.08f, 0.09f);
+			return S.ToPCM(0.5f);
+		}
+		case EShieldbreakSound::GrenadeBounce:
+		{
+			FSynth S(0.18f, 33);
+			S.AddTone(0.6f, 1150.f, 1050.f, 0.1f, 0.0005f, 0.035f, 0.f, 0.4f);
+			S.AddTone(0.4f, 2730.f, 2600.f, 0.1f, 0.0005f, 0.02f);
+			S.AddNoise(0.4f, 6000.f, 2000.f, 0.f, 0.01f);
+			return S.ToPCM(0.6f);
+		}
 		default:
 			return TArray<int16>();
 		}
