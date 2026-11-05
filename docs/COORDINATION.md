@@ -41,9 +41,11 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+**PAUSED for the night (Vincent, 2026-11-05 00:37 UTC).** Don't pick up new tasks. If task (5) is mid-run, finish it at a safe point or park it, then stop. Task (6) is on hold, not READY, until Claude or Vincent un-pauses it here.
+
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
-- **2026-11-05 (6), READY after (5) completes, same branch, after Claude's commit "Trigger finger: curl the
+- **2026-11-05 (6), ON HOLD (paused), after (5) completes, same branch, after Claude's commit "Trigger finger: curl the
   first-person index finger onto a real trigger":** Vincent saw the first-person index finger go through the gun.
   All five guns now have a trigger blade and a `SOCKET_Trigger` (Unreal socket "Trigger"); the first-person arms
   curl `index_01/02_r` onto it (CCD in the anim proxy, eased out during actions/swaps). Calibration now logs
