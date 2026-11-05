@@ -1,5 +1,42 @@
 # Desktop character verification — 2026-11-04
 
+## Automatic task (5), `aad1a24`
+
+Final gameplay **144/144 PASS**, FP **7/7 PASS**; build and 19-mesh/three-LOD import pass.
+The new matte-suit assertion confirms `MI_SB_Polymer`. Step-camera eye change **5.17 cm**, curb **29.95 cm**,
+capsule frame **8.23 cm**, trail **13.20 cm**.
+
+The initial run exposed a real shader integration error: Polymer lacked SkeletalMesh usage and Unreal explicitly
+fell back to Default Material. That run was stopped and excluded from results/FPS. The importer now enables,
+recompiles and saves the required usage on `M_SB_Surface`. Final gameplay/FP logs have no missing-usage/fallback
+warnings. The master usage change is intentional; its graph/parameters and the shared Gunmetal instance are unchanged.
+
+Actual palette values verified against source: ArmorMetal RGB **(0.20,0.21,0.23)** / metallic **0.15** / roughness **0.50**;
+WeaponMetal **(0.24,0.245,0.26)** / **0.20** / **0.42**; Polymer **(0.06,0.062,0.068)** / **0.00** / **0.62**.
+
+| Normal observation, same desktop and actual 1280x720 | After4 | After5 |
+|---|---:|---:|
+| Crucible, four bots | 132.2 FPS (74 s) | 120.6 FPS (76 s) |
+| Keel fixed FP, no bots | 145.7 FPS (20.4 s) | 113.4 FPS (20.9 s) |
+
+These lower single observations need follow-up, but are not a controlled benchmark or proof of the cause.
+
+**The normal glove still clips white.** The actual matte material is loaded and no longer shows the old woven
+mannequin pattern. With only `sb.FPLight 0`, the same view has a dark matte/cyan-lit glove. This isolates the fill
+light as a contributor to clipping; Claude should inspect fill/exposure. No production light value was changed.
+The fill-off FP check passes 7/7; its 120.1 FPS is a different lighting condition, excluded from the table above.
+Gun body remains very dark overall, with readable rails/edges; mid-grey appearance is partial. The bots' suit is
+matte dark between plates. Backlit bot views remain dark, consistent with Claude's accepted task (4) lighting review.
+
+- [Normal FP idle](after5/keel_fp_fp_0_idle_br_0.jpg), [same view, fill off](after5/fill-off/keel_fp_filloff_fp_0_idle_br_0.jpg).
+- [Bot view](after5/bot_1.jpg); 23 normal JPGs in `after5/` and one diagnostic comparison.
+- [Gameplay](reports/after5-selftest.txt), [normal FP](reports/after5-fp.txt), [fill-off FP](reports/after5-fp-filloff.txt).
+- [Import](reports/after5-import.txt), [actual values/usage/bindings](reports/after5-material-verification.json),
+  [initial rendering failure](reports/after5-initial-rendering-fallback.txt).
+
+Full initial log and original PNGs retained in `Saved/CharacterVerification-20261104/After5/`.
+No C++ gameplay edits, network/latency tests, human movement acceptance or main merge in this task.
+
 ## Automatic task (4), `4d1bfa6`
 
 Build/import PASS; gameplay **143/143 PASS**, FP **7/7 PASS**. Actual palette values match the updated source:

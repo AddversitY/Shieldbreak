@@ -1,0 +1,2 @@
+Initial task (5) run was stopped after an explicit shader-usage fallback. No completed result or FPS was taken from that run.
+[2026.11.05-00.21.59:429][219]LogMaterial: Warning: Material /Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer missing usage flag SkeletalMesh! Default Material will be used in game.

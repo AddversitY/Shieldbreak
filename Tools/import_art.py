@@ -63,7 +63,15 @@ def color(rgb, a=1.0):
 def master_material():
     path = MATERIALS + "/M_SB_Surface"
     if eal.does_asset_exist(path):
-        return unreal.load_asset(path)
+        mat = unreal.load_asset(path)
+        if not mel.has_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH):
+            # Polymer now covers the mannequin and FP arms as well as static props.
+            # Without this permutation the runtime silently draws Default Material.
+            mel.set_base_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, True)
+            mel.recompile_material(mat)
+            eal.save_asset(path)
+            log("enabled SkeletalMesh usage on " + path)
+        return mat
     mat = tools.create_asset("M_SB_Surface", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
 
     def vector(name, default, x, y):
@@ -90,6 +98,7 @@ def master_material():
     mel.connect_material_property(metallic, "", unreal.MaterialProperty.MP_METALLIC)
     mel.connect_material_property(roughness, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(multiply, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.set_base_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, True)
     mel.recompile_material(mat)
     eal.save_asset(path)
     log("created " + path)
