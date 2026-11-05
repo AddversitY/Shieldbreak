@@ -67,6 +67,8 @@ public:
 	/** First person: cm between the index finger's pad and the gun's "Trigger" socket (last evaluated pose), or -1
 	 *  when there are no arms or the gun has no trigger socket. */
 	float GetTriggerFingerError() const;
+	/** Trigger socket, finger pad and index_01_r in hand_r space (cm), for fitting the trigger art. */
+	FString DescribeTriggerFinger() const;
 
 	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
 	 *  weapon's recoil (degrees), so heavier guns kick harder. */

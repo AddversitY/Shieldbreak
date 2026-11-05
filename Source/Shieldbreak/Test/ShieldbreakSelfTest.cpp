@@ -489,7 +489,8 @@ void AShieldbreakSelfTest::BuildSteps()
 				return false;
 			}
 			Check(TEXT("...with the index finger on the trigger"), FingerError >= 0.f && FingerError < 2.f,
-				FString::Printf(TEXT("finger pad %s cm from the trigger (%s)"), *ShieldbreakSelfTestPrivate::Num(FingerError), *GetNameSafe(Weapon)));
+				FString::Printf(TEXT("finger pad %s cm from the trigger (%s; %s)"), *ShieldbreakSelfTestPrivate::Num(FingerError), *GetNameSafe(Weapon),
+					Animator ? *Animator->DescribeTriggerFinger() : TEXT("no animator")));
 			ClearDummies();
 			return true;
 		}, 6.f });

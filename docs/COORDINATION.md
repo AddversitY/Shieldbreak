@@ -46,7 +46,7 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
-- **2026-11-05 (7), READY after (6), same branch, at Claude's commit "Self-test: never view a character from the inside":**
+- **2026-11-05 (7), READY after (6), same branch, at Claude's commit "FP lighting A/B and trigger-finger diagnostics" (after "Self-test: never view a character from the inside"):**
   Vincent's recording of the self-test showed a soldier's helmet, visor and shoulder from the inside. Cause: with no
   pawn possessed (most shield steps), the bare controller's camera sat where the last possessed dummy's eyes were, and
   the next dummy spawned there. The self-test now parks an overview camera over the range whenever the player has no
@@ -59,7 +59,11 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   task (6); `Tools\VisualShots.bat FP` three times for the framing pick: default (SBTAG=_a), then
   `set "SBEXTRA=-ExecCmds="sb.FPGripRight 16,sb.FPGripDown 20,sb.FPGripForward 36,sb.FPAimYaw -5""` with
   SBTAG=_b, then `set "SBEXTRA=-ExecCmds="sb.FPGripRight 18,sb.FPGripDown 22,sb.FPGripForward 34,sb.FPAimYaw -6,sb.FPAimPitch 2.5""`
-  with SBTAG=_c. JPGs (shots_to_jpg.ps1) into docs/playtests/2026-11-05_task7/, plus one third-person bot shot.
+  with SBTAG=_c. Then three lighting diagnostics for the black BR / white glove (task (6)), default framing:
+  `-ExecCmds="sb.FPSelfShadow 0"` (SBTAG=_d: the local player's hidden body casts no shadow onto the gun),
+  `-ExecCmds="sb.FPLight 0"` (SBTAG=_e), `-ExecCmds="viewmode unlit"` (SBTAG=_f: base colour only).
+  The trigger-finger check's detail now prints hand- and gun-space positions: paste that line verbatim.
+  JPGs (shots_to_jpg.ps1) into docs/playtests/2026-11-05_task7/, plus one third-person bot shot.
   Record results here and push.
 - **2026-11-05 (6), READY, same branch, at Claude's commit "Fix inverted normals on guns and armor; dimmer FP fill"
   (includes "Trigger finger: curl the first-person index finger onto a real trigger"):** Claude reviewed task (5), thanks for

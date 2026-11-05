@@ -406,6 +406,9 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// showed as black silhouettes (playtest 2026-11-03). A small unshadowed fill light on the camera that lights only them (lighting
 	// channel 1) brings back their colours. Candelas; 0 turns it off. Read when the arms are made. 45 cd burned the
 	// matte glove white (after5); the gun read black because its normals were inverted, not for lack of light.
+	/** A/B for the black first-person gun: the local player's hidden body and armor cast their shadow from the eye,
+	 *  so overhead lights may shade the gun held in front of the chest. 0 = the local body casts no hidden shadow. */
+	TAutoConsoleVariable<int32> CVarFPSelfShadow(TEXT("sb.FPSelfShadow"), 1, TEXT("1: the local player's hidden body casts a shadow (new spawns)."));
 	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 15.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
@@ -636,6 +639,16 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 			FirstPersonArms->HideBoneByName(Bone, EPhysBodyOp::PBO_None);
 		}
 		AttachArmor(FirstPersonArms, true);
+		if (CVarFPSelfShadow.GetValueOnGameThread() == 0)
+		{
+			Body->bCastHiddenShadow = false;
+			Body->MarkRenderStateDirty();
+			for (UStaticMeshComponent* Piece : ArmorPieces)
+			{
+				Piece->bCastHiddenShadow = false;
+				Piece->MarkRenderStateDirty();
+			}
+		}
 		// Hidden (the gun stays a camera viewmodel) until the arms have been placed.
 		SetFirstPersonArmsVisible(false);
 		CalibratedIdle = nullptr;
@@ -754,6 +767,26 @@ float UShieldbreakBodyAnimator::GetTriggerFingerError() const
 	// Same pad point as the anim instance (1.6 cm past the last joint), in world space (the arms are unscaled).
 	const FVector Pad = Last + (Last - Middle).GetSafeNormal() * 1.6f;
 	return static_cast<float>(FVector::Dist(Pad, Gun->GetSocketLocation(TEXT("Trigger"))));
+}
+
+FString UShieldbreakBodyAnimator::DescribeTriggerFinger() const
+{
+	const UStaticMeshComponent* Gun = GetTriggerMesh();
+	if (!Gun || !FirstPersonArms || FirstPersonArms->GetBoneIndex(TEXT("index_03_r")) == INDEX_NONE)
+	{
+		return TEXT("no trigger");
+	}
+	const FTransform Hand = FirstPersonArms->GetSocketTransform(TEXT("hand_r"), RTS_World);
+	const FVector Middle = FirstPersonArms->GetBoneLocation(TEXT("index_02_r"));
+	const FVector Last = FirstPersonArms->GetBoneLocation(TEXT("index_03_r"));
+	const FVector Pad = Last + (Last - Middle).GetSafeNormal() * 1.6f;
+	auto InHand = [&Hand](const FVector& World) { const FVector P = Hand.InverseTransformPosition(World); return FString::Printf(TEXT("(%.1f,%.1f,%.1f)"), P.X, P.Y, P.Z); };
+	// The trigger socket in the gun's own mesh space too, so the art can be moved by exactly the miss.
+	const FVector PadInGun = Gun->GetComponentTransform().InverseTransformPosition(Pad);
+	const FVector TriggerInGun = Gun->GetComponentTransform().InverseTransformPosition(Gun->GetSocketLocation(TEXT("Trigger")));
+	return FString::Printf(TEXT("hand space: trigger %s pad %s index_01 %s; gun space: trigger (%.1f,%.1f,%.1f) pad (%.1f,%.1f,%.1f)"),
+		*InHand(Gun->GetSocketLocation(TEXT("Trigger"))), *InHand(Pad), *InHand(FirstPersonArms->GetBoneLocation(TEXT("index_01_r"))),
+		TriggerInGun.X, TriggerInGun.Y, TriggerInGun.Z, PadInGun.X, PadInGun.Y, PadInGun.Z);
 }
 
 namespace ShieldbreakBodyAnimatorPrivate
