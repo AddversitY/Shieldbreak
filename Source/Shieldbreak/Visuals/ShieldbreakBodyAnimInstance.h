@@ -47,6 +47,9 @@ private:
 	void ApplyAimPitch(FPoseContext& Output) const;
 	/** Curls the right index finger (CCD over index_01/02_r) so its pad rests on TriggerTarget (hand_r space). */
 	void ApplyTriggerFinger(FPoseContext& Output) const;
+	/** First-person grenade throw: closes the left fingers into GripAnimation's hold, then a two-bone IK puts hand_l
+	 *  at LeftHandTarget with the elbow toward LeftElbowPole and flexes the wrist (all component space). */
+	void ApplyLeftArm(FPoseContext& Output) const;
 
 	FTrack Current;
 	FTrack Previous;
@@ -73,6 +76,12 @@ private:
 	float SeenKickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	const UAnimSequenceBase* GripAnimation = nullptr;
+	float GripTime = 0.f;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -103,6 +112,15 @@ public:
 	 *  space. 0 leaves the finger as the animation has it. */
 	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace) { TriggerWeight = Weight; TriggerTarget = TargetInHandSpace; }
 	const FVector& GetTriggerTarget() const { return TriggerTarget; }
+
+	/** First-person arms, grenade throw: Weight 0-1 of driving the left arm. The hand goes to HandTarget with the elbow
+	 *  bent toward ElbowPole (both mesh component space), the wrist flexed by WristFlex degrees about the elbow's
+	 *  hinge, and the fingers close into Grip's pose at GripTime (Lyra's toss, which holds a grenade). */
+	void SetLeftArm(float Weight, const FVector& HandTarget, const FVector& ElbowPole, float WristFlex, UAnimSequenceBase* Grip, float InGripTime)
+	{
+		LeftArmWeight = Weight; LeftHandTarget = HandTarget; LeftElbowPole = ElbowPole; LeftWristFlex = WristFlex;
+		LeftGrip = Grip; LeftGripTime = InGripTime;
+	}
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -145,4 +163,10 @@ private:
 	float KickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> LeftGrip;
+	float LeftGripTime = 0.f;
 };

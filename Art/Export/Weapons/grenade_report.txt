@@ -1,0 +1,1 @@
+SM_SB_FragGrenade: 1808 tris, 5 materials [M_Olive, M_WeaponMetal, M_Polymer, M_Steel, M_GlowAmber], bounds X -3.9..3.9 Y -3.9..3.9 Z -3.8..5.0

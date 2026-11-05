@@ -64,6 +64,12 @@ public:
 	USkeletalMeshComponent* GetFirstPersonArms() const;
 	/** True when the arms are on screen and the equipped gun should go in their hand. */
 	bool HasFirstPersonArms() const;
+	/** First person: seconds into the current grenade throw, or -1 when not throwing. */
+	float GetFirstPersonThrowTime() const;
+	/** The grenade shown in the first-person (or third-person) hand, when visible; null otherwise. */
+	UStaticMeshComponent* GetVisibleHeldGrenade(bool bFirstPerson) const;
+	/** First person: cm between the left hand and where the throw wants it (last evaluated pose), or -1. */
+	float GetLeftHandError() const { return LastLeftHandError; }
 	/** First person: cm between the index finger's pad and the gun's "Trigger" socket (last evaluated pose), or -1
 	 *  when there are no arms or the gun has no trigger socket. */
 	float GetTriggerFingerError() const;
@@ -141,15 +147,29 @@ private:
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
 	float FirstPersonIdleSince = -1.f;
 	FTransform CalibratedArmsTransform = FTransform::Identity;
-	/** The grenade throw's first-person dip (see UpdateFirstPersonArms). */
-	float FirstPersonThrowEnd = -1.f;
-	float FirstPersonThrowDuration = 0.f;
+	/** Grenade throw, first person: world time it started (the arm and gun follow UpdateFirstPersonThrow's timeline),
+	 *  and the gun's current dip (0-1). */
+	float FirstPersonThrowStart = -100.f;
 	float AppliedThrowDip = 0.f;
+	bool bFirstPersonLeftArmShown = false;
+	bool bFirstPersonThrowKicked = false;
+	/** Grenade throw, third person: world time the toss started (the grenade shows in the hand until release). */
+	float BodyThrowStart = -100.f;
+	bool bBodyTossReleased = true;
+	/** The grenade in the throwing hand until it is let go: first person (owner only) and third person (everyone else). */
+	UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> FirstPersonHeldGrenade;
+	UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> BodyHeldGrenade;
+	/** First person: drives the left arm (IK), the held grenade and the gun's dip for the throw; returns the dip. */
+	float UpdateFirstPersonThrow(class UShieldbreakBodyAnimInstance* Instance, float Now);
+	/** Shows Grenade in Mesh's left palm (placed from the hand's own joints), or hides it. Creates it on first use. */
+	void UpdateHeldGrenade(USkeletalMeshComponent* Mesh, TObjectPtr<UStaticMeshComponent>& Grenade, bool bVisible, bool bFirstPerson);
 	/** Weapon swap: the arms drop out of view while the equip animation plays and until they are re-placed for the
 	 *  new gun's idle (the equip pose and the old placement put a shoulder plate across the screen), then rise. */
 	float FirstPersonEquipEnd = -1.f;
 	float SwapLower = 0.f;
 	float AppliedSwapLower = 0.f;
+	FVector LastLeftHandTarget = FVector::ZeroVector;
+	float LastLeftHandError = -1.f;
 	/** How far the index finger is curled onto the trigger (eases out for actions and swaps). */
 	float TriggerFingerWeight = 0.f;
 	/** Finds the equipped gun's "Trigger" socket and hands the arms' anim instance the finger target. */

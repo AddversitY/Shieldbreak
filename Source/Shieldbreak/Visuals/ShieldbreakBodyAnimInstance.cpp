@@ -153,6 +153,12 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 	TriggerWeight = FMath::Clamp(Instance->TriggerWeight, 0.f, 1.f);
 	TriggerTarget = Instance->TriggerTarget;
+	LeftArmWeight = FMath::Clamp(Instance->LeftArmWeight, 0.f, 1.f);
+	LeftHandTarget = Instance->LeftHandTarget;
+	LeftElbowPole = Instance->LeftElbowPole;
+	LeftWristFlex = Instance->LeftWristFlex;
+	GripAnimation = Instance->LeftGrip;
+	GripTime = Instance->LeftGripTime;
 }
 
 void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
@@ -324,7 +330,111 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 	ApplyAction(Output);
 	ApplyAimPitch(Output);
 	ApplyTriggerFinger(Output);
+	ApplyLeftArm(Output);
 	return true;
+}
+
+void FShieldbreakBodyAnimProxy::ApplyLeftArm(FPoseContext& Output) const
+{
+	using namespace ShieldbreakBodyAnimPrivate;
+	if (LeftArmWeight <= 0.01f)
+	{
+		return;
+	}
+	FCompactPose& Pose = Output.Pose;
+	const FCompactPoseBoneIndex Upper = FindCompactBone(Pose, TEXT("upperarm_l"));
+	const FCompactPoseBoneIndex Lower = FindCompactBone(Pose, TEXT("lowerarm_l"));
+	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, TEXT("hand_l"));
+	if (!Upper.IsValid() || !Lower.IsValid() || !Hand.IsValid() || Pose.GetParentBoneIndex(Lower) != Upper
+		|| Pose.GetParentBoneIndex(Hand) != Lower)
+	{
+		return;
+	}
+
+	// Fingers: the grip pose's local rotations for everything below hand_l (compact poses list parents first).
+	if (GripAnimation)
+	{
+		FPoseContext Grip(Output);
+		FTrack Track;
+		Track.Animation = GripAnimation;
+		Track.Time = FMath::Clamp(GripTime, 0.f, GripAnimation->GetPlayLength());
+		Track.bLoop = false;
+		Sample(Track, Grip);
+		TArray<bool, TInlineAllocator<128>> UnderHand;
+		UnderHand.SetNumZeroed(Pose.GetNumBones());
+		for (FCompactPoseBoneIndex Bone : Pose.ForEachBoneIndex())
+		{
+			const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Bone);
+			const bool bUnder = Parent.IsValid() && (Parent == Hand || UnderHand[Parent.GetInt()]);
+			UnderHand[Bone.GetInt()] = bUnder;
+			if (bUnder)
+			{
+				Pose[Bone].SetRotation(FQuat::Slerp(Pose[Bone].GetRotation(), Grip.Pose[Bone].GetRotation(), LeftArmWeight).GetNormalized());
+			}
+		}
+	}
+
+	// Component-space transforms of the chain (child * parent order, as in TransformRelativeTo).
+	auto ComponentSpace = [&Pose](FCompactPoseBoneIndex Bone)
+	{
+		FTransform Out = FTransform::Identity;
+		for (FCompactPoseBoneIndex Index = Bone; Index.IsValid(); Index = Pose.GetParentBoneIndex(Index))
+		{
+			Out = Out * Pose[Index];
+		}
+		return Out;
+	};
+	const FCompactPoseBoneIndex Shoulder = Pose.GetParentBoneIndex(Upper);
+	const FTransform ParentCS = Shoulder.IsValid() ? ComponentSpace(Shoulder) : FTransform::Identity;
+	const FTransform UpperCS = Pose[Upper] * ParentCS;
+	const FTransform LowerCS = Pose[Lower] * UpperCS;
+	const FTransform HandCS = Pose[Hand] * LowerCS;
+
+	// Two-bone IK by the law of cosines, the elbow bending toward the pole.
+	const FVector A = UpperCS.GetLocation(), J = LowerCS.GetLocation(), E = HandCS.GetLocation();
+	const float L1 = static_cast<float>(FVector::Dist(A, J)), L2 = static_cast<float>(FVector::Dist(J, E));
+	FVector Dir = LeftHandTarget - A;
+	const float Reach = static_cast<float>(Dir.Size());
+	if (L1 < 1.f || L2 < 1.f || Reach < 1.f)
+	{
+		return;
+	}
+	Dir /= Reach;
+	const float D = FMath::Clamp(Reach, FMath::Abs(L1 - L2) + 1.f, (L1 + L2) * 0.995f);
+	FVector Bend = (LeftElbowPole - A) - Dir * FVector::DotProduct(LeftElbowPole - A, Dir);
+	if (!Bend.Normalize())
+	{
+		Bend = (J - A) - Dir * FVector::DotProduct(J - A, Dir);
+		if (!Bend.Normalize())
+		{
+			return;
+		}
+	}
+	const float CosA = FMath::Clamp((L1 * L1 + D * D - L2 * L2) / (2.f * L1 * D), -1.f, 1.f);
+	const FVector NewJ = A + Dir * (L1 * CosA) + Bend * (L1 * FMath::Sqrt(1.f - CosA * CosA));
+	const FVector NewE = A + Dir * D;
+
+	const FQuat UpperDelta = FQuat::FindBetweenVectors(J - A, NewJ - A);
+	const FQuat NewUpper = (UpperDelta * UpperCS.GetRotation()).GetNormalized();
+	const FVector MovedHand = NewJ + UpperDelta.RotateVector(E - J);
+	const FQuat LowerDelta = FQuat::FindBetweenVectors(MovedHand - NewJ, NewE - NewJ);
+	const FQuat NewLower = (LowerDelta * UpperDelta * LowerCS.GetRotation()).GetNormalized();
+	FQuat NewHand = (LowerDelta * UpperDelta * HandCS.GetRotation()).GetNormalized();
+	// Wrist: cocked back on the wind-up, snapped through on the release, about the elbow's hinge axis.
+	const FVector Hinge = FVector::CrossProduct(NewJ - A, NewE - NewJ).GetSafeNormal();
+	if (!Hinge.IsNearlyZero() && !FMath::IsNearlyZero(LeftWristFlex))
+	{
+		NewHand = (FQuat(Hinge, FMath::DegreesToRadians(LeftWristFlex)) * NewHand).GetNormalized();
+	}
+
+	const float W = LeftArmWeight;
+	auto Blend = [W](FTransform& Local, const FQuat& Target)
+	{
+		Local.SetRotation(FQuat::Slerp(Local.GetRotation(), Target, W).GetNormalized());
+	};
+	Blend(Pose[Upper], ParentCS.GetRotation().Inverse() * NewUpper);
+	Blend(Pose[Lower], NewUpper.Inverse() * NewLower);
+	Blend(Pose[Hand], NewLower.Inverse() * NewHand);
 }
 
 void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const

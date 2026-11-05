@@ -43,6 +43,18 @@ Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+- **2026-11-05 (G3), READY, branch `claude/project-thread-yp1u5u` (based on PR #9's `fa56e50` + the audio thread's
+  `32d0406`), grenade pass, see `docs/GRENADE_PASS.md`:** run after task (6) on the desktop. Steps: build the editor;
+  `Tools\ImportCharacterArt.bat` (expect new `SM_SB_FragGrenade` with three LODs and a GlowAmber slot); then
+  `Tools\CreateGrenadeFX.bat` (expect `Saved\Logs\GrenadeFXMaterials.txt` with three materials, textures "found");
+  `Tools\InspectGrenadeAssets.bat` if (G2) hasn't run. Self-test: expect task (6)'s count plus 9 new checks under "Grenade
+  throw timing". FPS: the same two runs as task (6), twice each, plus the four-bot run once with
+  `sb.ExplosionCards 0 sb.ExplosionFlash 0`; compare with task (6) (before). `VisualShots.bat FP` into
+  `docs/playtests/2026-11-05_grenade_pass/after1/`, especially `fp_3_grenade_*`, `fp_3b_grenade_release_*`,
+  `tp_6_grenade_*` and `tp_7_explosion_*`. Copy log lines "First-person left shoulder in camera space" into
+  `docs/playtests/2026-11-05_grenade_pass/reports/after1-shoulder.txt`. Look at: left hand and grenade visible in the wind-up,
+  hand forward at the release, gun dipped right (not across the screen), grenade model in TP hand, fireball/smoke cards
+  with no hard edges or squares, scorch on the floor.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
 - **2026-11-05 (6), READY, same branch, at Claude's commit "Fix inverted normals on guns and armor; dimmer FP fill"
