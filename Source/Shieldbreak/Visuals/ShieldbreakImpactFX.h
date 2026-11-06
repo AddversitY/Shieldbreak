@@ -124,6 +124,17 @@ private:
 		float Size = 1.f;
 	};
 
+	/** Front star and two crossed side flames, owned by the gun's actor (first-person primitives only draw for their owner). */
+	struct FMuzzleRig
+	{
+		TWeakObjectPtr<UStaticMeshComponent> Cards[3];
+		TWeakObjectPtr<UMaterialInstanceDynamic> MIDs[3];
+		float StartTime = -1.f;
+		float Duration = 0.f;
+	};
+	FMuzzleRig* FindOrCreateMuzzleRig(USceneComponent* Gun);
+	TMap<TWeakObjectPtr<USceneComponent>, FMuzzleRig> MuzzleRigs;
+
 	bool EnsureActor();
 	void SpawnSparks(const FVector& Point, const FVector& Normal, const FVector& Reflect, int32 Count, float SpeedMin, float SpeedMax,
 		float ConeDegrees, float Life, const FLinearColor& Hot, const FLinearColor& Cool, float Brightness, float Width, float Gravity);
@@ -144,9 +155,7 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UPointLightComponent>> Lights;
 	UPROPERTY(Transient) TArray<TObjectPtr<UStaticMeshComponent>> Flares;
 	UPROPERTY(Transient) TArray<TObjectPtr<UMaterialInstanceDynamic>> FlareMIDs;
-	/** Per muzzle slot: front star, two crossed side flames, one light. */
-	UPROPERTY(Transient) TArray<TObjectPtr<UStaticMeshComponent>> MuzzleCards;
-	UPROPERTY(Transient) TArray<TObjectPtr<UMaterialInstanceDynamic>> MuzzleMIDs;
+	/** Muzzle flash lights, pooled; the cards live on each gun (FMuzzleRig). */
 	UPROPERTY(Transient) TArray<TObjectPtr<UPointLightComponent>> MuzzleLights;
 
 	TArray<float> DecalTimes;

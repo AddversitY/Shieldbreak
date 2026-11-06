@@ -105,7 +105,7 @@ namespace ShieldbreakImpactPrivate
 			}
 		}
 		Name.ToLowerInline();
-		if (ContainsAny(Name, { TEXT("water"), TEXT("creek"), TEXT("river") }))
+		if (ContainsAny(Name, { TEXT("water"), TEXT("river") }))
 		{
 			Info.Surface = EShieldbreakImpactSurface::Water;
 		}
@@ -124,6 +124,12 @@ namespace ShieldbreakImpactPrivate
 			}
 		}
 		Cache.Add(Component, Info);
+		static int32 Logged = 0;
+		if (Logged < 40)
+		{
+			++Logged;
+			UE_LOG(LogShieldbreak, Log, TEXT("ImpactFX surface: %d for '%s'"), static_cast<int32>(Info.Surface), *Name);
+		}
 		return Info;
 	}
 
@@ -276,28 +282,6 @@ bool UShieldbreakImpactFXSubsystem::EnsureActor()
 	}
 	FlareSlots.SetNum(Flares.Num());
 
-	UStaticMesh* Plane = ShieldbreakArt::Load<UStaticMesh>(PlaneMesh);
-	if (UMaterialInterface* Muzzle = Plane ? LoadMaterial(MuzzleMaterial) : nullptr)
-	{
-		for (int32 Index = 0; Index < MuzzleSlotCount * CardsPerMuzzle; ++Index)
-		{
-			UStaticMeshComponent* Card = NewObject<UStaticMeshComponent>(FXActor);
-			Card->SetStaticMesh(Plane);
-			QuietPrimitive(Card);
-			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Muzzle, this);
-			// Card 0 of each slot is the front star; 1 and 2 are side flames (two long spikes).
-			const bool bSide = Index % CardsPerMuzzle != 0;
-			MID->SetScalarParameterValue(TEXT("Spikes"), bSide ? 2.f : 6.f);
-			MID->SetScalarParameterValue(TEXT("Sharpness"), bSide ? 2.f : 10.f);
-			Card->SetMaterial(0, MID);
-			Card->SetTranslucentSortPriority(4);
-			Card->SetupAttachment(FXActor->GetRootComponent());
-			Card->SetVisibility(false);
-			Card->RegisterComponent();
-			MuzzleCards.Add(Card);
-			MuzzleMIDs.Add(MID);
-		}
-	}
 	for (int32 Index = 0; Index < MuzzleSlotCount; ++Index)
 	{
 		MuzzleLights.Add(MakeLight(FXActor));
@@ -305,7 +289,7 @@ bool UShieldbreakImpactFXSubsystem::EnsureActor()
 	MuzzleSlots.SetNum(MuzzleSlotCount);
 
 	UE_LOG(LogShieldbreak, Log, TEXT("ImpactFX ready: sparks %d, glow %d, puff %d, shield flares %d, muzzle cards %d, decal material %d"),
-		SparkMesh != nullptr, GlowMesh != nullptr, PuffMesh != nullptr, Flares.Num(), MuzzleCards.Num(), LoadMaterial(HoleMaterial) != nullptr);
+		SparkMesh != nullptr, GlowMesh != nullptr, PuffMesh != nullptr, Flares.Num(), LoadMaterial(MuzzleMaterial) != nullptr, LoadMaterial(HoleMaterial) != nullptr);
 	return true;
 }
 
@@ -524,11 +508,13 @@ void UShieldbreakImpactFXSubsystem::PlaceDecal(const FHitResult& Hit, float Radi
 	}
 	UDecalComponent* Decal = Decals[NextDecal];
 	UMaterialInstanceDynamic* MID = DecalMIDs[NextDecal];
-	// Projects along -normal, depth just enough for the bump it sits on; random spin so holes never repeat.
+	// Projects along -normal; random spin so holes never repeat.
 	const FVector Normal = Hit.ImpactNormal;
 	FRotator Rotation = (-Normal).Rotation();
 	Rotation.Roll = FMath::FRandRange(-180.f, 180.f);
-	Decal->DecalSize = FVector(4.f, Radius, Radius);
+	// Deep box: arena walls are collision cubes behind separate cladding meshes, so the visible surface can sit
+	// centimetres off the hit point (FX1-FX3: holes showed on floors, never on walls, with a 4 cm box).
+	Decal->DecalSize = FVector(20.f, Radius, Radius);
 	Decal->SetWorldLocationAndRotation(Hit.ImpactPoint, Rotation);
 	MID->SetVectorParameterValue(TEXT("Tint"), Tint);
 	MID->SetScalarParameterValue(TEXT("Darkness"), Darkness);
@@ -605,8 +591,13 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 
 	const UPrimitiveComponent* GunPrimitive = Cast<UPrimitiveComponent>(AttachTo);
 	const EFirstPersonPrimitiveType ViewType = GunPrimitive ? GunPrimitive->FirstPersonPrimitiveType : EFirstPersonPrimitiveType::None;
-	if (MuzzleCards.Num() >= (NextMuzzle + 1) * CardsPerMuzzle)
+	// The cards belong to the gun's own actor and stay attached to it: first-person primitives only draw for their
+	// owner's view, so cards owned by the shared effects actor never showed on the first-person gun (FX1-FX3).
+	FMuzzleRig* Rig = FindOrCreateMuzzleRig(AttachTo);
+	if (Rig)
 	{
+		Rig->StartTime = Now;
+		Rig->Duration = Slot.Duration;
 		const float Roll = FMath::FRandRange(0.f, 360.f);
 		const FQuat Facing = FRotationMatrix::MakeFromZ(Dir).ToQuat();
 		const FQuat Spin(Dir, FMath::DegreesToRadians(Roll));
@@ -615,12 +606,15 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 		const float StarSize = 13.f * S * Jitter;
 		const float FlameLength = 24.f * S * Jitter;
 		const float FlameWidth = 9.f * S;
+		static int32 DebugLogged = 0;
 		for (int32 Card = 0; Card < CardsPerMuzzle; ++Card)
 		{
-			const int32 Index = NextMuzzle * CardsPerMuzzle + Card;
-			UStaticMeshComponent* Mesh = MuzzleCards[Index];
-			UMaterialInstanceDynamic* MID = MuzzleMIDs[Index];
-			Mesh->AttachToComponent(AttachTo, FAttachmentTransformRules::KeepWorldTransform);
+			UStaticMeshComponent* Mesh = Rig->Cards[Card].Get();
+			UMaterialInstanceDynamic* MID = Rig->MIDs[Card].Get();
+			if (!Mesh || !MID)
+			{
+				continue;
+			}
 			if (Card == 0)
 			{
 				Mesh->SetWorldLocationAndRotation(Muzzle + Dir * 2.f, Spin * Facing);
@@ -642,13 +636,15 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 				Mesh->MarkRenderStateDirty();
 			}
 			Mesh->SetVisibility(true);
-			if (CVarDebug.GetValueOnGameThread() != 0 && MuzzleFlashCount <= 3)
+			if (CVarDebug.GetValueOnGameThread() != 0 && DebugLogged < 6)
 			{
+				++DebugLogged;
 				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
-				UE_LOG(LogShieldbreak, Log, TEXT("ImpactFXDebug: card %d at %s scale %s rot %s visible %d fp %d attached %s; muzzle %s dir %s camera %s; material %s"),
+				UE_LOG(LogShieldbreak, Log, TEXT("ImpactFXDebug: card %d at %s scale %s rot %s visible %d fp %d owner %s attached %s; muzzle %s dir %s camera %s; material %s"),
 					Card, *Mesh->GetComponentLocation().ToString(), *Mesh->GetComponentScale().ToString(), *Mesh->GetComponentRotation().ToString(),
-					Mesh->IsVisible(), static_cast<int32>(Mesh->FirstPersonPrimitiveType), *GetNameSafe(Mesh->GetAttachParent()), *Muzzle.ToString(), *Dir.ToString(),
-					PC && PC->PlayerCameraManager ? *PC->PlayerCameraManager->GetCameraLocation().ToString() : TEXT("-"), *GetNameSafe(MID->Parent));
+					Mesh->IsVisible(), static_cast<int32>(Mesh->FirstPersonPrimitiveType), *GetNameSafe(Mesh->GetOwner()), *GetNameSafe(Mesh->GetAttachParent()),
+					*Muzzle.ToString(), *Dir.ToString(), PC && PC->PlayerCameraManager ? *PC->PlayerCameraManager->GetCameraLocation().ToString() : TEXT("-"),
+					*GetNameSafe(MID->Parent));
 			}
 		}
 	}
@@ -662,6 +658,44 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 		Light->SetVisibility(true);
 	}
 	bActive = true;
+}
+
+UShieldbreakImpactFXSubsystem::FMuzzleRig* UShieldbreakImpactFXSubsystem::FindOrCreateMuzzleRig(USceneComponent* Gun)
+{
+	using namespace ShieldbreakImpactPrivate;
+	if (FMuzzleRig* Found = MuzzleRigs.Find(Gun))
+	{
+		if (Found->Cards[0].IsValid())
+		{
+			return Found;
+		}
+	}
+	UStaticMesh* Plane = ShieldbreakArt::Load<UStaticMesh>(PlaneMesh);
+	UMaterialInterface* Material = LoadMaterial(MuzzleMaterial);
+	AActor* GunActor = Gun ? Gun->GetOwner() : nullptr;
+	if (!Plane || !Material || !GunActor)
+	{
+		return nullptr;
+	}
+	FMuzzleRig& Rig = MuzzleRigs.Add(Gun);
+	for (int32 Card = 0; Card < CardsPerMuzzle; ++Card)
+	{
+		UStaticMeshComponent* Mesh = NewObject<UStaticMeshComponent>(GunActor, NAME_None, RF_Transient);
+		Mesh->SetStaticMesh(Plane);
+		QuietPrimitive(Mesh);
+		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Material, Mesh);
+		// Card 0 is the front star; 1 and 2 are side flames (two long spikes).
+		MID->SetScalarParameterValue(TEXT("Spikes"), Card == 0 ? 6.f : 2.f);
+		MID->SetScalarParameterValue(TEXT("Sharpness"), Card == 0 ? 10.f : 2.f);
+		Mesh->SetMaterial(0, MID);
+		Mesh->SetTranslucentSortPriority(4);
+		Mesh->SetupAttachment(Gun);
+		Mesh->SetVisibility(false);
+		Mesh->RegisterComponent();
+		Rig.Cards[Card] = Mesh;
+		Rig.MIDs[Card] = MID;
+	}
+	return &Rig;
 }
 
 // ---- Simulation ----
@@ -856,31 +890,13 @@ void UShieldbreakImpactFXSubsystem::Tick(float DeltaTime)
 		bStillActive = true;
 	}
 
-	// Muzzle flashes: cards fade over their few frames, the light a touch longer.
+	// Muzzle flash lights: a touch longer than the cards.
 	for (int32 Index = 0; Index < MuzzleSlots.Num(); ++Index)
 	{
 		FTimedSlot& Slot = MuzzleSlots[Index];
 		if (Slot.StartTime < 0.f) { continue; }
 		const float Age = Now - Slot.StartTime;
-		const float CardK = 1.f - Age / Slot.Duration;
 		const float LightK = 1.f - Age / (Slot.Duration * 1.4f);
-		for (int32 Card = 0; Card < CardsPerMuzzle; ++Card)
-		{
-			const int32 CardIndex = Index * CardsPerMuzzle + Card;
-			if (!MuzzleCards.IsValidIndex(CardIndex)) { break; }
-			if (CardK <= 0.f)
-			{
-				if (MuzzleCards[CardIndex]->IsVisible())
-				{
-					MuzzleCards[CardIndex]->SetVisibility(false);
-					MuzzleCards[CardIndex]->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-				}
-			}
-			else
-			{
-				MuzzleMIDs[CardIndex]->SetScalarParameterValue(TEXT("Intensity"), (Card == 0 ? 34.f : 24.f) * CardK);
-			}
-		}
 		if (MuzzleLights.IsValidIndex(Index))
 		{
 			if (LightK <= 0.f)
@@ -898,6 +914,29 @@ void UShieldbreakImpactFXSubsystem::Tick(float DeltaTime)
 			continue;
 		}
 		bStillActive = true;
+	}
+
+	// Muzzle cards on each gun: fade over their few frames, then hide. Rigs of destroyed guns are dropped.
+	for (auto It = MuzzleRigs.CreateIterator(); It; ++It)
+	{
+		FMuzzleRig& Rig = It.Value();
+		if (!It.Key().IsValid() || !Rig.Cards[0].IsValid())
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+		if (Rig.StartTime < 0.f) { continue; }
+		const float CardK = 1.f - (Now - Rig.StartTime) / FMath::Max(Rig.Duration, KINDA_SMALL_NUMBER);
+		for (int32 Card = 0; Card < CardsPerMuzzle; ++Card)
+		{
+			UStaticMeshComponent* Mesh = Rig.Cards[Card].Get();
+			UMaterialInstanceDynamic* MID = Rig.MIDs[Card].Get();
+			if (!Mesh || !MID) { continue; }
+			if (CardK <= 0.f) { Mesh->SetVisibility(false); }
+			else { MID->SetScalarParameterValue(TEXT("Intensity"), (Card == 0 ? 34.f : 24.f) * CardK); }
+		}
+		if (CardK <= 0.f) { Rig.StartTime = -1.f; }
+		else { bStillActive = true; }
 	}
 
 	// Bullet holes: fade over their last seconds, then hide (the slot is reused round-robin).

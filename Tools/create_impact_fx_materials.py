@@ -142,10 +142,17 @@ finish(glow, "M_SB_FXGlowInst", "additive unlit radial glow, custom data rgb+bri
 
 # ---- Puff card (instanced) ----
 puff = material("M_SB_FXPuffInst")
-unlit(puff, unreal.BlendMode.BLEND_TRANSLUCENT)
+# Lit (volumetric, non-directional): an unlit grey puff glowed near-white under Keel's exposure (FX3 captures).
+puff.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+puff.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_DEFAULT_LIT)
+puff.set_editor_property("two_sided", True)
+try:
+    puff.set_editor_property("translucency_lighting_mode", unreal.TranslucencyLightingMode.TLM_VOLUMETRIC_NON_DIRECTIONAL)
+except Exception as exc:
+    log.append("puff lighting mode not set: %s" % exc)
 node, link = builder(puff)
 rgb = custom_rgb(node, link, -900, -400)
-mel.connect_material_property(rgb, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+mel.connect_material_property(rgb, "", unreal.MaterialProperty.MP_BASE_COLOR)
 alpha = custom(node, 3, -900, -50, 1.0)
 seed = custom(node, 4, -1500, 450, 0.0)
 uv = node(unreal.MaterialExpressionTextureCoordinate, -1500, 300, u_tiling=0.5, v_tiling=0.5)
@@ -163,7 +170,7 @@ mask = radial_mask(node, link, 1.6, -1500, 100)
 o1 = mul(node, link, alpha, mask, -500, 0)
 o2 = mul(node, link, o1, lifted, -350, 100)
 mel.connect_material_property(depth_fade(node, link, o2, 30.0, -100, 100), "", unreal.MaterialProperty.MP_OPACITY)
-finish(puff, "M_SB_FXPuffInst", "translucent unlit noisy puff, custom data rgb+opacity+seed, noise %s" % ("found" if noise_tex else "MISSING"), instanced=True)
+finish(puff, "M_SB_FXPuffInst", "translucent lit noisy puff, custom data rgb+opacity+seed, noise %s" % ("found" if noise_tex else "MISSING"), instanced=True)
 
 # ---- Muzzle flash ----
 flash = material("M_SB_MuzzleFlash")
