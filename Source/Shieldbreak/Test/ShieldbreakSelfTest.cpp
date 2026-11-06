@@ -654,6 +654,157 @@ void AShieldbreakSelfTest::BuildSteps()
 			return true;
 		}, 12.f });
 
+	// ---- First-person moves: hand-keyed reload (magazine out and back), melee swing, draw after a swap, sidearm
+	// reload. Screenshots at the key poses: Saved/Screenshots/Shots/<map>_shot_fp_*.png ----
+	Steps.Add({ TEXT("First-person moves"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
+		},
+		[this](float Elapsed)
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+			UShieldbreakBodyAnimator* Animator = Player ? Player->GetBodyAnimator() : nullptr;
+			if (!Player || !Animator)
+			{
+				if (Elapsed > 2.f)
+				{
+					Check(TEXT("First-person moves have a local player"), false, TEXT("could not possess a local pawn"));
+					ClearDummies();
+					return true;
+				}
+				return false;
+			}
+			AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+			const FShieldbreakViewmodelMoves& Moves = Animator->GetViewmodelMoves();
+			const double T = GetWorld()->GetTimeSeconds();
+			auto Equip = [this, Player](TSubclassOf<AShieldbreakWeapon> Class)
+			{
+				Player->GiveWeapon(Class);
+				for (TActorIterator<AShieldbreakWeapon> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == Player && It->IsA(Class)) { Player->EquipWeapon(*It); break; }
+				}
+			};
+			// Seconds since Mark, and progress through the move.
+			const float Since = Now() - Mark;
+			switch (Phase)
+			{
+			case 0:
+				if (Elapsed < 1.5f) { return false; }
+				if (!Weapon || !Weapon->IsA<AWeapon_BattleRifle>()) { Equip(AWeapon_BattleRifle::StaticClass()); }
+				Mark = Now(); Phase = 1; return false;
+			case 1: // one burst so the magazine is not full
+				if (Since < 1.2f) { return false; }
+				Player->StartFire(); Mark = Now(); Phase = 2; return false;
+			case 2:
+				if (Since < 0.3f) { return false; }
+				Player->StopFire(); Mark = Now(); Phase = 3; return false;
+			case 3:
+				if (Since < 0.6f) { return false; }
+				Value0 = Animator->GetSupportHandError();
+				if (Weapon) { Weapon->StartReload(); }
+				Mark = Now(); Phase = 4; return false;
+			case 4: // t ~ 0.3: magazine out, in the left hand
+				if (Since < 0.6f) { return false; }
+				{
+					UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+					Check(TEXT("A first-person reload plays the hand-keyed move, not the third-person clip"),
+						Moves.GetMove() == EShieldbreakViewmodelMove::Reload && Animator->GetViewmodelPose().HandWeight > 0.5f,
+						FString::Printf(TEXT("move %d, progress %.2f, hand weight %.2f, gun roll %.1f"), static_cast<int32>(Moves.GetMove()),
+							Moves.GetProgress(T), Animator->GetViewmodelPose().HandWeight, Animator->GetViewmodelPose().Rotation.Z));
+					if (Magazine)
+					{
+						const float Out = static_cast<float>(Magazine->GetRelativeLocation().Size());
+						Check(TEXT("...the magazine comes out of the gun with the left hand"), Moves.IsMagazineOut() && Out > 4.f,
+							FString::Printf(TEXT("%.1f cm from its socket"), Out));
+					}
+					else
+					{
+						Check(TEXT("...split magazine art imported (SM_SB_<Gun>_NoMag/_Mag)"), false,
+							TEXT("not imported yet: the hand moves but the magazine stays in the gun"));
+					}
+				}
+				TakeShot(TEXT("fp_reload_mag_out"), true);
+				Phase = 5; return false;
+			case 5: // t ~ 0.665: magazine seated
+				if (Since < 1.33f) { return false; }
+				TakeShot(TEXT("fp_reload_insert"), true);
+				Phase = 6; return false;
+			case 6: // t ~ 0.86: charging handle
+				if (Since < 1.72f) { return false; }
+				TakeShot(TEXT("fp_reload_charge"), true);
+				Phase = 7; return false;
+			case 7: // done
+				if (Since < 2.5f) { return false; }
+				{
+					UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+					const float Seat = Magazine ? static_cast<float>(Magazine->GetRelativeLocation().Size()) : 0.f;
+					const float Support = Animator->GetSupportHandError();
+					Check(TEXT("...and ends with the magazine seated and the left hand back on the forend"),
+						!Moves.IsPlaying() && Seat < 0.1f && Animator->GetViewmodelPose().IsIdentity() && Support >= 0.f && Support < FMath::Max(3.f, Value0 + 1.f),
+						FString::Printf(TEXT("magazine %.2f cm off, support hand %.2f cm (before %.2f)"), Seat, Support, Value0));
+				}
+				Animator->PlayAction(EShieldbreakAction::Melee);
+				Mark = Now(); Phase = 8; return false;
+			case 8: // melee strike peaks early
+				if (Since < 0.14f) { return false; }
+				Check(TEXT("A first-person melee drives the gun forward and across"),
+					Moves.GetMove() == EShieldbreakViewmodelMove::Melee && Animator->GetViewmodelPose().Offset.X > 5.f,
+					FString::Printf(TEXT("gun %.1f cm forward, yaw %.1f"), Animator->GetViewmodelPose().Offset.X, Animator->GetViewmodelPose().Rotation.Y));
+				TakeShot(TEXT("fp_melee"), true);
+				Mark = Now(); Phase = 9; return false;
+			case 9:
+				if (Since < 1.f) { return false; }
+				Equip(AWeapon_Sidearm::StaticClass());
+				Mark = Now(); Value1 = -1.f; Phase = 10; return false;
+			case 10: // the draw starts once the arms are placed for the sidearm
+				if (Moves.GetMove() == EShieldbreakViewmodelMove::Draw && Value1 < 0.f) { Value1 = Since; }
+				if (Value1 >= 0.f && Since > Value1 + 0.2f)
+				{
+					Check(TEXT("A weapon swap brings the new gun up with the hand-keyed draw"), Value1 < 0.8f,
+						FString::Printf(TEXT("draw began %.2f s after the swap"), Value1));
+					TakeShot(TEXT("fp_draw"), true);
+					Mark = Now(); Phase = 11; return false;
+				}
+				if (Since > 1.5f)
+				{
+					Check(TEXT("A weapon swap brings the new gun up with the hand-keyed draw"), false, TEXT("no draw"));
+					Mark = Now(); Phase = 11;
+				}
+				return false;
+			case 11:
+				if (Since < 1.f) { return false; }
+				Player->StartFire(); Mark = Now(); Phase = 12; return false;
+			case 12:
+				if (Since < 0.1f) { return false; }
+				Player->StopFire(); Mark = Now(); Phase = 13; return false;
+			case 13:
+				if (Since < 0.5f) { return false; }
+				if (Weapon) { Weapon->StartReload(); }
+				Mark = Now(); Phase = 14; return false;
+			case 14: // sidearm t ~ 0.22: the empty magazine falls away
+				if (Since < 0.3f) { return false; }
+				TakeShot(TEXT("fp_pistol_drop"), true);
+				Phase = 15; return false;
+			case 15: // t ~ 0.5: fresh magazine coming up in the left hand
+				if (Since < 0.7f) { return false; }
+				Check(TEXT("The sidearm reload brings the left arm in with a fresh magazine"),
+					Moves.GetMove() == EShieldbreakViewmodelMove::Reload && Animator->GetViewmodelPose().bWantsLeftArm,
+					FString::Printf(TEXT("move %d, progress %.2f"), static_cast<int32>(Moves.GetMove()), Moves.GetProgress(T)));
+				TakeShot(TEXT("fp_pistol_fresh"), true);
+				Phase = 16; return false;
+			case 16:
+				if (Since < 1.8f) { return false; }
+				Check(TEXT("...and puts it away again"), !Moves.IsPlaying() && Animator->GetViewmodelPose().IsIdentity(), TEXT(""));
+				ClearDummies();
+				return true;
+			}
+			return true;
+		}, 25.f });
+
 	// ---- Death camera: killed from the front, the ragdoll is thrown back toward where the camera used to sit. ----
 	Steps.Add({ TEXT("Death camera"),
 		[this]()

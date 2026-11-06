@@ -131,6 +131,11 @@ public:
 	/** First person: cm the gun sits higher in the hand than the socket, so the fingers close on the grip under the
 	 *  receiver and the index finger reaches the trigger (from the art's Trigger socket; plus sb.FPGunLift). */
 	float GetFirstPersonLift() const;
+	/** The gun's mesh (sockets Muzzle, Trigger, SupportHand, Magazine). */
+	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	/** First person with split art (SM_SB_<Gun>_NoMag + SM_SB_<Gun>_Mag): the separate magazine the reload moves,
+	 *  seated in the gun's Magazine socket. Null otherwise (the gun mesh then carries its own magazine). */
+	UStaticMeshComponent* GetFirstPersonMagazine() const;
 
 	// ---- Local (owning client or server AI) ----
 	void StartFire();
@@ -179,6 +184,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> ChargeGlowMesh;
 
+	/** First person only: the magazine as its own part, so the reload can take it out (see GetFirstPersonMagazine). */
+	UPROPERTY(VisibleAnywhere, Category = "Weapon")
+	TObjectPtr<UStaticMeshComponent> MagazineMesh;
+
 private:
 	bool CanFireShotLocal() const;
 	void FireShotLocal();
@@ -226,6 +235,12 @@ private:
 	float ArtHalfLength = 30.f;
 	float ArtViewScale = 1.f;
 	FRotator ArtAlign = FRotator::ZeroRotator;
+	/** The whole gun (third person, pickups) and, when imported, the first-person split: gun without magazine + magazine. */
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> FullArtMesh;
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> NoMagazineArtMesh;
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> MagazineArtMesh;
+	/** Shows the split art in first person (or the whole gun everywhere else). */
+	void ApplyMagazineLayout(bool bFirstPerson);
 
 	// Local fire loop.
 	bool bWantsToFire = false;

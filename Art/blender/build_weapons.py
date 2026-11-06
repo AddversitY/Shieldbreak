@@ -490,6 +490,56 @@ SUPPORT = {
 }
 
 
+# First-person reloads (Source/Shieldbreak/Visuals/ShieldbreakViewmodelMoves.cpp) take the magazine out, so each gun
+# with one also exports SM_SB_<Gun>_NoMag (the gun without it) and SM_SB_<Gun>_Mag (the magazine, origin at the gun's
+# SOCKET_Magazine: the top centre of the magazine where it meets the well). The whole gun stays the main export for
+# third person and pickups. MAGAZINES: socket, then the gun-space box (min, max corners) that holds every magazine part
+# (a part goes with the magazine only when its bounds are entirely inside), then extra parts that only the magazine
+# mesh gets: the feed lips / body that are hidden inside the gun when seated and seen when it is pulled.
+MAGAZINES = {
+    "SM_SB_BattleRifle": ((0, 13.3, -3.6), ((-3.0, 9.6, -18.0), (3.0, 20.0, -3.5)),
+                          lambda: [k.box("mag_feed", (0, 13.3, -2.9), (3.0, 6.0, 1.4), "Polymer", bevel=0.2)]),
+    "SM_SB_Sniper": ((0, 14.5, -3.6), ((-3.0, 9.6, -13.5), (3.0, 19.5, -3.5)),
+                     lambda: [k.box("mag_feed", (0, 14.5, -2.9), (3.0, 6.4, 1.4), "Polymer", bevel=0.2)]),
+    "SM_SB_Sidearm": ((0, -2.2, -2.4), ((-2.2, -7.2, -12.6), (2.2, 0.4, -11.0)),
+                      lambda: [k.profile("mag_body", [(-4.6, -2.6), (0.2, -2.6), (-0.9, -11.3), (-5.9, -11.2)], 2.6,
+                                         "Polymer", bevel=0.3),
+                               k.box("mag_round", (0, -2.2, -2.3), (1.0, 3.4, 0.9), "Steel", bevel=0.3)]),
+}
+
+
+def _inside(obj, box_min, box_max):
+    import bpy
+    from mathutils import Vector
+    bpy.context.view_layer.update()
+    corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+    return all(box_min[i] <= min(c[i] for c in corners) and max(c[i] for c in corners) <= box_max[i] for i in range(3))
+
+
+def export_split(name, build, out_dir, report):
+    """Exports SM_SB_<Gun>_NoMag and SM_SB_<Gun>_Mag (see MAGAZINES)."""
+    from mathutils import Matrix
+    socket, (box_min, box_max), extras = MAGAZINES[name]
+    k.reset_scene()
+    parts, muzzle = build()
+    blade, rest = TRIGGERS[name]
+    parts.append(trigger_blade(*blade))
+    mag_parts = [p for p in parts if _inside(p, box_min, box_max)]
+    gun_parts = [p for p in parts if p not in mag_parts]
+    gun = k.join(name + "_NoMag", gun_parts)
+    k.socket("Muzzle", muzzle, gun)
+    k.socket("Trigger", rest, gun)
+    k.socket("Magazine", socket, gun)
+    if name in SUPPORT:
+        k.socket("SupportHand", SUPPORT[name], gun)
+    mag = k.join(name + "_Mag", mag_parts + extras())
+    mag.data.transform(Matrix.Translation((-socket[0], -socket[1], -socket[2])))
+    report.append("%s_NoMag: %d tris; %s_Mag: %d tris from %d parts, bounds %s" % (
+        name, k.triangle_count(gun), name, k.triangle_count(mag), len(mag_parts), k.bounds(mag)))
+    k.export_fbx(os.path.join(out_dir, name + "_NoMag.fbx"), [gun])
+    k.export_fbx(os.path.join(out_dir, name + "_Mag.fbx"), [mag])
+
+
 def scope_display(p, scope_center, scope_radius, length):
     """A slim range display clamped to the scope's left side: housing, bezel and a dim screen with two readout bars."""
     x, y, z = scope_center
@@ -538,11 +588,15 @@ def main():
         k.socket("Trigger", rest, obj)
         if name in SUPPORT:
             k.socket("SupportHand", SUPPORT[name], obj)
+        if name in MAGAZINES:
+            k.socket("Magazine", MAGAZINES[name][0], obj)
         report.append("%s: %d tris, %d materials, bounds %s" % (name, k.triangle_count(obj), len(obj.data.materials), k.bounds(obj)))
         k.export_fbx(os.path.join(out_dir, name + ".fbx"), [obj])
         if "--render" in sys.argv:
             import sb_render
             sb_render.render_object(obj, os.path.join(preview_dir, name + ".png"))
+        if name in MAGAZINES:
+            export_split(name, build, out_dir, report)
     print("\n".join(report))
     with open(os.path.join(out_dir, "weapons_report.txt"), "w") as f:
         f.write("\n".join(report) + "\n")

@@ -56,6 +56,10 @@ Task (16) desktop status: **VERIFICATION COMPLETE; ALL TESTS PASS, BUT THE LEFT 
   **Glove.** `fp_0_idle_br_0` in both runs: the gun runs diagonally from the lower right and **no glove is in frame**; the hand is below the screen, so Vincent's visible left hand is not met at idle and the wrap cannot be judged there. It shows only in action frames. `fp_5_reload_0` and `fp_4_melee_0`: dark fingers curve under the gun body and appear to go into its side. Crops of curl on and off look the same at these frames, so **no visible curl effect**. **Scopes:** with the F1 panel hidden all reticles read clearly. `scope_marksman` shows a crisp crosshair, chevrons and 2.2x/range; `scope_sniper_2` shows bars, corner box, heading scale and 13.2x, though its centre mil lines are thin and faint.
   JPGs and `reports/` in `docs/playtests/2026-11-06_task16/`. Reimported Content committed. Originals in `Saved/Task16-20261106/`. Do not repeat this entry unchanged.
 Task (20): READY (below).
+Task (M1) desktop status: **VERIFICATION COMPLETE; ONE FAILURE, FIRST-PERSON MOVES CHECKS PASS BUT THE SHOTS MISS THE MAGAZINE**, source `ed14101`, branch `claude/project-thread-1yjl1q`, run by Claude on the desktop PC. Build/import PASS, six `_NoMag`/`_Mag` meshes exist, zero "Failed to compile". Gameplay **158/159**, FP **8/8** in both runs. All "First-person moves" checks pass (magazine 12.9 cm out, seated 0.00 cm, support hand 1.45 cm, melee 15.9 cm forward, draw at 0.31 s). FAIL: `The camera never sits inside a character or draws the viewer's own body`, **18 frames, first in the bot match, inside ShieldbreakCharacter_62**; the same line passed in (16). FPS four bots **132.5**, fixed FP **146.5**, with `sb.FPMoves 0` **141.0** (one run each).
+  **Shots.** `reload_mag_out`: gun rolled with its muzzle at the crosshair, **no magazine and no left hand in frame**. `reload_insert`: glove pressed to the gun underside near the grip, **no magazine visible**. `reload_charge`: gun low right, no hand. `melee`: **very large arm and shoulder fill the upper right with a dark open cavity, as if the camera sees inside the mesh**; gun flat across the frame. `draw`: sidearm low right, right hand on it, reads fine. `pistol_drop`: gun tilted, **no dropped magazine or left hand visible**; a ribbed shape runs off the bottom. `pistol_fresh`: same, **no fresh magazine or left hand visible**. The magazine and left-hand work passes the checks but happens below the frame at these moments.
+  7 JPGs and `reports/` in `docs/playtests/2026-11-06_fpmoves/`. Reimported Content and new meshes committed. Originals in `Saved/M1-20261106/`. Do not repeat this entry unchanged.
+Task (16): READY (below).
 Task (15) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, LEFT HAND NEAR BUT NOT ON THE FOREND**, source `b8956ba`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC. Build/import PASS, zero "Failed to compile". New BR 13336 tris and sniper 11376 tris imported, `MI_SBC_Ceramic` exists. Gameplay **151/152**, FP **8/8**. FAIL: `...and on a rifle the left hand holds the forend`, left wrist **3.15 cm** from SupportHand. PASS: Marksman scope, Sniper second zoom (level 2, FOV 7.0). FPS four bots **111.5**, fixed FP **132.8** (14: 114.4 / 127.8; one run each).
   **Framing review (Vincent's Halo Infinite reference is not in the repo, so no side-by-side; judged in words against the task's standard).** `fp_0_idle_br_0`: gun comes from the lower right and the rear and trigger hand are out of frame, as asked. **What looks wrong:** the left glove sits below and left of the forend with the index finger pointing away and fingers loose, so it reads as near the gun, not gripping it. The white gun and the big square sight block fill the lower right, cover the ammo box in the HUD and sit close to the crosshair. Bright white surfaces lose most detail against the HUD. **Scopes:** `scope_marksman` 2.2x, `scope_sniper_1` 5.1x, `scope_sniper_2` 13.2x all show circular overlays and the gun hidden, but the self-test's F1 controls panel covers the centre of all three, so the reticle centre cannot be judged.
   JPGs and `reports/` in `docs/playtests/2026-11-06_task15/`. Reimported Content committed. Originals in `Saved/Task15-20261106/`. Do not repeat this entry unchanged.
@@ -107,6 +111,28 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   Make one compare JPG of the three fp_0_idle_br_0 frames side by side. For each, say in words: is the left glove
   visible, where on screen, and does it wrap the forend or clip into the gun? JPGs into
   docs/playtests/2026-11-06_task17/. Run after (M1) if (M1) has already started, otherwise before it.
+- **2026-11-06 (M2), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Reloads lift the gun into view; shorter melee thrust":**
+  Thanks for (M1). Every reload happened below the frame, and the melee pushed the rig's shoulder into the eye. Reloads
+  now bring the gun up and in (`sb.FPReloadLift`, default 1). The melee thrust is 9 cm (it was 18), with less yaw. No art changes and no
+  import. Steps (one build): rebuild; self-test once (expect the "First-person moves" checks to pass; note whether the
+  bot-match "camera inside ShieldbreakCharacter" failure repeats); fixed FP FPS once. Then the same seven fp_* JPGs
+  into docs/playtests/2026-11-06_fpmoves_m2/, and in words: is the magazine and the left hand visible in
+  fp_reload_mag_out / fp_reload_insert / fp_pistol_fresh, and is the shoulder gone from fp_melee?
+- **2026-11-06 (M1), READY, branch `claude/project-thread-1yjl1q` (first-person animations thread; includes (16)'s
+  commit, run after (16)), at Claude's commit "Hand-keyed first-person reload, draw, melee and sprint carry":**
+  New: original hand-keyed first-person moves (`Visuals/ShieldbreakViewmodelMoves.*`): BR/sniper reload with the
+  magazine out in the left hand and back in, palm slap and charging handle; sidearm reload with the empty magazine
+  dropping and a fresh one brought up; launcher breech load; draw after a swap; melee swing; new sprint carry with an
+  arm-swing pump. Third-person bodies keep Lyra's clips. New split art: `SM_SB_<BattleRifle|Sniper|Sidearm>_NoMag`
+  and `_Mag` FBX next to the whole guns (which gained a `Magazine` socket). Do not change C++ or art on the PC. If the
+  build fails, report the errors and stop. Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` and confirm the
+  six new meshes exist in /Game/Shieldbreak/Art/Weapons + grep "Failed to compile"; self-test once (expect the new
+  step "First-person moves": reload plays the hand-keyed move, magazine comes out > 4 cm, ends seated with the left
+  hand back, melee drives the gun forward, swap draw starts < 0.8 s, sidearm reload brings the left arm in). FPS:
+  4 bots and fixed FP once each, then fixed FP again with `-ExecCmds="sb.FPMoves 0"` (A/B). Copy the shots
+  `*_shot_fp_reload_mag_out`, `_fp_reload_insert`, `_fp_reload_charge`, `_fp_melee`, `_fp_draw`, `_fp_pistol_drop`,
+  `_fp_pistol_fresh` as JPGs into docs/playtests/2026-11-06_fpmoves/ and say in words what looks wrong in each
+  (hand far from the magazine, gun clipping the camera, magazine floating, arm stretched).
 - **2026-11-06 (16), READY, same branch, at Claude's commit "Left hand grips the forend; steeper rifle framing; scope fixes":**
   Thanks for (15). The left hand now turns palm-up under the forend, the fingers curl around it, and the palm (not the
   wrist) is placed by the IK. Rifle framing: forward 34, down 19, yaw -9, pitch 6, so the gun runs more diagonally from
