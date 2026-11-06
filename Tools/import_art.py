@@ -59,6 +59,9 @@ CHARACTER_WEAR = {
     "Team": (0.25, 0.35, 0.55),
     "Steel": (0.15, 0.3, 0.4),
     "Polymer": (0.35, 0.45, 0.15),
+    # White armor panels on the guns: a faint satin variation and light edge scratches, so the pale shells read as
+    # painted ceramic under light rather than flat white (task 19).
+    "Ceramic": (0.1, 0.22, 0.35),
     "Undersuit": (0.3, 0.4, 0.0),
     "GlowCyan": (0, 0, 0), "GlowAmber": (0, 0, 0), "TeamGlow": (0, 0, 0), "Lens": (0, 0, 0), "Visor": (0, 0, 0.05),
 }

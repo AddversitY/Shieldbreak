@@ -99,18 +99,8 @@ def battle_rifle():
                        bevel=0.4, segments=S))
     p.append(k.box("cheek", (0, -24, 7.0), (3.4, 13, 1.0), "Ceramic", bevel=0.35, segments=S))
     p.append(k.box("butt_pad", (0, -38.4, -1.2), (4.4, 1.4, 12.6), "Polymer", bevel=0.4, segments=S))
-    # ---- Optic: compact enclosed sight on a low mount ----
-    p.append(k.box("optic_mount", (0, 3, 9.8), (2.8, 9, 1.4), "WeaponMetal", bevel=0.3, segments=S))
-    # A swept, wedge-shaped housing: low at the back, raised and chamfered at the front.
-    p.append(k.profile("optic", [(-3.2, 9.6), (-1.4, 13.2), (4.5, 14.6), (8.6, 13.4), (9.2, 9.6)], 3.6, "WeaponMetal",
-                       bevel=0.4, segments=S))
-    p.append(k.profile("optic_roof", [(-1.2, 13.25), (4.5, 14.65), (8.4, 13.5), (8.2, 13.1), (4.5, 14.2), (-1.0, 12.85)], 3.9,
-                         "Ceramic", bevel=0.15, segments=S))
-    p.append(k.box("optic_glass", (0, 9.25, 11.5), (2.9, 0.15, 3.2), "Lens", bevel=0))
-    p.append(k.box("optic_reticle", (0, 9.34, 11.9), (0.3, 0.05, 0.3), "GlowCyan", bevel=0))
-    p.append(k.profile("optic_rear", [(-3.3, 9.9), (-1.6, 13.0), (-1.45, 12.95), (-3.15, 9.85)], 2.9, "Lens", bevel=0))
-    for x in (1.83, -1.83):
-        p.append(k.box("optic_line", (x, 3.5, 11.0), (0.1, 8.0, 0.25), "GlowCyan", bevel=0))
+    # ---- Optic: a raised scope (v6, 2026-11-06: Vincent wanted a raised scope, not the low box) ----
+    battle_rifle_scope(p, S)
     # ---- Details the first-person view sees: ammo counter, charging handle, ejection port, seams, bolts ----
     p.append(k.box("counter_bezel", (0, -9.5, 8.85), (3.6, 4.0, 0.5), "Polymer", bevel=0.15))
     p.append(k.box("counter", (0, -9.5, 9.15), (3.0, 3.4, 0.25), "Display", bevel=0.05))
@@ -122,6 +112,47 @@ def battle_rifle():
         p.append(k.box("upper_line", (x * 0.92, 2, 7.6), (0.1, 20, 0.22), "GlowCyan", bevel=0))
     battle_rifle_detail(p)
     return p, (0, 58.8, 1.6)
+
+
+def battle_rifle_scope(p, S):
+    """The BR's raised scope: a round tube on two angular clamp risers, a flared objective with a cyan ring, a ribbed
+    eyepiece, a pale ceramic armour hood over the top with a swept nose, a ranging display and a side turret. It sits
+    high enough that the first-person view sees its whole left side above the receiver, like a real raised optic."""
+    TZ = 14.4  # tube axis height
+    # Clamp risers: angular blocks from the rail up to the tube, each with a half-ring cap.
+    for y in (-0.5, 8.0):
+        p.append(k.profile("scope_riser", [(y - 1.5, 9.4), (y + 1.5, 9.4), (y + 1.0, TZ - 0.6), (y - 1.0, TZ - 0.6)], 2.6,
+                           "WeaponMetal", bevel=0.3, segments=2))
+        p.append(k.cyl("scope_ring", (0, y, TZ), 1.95, 1.8, "WeaponMetal", verts=20, bevel=0.15))
+        for x in (1.35, -1.35):
+            screw(p, x, y, 10.6, 0.24)
+        p.append(k.box("riser_lever", (-1.55, y, 11.2), (0.5, 1.6, 0.8), "Steel", bevel=0.15))
+    # Tube, objective bell and eyepiece.
+    p.append(k.cyl("scope_tube", (0, 4.0, TZ), 1.55, 17.0, "WeaponMetal", verts=20, bevel=0.1))
+    p.append(k.cyl("scope_bell", (0, 14.3, TZ), 1.55, 3.6, "WeaponMetal", verts=20, bevel=0.15, radius2=2.35))
+    p.append(k.cyl("scope_bezel", (0, 16.35, TZ), 2.45, 0.6, "WeaponMetal", verts=24, bevel=0.12))
+    p.append(k.cyl("scope_glow", (0, 16.68, TZ), 2.2, 0.08, "GlowCyan", verts=24, bevel=0))
+    p.append(k.cyl("scope_lens", (0, 16.7, TZ), 1.95, 0.06, "Lens", verts=24, bevel=0))
+    p.append(k.cyl("eye_bell", (0, -5.7, TZ), 2.0, 2.4, "WeaponMetal", verts=20, bevel=0.15, radius2=1.55))
+    p.append(k.cyl("eyepiece", (0, -7.6, TZ), 2.05, 1.6, "Polymer", verts=20, bevel=0.2))
+    for i in range(4):
+        p.append(k.cyl("eye_rib", (0, -8.1 + i * 0.4, TZ), 2.12, 0.16, "Polymer", verts=20, bevel=0))
+    p.append(k.cyl("eye_lens", (0, -8.45, TZ), 1.6, 0.06, "Lens", verts=20, bevel=0))
+    # Ceramic armour hood over the top: a swept shell with a raised spine and a nose that overhangs the lens.
+    p.append(k.profile("scope_hood", [(-4.5, TZ + 1.3), (-3.5, TZ + 2.1), (11.0, TZ + 2.1), (15.0, TZ + 2.7), (17.2, TZ + 2.4),
+                                      (17.0, TZ + 1.9), (13.5, TZ + 1.5), (-4.0, TZ + 1.2)], 3.4, "Ceramic", bevel=0.3, segments=S))
+    p.append(k.box("hood_spine", (0, 5.5, TZ + 2.3), (1.0, 14.0, 0.5), "WeaponMetal", bevel=0.15))
+    for x in (1.71, -1.71):
+        p.append(k.box("hood_line", (x, 6.0, TZ + 1.65), (0.08, 15.0, 0.18), "GlowCyan", bevel=0))
+    # Side turret (left) with knurling, a battery cap (right) and a slim ranging display on the left of the tube.
+    p.append(k.cyl("turret", (-2.0, 3.0, TZ), 0.95, 1.0, "WeaponMetal", axis="X", verts=20, bevel=0.12))
+    p.append(k.cyl("turret_cap", (-2.55, 3.0, TZ), 0.7, 0.2, "Steel", axis="X", verts=20, bevel=0.04))
+    for i in range(10):
+        a = i * math.pi / 5
+        p.append(k.box("turret_knurl", (-2.0, 3.0 + 0.98 * math.cos(a), TZ + 0.98 * math.sin(a)), (0.85, 0.13, 0.13), "Steel", bevel=0))
+    p.append(k.cyl("battery", (1.9, 3.0, TZ), 0.8, 0.7, "WeaponMetal", axis="X", verts=16, bevel=0.1))
+    p.append(k.box("range_display", (-1.62, 10.5, TZ - 0.4), (0.1, 3.0, 1.0), "Display", bevel=0))
+    p.append(k.box("range_housing", (-1.45, 10.5, TZ - 0.4), (0.4, 3.6, 1.4), "Polymer", bevel=0.12))
 
 
 def screw(p, x, y, z, r=0.32, mat="Steel"):
@@ -187,23 +218,6 @@ def battle_rifle_detail(p):
         p.append(k.box("brake_top", (0, y, 2.85), (1.4, 0.4, 0.1), "Polymer", bevel=0))
         for x in (1.33, -1.33):
             p.append(k.box("brake_low", (x, y + 0.15, 0.9), (0.1, 0.4, 0.5), "Polymer", bevel=0))
-    # ---- Optic: front bezel, rear eyepiece ring, windage and elevation knobs, battery cap ----
-    p.append(k.box("optic_bezel", (0, 9.32, 11.5), (3.75, 0.3, 3.7), "WeaponMetal", bevel=0.12, segments=2))
-    p.append(k.box("optic_glass_front", (0, 9.5, 11.5), (2.9, 0.06, 3.0), "Lens", bevel=0))
-    p.append(k.box("optic_hood", (0, 9.6, 13.4), (3.4, 1.0, 0.25), "WeaponMetal", bevel=0.1))
-    p.append(k.cyl("knob_l", (-2.15, 3.5, 11.3), 0.75, 0.6, "WeaponMetal", axis="X", verts=16, bevel=0.1))
-    p.append(k.cyl("knob_l_cap", (-2.5, 3.5, 11.3), 0.55, 0.15, "Steel", axis="X", verts=16, bevel=0.03))
-    for i in range(8):
-        a = i * math.pi / 4
-        p.append(k.box("knurl", (-2.15, 3.5 + 0.78 * math.cos(a), 11.3 + 0.78 * math.sin(a)), (0.5, 0.12, 0.12), "Steel", bevel=0))
-    p.append(k.cyl("knob_top", (0, 1.0, 14.15), 0.6, 0.5, "WeaponMetal", axis="Z", verts=16, bevel=0.1))
-    p.append(k.cyl("knob_top_cap", (0, 1.0, 14.45), 0.42, 0.12, "Steel", axis="Z", verts=16, bevel=0.03))
-    p.append(k.cyl("battery", (2.1, 5.0, 11.0), 0.6, 0.45, "WeaponMetal", axis="X", verts=12, bevel=0.08))
-    p.append(k.box("optic_mount_clamp", (-1.75, 3.0, 9.9), (0.6, 3.0, 1.2), "Steel", bevel=0.15))
-    screw(p, -2.08, 2.2, 9.9, 0.25)
-    screw(p, -2.08, 3.8, 9.9, 0.25)
-    for x in (1.83, -1.83):
-        seam(p, x, (-1.2, 10.4), (8.6, 10.4))
     # ---- Rails ahead of and behind the optic ----
     rail_teeth(p, -6.0, -3.0, 9.45, 3.0, step=1.0)
     rail_teeth(p, 9.6, 14.0, 9.45, 3.0, step=1.0)
