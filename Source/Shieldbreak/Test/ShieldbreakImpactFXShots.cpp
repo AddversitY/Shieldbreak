@@ -5,7 +5,10 @@
 #include "Test/ShieldbreakSelfTest.h"
 
 #include "Shieldbreak.h"
+#include "Components/DecalComponent.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 #include "Game/ShieldbreakArena.h"
 #include "Game/ShieldbreakGameMode.h"
 #include "Game/ShieldbreakTeams.h"
@@ -116,6 +119,45 @@ void AShieldbreakSelfTest::BuildImpactShotSteps()
 		{ 0.02f, 0.05f, 0.09f, 0.14f, 0.25f, 0.45f }, 1.2f);
 	// Several bursts later: bullet holes, lingering dust.
 	Shot(TEXT("fx_1_wall_holes"), nullptr, [Trigger](float Elapsed) { Trigger(Elapsed, 0.6f, 3.f); }, { 1.55f, 3.6f }, 4.f);
+
+	// The floor a few metres ahead (Creekbed's grass and dirt, Keel's deck plates).
+	Shot(TEXT("fx_5_ground"),
+		[this]()
+		{
+			if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+			{
+				PC->SetControlRotation(FRotator(-22.f, PC->GetControlRotation().Yaw + 35.f, 0.f));
+			}
+		},
+		[Trigger](float Elapsed) { if (Elapsed > 0.3f) Trigger(Elapsed - 0.3f, 0.6f, 1.5f); }, { 0.34f, 0.4f, 0.6f, 2.2f }, 2.5f);
+
+	// Diagnosis: a held muzzle flash (sb.ImpactFXDebug) and two large test decals on the wall ahead, ours and Lyra's.
+	Shot(TEXT("fx_9_debug"),
+		[this, Player]()
+		{
+			if (IConsoleVariable* Debug = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.ImpactFXDebug"))) { Debug->Set(1); }
+			AShieldbreakCharacter* P = Player();
+			if (!P) { return; }
+			const FVector Eye = P->GetAimOrigin();
+			const FVector Dir = P->GetAimRotation().Vector();
+			FHitResult Hit;
+			FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakImpactDebug), false, P);
+			if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Dir * 3000.f, ECC_Visibility, Params))
+			{
+				const FVector Side = FVector::CrossProduct(FVector::UpVector, Hit.ImpactNormal).GetSafeNormal();
+				const TCHAR* Paths[] = { TEXT("/Game/Shieldbreak/Art/FX/M_SB_BulletHole.M_SB_BulletHole"), TEXT("/Game/Effects/Materials/Decals/Instances/MI_Decal_Concrete.MI_Decal_Concrete") };
+				for (int32 Index = 0; Index < 2; ++Index)
+				{
+					UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, Paths[Index]);
+					UDecalComponent* Decal = Material ? UGameplayStatics::SpawnDecalAtLocation(GetWorld(), Material, FVector(10.f, 30.f, 30.f),
+						Hit.ImpactPoint + Side * (Index == 0 ? -45.f : 45.f), (-Hit.ImpactNormal).Rotation(), 0.f) : nullptr;
+					Lines.Add(FString::Printf(TEXT("INFO  debug decal %s: material %d, component %d"), Paths[Index], Material != nullptr, Decal != nullptr));
+				}
+			}
+		},
+		[Trigger](float Elapsed) { Trigger(Elapsed, 2.f, 0.1f); }, { 0.3f, 1.f }, 1.5f);
+	Steps.Add({ TEXT("Debug off"), []() { if (IConsoleVariable* Debug = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.ImpactFXDebug"))) { Debug->Set(0); } },
+		nullptr, 2.f });
 
 	// A shielded enemy 7 m ahead, then the same enemy with the shield gone.
 	Steps.Add({ TEXT("Enemy target"),

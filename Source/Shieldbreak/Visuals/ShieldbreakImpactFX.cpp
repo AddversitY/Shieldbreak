@@ -28,6 +28,7 @@ namespace ShieldbreakImpactPrivate
 	TAutoConsoleVariable<int32> CVarLights(TEXT("sb.ImpactLights"), 1, TEXT("1: hits and muzzle flashes throw a short, shadowless light."));
 	TAutoConsoleVariable<float> CVarSparks(TEXT("sb.ImpactSparks"), 1.f, TEXT("Spark count scale (0 = none)."));
 	TAutoConsoleVariable<float> CVarMuzzleLight(TEXT("sb.MuzzleLight"), 6.f, TEXT("Muzzle flash light candelas at strength 1 (0 = no light)."));
+	TAutoConsoleVariable<int32> CVarDebug(TEXT("sb.ImpactFXDebug"), 0, TEXT("1: muzzle flash cards stay lit and log where they are (capture diagnosis)."));
 	TAutoConsoleVariable<int32> CVarMuzzle(TEXT("sb.MuzzleFlash"), 1, TEXT("1: Shieldbreak's muzzle flash cards and light."));
 	TAutoConsoleVariable<int32> CVarLyraMuzzle(TEXT("sb.LyraMuzzleFlash"), 1, TEXT("1: Lyra's Niagara muzzle flash also plays under ours."));
 
@@ -597,7 +598,7 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 	FTimedSlot& Slot = MuzzleSlots[NextMuzzle];
 	Slot.StartTime = Now;
 	// Two or three frames: long enough to register, short enough to never hide the target.
-	Slot.Duration = 0.04f + 0.01f * S;
+	Slot.Duration = CVarDebug.GetValueOnGameThread() != 0 ? 3.f : 0.04f + 0.01f * S;
 	// Keel's exposure turned 100+ cd into a white-out of the first-person gun; a few candelas a little ahead of the
 	// muzzle lights the walls and the gun's front without blowing it out.
 	Slot.Peak = CVarMuzzleLight.GetValueOnGameThread() * S;
@@ -641,6 +642,14 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 				Mesh->MarkRenderStateDirty();
 			}
 			Mesh->SetVisibility(true);
+			if (CVarDebug.GetValueOnGameThread() != 0 && MuzzleFlashCount <= 3)
+			{
+				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				UE_LOG(LogShieldbreak, Log, TEXT("ImpactFXDebug: card %d at %s scale %s rot %s visible %d fp %d attached %s; muzzle %s dir %s camera %s; material %s"),
+					Card, *Mesh->GetComponentLocation().ToString(), *Mesh->GetComponentScale().ToString(), *Mesh->GetComponentRotation().ToString(),
+					Mesh->IsVisible(), static_cast<int32>(Mesh->FirstPersonPrimitiveType), *GetNameSafe(Mesh->GetAttachParent()), *Muzzle.ToString(), *Dir.ToString(),
+					PC && PC->PlayerCameraManager ? *PC->PlayerCameraManager->GetCameraLocation().ToString() : TEXT("-"), *GetNameSafe(MID->Parent));
+			}
 		}
 	}
 	if (CVarLights.GetValueOnGameThread() != 0 && MuzzleLights.IsValidIndex(NextMuzzle))
