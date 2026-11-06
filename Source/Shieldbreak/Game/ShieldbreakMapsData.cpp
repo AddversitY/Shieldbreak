@@ -150,10 +150,10 @@ namespace ShieldbreakMapsData
 		L.Ramps.Add({ FVector(1800.0f, -3350.0f, 350.0f), FVector(1100.0f, -3350.0f, 0.0f), 500.0f, 40.0f, FLinearColor(0.78f, 0.42f, 0.08f), FName(TEXT("ramp")) });
 		L.Lifts.Add({ FVector(0.0f, 1700.0f, 0.0f), FVector(0.0f, 250.0f, 650.0f) });
 		L.Lifts.Add({ FVector(0.0f, -1700.0f, 0.0f), FVector(0.0f, -250.0f, 650.0f) });
-		L.Spawns.Add(FVector(-4500.0f, 1300.0f, 350.0f));
-		L.Spawns.Add(FVector(4500.0f, 1300.0f, 350.0f));
-		L.Spawns.Add(FVector(-4500.0f, -1300.0f, 350.0f));
-		L.Spawns.Add(FVector(4500.0f, -1300.0f, 350.0f));
+		L.Spawns.Add(FVector(-4650.0f, 1750.0f, 350.0f));
+		L.Spawns.Add(FVector(4650.0f, 1750.0f, 350.0f));
+		L.Spawns.Add(FVector(-4650.0f, -1750.0f, 350.0f));
+		L.Spawns.Add(FVector(4650.0f, -1750.0f, 350.0f));
 		L.Spawns.Add(FVector(-5000.0f, 0.0f, 700.0f));
 		L.Spawns.Add(FVector(5000.0f, 0.0f, 700.0f));
 		L.Spawns.Add(FVector(-5000.0f, 2400.0f, 350.0f));

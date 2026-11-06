@@ -320,7 +320,7 @@ def keel():
     m.weapon("rail", (0, 3350, P + 70))
     m.powerup("camo", (0, -2800, 70))
     m.powerup("aegis", (-3300, 0, D + 70), sym=True)
-    for sp in [(-4500, 1300, D), (-4500, -1300, D), (-5000, 0, O), (-5000, 2400, D), (-5000, -2400, D)]:
+    for sp in [(-4650, 1750, D), (-4650, -1750, D), (-5000, 0, O), (-5000, 2400, D), (-5000, -2400, D)]:
         m.spawn(sp)
     m.flag((-4400, 0, D + 90))
     m.hills = [(0, 0, P + 220), (0, 2600, 220), (0, -2300, 220), (-2600, 0, D + 220), (2600, 0, D + 220)]
@@ -814,6 +814,16 @@ def validate(m):
         hits = m.solid_overlaps((s[0] - 38, s[1] - 38, s[2] + 25), (s[0] + 38, s[1] + 38, s[2] + 184))
         if hits:
             errors.append(f"spawn {s} capsule hits block {hits[0][0]}..{hits[0][1]}")
+        # Ramps are not blocks: a spawn under or inside a ramp slab was missed until 2026-11-06 (Keel K1 run).
+        for dx in (-38, 0, 38):
+            for dy in (-38, 0, 38):
+                over = [z for z in m.surfaces_at(s[0] + dx, s[1] + dy) if s[2] + 25 < z < s[2] + 184]
+                if over:
+                    errors.append(f"spawn {s} capsule hits a ramp surface at z {round(over[0])}")
+                    break
+            else:
+                continue
+            break
     for kind, at, _ in m.weapons:
         supported(at, 40, 130, f"weapon {kind}")
     for kind, at, _ in m.powerups:
