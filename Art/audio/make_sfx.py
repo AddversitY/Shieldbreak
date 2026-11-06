@@ -767,15 +767,18 @@ def shield_recharge(i, rng):
 
 @bank("Shield_Low", 1)
 def shield_low(i, rng):
-    """Low/empty shield alarm: one short, hard-edged beep (odd harmonics, slight downward chirp). The game repeats it
-    several times a second while the shield is low, which is what makes it feel like danger."""
-    n = int(0.11 * SR)
+    """Low/empty shield alarm: a low, buzzy beep (~205 Hz, pulse-wave timbre, a slight downward bend and a sub) about
+    90 ms long. The game repeats it every 0.2 s while the shield is low, so it reads as a pulsing danger buzz."""
+    n = int(0.095 * SR)
     t = np.arange(n) / SR
-    hz = 990 * (1 + 0.04 * np.exp(-t / 0.015))
-    ph = 2 * np.pi * np.cumsum(hz) / SR
-    w = np.sin(ph) + 0.33 * np.sin(3 * ph) + 0.2 * np.sin(5 * ph) + 0.12 * np.sin(7 * ph)
-    w *= env(n, 0.003, 0.05, 0.035)
-    return normalize(fade(stereo(lp(w.astype(np.float32), 6000)), 0.0005, 0.015), -6.0)
+    hz = 205 * (1 + 0.035 * np.exp(-t / 0.02))
+    ph = np.cumsum(hz) / SR
+    duty = 0.38 + 0.06 * np.sin(2 * np.pi * 9 * t)  # gently moving pulse width gives it its own colour
+    pulse = np.where((ph % 1.0) < duty, 1.0, -1.0).astype(np.float32)
+    pulse = lp(pulse - np.mean(pulse), 3800, 2)
+    sub = np.sin(2 * np.pi * np.cumsum(hz / 2) / SR) * 0.35
+    w = (pulse * 0.8 + sub) * env(n, 0.004, 0.03, 0.05)
+    return normalize(fade(stereo(w.astype(np.float32)), 0.002, 0.012), -5.0)
 
 
 # ---- Armoured footsteps ---------------------------------------------------------------------------------------
@@ -846,7 +849,7 @@ def make_preview():
         "05_rail_lance": [("Rail_Charge", 0), ("Rail_FP", 0.95), ("Rail_FPTail", 0.95)],
         "06_grenade": [("Grenade_Throw", 0), ("Grenade_Bounce", 0.45), ("Grenade_Bounce", 0.8), ("Grenade_Bounce", 1.0), ("Grenade_Explosion_FP", 1.6)],
         "07_distant_battle": [("BR_Dist", 0), ("BR_Dist", 0.06), ("BR_Dist", 0.12), ("Sniper_Dist", 0.9), ("Grenade_Explosion_Dist", 1.6), ("Sidearm_Dist", 2.6), ("Rail_Dist", 3.2)],
-        "08_shields": [("Shield_Pop", 0.0)] + [("Shield_Low", 0.6 + k * 0.22) for k in range(12)] + [("Shield_Recharge", 3.4)],
+        "08_shields": [("Shield_Pop", 0.0)] + [("Shield_Low", 0.6 + k * 0.2) for k in range(13)] + [("Shield_Recharge", 3.4)],
         "09_footsteps": [("Footstep", k * 0.33) for k in range(8)] + [("Land", 2.9)],
         "10_reloads": [("BR_Reload", 0), ("Sidearm_Reload", 2.3), ("Sniper_Reload", 4.0), ("DryFire_Rifle", 7.0), ("DryFire_Light", 7.4), ("DryFire_Heavy", 7.8), ("Weapon_Raise", 8.4)],
     }

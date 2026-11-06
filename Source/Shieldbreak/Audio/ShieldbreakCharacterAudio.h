@@ -25,7 +25,7 @@ public:
 
 	/** Seconds between beeps while the local player's shield is empty. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	float LowShieldBeepInterval = 0.22f;
+	float LowShieldBeepInterval = 0.2f;
 
 	/** Below this shield fraction (and at zero) the owner hears the repeating alarm beep. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
