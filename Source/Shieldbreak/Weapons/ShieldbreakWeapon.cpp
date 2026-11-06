@@ -706,6 +706,8 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 	const FVector End = FVector(Origin) + ShotDir * Stats.Range;
 	const bool bHit = World->LineTraceSingleByChannel(Hit, Origin, End, ECC_Weapon, Params);
 	const FVector ImpactPoint = bHit ? FVector(Hit.ImpactPoint) : End;
+	// Effects go out before the damage, so this machine still sees the shield (or the living body) the round met.
+	MulticastShotFX(ImpactPoint);
 
 	// A raised Aegis barrier soaks the bullet instead of its owner.
 	AShieldbreakCharacter* BarrierOwner = bHit ? Cast<AShieldbreakCharacter>(Hit.GetActor()) : nullptr;
@@ -757,8 +759,6 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 			}
 		}
 	}
-
-	MulticastShotFX(ImpactPoint);
 }
 
 void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)

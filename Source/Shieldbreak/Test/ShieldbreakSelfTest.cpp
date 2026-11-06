@@ -823,6 +823,8 @@ void AShieldbreakSelfTest::BuildSteps()
 				}
 				Damage(B, ShieldOf(B), UDamageType_Ballistic::StaticClass());
 				Value0 = HealthOf(B);
+				const UShieldbreakImpactFXSubsystem* ArmorFX = UShieldbreakImpactFXSubsystem::Get(this);
+				Value1 = ArmorFX ? static_cast<float>(ArmorFX->GetSurfaceCount(EShieldbreakImpactSurface::Armor)) : 0.f;
 				A->StartFire();
 				Mark = Now();
 				Phase = 3;
@@ -837,8 +839,9 @@ void AShieldbreakSelfTest::BuildSteps()
 				Check(TEXT("An unshielded headshot kills"), !B->IsAlive(), FString::Printf(TEXT("health %s -> %s"), *Num(Value0), *Num(HealthOf(B))));
 				if (const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this))
 				{
-					Check(TEXT("...and rounds into bare armor spark instead"), FX->GetLastSurface() == EShieldbreakImpactSurface::Armor,
-						FString::Printf(TEXT("surface %d"), static_cast<int32>(FX->GetLastSurface())));
+					// Counted, not the last surface: rounds after the kill land on the wall behind.
+					Check(TEXT("...and the killing round sparks off bare armor"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor) > Value1,
+						FString::Printf(TEXT("armor hits %d (was %s)"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor), *Num(Value1)));
 				}
 				return true;
 			}

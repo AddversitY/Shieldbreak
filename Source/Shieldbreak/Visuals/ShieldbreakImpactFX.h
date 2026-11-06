@@ -74,6 +74,7 @@ public:
 	int32 GetMuzzleFlashCount() const { return MuzzleFlashCount; }
 	bool HasMaterials() const { return SparkMesh != nullptr; }
 	EShieldbreakImpactSurface GetLastSurface() const { return LastSurface; }
+	int32 GetSurfaceCount(EShieldbreakImpactSurface Surface) const { return SurfaceCounts[static_cast<int32>(Surface)]; }
 
 	// UTickableWorldSubsystem
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
@@ -128,7 +129,7 @@ private:
 		float ConeDegrees, float Life, const FLinearColor& Hot, const FLinearColor& Cool, float Brightness, float Width, float Gravity);
 	void AddCard(bool bGlow, const FVector& Position, const FVector& Velocity, const FLinearColor& Color, float Life,
 		float StartSize, float EndSize, float Peak, float Drag = 3.f);
-	void PlaceDecal(const FHitResult& Hit, float Size, const FLinearColor& Tint, float Darkness);
+	void PlaceDecal(const FHitResult& Hit, float Size, const FLinearColor& Tint, float Darkness, float Rim);
 	void FlashLight(const FVector& Position, const FLinearColor& Color, float Candelas, float Radius, float Duration);
 	void ShieldFlare(const FVector& Point, const FVector& Normal, const FLinearColor& Color, float Strength);
 	void UpdateInstances(UInstancedStaticMeshComponent* Mesh, int32 Used, int32& LastUsed);
@@ -164,6 +165,7 @@ private:
 	int32 DecalsPlaced = 0;
 	int32 ImpactCount = 0;
 	int32 MuzzleFlashCount = 0;
+	int32 SurfaceCounts[6] = {};
 	EShieldbreakImpactSurface LastSurface = EShieldbreakImpactSurface::Metal;
 	bool bActive = false;
 	bool bTriedActor = false;

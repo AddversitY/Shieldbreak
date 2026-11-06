@@ -27,6 +27,7 @@ namespace ShieldbreakImpactPrivate
 	TAutoConsoleVariable<float> CVarDecalLife(TEXT("sb.ImpactDecalLife"), 20.f, TEXT("Seconds a bullet hole stays before it fades."));
 	TAutoConsoleVariable<int32> CVarLights(TEXT("sb.ImpactLights"), 1, TEXT("1: hits and muzzle flashes throw a short, shadowless light."));
 	TAutoConsoleVariable<float> CVarSparks(TEXT("sb.ImpactSparks"), 1.f, TEXT("Spark count scale (0 = none)."));
+	TAutoConsoleVariable<float> CVarMuzzleLight(TEXT("sb.MuzzleLight"), 6.f, TEXT("Muzzle flash light candelas at strength 1 (0 = no light)."));
 	TAutoConsoleVariable<int32> CVarMuzzle(TEXT("sb.MuzzleFlash"), 1, TEXT("1: Shieldbreak's muzzle flash cards and light."));
 	TAutoConsoleVariable<int32> CVarLyraMuzzle(TEXT("sb.LyraMuzzleFlash"), 1, TEXT("1: Lyra's Niagara muzzle flash also plays under ours."));
 
@@ -349,6 +350,7 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 	const EShieldbreakImpactSurface Surface = ClassifySurface(Hit);
 	LastSurface = Surface;
 	++ImpactCount;
+	++SurfaceCounts[static_cast<int32>(Surface)];
 
 	// Energy rounds (the Rail Lance) tint the sparks toward their own colour.
 	FLinearColor Hot(1.f, 0.86f, 0.6f);
@@ -364,16 +366,16 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 	case EShieldbreakImpactSurface::Metal:
 	{
 		SpawnSparks(Point, Normal, SprayAxis, FMath::RoundToInt((6.f + 6.f * S) * SparkScale), 500.f, 1500.f * (0.8f + 0.2f * S),
-			40.f, 0.32f, Hot, Cool, 40.f, 0.3f + 0.1f * S, 980.f);
+			40.f, 0.36f, Hot, Cool, 45.f, 0.5f + 0.15f * S, 980.f);
 		AddCard(true, Point + Normal * 2.f, FVector::ZeroVector, Hot, 0.07f, 5.f * S, 16.f * S, 22.f);
 		// Grit: a fast small puff and a slower one that lingers.
 		AddCard(false, Point + Normal * 3.f, Normal * 140.f, FLinearColor(0.16f, 0.155f, 0.15f), 0.45f, 5.f * S, 26.f * S, 0.5f, 5.f);
 		AddCard(false, Point + Normal * 4.f, Normal * 45.f + FVector(0.f, 0.f, 15.f), FLinearColor(0.13f, 0.125f, 0.12f), 1.1f, 8.f * S, 42.f * S, 0.32f, 2.f);
 		if (bLights)
 		{
-			FlashLight(Point + Normal * 12.f, Hot, 35.f * S, 140.f + 60.f * S, 0.06f);
+			FlashLight(Point + Normal * 12.f, Hot, 3.f * S, 120.f + 40.f * S, 0.06f);
 		}
-		PlaceDecal(Hit, 2.6f * FMath::Sqrt(S) + FMath::FRandRange(-0.3f, 0.3f), FLinearColor(0.035f, 0.03f, 0.028f), 0.8f);
+		PlaceDecal(Hit, 4.5f * FMath::Sqrt(S) + FMath::FRandRange(-0.4f, 0.4f), FLinearColor(0.035f, 0.03f, 0.028f), 0.8f, 1.f);
 		break;
 	}
 	case EShieldbreakImpactSurface::Dirt:
@@ -384,7 +386,7 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 		AddCard(false, Point + Normal * 4.f, Normal * 320.f, Info.Dust, 0.55f, 6.f * S, 34.f * S, 0.75f, 6.f);
 		AddCard(false, Point + Normal * 6.f, SprayAxis * 160.f + FVector(0.f, 0.f, 30.f), Info.Dust * 0.9f, 1.2f, 10.f * S, 60.f * S, 0.55f, 3.f);
 		AddCard(false, Point + Normal * 3.f, FVector(0.f, 0.f, 12.f), Info.Dust * 0.8f, 1.6f, 14.f * S, 75.f * S, 0.35f, 2.f);
-		PlaceDecal(Hit, 3.2f * FMath::Sqrt(S), Info.Dust * 0.25f, 0.65f);
+		PlaceDecal(Hit, 5.5f * FMath::Sqrt(S), Info.Dust * 0.25f, 0.65f, 0.f);
 		break;
 	}
 	case EShieldbreakImpactSurface::Water:
@@ -403,7 +405,7 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 		AddCard(false, Point + Normal * 4.f, Normal * 90.f, FLinearColor(0.07f, 0.065f, 0.06f), 0.5f, 6.f * S, 28.f * S, 0.55f, 4.f);
 		if (bLights)
 		{
-			FlashLight(Point + Normal * 15.f, FLinearColor(1.f, 0.55f, 0.25f), 30.f * S, 160.f, 0.05f);
+			FlashLight(Point + Normal * 15.f, FLinearColor(1.f, 0.55f, 0.25f), 2.5f * S, 140.f, 0.05f);
 		}
 		break;
 	}
@@ -418,7 +420,7 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 		AddCard(true, Point + Normal * 3.f, FVector::ZeroVector, Energy, 0.1f, 8.f * S, 26.f * S, 18.f);
 		if (bLights)
 		{
-			FlashLight(Point + Normal * 18.f, Energy, 45.f * S, 200.f, 0.08f);
+			FlashLight(Point + Normal * 18.f, Energy, 3.f * S, 160.f, 0.08f);
 		}
 		break;
 	}
@@ -489,7 +491,7 @@ void UShieldbreakImpactFXSubsystem::AddCard(bool bGlow, const FVector& Position,
 	Card.Seed = FMath::FRand();
 }
 
-void UShieldbreakImpactFXSubsystem::PlaceDecal(const FHitResult& Hit, float Radius, const FLinearColor& Tint, float Darkness)
+void UShieldbreakImpactFXSubsystem::PlaceDecal(const FHitResult& Hit, float Radius, const FLinearColor& Tint, float Darkness, float Rim)
 {
 	using namespace ShieldbreakImpactPrivate;
 	const int32 Wanted = FMath::Clamp(CVarDecals.GetValueOnGameThread(), 0, MaxDecals);
@@ -512,7 +514,7 @@ void UShieldbreakImpactFXSubsystem::PlaceDecal(const FHitResult& Hit, float Radi
 		UDecalComponent* Decal = NewObject<UDecalComponent>(FXActor);
 		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Material, this);
 		Decal->SetDecalMaterial(MID);
-		Decal->SetFadeScreenSize(0.002f);
+		Decal->SetFadeScreenSize(0.0004f);
 		Decal->SetupAttachment(FXActor->GetRootComponent());
 		Decal->RegisterComponent();
 		NextDecal = Decals.Add(Decal);
@@ -529,6 +531,7 @@ void UShieldbreakImpactFXSubsystem::PlaceDecal(const FHitResult& Hit, float Radi
 	Decal->SetWorldLocationAndRotation(Hit.ImpactPoint, Rotation);
 	MID->SetVectorParameterValue(TEXT("Tint"), Tint);
 	MID->SetScalarParameterValue(TEXT("Darkness"), Darkness);
+	MID->SetScalarParameterValue(TEXT("Rim"), Rim);
 	MID->SetScalarParameterValue(TEXT("Seed"), FMath::FRand());
 	MID->SetScalarParameterValue(TEXT("Opacity"), 1.f);
 	DecalTimes[NextDecal] = GetWorld()->GetTimeSeconds();
@@ -595,7 +598,9 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 	Slot.StartTime = Now;
 	// Two or three frames: long enough to register, short enough to never hide the target.
 	Slot.Duration = 0.04f + 0.01f * S;
-	Slot.Peak = 140.f * S;
+	// Keel's exposure turned 100+ cd into a white-out of the first-person gun; a few candelas a little ahead of the
+	// muzzle lights the walls and the gun's front without blowing it out.
+	Slot.Peak = CVarMuzzleLight.GetValueOnGameThread() * S;
 
 	const UPrimitiveComponent* GunPrimitive = Cast<UPrimitiveComponent>(AttachTo);
 	const EFirstPersonPrimitiveType ViewType = GunPrimitive ? GunPrimitive->FirstPersonPrimitiveType : EFirstPersonPrimitiveType::None;
@@ -641,9 +646,9 @@ void UShieldbreakImpactFXSubsystem::MuzzleFlash(USceneComponent* AttachTo, const
 	if (CVarLights.GetValueOnGameThread() != 0 && MuzzleLights.IsValidIndex(NextMuzzle))
 	{
 		UPointLightComponent* Light = MuzzleLights[NextMuzzle];
-		Light->SetWorldLocation(Muzzle + Dir * 12.f);
+		Light->SetWorldLocation(Muzzle + Dir * 45.f);
 		Light->SetLightColor(Tint);
-		Light->SetAttenuationRadius(380.f + 120.f * S);
+		Light->SetAttenuationRadius(300.f + 100.f * S);
 		Light->SetIntensity(Slot.Peak);
 		Light->SetVisibility(true);
 	}
@@ -718,7 +723,7 @@ void UShieldbreakImpactFXSubsystem::Tick(float DeltaTime)
 			const FSpark& Spark = Sparks[Index];
 			const float Speed = Spark.Velocity.Size();
 			const FVector Dir = Speed > 1.f ? Spark.Velocity / Speed : FVector::UpVector;
-			const float Length = FMath::Clamp(Speed * 0.02f, 1.2f, 22.f);
+			const float Length = FMath::Clamp(Speed * 0.03f, 2.f, 30.f);
 			const float T = Spark.Age / Spark.Life;
 			const FLinearColor Color = FMath::Lerp(Spark.HotColor, Spark.CoolColor, FMath::Min(1.f, T * 1.4f));
 			Transforms.Emplace(Dir.ToOrientationQuat(), Spark.Position - Dir * (Length * 0.5f),

@@ -39,9 +39,11 @@ void AShieldbreakSelfTest::BuildImpactShotSteps()
 	auto LogFX = [this](const TCHAR* Where)
 	{
 		const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this);
-		Lines.Add(FString::Printf(TEXT("INFO  %s: impacts %d, decals %d, muzzle flashes %d, live sparks %d, live cards %d, surface %d, materials %d"),
-			Where, FX ? FX->GetImpactCount() : -1, FX ? FX->GetDecalsPlaced() : -1, FX ? FX->GetMuzzleFlashCount() : -1,
-			FX ? FX->GetLiveSparkCount() : -1, FX ? FX->GetLiveCardCount() : -1, FX ? static_cast<int32>(FX->GetLastSurface()) : -1, FX && FX->HasMaterials()));
+		Lines.Add(FString::Printf(TEXT("INFO  %s: impacts %d (metal %d, dirt %d, armor %d, shield %d), decals %d, muzzle flashes %d, live sparks %d, live cards %d, materials %d"),
+			Where, FX ? FX->GetImpactCount() : -1, FX ? FX->GetSurfaceCount(EShieldbreakImpactSurface::Metal) : -1,
+			FX ? FX->GetSurfaceCount(EShieldbreakImpactSurface::Dirt) : -1, FX ? FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor) : -1,
+			FX ? FX->GetSurfaceCount(EShieldbreakImpactSurface::Shield) : -1, FX ? FX->GetDecalsPlaced() : -1, FX ? FX->GetMuzzleFlashCount() : -1,
+			FX ? FX->GetLiveSparkCount() : -1, FX ? FX->GetLiveCardCount() : -1, FX && FX->HasMaterials()));
 	};
 	// Tap the trigger (bursts and semi-autos need a fresh press) every Interval seconds until Stop.
 	auto Trigger = [Player](float Elapsed, float Interval, float Stop)
@@ -97,10 +99,10 @@ void AShieldbreakSelfTest::BuildImpactShotSteps()
 			{
 				const FVector Dir = FRotator(-4.f, P->GetActorRotation().Yaw + Step * 15.f, 0.f).Vector();
 				FHitResult Hit;
-				if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Dir * 2000.f, ECC_Visibility, Params) && Hit.Distance > 450.f
+				if (GetWorld()->LineTraceSingleByChannel(Hit, Eye, Eye + Dir * 2000.f, ECC_Visibility, Params) && Hit.Distance > 250.f
 					&& FMath::Abs(Hit.ImpactNormal.Z) < 0.4f)
 				{
-					const float Score = FMath::Abs(Hit.Distance - 750.f);
+					const float Score = FMath::Abs(Hit.Distance - 420.f);
 					if (Score < BestScore) { BestScore = Score; Best = Hit.ImpactPoint; }
 				}
 			}
