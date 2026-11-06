@@ -80,6 +80,8 @@ private:
 	void BuildMapSteps(const class AShieldbreakArena* Arena);
 	/** -SBShots: fixed-camera map views + FPS; -SBFPShots: first-person idle/throw/melee/reload. -SBShotTag=<name> names the files. */
 	void BuildShotSteps();
+	/** -SBImpactShots: bullet hits, shield flares and muzzle flashes captured mid-effect, then 20 s of firing FPS (ShieldbreakImpactFXShots.cpp). */
+	void BuildImpactShotSteps();
 	void TakeShot(const FString& Name, bool bShowUI);
 	/** Spawns a soldier and gives it to the local player controller (the human has no pawn during a self-test). */
 	AShieldbreakCharacter* PossessLocalDummy(const FTransform& Where);
