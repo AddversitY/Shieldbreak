@@ -155,6 +155,9 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	TriggerTarget = Instance->TriggerTarget;
 	SupportWeight = FMath::Clamp(Instance->SupportWeight, 0.f, 1.f);
 	SupportTarget = Instance->SupportTarget;
+	SupportFingers = Instance->SupportFingers;
+	SupportPalmNormal = Instance->SupportPalmNormal;
+	SupportCurl = Instance->SupportCurl;
 }
 
 void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
@@ -346,16 +349,47 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 		return;
 	}
 	const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Upper);
-	FTransform ParentCS, UpperCS, LowerCS, HandCS;
 	const FCompactPoseBoneIndex None(INDEX_NONE);
-	TransformRelativeTo(Pose, Parent, None, ParentCS);
-	TransformRelativeTo(Pose, Upper, None, UpperCS);
-	TransformRelativeTo(Pose, Lower, None, LowerCS);
-	TransformRelativeTo(Pose, Hand, None, HandCS);
+	auto ComponentSpace = [&Pose, None](FCompactPoseBoneIndex Bone)
+	{
+		FTransform Out;
+		TransformRelativeTo(Pose, Bone, None, Out);
+		return Out;
+	};
+	const FTransform ParentCS = ComponentSpace(Parent);
+	const FTransform UpperCS = ComponentSpace(Upper);
+	const FTransform LowerCS = ComponentSpace(Lower);
+	const FTransform HandCS = ComponentSpace(Hand);
 
+	// 1) Turn the hand: palm up under the forend, fingers across it (SupportFingers / SupportPalmNormal). The hand's
+	// current frame comes from its own joints (wrist, middle knuckle, thumb base), so no bone-axis convention is
+	// assumed. Left hand: the palm faces -(fingers x thumb).
+	FQuat Turn = FQuat::Identity;
+	FVector PalmOffset = FVector::ZeroVector; // wrist -> palm centre, in component space, after the turn
+	const FCompactPoseBoneIndex Middle = FindCompactBone(Pose, TEXT("middle_01_l"));
+	const FCompactPoseBoneIndex Thumb = FindCompactBone(Pose, TEXT("thumb_01_l"));
+	if (Middle.IsValid() && Thumb.IsValid())
+	{
+		const FVector Wrist = HandCS.GetLocation();
+		const FVector Knuckle = ComponentSpace(Middle).GetLocation();
+		const FVector F = (Knuckle - Wrist).GetSafeNormal();
+		FVector T = ComponentSpace(Thumb).GetLocation() - Wrist;
+		T = (T - F * FVector::DotProduct(T, F)).GetSafeNormal();
+		const FVector N = -FVector::CrossProduct(F, T).GetSafeNormal();
+		if (!F.IsNearlyZero() && !N.IsNearlyZero() && !SupportFingers.IsNearlyZero() && !SupportPalmNormal.IsNearlyZero())
+		{
+			const FQuat Now = FRotationMatrix::MakeFromXZ(F, N).ToQuat();
+			const FQuat Want = FRotationMatrix::MakeFromXZ(SupportFingers, SupportPalmNormal).ToQuat();
+			Turn = Want * Now.Inverse();
+		}
+		PalmOffset = Turn.RotateVector((Knuckle - Wrist) * 0.5f);
+	}
+	const FVector WristTarget = SupportTarget - PalmOffset;
+
+	// 2) Two-bone IK of the arm so the wrist lands where that palm needs it.
 	const FVector A = UpperCS.GetLocation(), B = LowerCS.GetLocation(), C = HandCS.GetLocation();
 	const float L1 = static_cast<float>(FVector::Dist(A, B)), L2 = static_cast<float>(FVector::Dist(B, C));
-	FVector ToTarget = SupportTarget - A;
+	const FVector ToTarget = WristTarget - A;
 	const float Reach = static_cast<float>(ToTarget.Size());
 	if (L1 < 1.f || L2 < 1.f || Reach < 1.f)
 	{
@@ -381,7 +415,8 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 	FTransform NewLowerCS = LowerCS;
 	NewLowerCS.SetRotation((TurnLower * TurnUpper * LowerCS.GetRotation()).GetNormalized());
 	NewLowerCS.SetLocation(NewB);
-	FTransform NewHandCS = HandCS; // keeps the animated rotation
+	FTransform NewHandCS = HandCS;
+	NewHandCS.SetRotation((Turn * HandCS.GetRotation()).GetNormalized());
 	NewHandCS.SetLocation(NewC);
 
 	const FTransform UpperLocal = NewUpperCS.GetRelativeTransform(ParentCS);
@@ -395,6 +430,55 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 	Blend(Pose[Upper], UpperLocal);
 	Blend(Pose[Lower], LowerLocal);
 	Blend(Pose[Hand], HandLocal);
+
+	// 3) Close the fingers around the forend: each joint turns toward the palm side, about the axis across its own
+	// direction and the palm normal. The thumb closes a little along the gun's side.
+	if (SupportCurl <= 0.01f)
+	{
+		return;
+	}
+	const FVector PalmNormal = SupportPalmNormal.GetSafeNormal();
+	struct FCurl { const TCHAR* Bones[3]; float Degrees[3]; };
+	static const FCurl Fingers[] = {
+		{ { TEXT("index_01_l"), TEXT("index_02_l"), TEXT("index_03_l") }, { 30.f, 55.f, 35.f } },
+		{ { TEXT("middle_01_l"), TEXT("middle_02_l"), TEXT("middle_03_l") }, { 38.f, 60.f, 38.f } },
+		{ { TEXT("ring_01_l"), TEXT("ring_02_l"), TEXT("ring_03_l") }, { 42.f, 62.f, 40.f } },
+		{ { TEXT("pinky_01_l"), TEXT("pinky_02_l"), TEXT("pinky_03_l") }, { 48.f, 62.f, 40.f } },
+		{ { TEXT("thumb_01_l"), TEXT("thumb_02_l"), TEXT("thumb_03_l") }, { 8.f, 18.f, 18.f } },
+	};
+	for (const FCurl& Finger : Fingers)
+	{
+		for (int32 J = 0; J < 3; ++J)
+		{
+			const FCompactPoseBoneIndex Bone = FindCompactBone(Pose, Finger.Bones[J]);
+			if (!Bone.IsValid())
+			{
+				break;
+			}
+			const FTransform BoneCS = ComponentSpace(Bone);
+			const FTransform BoneParentCS = ComponentSpace(Pose.GetParentBoneIndex(Bone));
+			// The joint's direction: toward the next joint, or for the tip, from the previous one.
+			FVector Along;
+			if (J < 2)
+			{
+				const FCompactPoseBoneIndex Next = FindCompactBone(Pose, Finger.Bones[J + 1]);
+				Along = Next.IsValid() ? (ComponentSpace(Next).GetLocation() - BoneCS.GetLocation()) : FVector::ZeroVector;
+			}
+			else
+			{
+				Along = BoneCS.GetLocation() - BoneParentCS.GetLocation();
+			}
+			const FVector Axis = FVector::CrossProduct(Along.GetSafeNormal(), PalmNormal).GetSafeNormal();
+			if (Axis.IsNearlyZero())
+			{
+				continue;
+			}
+			const float Angle = FMath::DegreesToRadians(Finger.Degrees[J] * SupportCurl * SupportWeight);
+			FTransform NewBoneCS = BoneCS;
+			NewBoneCS.SetRotation((FQuat(Axis, Angle) * BoneCS.GetRotation()).GetNormalized());
+			Pose[Bone].SetRotation(NewBoneCS.GetRelativeTransform(BoneParentCS).GetRotation());
+		}
+	}
 }
 
 void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const

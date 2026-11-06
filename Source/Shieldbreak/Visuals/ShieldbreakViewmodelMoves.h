@@ -2,7 +2,7 @@
 // player. Epic's free motion capture (Lyra, the UE templates) is all third-person, and played on the camera rig it
 // swung shoulder plates across the screen and the hands away from the gun. These are original first-person moves
 // authored as keyframes in camera space instead, the way shooters animate their viewmodels: the gun turns about the
-// gun hand, and the left hand travels between points on the gun (the forend, the magazine, the charging handle) and
+// gun hand, and the left hand (its palm, since the support-hand IK places the palm) travels between points on the gun (the forend, the magazine, the charging handle) and
 // points out of view, carrying the magazine with it. The third-person body keeps Lyra's clips for everyone else.
 //
 // Keys are eased with Hermite splines (tangents from the neighbouring keys), so a move flows through its poses
@@ -63,6 +63,9 @@ struct FShieldbreakViewmodelContext
 	UStaticMeshComponent* Magazine = nullptr;
 	/** The first-person arms, for where the left hand (hand_l) actually is. */
 	const USkeletalMeshComponent* Arms = nullptr;
+	/** The forend hold's palm point in gun space (the Support anchor), when the gun has one. */
+	FVector SupportPalmLocal = FVector::ZeroVector;
+	bool bHasSupportPalm = false;
 	/** Still reloading (gameplay); a reload move that the game cancelled eases out. */
 	bool bReloading = true;
 };

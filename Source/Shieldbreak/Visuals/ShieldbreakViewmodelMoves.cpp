@@ -287,7 +287,7 @@ namespace ShieldbreakViewmodelPrivate
 		FVector Local = Key.Local;
 		switch (Key.Anchor)
 		{
-		case EAnchor::Support: Local += GunSpaceSocket(Context.Gun, TEXT("SupportHand"), Data.SupportSocket); break;
+		case EAnchor::Support: Local += Context.bHasSupportPalm ? Context.SupportPalmLocal : GunSpaceSocket(Context.Gun, TEXT("SupportHand"), Data.SupportSocket); break;
 		case EAnchor::Magazine: Local += GunSpaceSocket(Context.Gun, TEXT("Magazine"), Data.MagazineSocket) + Data.MagazineGrip; break;
 		default: break;
 		}

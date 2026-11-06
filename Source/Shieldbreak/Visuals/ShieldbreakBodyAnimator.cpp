@@ -442,11 +442,21 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// Rifle framing (guns with a SupportHand socket): the standard shooter layout. The gun enters from the lower right
 	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
-	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 30.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
-	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 4.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -5.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 34.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 16.f, TEXT("First-person rifles: gun origin cm right of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 19.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 6.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -9.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
+	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
+	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
+	// palm sits here.
+	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), 1.5f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmForward(TEXT("sb.FPPalmForward"), 2.0f, TEXT("First-person rifles: left palm offset forward of SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), 1.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.85f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
+	TAutoConsoleVariable<float> CVarPalmTilt(TEXT("sb.FPPalmTilt"), 0.6f, TEXT("First-person rifles: how far the left palm turns toward the gun's side (0 = straight up)."));
+	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPFingerCurl"), 1.f, TEXT("First-person rifles: left finger curl around the forend (0 = open, 1 = gripping)."));
 	TAutoConsoleVariable<int32> CVarSupportHand(TEXT("sb.FPSupportHand"), 1, TEXT("1: on rifles the first-person left hand holds the gun's SupportHand socket."));
 
 	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
@@ -928,6 +938,14 @@ void UShieldbreakBodyAnimator::UpdateViewmodelMoves(bool bSwapping)
 	Context.Gun = Weapon && Weapon->GetRootComponent() && Weapon->GetRootComponent()->GetAttachParent() == FirstPersonArms
 		? Weapon->GetWeaponMesh() : nullptr;
 	Context.Magazine = Context.Gun ? Magazine : nullptr;
+	if (UStaticMeshComponent* SupportGun = Context.Gun && Context.Gun->DoesSocketExist(TEXT("SupportHand")) ? Weapon->GetWeaponMesh() : nullptr)
+	{
+		// The hand is placed by its palm now: the move's forend key is the same palm point the idle hold uses.
+		FVector Palm, Fingers, Normal;
+		ComputeSupportPalm(SupportGun, Palm, Fingers, Normal);
+		Context.SupportPalmLocal = SupportGun->GetComponentTransform().InverseTransformPosition(Palm);
+		Context.bHasSupportPalm = true;
+	}
 	Context.Arms = FirstPersonArms;
 	const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : -1.f;
 	Context.bReloading = Weapon && (Weapon->IsReloading() || (ReloadProgress >= 0.f && ReloadProgress < 1.f));
@@ -960,6 +978,26 @@ bool UShieldbreakBodyAnimator::WantsFirstPersonSupportArm() const
 	return CVarSupportHand.GetValueOnGameThread() != 0 && GetSupportMesh(false) != nullptr;
 }
 
+void UShieldbreakBodyAnimator::ComputeSupportPalm(const UStaticMeshComponent* Gun, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	// Gun axes from its sockets, in world space: forward from the trigger to the muzzle, up from the mesh, right
+	// from those two (Unreal is left-handed: Up x Forward points right).
+	const FVector Socket = Gun->GetSocketLocation(TEXT("SupportHand"));
+	const FVector Forward = Gun->DoesSocketExist(TEXT("Muzzle")) && Gun->DoesSocketExist(TEXT("Trigger"))
+		? (Gun->GetSocketLocation(TEXT("Muzzle")) - Gun->GetSocketLocation(TEXT("Trigger"))).GetSafeNormal() : Gun->GetForwardVector();
+	FVector Up = Gun->GetUpVector();
+	Up = (Up - Forward * FVector::DotProduct(Up, Forward)).GetSafeNormal();
+	const FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal();
+	OutPalm = Socket + Right * CVarPalmRight.GetValueOnGameThread() + Forward * CVarPalmForward.GetValueOnGameThread()
+		+ Up * CVarPalmUp.GetValueOnGameThread();
+	// Palm up and turned toward the gun; fingers across the underside toward the far side, a little forward.
+	const float Wrap = FMath::Clamp(CVarPalmWrap.GetValueOnGameThread(), 0.f, 1.f);
+	OutPalmNormal = (Up + Right * CVarPalmTilt.GetValueOnGameThread()).GetSafeNormal();
+	FVector Fingers = Right * Wrap + Forward * FMath::Sqrt(FMath::Max(0.f, 1.f - Wrap * Wrap));
+	OutFingers = (Fingers - OutPalmNormal * FVector::DotProduct(Fingers, OutPalmNormal)).GetSafeNormal();
+}
+
 void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
 {
 	UStaticMeshComponent* Gun = bHolding && WantsFirstPersonSupportArm() ? GetSupportMesh(true) : nullptr;
@@ -969,21 +1007,47 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 	SupportHandWeight = FMath::FInterpConstantTo(SupportHandWeight, Gun || bMoveHand ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
 	if (!Gun && !bMoveHand && SupportHandWeight <= 0.f)
 	{
-		Instance->SetSupportHand(0.f, FVector::ZeroVector);
+		Instance->SetSupportHand(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector, 0.f);
 		return;
 	}
 	if (Gun || bMoveHand)
 	{
-		FVector Target = Gun ? Gun->GetSocketLocation(TEXT("SupportHand")) : MovePose.HandWorld;
+		using namespace ShieldbreakBodyAnimatorPrivate;
+		FVector Palm, Fingers, PalmNormal;
+		float Curl = FMath::Clamp(CVarFingerCurl.GetValueOnGameThread(), 0.f, 1.5f);
+		if (Gun)
+		{
+			ComputeSupportPalm(Gun, Palm, Fingers, PalmNormal);
+		}
+		else
+		{
+			// No forend (the sidearm's reload): palm up, fingers ahead, from the camera.
+			const FTransform Camera = Cast<AShieldbreakCharacter>(GetOwner())->GetFirstPersonCamera()->GetComponentTransform();
+			Palm = MovePose.HandWorld;
+			Fingers = Camera.GetUnitAxis(EAxis::X);
+			PalmNormal = Camera.GetUnitAxis(EAxis::Z);
+		}
 		if (bMoveHand)
 		{
-			Target = FMath::Lerp(Target, MovePose.HandWorld, FMath::Clamp(MovePose.HandWeight, 0.f, 1.f));
+			// A first-person move (reload) leads the palm elsewhere, blended over the forend hold by its own weight;
+			// the hand opens a little to carry the magazine.
+			const float MoveWeight = FMath::Clamp(MovePose.HandWeight, 0.f, 1.f);
+			Palm = FMath::Lerp(Palm, MovePose.HandWorld, MoveWeight);
+			Curl = FMath::Lerp(Curl, FMath::Min(Curl, 0.5f), MoveWeight);
 		}
-		Instance->SetSupportHand(SupportHandWeight, FirstPersonArms->GetComponentTransform().InverseTransformPosition(Target));
+		const FTransform& ToArms = FirstPersonArms->GetComponentTransform();
+		Instance->SetSupportHand(SupportHandWeight, ToArms.InverseTransformPosition(Palm),
+			ToArms.InverseTransformVectorNoScale(Fingers), ToArms.InverseTransformVectorNoScale(PalmNormal), Curl);
+		if (Gun)
+		{
+			FVector Unused1, Unused2;
+			ComputeSupportPalm(Gun, SupportPalmWorld, Unused1, Unused2);
+		}
 	}
 	else
 	{
-		Instance->SetSupportHand(SupportHandWeight, Instance->GetSupportTarget());
+		Instance->SetSupportHand(SupportHandWeight, Instance->GetSupportTarget(), Instance->GetSupportFingers(), Instance->GetSupportPalmNormal(),
+			Instance->GetSupportCurl());
 	}
 }
 
@@ -994,7 +1058,13 @@ float UShieldbreakBodyAnimator::GetSupportHandError() const
 	{
 		return -1.f;
 	}
-	return static_cast<float>(FVector::Dist(FirstPersonArms->GetBoneLocation(TEXT("hand_l")), Gun->GetSocketLocation(TEXT("SupportHand"))));
+	// Error at the palm (the point the hand is placed by): the middle of the knuckles' base and the wrist.
+	if (FirstPersonArms->GetBoneIndex(TEXT("middle_01_l")) == INDEX_NONE)
+	{
+		return static_cast<float>(FVector::Dist(FirstPersonArms->GetBoneLocation(TEXT("hand_l")), SupportPalmWorld));
+	}
+	const FVector PalmNow = (FirstPersonArms->GetBoneLocation(TEXT("hand_l")) + FirstPersonArms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
+	return static_cast<float>(FVector::Dist(PalmNow, SupportPalmWorld));
 }
 
 UStaticMeshComponent* UShieldbreakBodyAnimator::GetTriggerMesh() const

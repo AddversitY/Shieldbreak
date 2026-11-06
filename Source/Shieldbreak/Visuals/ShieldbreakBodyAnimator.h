@@ -181,6 +181,8 @@ private:
 	/** Steps the moves (call after the arms have their transform for this frame, before the support hand). */
 	void UpdateViewmodelMoves(bool bSwapping);
 	class UStaticMeshComponent* GetHeldMagazine() const;
+	/** The forend hold: palm point, fingers direction and palm normal (world) for a gun with a SupportHand socket. */
+	void ComputeSupportPalm(const class UStaticMeshComponent* Gun, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const;
 	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
 	bool bSupportArmShown = false;
 	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
@@ -210,4 +212,6 @@ private:
 	bool bScopeHidden = false;
 	TWeakObjectPtr<AActor> ScopeHiddenWeapon;
 	TWeakObjectPtr<class APlayerController> ScopeHidePC;
+	/** Last frame's left-palm target (world), for GetSupportHandError. */
+	FVector SupportPalmWorld = FVector::ZeroVector;
 };
