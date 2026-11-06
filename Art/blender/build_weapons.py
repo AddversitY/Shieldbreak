@@ -119,8 +119,9 @@ def battle_rifle_scope(p, S):
     eyepiece, a pale ceramic armour hood over the top with a swept nose, a ranging display and a side turret. It sits
     high enough that the first-person view sees its whole left side above the receiver, like a real raised optic."""
     TZ = 14.4  # tube axis height
+    Y0 = 8.0  # task (21): further back, the eyepiece filled the lower-right corner; the whole scope sits 8 cm forward
     # Clamp risers: angular blocks from the rail up to the tube, each with a half-ring cap.
-    for y in (-0.5, 8.0):
+    for y in (Y0 - 0.5, Y0 + 8.0):
         p.append(k.profile("scope_riser", [(y - 1.5, 9.4), (y + 1.5, 9.4), (y + 1.0, TZ - 0.6), (y - 1.0, TZ - 0.6)], 2.6,
                            "WeaponMetal", bevel=0.3, segments=2))
         p.append(k.cyl("scope_ring", (0, y, TZ), 1.95, 1.8, "WeaponMetal", verts=20, bevel=0.15))
@@ -128,31 +129,31 @@ def battle_rifle_scope(p, S):
             screw(p, x, y, 10.6, 0.24)
         p.append(k.box("riser_lever", (-1.55, y, 11.2), (0.5, 1.6, 0.8), "Steel", bevel=0.15))
     # Tube, objective bell and eyepiece.
-    p.append(k.cyl("scope_tube", (0, 4.0, TZ), 1.55, 17.0, "WeaponMetal", verts=20, bevel=0.1))
-    p.append(k.cyl("scope_bell", (0, 14.3, TZ), 1.55, 3.6, "WeaponMetal", verts=20, bevel=0.15, radius2=2.35))
-    p.append(k.cyl("scope_bezel", (0, 16.35, TZ), 2.45, 0.6, "WeaponMetal", verts=24, bevel=0.12))
-    p.append(k.cyl("scope_glow", (0, 16.68, TZ), 2.2, 0.08, "GlowCyan", verts=24, bevel=0))
-    p.append(k.cyl("scope_lens", (0, 16.7, TZ), 1.95, 0.06, "Lens", verts=24, bevel=0))
-    p.append(k.cyl("eye_bell", (0, -5.7, TZ), 2.0, 2.4, "WeaponMetal", verts=20, bevel=0.15, radius2=1.55))
-    p.append(k.cyl("eyepiece", (0, -7.6, TZ), 2.05, 1.6, "Polymer", verts=20, bevel=0.2))
+    p.append(k.cyl("scope_tube", (0, Y0 + 4.0, TZ), 1.55, 17.0, "WeaponMetal", verts=20, bevel=0.1))
+    p.append(k.cyl("scope_bell", (0, Y0 + 14.3, TZ), 1.55, 3.6, "WeaponMetal", verts=20, bevel=0.15, radius2=2.35))
+    p.append(k.cyl("scope_bezel", (0, Y0 + 16.35, TZ), 2.45, 0.6, "WeaponMetal", verts=24, bevel=0.12))
+    p.append(k.cyl("scope_glow", (0, Y0 + 16.68, TZ), 2.2, 0.08, "GlowCyan", verts=24, bevel=0))
+    p.append(k.cyl("scope_lens", (0, Y0 + 16.7, TZ), 1.95, 0.06, "Lens", verts=24, bevel=0))
+    p.append(k.cyl("eye_bell", (0, Y0 + -5.7, TZ), 2.0, 2.4, "WeaponMetal", verts=20, bevel=0.15, radius2=1.55))
+    p.append(k.cyl("eyepiece", (0, Y0 + -7.6, TZ), 2.05, 1.6, "Polymer", verts=20, bevel=0.2))
     for i in range(4):
-        p.append(k.cyl("eye_rib", (0, -8.1 + i * 0.4, TZ), 2.12, 0.16, "Polymer", verts=20, bevel=0))
-    p.append(k.cyl("eye_lens", (0, -8.45, TZ), 1.6, 0.06, "Lens", verts=20, bevel=0))
+        p.append(k.cyl("eye_rib", (0, Y0 - 8.1 + i * 0.4, TZ), 2.12, 0.16, "Polymer", verts=20, bevel=0))
+    p.append(k.cyl("eye_lens", (0, Y0 + -8.45, TZ), 1.6, 0.06, "Lens", verts=20, bevel=0))
     # Ceramic armour hood over the top: a swept shell with a raised spine and a nose that overhangs the lens.
-    p.append(k.profile("scope_hood", [(-4.5, TZ + 1.3), (-3.5, TZ + 2.1), (11.0, TZ + 2.1), (15.0, TZ + 2.7), (17.2, TZ + 2.4),
-                                      (17.0, TZ + 1.9), (13.5, TZ + 1.5), (-4.0, TZ + 1.2)], 3.4, "Ceramic", bevel=0.3, segments=S))
-    p.append(k.box("hood_spine", (0, 5.5, TZ + 2.3), (1.0, 14.0, 0.5), "WeaponMetal", bevel=0.15))
+    p.append(k.profile("scope_hood", [(Y0 + y, z) for y, z in ((-4.5, TZ + 1.3), (-3.5, TZ + 2.1), (11.0, TZ + 2.1), (15.0, TZ + 2.7), (17.2, TZ + 2.4),
+                                      (17.0, TZ + 1.9), (13.5, TZ + 1.5), (-4.0, TZ + 1.2))], 3.4, "Ceramic", bevel=0.3, segments=S))
+    p.append(k.box("hood_spine", (0, Y0 + 5.5, TZ + 2.3), (1.0, 14.0, 0.5), "WeaponMetal", bevel=0.15))
     for x in (1.71, -1.71):
-        p.append(k.box("hood_line", (x, 6.0, TZ + 1.65), (0.08, 15.0, 0.18), "GlowCyan", bevel=0))
+        p.append(k.box("hood_line", (x, Y0 + 6.0, TZ + 1.65), (0.08, 15.0, 0.18), "GlowCyan", bevel=0))
     # Side turret (left) with knurling, a battery cap (right) and a slim ranging display on the left of the tube.
-    p.append(k.cyl("turret", (-2.0, 3.0, TZ), 0.95, 1.0, "WeaponMetal", axis="X", verts=20, bevel=0.12))
-    p.append(k.cyl("turret_cap", (-2.55, 3.0, TZ), 0.7, 0.2, "Steel", axis="X", verts=20, bevel=0.04))
+    p.append(k.cyl("turret", (-2.0, Y0 + 3.0, TZ), 0.95, 1.0, "WeaponMetal", axis="X", verts=20, bevel=0.12))
+    p.append(k.cyl("turret_cap", (-2.55, Y0 + 3.0, TZ), 0.7, 0.2, "Steel", axis="X", verts=20, bevel=0.04))
     for i in range(10):
         a = i * math.pi / 5
-        p.append(k.box("turret_knurl", (-2.0, 3.0 + 0.98 * math.cos(a), TZ + 0.98 * math.sin(a)), (0.85, 0.13, 0.13), "Steel", bevel=0))
-    p.append(k.cyl("battery", (1.9, 3.0, TZ), 0.8, 0.7, "WeaponMetal", axis="X", verts=16, bevel=0.1))
-    p.append(k.box("range_display", (-1.62, 10.5, TZ - 0.4), (0.1, 3.0, 1.0), "Display", bevel=0))
-    p.append(k.box("range_housing", (-1.45, 10.5, TZ - 0.4), (0.4, 3.6, 1.4), "Polymer", bevel=0.12))
+        p.append(k.box("turret_knurl", (-2.0, Y0 + 3.0 + 0.98 * math.cos(a), TZ + 0.98 * math.sin(a)), (0.85, 0.13, 0.13), "Steel", bevel=0))
+    p.append(k.cyl("battery", (1.9, Y0 + 3.0, TZ), 0.8, 0.7, "WeaponMetal", axis="X", verts=16, bevel=0.1))
+    p.append(k.box("range_display", (-1.62, Y0 + 10.5, TZ - 0.4), (0.1, 3.0, 1.0), "Display", bevel=0))
+    p.append(k.box("range_housing", (-1.45, Y0 + 10.5, TZ - 0.4), (0.4, 3.6, 1.4), "Polymer", bevel=0.12))
 
 
 def screw(p, x, y, z, r=0.32, mat="Steel"):

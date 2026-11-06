@@ -456,8 +456,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
 	// palm sits here.
-	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), -1.0f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
-	TAutoConsoleVariable<float> CVarPalmForward(TEXT("sb.FPPalmForward"), 4.0f, TEXT("First-person rifles: left palm offset forward of SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), -2.5f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmForward(TEXT("sb.FPPalmForward"), 6.0f, TEXT("First-person rifles: left palm offset forward of SupportHand (cm)."));
 	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), -1.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
 	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.4f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
 	TAutoConsoleVariable<float> CVarPalmTilt(TEXT("sb.FPPalmTilt"), 0.6f, TEXT("First-person rifles: how far the left palm turns toward the gun's side (0 = straight up)."));
