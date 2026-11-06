@@ -129,6 +129,12 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   Make one compare JPG of the three fp_0_idle_br_0 frames side by side. For each, say in words: is the left glove
   visible, where on screen, and does it wrap the forend or clip into the gun? JPGs into
   docs/playtests/2026-11-06_task17/. Run after (M1) if (M1) has already started, otherwise before it.
+- **2026-11-06 (M4), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Melee chops instead of thrusting; sidearm fresh magazine comes up sooner":**
+  Thanks for (M3). The rifle reload now reads right. The melee still showed the shoulder, so it now chops down and in with about 3 cm of
+  forward travel and no roll. The sidearm's fresh magazine reaches the grip earlier, so the fp_pistol_fresh shot should
+  show it. Code only. Steps: rebuild; self-test once; fp_melee and fp_pistol_fresh JPGs (the others are optional) into
+  docs/playtests/2026-11-06_fpmoves_m4/. In words: any shoulder or arm in fp_melee? Left glove and magazine in
+  fp_pistol_fresh? Also say whether "The eye trails the step" fails again (it failed in M3, and nothing here touches it).
 - **2026-11-06 (M3), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Magazine follows the palm; gentler reload lift; melee keeps the shoulder out":**
   Thanks for (M2). The magazine was placed from the wrist, while the IK places the palm, so it floated at the lower left.
   Reloads lifted the gun over the crosshair, and the melee still showed the arm. Now the magazine follows the palm, the

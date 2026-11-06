@@ -161,7 +161,7 @@ namespace ShieldbreakViewmodelPrivate
 		{ 0.00f, EAnchor::Camera, FVector(16.f, -14.f, -44.f) },
 		{ 0.14f, EAnchor::Camera, FVector(16.f, -14.f, -44.f) },
 		{ 0.32f, EAnchor::Camera, FVector(20.f, -8.f, -40.f) },
-		{ 0.48f, EAnchor::Magazine, FVector(0.f, -0.5f, -12.f) },
+		{ 0.44f, EAnchor::Magazine, FVector(0.f, -0.5f, -7.f) },
 		{ 0.58f, EAnchor::Magazine, FVector(0.f, 0.f, 0.f) },
 		{ 0.65f, EAnchor::Magazine, FVector(-0.5f, 0.f, -3.f) },
 		{ 0.82f, EAnchor::Camera, FVector(18.f, -12.f, -42.f) },
@@ -208,22 +208,22 @@ namespace ShieldbreakViewmodelPrivate
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 
-	// ---- Melee: a short wind-up, the gun driven forward (not far: the rig's shoulder sits just behind the eye and
-	// came into view at 16 cm, task M1) and across to the left (the hit lands at once in
+	// ---- Melee: a short wind-up, then the gun chops down and in with almost no forward travel (the rig's
+	// shoulder sits just beside the eye: a 16 cm thrust put it on screen in task M1, 9 cm with a roll in M3) and across to the left (the hit lands at once in
 	// gameplay, so the strike peaks early), then recovery ----
 	const FGunKey RifleMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 		{ 0.10f, FVector(-3.f, 4.f, -1.f), FVector(-2.f, 6.f, 6.f) },
-		{ 0.28f, FVector(9.f, -5.f, -4.f), FVector(-4.f, -7.f, -18.f) },
-		{ 0.45f, FVector(7.f, -4.f, -3.f), FVector(-3.f, -5.f, -14.f) },
+		{ 0.28f, FVector(3.f, -3.f, -4.f), FVector(-9.f, -8.f, 4.f) },
+		{ 0.45f, FVector(2.5f, -2.5f, -3.f), FVector(-7.f, -6.f, 3.f) },
 		{ 0.75f, FVector(-1.f, 1.f, -0.5f), FVector(-1.f, 2.f, 2.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 	const FGunKey PistolMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 		{ 0.10f, FVector(-3.f, 4.f, 1.f), FVector(4.f, 6.f, 8.f) },
-		{ 0.28f, FVector(9.f, -5.f, -3.f), FVector(-6.f, -7.f, -24.f) },
-		{ 0.45f, FVector(7.f, -4.f, -2.f), FVector(-5.f, -5.f, -19.f) },
+		{ 0.28f, FVector(3.f, -3.f, -3.f), FVector(-10.f, -8.f, 4.f) },
+		{ 0.45f, FVector(2.5f, -2.5f, -2.f), FVector(-8.f, -6.f, 3.f) },
 		{ 0.75f, FVector(-1.f, 1.f, -0.4f), FVector(1.f, 3.f, 3.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
