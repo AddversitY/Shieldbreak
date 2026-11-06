@@ -11,6 +11,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/ShieldbreakCharacter.h"
@@ -428,7 +429,19 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** Bones hidden on the arms: the head (we look out of it), the legs, and the left arm: the pistol-idle pose holds
 	 * the left hand out on its own at the lower left of the view, which read as a stray shape (playtest 2026-11-03), so
 	 * the view shows only the gun and the hand holding it. */
-	const TCHAR* const FirstPersonHiddenBones[] = { TEXT("neck_01"), TEXT("thigh_l"), TEXT("thigh_r"), TEXT("upperarm_l") };
+	const TCHAR* const FirstPersonHiddenBones[] = { TEXT("neck_01"), TEXT("thigh_l"), TEXT("thigh_r") };
+	/** The left arm: hidden by default (see above), shown on rifles, whose left hand holds the front of the gun
+	 *  (Vincent, 2026-11-06, with Halo Infinite references: the support hand is the one you see). */
+	const TCHAR* const SupportArmBone = TEXT("upperarm_l");
+	// Rifle framing (guns with a SupportHand socket): the standard shooter layout. The gun enters from the lower right
+	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
+	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
+	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 30.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 4.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -5.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<int32> CVarSupportHand(TEXT("sb.FPSupportHand"), 1, TEXT("1: on rifles the first-person left hand holds the gun's SupportHand socket."));
 
 	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
 	struct FActionTiming { float StartTime; float PlayRate; };
@@ -572,6 +585,52 @@ void UShieldbreakBodyAnimator::SetFirstPersonArmsVisible(bool bVisible)
 	}
 }
 
+void UShieldbreakBodyAnimator::ClearScopeHide()
+{
+	if (APlayerController* PC = ScopeHidePC.Get())
+	{
+		if (AActor* Old = ScopeHiddenWeapon.Get())
+		{
+			PC->HiddenActors.Remove(Old);
+		}
+		PC->HiddenPrimitiveComponents.Remove(TWeakObjectPtr<UPrimitiveComponent>(FirstPersonArms.Get()));
+		for (UStaticMeshComponent* Piece : FirstPersonArmor)
+		{
+			PC->HiddenPrimitiveComponents.Remove(TWeakObjectPtr<UPrimitiveComponent>(Piece));
+		}
+	}
+	ScopeHidePC = nullptr;
+	ScopeHiddenWeapon = nullptr;
+	bScopeHidden = false;
+}
+
+void UShieldbreakBodyAnimator::UpdateScopeHide(AShieldbreakCharacter* OwnerCharacter)
+{
+	// Looking through a scope overlay: the gun and arms would sit in front of the lens, so this viewer stops
+	// rendering them (their own visibility, animation and the third-person body are untouched).
+	APlayerController* PC = Cast<APlayerController>(OwnerCharacter->GetController());
+	AShieldbreakWeapon* Weapon = OwnerCharacter->GetCurrentWeapon();
+	const bool bHide = PC && OwnerCharacter->IsAlive() && OwnerCharacter->GetScopeBlend() > 0.5f && Weapon
+		&& Weapon->GetStats().Scope != EShieldbreakScope::None;
+	if (bHide == bScopeHidden && ScopeHiddenWeapon.Get() == (bHide ? Weapon : nullptr) && ScopeHidePC.Get() == (bHide ? PC : nullptr))
+	{
+		return;
+	}
+	ClearScopeHide();
+	if (bHide)
+	{
+		bScopeHidden = true;
+		ScopeHidePC = PC;
+		ScopeHiddenWeapon = Weapon;
+		PC->HiddenActors.AddUnique(Weapon);
+		PC->HiddenPrimitiveComponents.AddUnique(TWeakObjectPtr<UPrimitiveComponent>(FirstPersonArms.Get()));
+		for (UStaticMeshComponent* Piece : FirstPersonArmor)
+		{
+			PC->HiddenPrimitiveComponents.AddUnique(TWeakObjectPtr<UPrimitiveComponent>(Piece));
+		}
+	}
+}
+
 void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
@@ -587,6 +646,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		&& OwnerCharacter->GetFirstPersonCamera() && CVarFirstPersonArms.GetValueOnGameThread() != 0;
 	if (!bWanted)
 	{
+		ClearScopeHide();
 		if (FirstPersonArms && FirstPersonArms->IsVisible())
 		{
 			SetFirstPersonArmsVisible(false);
@@ -663,6 +723,8 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		{
 			FirstPersonArms->HideBoneByName(Bone, EPhysBodyOp::PBO_None);
 		}
+		FirstPersonArms->HideBoneByName(SupportArmBone, EPhysBodyOp::PBO_None);
+		bSupportArmShown = false;
 		AttachArmor(FirstPersonArms, true);
 		if (CVarFPSelfShadow.GetValueOnGameThread() == 0)
 		{
@@ -683,6 +745,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	{
 		SetFirstPersonArmsVisible(true);
 	}
+	UpdateScopeHide(OwnerCharacter);
 
 	// Share the body's (team-tinted) materials, which ApplyPlayerColor may swap for dynamic instances at any time.
 	for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
@@ -707,8 +770,27 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	}
 
 	// Place the arms once the idle has settled (its cross-fade done) and no action is moving the hands.
-	const FVector3f Grip(CVarGripForward.GetValueOnGameThread(), CVarGripRight.GetValueOnGameThread(), CVarGripDown.GetValueOnGameThread());
-	const FVector2f Aim(CVarAimPitch.GetValueOnGameThread(), CVarAimYaw.GetValueOnGameThread());
+	const bool bRifle = WantsFirstPersonSupportArm();
+	const FVector3f Grip = bRifle
+		? FVector3f(CVarRifleGripForward.GetValueOnGameThread(), CVarRifleGripRight.GetValueOnGameThread(), CVarRifleGripDown.GetValueOnGameThread())
+		: FVector3f(CVarGripForward.GetValueOnGameThread(), CVarGripRight.GetValueOnGameThread(), CVarGripDown.GetValueOnGameThread());
+	const FVector2f Aim = bRifle
+		? FVector2f(CVarRifleAimPitch.GetValueOnGameThread(), CVarRifleAimYaw.GetValueOnGameThread())
+		: FVector2f(CVarAimPitch.GetValueOnGameThread(), CVarAimYaw.GetValueOnGameThread());
+	// Show the left arm only while it has a gun to hold (the grenade throw shows it for its own swing, then restores
+	// this state through WantsFirstPersonSupportArm).
+	if (bRifle != bSupportArmShown)
+	{
+		bSupportArmShown = bRifle;
+		if (bRifle)
+		{
+			FirstPersonArms->UnHideBoneByName(SupportArmBone);
+		}
+		else
+		{
+			FirstPersonArms->HideBoneByName(SupportArmBone, EPhysBodyOp::PBO_None);
+		}
+	}
 	const bool bSettled = World->GetTimeSeconds() - FirstPersonIdleSince > 0.3f && !Instance->GetActionAnimation();
 	const AShieldbreakWeapon* HeldWeapon = OwnerCharacter->GetCurrentWeapon();
 	const float Lift = HeldWeapon ? HeldWeapon->GetFirstPersonLift() : 0.f;
@@ -739,6 +821,63 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		ApplyFirstPersonArmsTransform(Dip);
 	}
 	UpdateTriggerFinger(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
+	UpdateSupportHand(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
+}
+
+UStaticMeshComponent* UShieldbreakBodyAnimator::GetSupportMesh(bool bRequireAttached) const
+{
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	if (!Weapon || !Weapon->GetRootComponent()
+		|| (bRequireAttached && (!FirstPersonArms || Weapon->GetRootComponent()->GetAttachParent() != FirstPersonArms)))
+	{
+		return nullptr;
+	}
+	TInlineComponentArray<UStaticMeshComponent*> Meshes(Weapon);
+	for (UStaticMeshComponent* Mesh : Meshes)
+	{
+		if (Mesh->DoesSocketExist(TEXT("SupportHand")))
+		{
+			return Mesh;
+		}
+	}
+	return nullptr;
+}
+
+bool UShieldbreakBodyAnimator::WantsFirstPersonSupportArm() const
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	return CVarSupportHand.GetValueOnGameThread() != 0 && GetSupportMesh(false) != nullptr;
+}
+
+void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
+{
+	UStaticMeshComponent* Gun = bHolding && WantsFirstPersonSupportArm() ? GetSupportMesh(true) : nullptr;
+	SupportHandWeight = FMath::FInterpConstantTo(SupportHandWeight, Gun ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
+	if (!Gun && SupportHandWeight <= 0.f)
+	{
+		Instance->SetSupportHand(0.f, FVector::ZeroVector);
+		return;
+	}
+	if (Gun)
+	{
+		Instance->SetSupportHand(SupportHandWeight,
+			FirstPersonArms->GetComponentTransform().InverseTransformPosition(Gun->GetSocketLocation(TEXT("SupportHand"))));
+	}
+	else
+	{
+		Instance->SetSupportHand(SupportHandWeight, Instance->GetSupportTarget());
+	}
+}
+
+float UShieldbreakBodyAnimator::GetSupportHandError() const
+{
+	const UStaticMeshComponent* Gun = GetSupportMesh(true);
+	if (!Gun || !FirstPersonArms || FirstPersonArms->GetBoneIndex(TEXT("hand_l")) == INDEX_NONE)
+	{
+		return -1.f;
+	}
+	return static_cast<float>(FVector::Dist(FirstPersonArms->GetBoneLocation(TEXT("hand_l")), Gun->GetSocketLocation(TEXT("SupportHand"))));
 }
 
 UStaticMeshComponent* UShieldbreakBodyAnimator::GetTriggerMesh() const

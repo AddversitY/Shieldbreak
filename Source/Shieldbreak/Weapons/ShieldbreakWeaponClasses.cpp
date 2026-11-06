@@ -23,6 +23,7 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 	Stats.MaxReserveAmmo = 108;
 	Stats.ReloadTime = 2.f;
 	Stats.ZoomFOV = 40.f;
+	Stats.Scope = EShieldbreakScope::Marksman;
 	Stats.RecoilPitch = 0.35f;
 	// Battle Rifle: generous at mid range, like a Halo precision rifle.
 	Stats.MagnetismDegrees = 1.1f;
@@ -57,6 +58,8 @@ AWeapon_SniperRifle::AWeapon_SniperRifle()
 	Stats.MaxReserveAmmo = 8;
 	Stats.ReloadTime = 2.6f;
 	Stats.ZoomFOV = 18.f;
+	Stats.ZoomFOV2 = 7.f;
+	Stats.Scope = EShieldbreakScope::LongRange;
 	Stats.RecoilPitch = 1.8f;
 	// Sniper: a small cone, so the shot still has to be lined up.
 	Stats.MagnetismDegrees = 0.5f;

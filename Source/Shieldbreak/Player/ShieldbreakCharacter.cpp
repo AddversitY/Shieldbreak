@@ -655,7 +655,9 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
-		const float ZoomFOV = (bZoomed && CurrentWeapon) ? CurrentWeapon->GetStats().ZoomFOV : 0.f;
+		const float ZoomFOV = (bZoomed && CurrentWeapon)
+			? (ZoomLevel >= 2 && CurrentWeapon->GetStats().ZoomFOV2 > 0.f ? CurrentWeapon->GetStats().ZoomFOV2 : CurrentWeapon->GetStats().ZoomFOV) : 0.f;
+		ScopeBlend = FMath::FInterpConstantTo(ScopeBlend, ZoomFOV > 0.f ? 1.f : 0.f, DeltaSeconds, 1.f / 0.12f);
 		// Hip-fire FOV is the player's setting (DefaultFOV for bots' and spectators' views); scopes keep their zoom.
 		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : (IsLocallyControlled() ? ShieldbreakSettings::GetFieldOfView() : DefaultFOV);
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ShieldbreakCharacterPrivate::ZoomInterpSpeed));
@@ -1068,10 +1070,17 @@ void AShieldbreakCharacter::ServerSetUsingEquipment_Implementation(bool bUse)
 void AShieldbreakCharacter::SetZoomed(bool bZoom)
 {
 	bZoomed = bZoom && IsAlive() && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV > 0.f;
+	ZoomLevel = bZoomed ? FMath::Max(ZoomLevel, 1) : 0;
 }
 
 void AShieldbreakCharacter::ToggleZoom()
 {
+	// Hip -> zoom -> (second zoom, on weapons that have one) -> hip.
+	if (bZoomed && ZoomLevel == 1 && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV2 > 0.f)
+	{
+		ZoomLevel = 2;
+		return;
+	}
 	SetZoomed(!bZoomed);
 }
 
@@ -1516,6 +1525,7 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	bDeathHandled = true;
 
 	bZoomed = false;
+	ZoomLevel = 0;
 	StopFire();
 	SetSprinting(false);
 

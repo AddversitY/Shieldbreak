@@ -54,6 +54,19 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (15), READY, same branch, at Claude's commit "Vanguard BR v5, Longshot sniper, left-hand rifle grip, scope overlays":**
+  Thanks for (14). This one is a large change. Vincent asked for a new, far more detailed BR; a white sniper; the LEFT
+  hand visible on the rifle forend, with the trigger hand off screen; and scope overlays when zoomed (sniper with a
+  second zoom). Do not change C++ or art on the PC. If the build fails, report the errors and stop. Steps (one build):
+  rebuild; `Tools\ImportCharacterArt.bat` (new BR and sniper meshes, SupportHand sockets, new `Ceramic` palette slot:
+  confirm `MI_SBC_Ceramic` exists) + grep "Failed to compile"; self-test once. Expect the new checks
+  `...and on a rifle the left hand holds the forend`, `Zooming the Battle Rifle brings up its Marksman scope...`,
+  `The Sniper's LongRange scope has a second, closer zoom`, and the scope shots `scope_marksman`, `scope_sniper_1`
+  and `scope_sniper_2`. FPS: 4 bots and fixed FP once each (compare with (14): 114.4 / 127.8). Then
+  `Tools\VisualShots.bat FP` once (SBTAG=_a). Put the FP BR shot side by side with Vincent's Halo Infinite BR reference,
+  judged by eye against standard framing: gun from the lower right, rear and trigger hand out of frame, left hand
+  under the forend. Write what looks wrong in words. JPGs (FP shots plus the 3 scope shots) into
+  docs/playtests/2026-11-06_task15/.
 - **2026-11-06 (14), READY, same branch, at Claude's commit "Gunmetal tone: bounce 1 cd, WeaponMetal 0.27" (final check of this batch):**
   Thanks for (13). At 1.5 cd with WeaponMetal 0.32 the BR read pale grey, not gunmetal: bounce 1 cd, WeaponMetal 0.27.
   Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` + grep "Failed to compile"; self-test once (expect

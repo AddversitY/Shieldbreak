@@ -153,6 +153,8 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 	TriggerWeight = FMath::Clamp(Instance->TriggerWeight, 0.f, 1.f);
 	TriggerTarget = Instance->TriggerTarget;
+	SupportWeight = FMath::Clamp(Instance->SupportWeight, 0.f, 1.f);
+	SupportTarget = Instance->SupportTarget;
 }
 
 void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
@@ -324,7 +326,75 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 	ApplyAction(Output);
 	ApplyAimPitch(Output);
 	ApplyTriggerFinger(Output);
+	ApplySupportHand(Output);
 	return true;
+}
+
+void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
+{
+	using namespace ShieldbreakBodyAnimPrivate;
+	if (SupportWeight <= 0.01f)
+	{
+		return;
+	}
+	FCompactPose& Pose = Output.Pose;
+	const FCompactPoseBoneIndex Upper = FindCompactBone(Pose, TEXT("upperarm_l"));
+	const FCompactPoseBoneIndex Lower = FindCompactBone(Pose, TEXT("lowerarm_l"));
+	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, TEXT("hand_l"));
+	if (!Upper.IsValid() || !Lower.IsValid() || !Hand.IsValid() || Pose.GetParentBoneIndex(Lower) != Upper || Pose.GetParentBoneIndex(Hand) != Lower)
+	{
+		return;
+	}
+	const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Upper);
+	FTransform ParentCS, UpperCS, LowerCS, HandCS;
+	const FCompactPoseBoneIndex None(INDEX_NONE);
+	TransformRelativeTo(Pose, Parent, None, ParentCS);
+	TransformRelativeTo(Pose, Upper, None, UpperCS);
+	TransformRelativeTo(Pose, Lower, None, LowerCS);
+	TransformRelativeTo(Pose, Hand, None, HandCS);
+
+	const FVector A = UpperCS.GetLocation(), B = LowerCS.GetLocation(), C = HandCS.GetLocation();
+	const float L1 = static_cast<float>(FVector::Dist(A, B)), L2 = static_cast<float>(FVector::Dist(B, C));
+	FVector ToTarget = SupportTarget - A;
+	const float Reach = static_cast<float>(ToTarget.Size());
+	if (L1 < 1.f || L2 < 1.f || Reach < 1.f)
+	{
+		return;
+	}
+	const FVector Dir = ToTarget / Reach;
+	const float D = FMath::Clamp(Reach, FMath::Abs(L1 - L2) + 0.5f, L1 + L2 - 0.1f);
+	// Bend in the plane the animation's elbow already makes, so the elbow keeps pointing down and out.
+	FVector Bend = (B - A) - Dir * FVector::DotProduct(B - A, Dir);
+	if (!Bend.Normalize())
+	{
+		Bend = FVector::CrossProduct(Dir, FVector::UpVector).GetSafeNormal();
+	}
+	const float CosA = FMath::Clamp((L1 * L1 + D * D - L2 * L2) / (2.f * L1 * D), -1.f, 1.f);
+	const FVector NewB = A + (Dir * CosA + Bend * FMath::Sqrt(FMath::Max(0.f, 1.f - CosA * CosA))) * L1;
+	const FVector NewC = A + Dir * D;
+
+	const FQuat TurnUpper = FQuat::FindBetweenNormals((B - A).GetSafeNormal(), (NewB - A).GetSafeNormal());
+	FTransform NewUpperCS = UpperCS;
+	NewUpperCS.SetRotation((TurnUpper * UpperCS.GetRotation()).GetNormalized());
+	const FVector LowerDirAfter = TurnUpper.RotateVector((C - B).GetSafeNormal());
+	const FQuat TurnLower = FQuat::FindBetweenNormals(LowerDirAfter, (NewC - NewB).GetSafeNormal());
+	FTransform NewLowerCS = LowerCS;
+	NewLowerCS.SetRotation((TurnLower * TurnUpper * LowerCS.GetRotation()).GetNormalized());
+	NewLowerCS.SetLocation(NewB);
+	FTransform NewHandCS = HandCS; // keeps the animated rotation
+	NewHandCS.SetLocation(NewC);
+
+	const FTransform UpperLocal = NewUpperCS.GetRelativeTransform(ParentCS);
+	const FTransform LowerLocal = NewLowerCS.GetRelativeTransform(NewUpperCS);
+	const FTransform HandLocal = NewHandCS.GetRelativeTransform(NewLowerCS);
+	auto Blend = [this](FTransform& Local, const FTransform& Target)
+	{
+		Local.SetRotation(FQuat::Slerp(Local.GetRotation(), Target.GetRotation(), SupportWeight).GetNormalized());
+		Local.SetTranslation(FMath::Lerp(Local.GetTranslation(), Target.GetTranslation(), static_cast<double>(SupportWeight)));
+	};
+	Blend(Pose[Upper], UpperLocal);
+	Blend(Pose[Lower], LowerLocal);
+	Blend(Pose[Hand], HandLocal);
 }
 
 void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const

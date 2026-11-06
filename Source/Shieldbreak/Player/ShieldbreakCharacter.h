@@ -61,6 +61,11 @@ public:
 	int32 GetMaxGrenades() const { return MaxGrenades; }
 	bool IsAlive() const;
 	bool IsZoomed() const { return bZoomed; }
+	/** 0 = hip, 1 = first zoom, 2 = the second, longer zoom (weapons with a ZoomFOV2, the sniper). */
+	int32 GetZoomLevel() const { return bZoomed ? ZoomLevel : 0; }
+	/** 0..1: how far the scope view has come up (eases over about 0.12 s). The HUD fades the scope overlay with it
+	 *  and the first-person gun and arms hide once it passes half. */
+	float GetScopeBlend() const { return ScopeBlend; }
 	FVector GetAimOrigin() const;
 	FRotator GetAimRotation() const;
 	float GetSpreadMultiplier() const;
@@ -366,6 +371,8 @@ private:
 	 *  jump input on that mode change, after Landed()). */
 	bool bJumpOnLandPending = false;
 	bool bZoomed = false;
+	int32 ZoomLevel = 0;
+	float ScopeBlend = 0.f;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;
 	bool bWantsEquipment = false;

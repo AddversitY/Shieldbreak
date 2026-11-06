@@ -1,5 +1,5 @@
-SM_SB_BattleRifle: 3552 tris, 7 materials, bounds X -3.7..3.2 Y -41.3..48.0 Z -15.5..15.8
+SM_SB_BattleRifle: 13368 tris, 7 materials, bounds X -3.5..3.5 Y -39.1..58.7 Z -17.5..14.6
 SM_SB_Sidearm: 1284 tris, 4 materials, bounds X -1.8..1.8 Y -7.1..18.3 Z -12.4..6.4
-SM_SB_Sniper: 2884 tris, 7 materials, bounds X -6.9..3.6 Y -48.0..78.0 Z -15.5..17.2
+SM_SB_Sniper: 11392 tris, 7 materials, bounds X -3.2..6.3 Y -48.9..105.4 Z -16.2..18.9
 SM_SB_RocketLauncher: 1304 tris, 7 materials, bounds X -10.4..8.1 Y -43.0..51.8 Z -14.0..17.0
 SM_SB_RailLance: 972 tris, 5 materials, bounds X -3.6..3.6 Y -34.0..52.2 Z -15.0..10.4
