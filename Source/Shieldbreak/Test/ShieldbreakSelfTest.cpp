@@ -39,6 +39,7 @@
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Visuals/ShieldbreakBodyAnimInstance.h"
 #include "Visuals/ShieldbreakShieldVisual.h"
+#include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakExplosionFX.h"
 #include "Camera/CameraComponent.h"
@@ -177,6 +178,14 @@ void AShieldbreakSelfTest::ViewOverviewIfUnpossessed()
 	{
 		return;
 	}
+	// A dead player's death camera reclaims the view itself (AShieldbreakCharacter::UpdateDeathCamera).
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsAlive() && It->GetDeathCamera())
+		{
+			return;
+		}
+	}
 	if (!OverviewCamera)
 	{
 		FActorSpawnParameters CameraParams;
@@ -205,11 +214,17 @@ void AShieldbreakSelfTest::CheckViewNotInsideCharacter()
 	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
 	{
 		AShieldbreakCharacter* Character = *It;
-		if (Character->IsActorBeingDestroyed() || (!Character->IsAlive() && Character != Viewer))
+		if (Character->IsActorBeingDestroyed())
 		{
-			continue; // a dead viewer is still checked: the death camera must not sit inside the ragdoll
+			continue;
 		}
-		if (Character != Viewer)
+		const bool bOwnBody = Character == Viewer || (!Character->IsAlive() && Viewer
+			&& Viewer->IsA<ACameraActor>() && Viewer != OverviewCamera && Viewer != ChaseCamera);
+		if (!Character->IsAlive() && !bOwnBody)
+		{
+			continue;
+		}
+		if (!bOwnBody)
 		{
 			if (Viewer && Viewer == ChaseCamera)
 			{
@@ -489,12 +504,156 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				return false;
 			}
+			// Rifles: the left hand holds the forend (SupportHand socket) and is the hand the player sees.
+			const bool bSupport = Animator && Animator->WantsFirstPersonSupportArm();
+			const float SupportError = Animator ? Animator->GetSupportHandError() : -1.f;
+			if (bSupport && Now() - Mark < 1.5f && !(SupportError >= 0.f && SupportError < 2.f))
+			{
+				return false;
+			}
 			Check(TEXT("...with the index finger on the trigger"), FingerError >= 0.f && FingerError < 2.f,
 				FString::Printf(TEXT("finger pad %s cm from the trigger (%s; %s)"), *ShieldbreakSelfTestPrivate::Num(FingerError), *GetNameSafe(Weapon),
 					Animator ? *Animator->DescribeTriggerFinger() : TEXT("no animator")));
+			if (Weapon && Weapon->GetStats().ZoomFOV > 0.f && Weapon->GetStats().Scope != EShieldbreakScope::None)
+			{
+				Check(TEXT("...and on a rifle the left hand holds the forend"), bSupport && SupportError >= 0.f && SupportError < 3.f,
+					FString::Printf(TEXT("left wrist %s cm from SupportHand (%s)"), *ShieldbreakSelfTestPrivate::Num(SupportError), *GetNameSafe(Weapon)));
+			}
 			ClearDummies();
 			return true;
-		}, 6.f });
+		}, 7.f });
+
+	// ---- Scopes: zooming swaps the view for the weapon's own optic, the gun hides, the sniper has a second level. ----
+	Steps.Add({ TEXT("Scope overlays"),
+		[this]()
+		{
+			A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
+		},
+		[this](float Elapsed)
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+			if (!Player)
+			{
+				if (Elapsed > 2.f)
+				{
+					Check(TEXT("Zooming shows the weapon's scope"), false, TEXT("could not possess a local pawn"));
+					ClearDummies();
+					return true;
+				}
+				return false;
+			}
+			AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+			auto Hidden = [PC, Weapon]() { return Weapon && PC->HiddenActors.Contains(Weapon); };
+			switch (Phase)
+			{
+			case 0: // Equip a Battle Rifle and zoom.
+				if (Elapsed < 1.5f)
+				{
+					return false;
+				}
+				if (!Weapon || !Weapon->IsA<AWeapon_BattleRifle>())
+				{
+					Player->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+					for (TActorIterator<AWeapon_BattleRifle> It(GetWorld()); It; ++It)
+					{
+						if (It->GetOwner() == Player) { Player->EquipWeapon(*It); break; }
+					}
+				}
+				Mark = Now();
+				Phase = 1;
+				return false;
+			case 1:
+				if (Now() - Mark < 1.2f)
+				{
+					return false;
+				}
+				Player->SetZoomed(true);
+				Mark = Now();
+				Phase = 2;
+				return false;
+			case 2:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				Check(TEXT("Zooming the Battle Rifle brings up its Marksman scope and hides the gun"),
+					Weapon && Weapon->IsA<AWeapon_BattleRifle>() && Player->GetScopeBlend() > 0.95f && Hidden(),
+					FString::Printf(TEXT("%s, blend %.2f, gun hidden %d"), *GetNameSafe(Weapon), Player->GetScopeBlend(), Hidden() ? 1 : 0));
+				TakeShot(TEXT("scope_marksman"), true);
+				Mark = Now();
+				Phase = 6; // let the screenshot render before changing the view
+				return false;
+			case 6:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->SetZoomed(false);
+				Player->GiveWeapon(AWeapon_SniperRifle::StaticClass());
+				for (TActorIterator<AWeapon_SniperRifle> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == Player) { Player->EquipWeapon(*It); break; }
+				}
+				Mark = Now();
+				Phase = 3;
+				return false;
+			case 3:
+				if (Now() - Mark < 1.5f)
+				{
+					return false;
+				}
+				Check(TEXT("...and zoomed out the gun is back"), !Hidden(), GetNameSafe(Weapon));
+				Player->ToggleZoom();
+				Mark = Now();
+				Phase = 4;
+				return false;
+			case 4:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				TakeShot(TEXT("scope_sniper_1"), true);
+				Mark = Now();
+				Phase = 5;
+				return false;
+			case 5:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->ToggleZoom();
+				Mark = Now();
+				Phase = 7;
+				return false;
+			case 7:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				{
+					const UCameraComponent* Camera = Player->GetFirstPersonCamera();
+					const float FOV = Camera ? Camera->FieldOfView : 0.f;
+					Check(TEXT("The Sniper's LongRange scope has a second, closer zoom"),
+						Weapon && Weapon->IsA<AWeapon_SniperRifle>() && Player->GetZoomLevel() == 2 && FOV < Weapon->GetStats().ZoomFOV - 4.f && Hidden(),
+						FString::Printf(TEXT("%s, level %d, FOV %.1f"), *GetNameSafe(Weapon), Player->GetZoomLevel(), FOV));
+				}
+				TakeShot(TEXT("scope_sniper_2"), true);
+				Mark = Now();
+				Phase = 8;
+				return false;
+			case 8:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->ToggleZoom();
+				Check(TEXT("...and a third press zooms out"), !Player->IsZoomed(), TEXT(""));
+				ClearDummies();
+				return true;
+			}
+			return true;
+		}, 12.f });
 
 	// ---- Death camera: killed from the front, the ragdoll is thrown back toward where the camera used to sit. ----
 	Steps.Add({ TEXT("Death camera"),
@@ -508,17 +667,32 @@ void AShieldbreakSelfTest::BuildSteps()
 		{
 			if (Phase == 0 && Elapsed > 1.f)
 			{
-				Damage(A, 10000.f, UDamageType_Ballistic::StaticClass(), B);
+				// Just lethal (a 10000 overkill flung the ragdoll metres away), and checked before the 3 s respawn: task (8)
+				// checked at 2.5 s after the kill and the player had already respawned elsewhere.
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(A, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
 				Phase = 1;
 			}
-			if (Phase == 1 && Elapsed > 3.5f)
+			if (Phase == 1 && Now() - Mark > 1.2f)
+			{
+				TakeShot(TEXT("death_camera"), true); // Saved/Screenshots/Shots/<map>_shot_death_camera.png
+				Phase = 2;
+			}
+			if (Phase == 2 && Now() - Mark > 1.6f)
 			{
 				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
 				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (A ? A->GetActorLocation() : FVector::ZeroVector);
 				const float Distance = PC && PC->PlayerCameraManager ? static_cast<float>(FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Pelvis)) : -1.f;
-				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && PC && PC->GetViewTarget() == A && Distance > 150.f,
-					FString::Printf(TEXT("camera %s cm from the pelvis"), *ShieldbreakSelfTestPrivate::Num(Distance)));
+				// Task (9): the view had fallen back to the controller (the engine drops a view on a pawn whose PlayerState
+				// is gone), which this test's overview camera then took. The body's own death camera must hold it.
+				const AActor* View = PC ? PC->GetViewTarget() : nullptr;
+				const bool bDeathView = View && View->IsA<ACameraActor>() && View != OverviewCamera && View != ChaseCamera;
+				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && bDeathView && Distance > 150.f,
+					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, death camera %s, overview %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
+						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A ? *GetNameSafe(A->GetDeathCamera()) : TEXT("none"),
+						*GetNameSafe(OverviewCamera), A && A->IsAlive() ? 1 : 0));
 				ClearDummies();
 				return true;
 			}

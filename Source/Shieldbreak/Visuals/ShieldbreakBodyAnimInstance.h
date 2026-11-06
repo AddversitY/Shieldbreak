@@ -51,6 +51,9 @@ private:
 	 *  the eye), curls the left fingers round the grenade, then a two-bone IK puts hand_l at LeftHandTarget with the
 	 *  elbow toward LeftElbowPole and flexes the wrist (all component space). */
 	void ApplyLeftArm(FPoseContext& Output) const;
+	/** Two-bone IK of the left arm so hand_l reaches SupportTarget (component space); the hand keeps its animated
+	 *  component-space rotation, so it still holds the gun the way the rifle idle does. */
+	void ApplySupportHand(FPoseContext& Output) const;
 
 	FTrack Current;
 	FTrack Previous;
@@ -86,6 +89,8 @@ private:
 	float LeftHandRoll = 0.f;
 	const UAnimSequenceBase* GripAnimation = nullptr;
 	float GripTime = 0.f;
+	float SupportWeight = 0.f;
+	FVector SupportTarget = FVector::ZeroVector;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -116,6 +121,10 @@ public:
 	 *  space. 0 leaves the finger as the animation has it. */
 	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace) { TriggerWeight = Weight; TriggerTarget = TargetInHandSpace; }
 	const FVector& GetTriggerTarget() const { return TriggerTarget; }
+	/** First-person rifles: Weight 0-1 of reaching the left hand (hand_l) to Target in component space (the gun's
+	 *  SupportHand socket). 0 leaves the arm as the animation has it. */
+	void SetSupportHand(float Weight, const FVector& TargetComponentSpace) { SupportWeight = Weight; SupportTarget = TargetComponentSpace; }
+	const FVector& GetSupportTarget() const { return SupportTarget; }
 
 	/** First-person arms, grenade throw: Weight 0-1 of driving the left arm. The shoulder moves to ShoulderTarget, the
 	 *  hand goes to HandTarget with the elbow bent toward ElbowPole (all mesh component space), the wrist flexes by
@@ -180,4 +189,6 @@ private:
 	float LeftHandRoll = 0.f;
 	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> LeftGrip;
 	float LeftGripTime = 0.f;
+	float SupportWeight = 0.f;
+	FVector SupportTarget = FVector::ZeroVector;
 };

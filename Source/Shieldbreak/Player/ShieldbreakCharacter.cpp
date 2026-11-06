@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -246,6 +247,11 @@ void AShieldbreakCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (HasAuthority())
 	{
 		DestroyInventory();
+	}
+	if (DeathCamera)
+	{
+		DeathCamera->Destroy();
+		DeathCamera = nullptr;
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -649,7 +655,9 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
-		const float ZoomFOV = (bZoomed && CurrentWeapon) ? CurrentWeapon->GetStats().ZoomFOV : 0.f;
+		const float ZoomFOV = (bZoomed && CurrentWeapon)
+			? (ZoomLevel >= 2 && CurrentWeapon->GetStats().ZoomFOV2 > 0.f ? CurrentWeapon->GetStats().ZoomFOV2 : CurrentWeapon->GetStats().ZoomFOV) : 0.f;
+		ScopeBlend = FMath::FInterpConstantTo(ScopeBlend, ZoomFOV > 0.f ? 1.f : 0.f, DeltaSeconds, 1.f / 0.12f);
 		// Hip-fire FOV is the player's setting (DefaultFOV for bots' and spectators' views); scopes keep their zoom.
 		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : (IsLocallyControlled() ? ShieldbreakSettings::GetFieldOfView() : DefaultFOV);
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ShieldbreakCharacterPrivate::ZoomInterpSpeed));
@@ -1062,10 +1070,17 @@ void AShieldbreakCharacter::ServerSetUsingEquipment_Implementation(bool bUse)
 void AShieldbreakCharacter::SetZoomed(bool bZoom)
 {
 	bZoomed = bZoom && IsAlive() && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV > 0.f;
+	ZoomLevel = bZoomed ? FMath::Max(ZoomLevel, 1) : 0;
 }
 
 void AShieldbreakCharacter::ToggleZoom()
 {
+	// Hip -> zoom -> (second zoom, on weapons that have one) -> hip.
+	if (bZoomed && ZoomLevel == 1 && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV2 > 0.f)
+	{
+		ZoomLevel = 2;
+		return;
+	}
 	SetZoomed(!bZoomed);
 }
 
@@ -1449,7 +1464,18 @@ void AShieldbreakCharacter::StartDeathCamera()
 	}
 	DeathCameraYaw = GetControlRotation().Yaw;
 	DeathCameraSide = -1;
-	FirstPersonCamera->bUsePawnControlRotation = false;
+	if (!DeathCamera && GetWorld())
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Params.ObjectFlags |= RF_Transient;
+		DeathCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FirstPersonCamera->GetComponentTransform(), Params);
+		if (DeathCamera && DeathCamera->GetCameraComponent())
+		{
+			DeathCamera->GetCameraComponent()->SetFieldOfView(FirstPersonCamera->FieldOfView);
+			DeathCamera->GetCameraComponent()->bConstrainAspectRatio = false;
+		}
+	}
 	UpdateDeathCamera(0.f);
 }
 
@@ -1459,10 +1485,22 @@ void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
 	// onto it, and a wall behind stopped the sweep at the head, so the player watched the respawn timer from inside
 	// their own helmet (Vincent, 2026-11-06). Now it follows the ragdoll every frame from whichever side is clear.
 	using namespace ShieldbreakCharacterPrivate;
-	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (!FirstPersonCamera || !PC || PC->GetViewTarget() != this)
+	APlayerController* PC = DeathViewer.Get();
+	if (!DeathCamera || !PC)
 	{
 		return;
+	}
+	if (PC->GetViewTarget() != DeathCamera)
+	{
+		// Until the respawn gives the controller a pawn again, nothing else may take the view: something reset it to
+		// the controller itself (task 10, cause unknown), whose camera sits at the eye inside the ragdoll.
+		AActor* Taken = PC->GetViewTarget();
+		if (PC->GetPawn() || (Taken != PC && Taken != this))
+		{
+			return;
+		}
+		UE_LOG(LogShieldbreak, Warning, TEXT("%s: death camera took the view back from %s."), *GetName(), *GetNameSafe(Taken));
+		PC->SetViewTarget(DeathCamera);
 	}
 	FVector Subject = GetActorLocation();
 	const USkeletalMeshComponent* Body = GetMesh();
@@ -1522,11 +1560,11 @@ void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
 		}
 	}
 
-	const FVector Current = FirstPersonCamera->GetComponentLocation();
+	const FVector Current = DeathCamera->GetActorLocation();
 	// Snap on the first frame (and if the camera ended up within arm's reach of the body); ease after that.
 	const bool bSnap = DeltaSeconds <= 0.f || FVector::DistSquared(Current, Pivot) < FMath::Square(90.f);
 	const FVector Location = bSnap ? Desired : FMath::VInterpTo(Current, Desired, DeltaSeconds, 5.f);
-	FirstPersonCamera->SetWorldLocationAndRotation(Location, (Pivot - Location).Rotation());
+	DeathCamera->SetActorLocationAndRotation(Location, (Pivot - Location).Rotation());
 }
 
 void AShieldbreakCharacter::HandleDeath(AController* Killer)
@@ -1538,6 +1576,7 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	bDeathHandled = true;
 
 	bZoomed = false;
+	ZoomLevel = 0;
 	StopFire();
 	SetSprinting(false);
 
@@ -1595,7 +1634,11 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 		if (PC->IsLocalController())
 		{
 			StartDeathCamera();
-			PC->SetViewTarget(this);
+			if (DeathCamera)
+			{
+				DeathViewer = PC;
+				PC->SetViewTarget(DeathCamera);
+			}
 		}
 	}
 

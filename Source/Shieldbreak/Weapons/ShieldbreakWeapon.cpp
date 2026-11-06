@@ -195,6 +195,21 @@ AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 	return bHasArt ? EEquippedLayout::CameraArt : EEquippedLayout::CameraPlain;
 }
 
+float AShieldbreakWeapon::GetFirstPersonLift() const
+{
+	// Lyra's rifle and pistol idles hold the weapon_r socket about where our receivers' bottoms are, so the knuckles
+	// sat inside the receiver (task 8 joints: BR index knuckle 4.5 cm above the bore, the receiver's underside at -4.5),
+	// the sidearm's rear sight came through the glove, and the trigger finger stopped 3.5 cm short. Raising the gun by
+	// the trigger's depth under the socket (less 1.3 cm) fits both shapes: sidearm 3.5 cm (task 8 shot _b), BR 5.7 cm.
+	float Lift = 0.f;
+	if (WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger")))
+	{
+		const float TriggerZ = static_cast<float>(WeaponMesh->GetSocketTransform(TEXT("Trigger"), RTS_Component).GetLocation().Z);
+		Lift = FMath::Clamp(-1.3f - TriggerZ, 0.f, 8.f);
+	}
+	return Lift + ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread();
+}
+
 bool AShieldbreakWeapon::NeedsReattach() const
 {
 	return GetDesiredLayout() != EquippedLayout;
@@ -215,7 +230,7 @@ void AShieldbreakWeapon::OnEquipped()
 		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
-		SetActorRelativeTransform(bFirstPerson ? FTransform(FVector(0.f, 0.f, ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread())) : FTransform::Identity);
+		SetActorRelativeTransform(bFirstPerson ? FTransform(FVector(0.f, 0.f, GetFirstPersonLift())) : FTransform::Identity);
 		// The body's shadow already carries a gun; the first-person one would add a second.
 		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}

@@ -19,13 +19,15 @@ PALETTE = {
     # after the after3 shots (0.075 albedo still read black on bots in sunlight).
     "ArmorMetal": ((0.2, 0.21, 0.23), 0.15, 0.5, 0.0),
     # Guns: mid grey over dark polymer (0.07-0.13 albedo still read black next to Keel's pale walls, after4).
-    "WeaponMetal": ((0.24, 0.245, 0.26), 0.2, 0.42, 0.0),
+    "WeaponMetal": ((0.27, 0.275, 0.29), 0.15, 0.42, 0.0),  # 0.24 near black unlit-below (task 10); 0.32 + bounce pale (task 13)
     "Steel": ((0.32, 0.34, 0.36), 0.9, 0.3, 0.0),
     # Gun furniture, armor joints and (in game) the soldier's suit and gloves under the armor. Weapons/armor only.
     "Polymer": ((0.06, 0.062, 0.068), 0.0, 0.62, 0.0),
     "Olive": ((0.11, 0.13, 0.075), 0.2, 0.55, 0.0),
     "Sand": ((0.42, 0.36, 0.25), 0.15, 0.6, 0.0),
     "Ivory": ((0.72, 0.72, 0.7), 0.25, 0.32, 0.0),
+    # Vanguard BR armor panels: pale satin ceramic, the light value against the gunmetal and polymer.
+    "Ceramic": ((0.5, 0.51, 0.52), 0.0, 0.36, 0.0),
     "Hazard": ((0.8, 0.5, 0.04), 0.1, 0.5, 0.0),
     "GlowCyan": ((0.15, 0.85, 1.0), 0.0, 0.3, 6.0),
     # Weapon screens (ammo counters, scope side displays): a dim readable glow, not a light source.
