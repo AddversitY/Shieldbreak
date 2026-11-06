@@ -1,5 +1,7 @@
 #include "Weapons/ShieldbreakWeapon.h"
 
+#include "Components/AudioComponent.h"
+
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -197,6 +199,14 @@ bool AShieldbreakWeapon::NeedsReattach() const
 
 void AShieldbreakWeapon::OnEquipped()
 {
+	if (EquippedLayout == EEquippedLayout::None)
+	{
+		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+		if (OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled())
+		{
+			FShieldbreakSFX::Play2D(this, EShieldbreakSound::WeaponRaise, 0.5f);
+		}
+	}
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	EquippedLayout = GetDesiredLayout();
 	if (EquippedLayout == EEquippedLayout::None)
@@ -256,6 +266,8 @@ void AShieldbreakWeapon::OnEquipped()
 void AShieldbreakWeapon::OnUnequipped()
 {
 	EquippedLayout = EEquippedLayout::None;
+	StopWeaponAudio(ReloadAudio);
+	StopWeaponAudio(ChargeAudio);
 	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;
@@ -289,16 +301,58 @@ void AShieldbreakWeapon::StartFire()
 		{
 			StartReload();
 		}
+		else if (!HasAmmo())
+		{
+			PlayDryFire();
+		}
 		return;
 	}
 
 	bWantsToFire = true;
 	bSemiAutoLatched = false;
 
-	if (!HasAmmo() && !Stats.bUsesHeat && CanReload())
+	if (!HasAmmo() && !Stats.bUsesHeat)
 	{
-		StartReload();
+		if (CanReload())
+		{
+			StartReload();
+		}
+		else if (!bReloading && ReloadStartLocalTime < 0.f)
+		{
+			PlayDryFire();
+		}
 	}
+}
+
+void AShieldbreakWeapon::PlayDryFire()
+{
+	const UWorld* World = GetWorld();
+	if (World && World->GetTimeSeconds() - LastDryFireTime > 0.15f && Sounds.DryFire != EShieldbreakSound::Count)
+	{
+		LastDryFireTime = World->GetTimeSeconds();
+		FShieldbreakSFX::Play2D(this, Sounds.DryFire, 0.7f);
+	}
+}
+
+void AShieldbreakWeapon::StopWeaponAudio(TWeakObjectPtr<UAudioComponent>& Audio)
+{
+	if (UAudioComponent* Component = Audio.Get())
+	{
+		Component->FadeOut(0.06f, 0.f);
+	}
+	Audio.Reset();
+}
+
+void AShieldbreakWeapon::PlayReloadSound(bool bLocalView)
+{
+	if (Sounds.Reload == EShieldbreakSound::Count)
+	{
+		return;
+	}
+	StopWeaponAudio(ReloadAudio);
+	ReloadAudio = bLocalView
+		? FShieldbreakSFX::Play2D(this, Sounds.Reload, 0.65f, 1.f)
+		: FShieldbreakSFX::PlayAttached(GetRootComponent(), Sounds.Reload, 0.8f, 1.f);
 }
 
 void AShieldbreakWeapon::StopFire()
@@ -888,20 +942,9 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 		}
 	}
 
-	const float Pitch = FMath::FRandRange(0.96f, 1.04f);
-	const bool bPlayedImported = !Stats.FireSound.IsNull()
-		&& ShieldbreakArt::PlaySound(this, *Stats.FireSound.ToString(), bLocalView ? nullptr : &Muzzle, bLocalView ? 0.7f : 1.f, Pitch);
-	if (!bPlayedImported)
-	{
-		if (bLocalView)
-		{
-			FShieldbreakSFX::Play2D(this, GetShotSound(), 0.55f, Pitch);
-		}
-		else
-		{
-			FShieldbreakSFX::PlayAt(this, GetShotSound(), Muzzle, 0.9f, Pitch);
-		}
-	}
+	// Layered close/tail/distant banks (FShieldbreakSFX). Stats.FireSound is no longer used: Lyra's rifle MetaSound is an
+	// auto-fire loop that stays silent when played as a one-shot, which is why the guns had no sound at all.
+	FShieldbreakSFX::PlayShot(this, Sounds, Muzzle, bLocalView);
 }
 
 void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
@@ -909,19 +952,6 @@ void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
 	const bool bHitCharacter = Cast<APawn>(Hit.GetActor()) != nullptr;
 	ShieldbreakArt::SpawnFX(this, bHitCharacter ? ShieldbreakArt::ImpactCharacter : ShieldbreakArt::ImpactConcrete,
 		Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
-}
-
-EShieldbreakSound AShieldbreakWeapon::GetShotSound() const
-{
-	if (Stats.FireMode == EShieldbreakFireMode::Charge)
-	{
-		return EShieldbreakSound::RailFire;
-	}
-	if (Stats.bUsesHeat)
-	{
-		return EShieldbreakSound::PlasmaShot;
-	}
-	return Stats.FireMode == EShieldbreakFireMode::Burst ? EShieldbreakSound::BattleRifleShot : EShieldbreakSound::SMGShot;
 }
 
 // ---- Reload ----
@@ -947,6 +977,10 @@ void AShieldbreakWeapon::StartReload()
 	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
 	{
 		OwnerCharacter->PlayActionAnimation(EShieldbreakAction::Reload, Stats.ReloadTime);
+		if (OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled())
+		{
+			PlayReloadSound(true);
+		}
 	}
 
 	if (HasAuthority())
@@ -980,6 +1014,11 @@ void AShieldbreakWeapon::BeginReload()
 	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
 	{
 		OwnerCharacter->MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Reload));
+		// A listen-server host hears other players reload here (OnRep_Reloading doesn't run on the server).
+		if (!(OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled()))
+		{
+			PlayReloadSound(false);
+		}
 	}
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AShieldbreakWeapon::FinishReload, Stats.ReloadTime, false);
 }
@@ -999,6 +1038,11 @@ void AShieldbreakWeapon::OnRep_Reloading()
 	const UWorld* World = GetWorld();
 	if (bReloading)
 	{
+		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+		if (!(OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled()))
+		{
+			PlayReloadSound(false); // the reloading player already started it locally
+		}
 		if (ReloadStartLocalTime < 0.f && World)
 		{
 			ReloadStartLocalTime = World->GetTimeSeconds();
@@ -1060,6 +1104,7 @@ void AShieldbreakWeapon::ReleaseCharge()
 	const UWorld* World = GetWorld();
 	bCharging = false;
 	ChargeStartLocalTime = -1.f;
+	StopWeaponAudio(ChargeAudio);
 	UpdateChargeGlow();
 	if (World && CanFireShotLocal())
 	{
@@ -1076,6 +1121,7 @@ void AShieldbreakWeapon::CancelCharge()
 	}
 	bCharging = false;
 	ChargeStartLocalTime = -1.f;
+	StopWeaponAudio(ChargeAudio);
 	UpdateChargeGlow();
 	ServerSetCharging(false);
 }
@@ -1095,14 +1141,14 @@ void AShieldbreakWeapon::OnRep_Charging()
 		ChargeStartLocalTime = World->GetTimeSeconds();
 		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 		const bool bLocalView = OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
-		if (bLocalView)
-		{
-			FShieldbreakSFX::Play2D(this, EShieldbreakSound::RailCharge, 0.6f);
-		}
-		else
-		{
-			FShieldbreakSFX::PlayAt(this, EShieldbreakSound::RailCharge, GetMuzzleLocation(), 0.9f);
-		}
+		StopWeaponAudio(ChargeAudio);
+		ChargeAudio = bLocalView
+			? FShieldbreakSFX::Play2D(this, EShieldbreakSound::RailCharge, 0.6f)
+			: FShieldbreakSFX::PlayAttached(GetRootComponent(), EShieldbreakSound::RailCharge, 0.9f);
+	}
+	else
+	{
+		StopWeaponAudio(ChargeAudio);
 	}
 	UpdateChargeGlow();
 }

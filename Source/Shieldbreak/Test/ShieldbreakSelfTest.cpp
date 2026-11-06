@@ -1,6 +1,7 @@
 #include "Test/ShieldbreakSelfTest.h"
 
 #include "Shieldbreak.h"
+#include "Audio/ShieldbreakSFX.h"
 #include "AIController.h"
 #include "AI/ShieldbreakBotController.h"
 #include "Camera/CameraActor.h"
@@ -244,6 +245,12 @@ void AShieldbreakSelfTest::BuildSteps()
 	Steps.Add({ TEXT("Front end and match capacity"), [this]()
 	{
 		Check(TEXT("Session capacity is eight players"), GetDefault<AGameSession>()->MaxPlayers == 8);
+		{
+			int32 Loaded = 0;
+			const FString Missing = FShieldbreakSFX::DescribeMissingBanks(Loaded);
+			Check(TEXT("Every combat sound bank is imported"), Missing.IsEmpty(), FString::Printf(TEXT("%d variations loaded%s%s"),
+				Loaded, Missing.IsEmpty() ? TEXT("") : TEXT("; missing "), *Missing));
+		}
 		const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
 		Check(TEXT("Runtime session enforces eight players"), Rules && Rules->GameSession && Rules->GameSession->MaxPlayers == 8);
 		Check(TEXT("Configured game instance preserves connection recovery across travel"),
