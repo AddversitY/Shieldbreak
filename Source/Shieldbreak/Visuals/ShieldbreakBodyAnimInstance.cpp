@@ -465,8 +465,10 @@ void FShieldbreakBodyAnimProxy::ApplyLeftArm(FPoseContext& Output) const
 		return;
 	}
 	const FVector HandAt = ComponentSpace(Hand).GetLocation();
-	const FVector Palm = FVector::CrossProduct(ComponentSpace(Index1).GetLocation() - ComponentSpace(Pinky1).GetLocation(),
-		ComponentSpace(Middle1).GetLocation() - HandAt).GetSafeNormal();
+	// (Pinky to index) x (hand to knuckles) points out of the palm; the G4 shots, with the operands the other way
+	// round, bent the fingers backwards into an open, spread hand.
+	const FVector Palm = FVector::CrossProduct(ComponentSpace(Middle1).GetLocation() - HandAt,
+		ComponentSpace(Index1).GetLocation() - ComponentSpace(Pinky1).GetLocation()).GetSafeNormal();
 	if (Palm.IsNearlyZero())
 	{
 		return;

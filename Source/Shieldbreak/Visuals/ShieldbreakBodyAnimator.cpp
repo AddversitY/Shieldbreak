@@ -1199,7 +1199,7 @@ void UShieldbreakBodyAnimator::UpdateHeldGrenade(USkeletalMeshComponent* Mesh, T
 	const FVector Index = Mesh->GetBoneLocation(TEXT("index_01_l"));
 	const FVector Pinky = Mesh->GetBoneLocation(TEXT("pinky_01_l"));
 	const FVector Along = (Middle - Hand).GetSafeNormal();
-	const FVector Palm = FVector::CrossProduct(Index - Pinky, Middle - Hand).GetSafeNormal();
+	const FVector Palm = FVector::CrossProduct(Middle - Hand, Index - Pinky).GetSafeNormal();
 	const float Off = ShieldbreakBodyAnimatorPrivate::CVarHeldGrenadePalm.GetValueOnGameThread();
 	Grenade->SetWorldLocationAndRotation(Hand + (Middle - Hand) * 0.75f + Palm * Off, FRotationMatrix::MakeFromZX(-Along, Palm).ToQuat());
 }

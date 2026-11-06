@@ -16,7 +16,7 @@
 
 namespace ShieldbreakExplosionPrivate
 {
-	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 5000.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
+	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 2500.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
 	TAutoConsoleVariable<float> CVarShake(TEXT("sb.ExplosionShake"), 1.f, TEXT("Explosion camera shake strength (0 = off)."));
 	TAutoConsoleVariable<int32> CVarCards(TEXT("sb.ExplosionCards"), 1, TEXT("1: fireball and smoke cards; 0: light, scorch and shake only (for FPS A/B)."));
 	TAutoConsoleVariable<int32> CVarScorch(TEXT("sb.ExplosionScorch"), 1, TEXT("1: explosions leave a scorch decal that fades out."));
@@ -324,7 +324,8 @@ void AShieldbreakExplosionFX::Tick(float DeltaSeconds)
 			const FLinearColor Color = T < 0.3f ? FLinearColor::LerpUsingHSV(Hot, Mid, T / 0.3f) : FLinearColor::LerpUsingHSV(Mid, Cool, (T - 0.3f) / 0.7f);
 			Card.MID->SetVectorParameterValue(TEXT("Color"), Color);
 			Card.MID->SetScalarParameterValue(TEXT("Opacity"), FMath::Pow(1.f - T, 1.2f));
-			Card.MID->SetScalarParameterValue(TEXT("Intensity"), 5.f);
+			// Additive: 10 (and still 5) blew the whole frame white at 5 m (G3/G4 shots); the auto exposure is low indoors.
+			Card.MID->SetScalarParameterValue(TEXT("Intensity"), 1.5f);
 			Card.MID->SetScalarParameterValue(TEXT("Frame"), FMath::Min(FireFrames - 1.f, Card.StartFrame + T * (FireFrames - 1.f)));
 		}
 	}

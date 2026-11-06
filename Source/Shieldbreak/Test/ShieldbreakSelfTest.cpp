@@ -3509,8 +3509,8 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Shot(TEXT("fp_1_idle_sidearm"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f, 2.f }, 2.5f);
 		Shot(TEXT("fp_2_back_to_br"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f }, 2.f);
 		Shot(TEXT("fp_3_grenade"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.08f, 0.2f, 0.35f, 0.5f }, 2.f);
-		// The throw around its release (sb.GrenadeReleaseDelay, 0.15 s): wind-up, hand coming through, just after, follow-through.
-		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.05f, 0.12f, 0.16f, 0.26f }, 2.f);
+		// The throw up to its release (sb.GrenadeReleaseDelay, 0.15 s): hand rising, cocked with the grenade, coming through, after.
+		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.04f, 0.08f, 0.12f, 0.2f }, 2.f);
 		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
 			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });
@@ -3545,8 +3545,9 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				{
 					return;
 				}
-				// Beside the tp_6 dummy (4 m ahead), not behind it, and short of the dark corridor (G3 shots).
-				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 500.f - P->GetActorRightVector() * 220.f;
+				// On open floor in front of the tp_6 dummy (4 m ahead): 7 m was behind it in the dark corridor (G3), 5 m
+				// and 2.2 m left was inside the left wall (G4).
+				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 280.f + P->GetActorRightVector() * 80.f;
 				FHitResult Floor;
 				FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakShotFloor), false, P);
 				const bool bFloor = GetWorld()->LineTraceSingleByChannel(Floor, Ahead + FVector(0.f, 0.f, 50.f), Ahead - FVector(0.f, 0.f, 400.f), ECC_Visibility, Query);
