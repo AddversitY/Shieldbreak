@@ -24,6 +24,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Visuals/ShieldbreakImpactFX.h"
 #include "NiagaraComponent.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakTeams.h"
@@ -878,7 +879,16 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 			Animator->AddBodyKick(Stats.RecoilPitch);
 		}
 	}
-	if (bHasArt && !Stats.MuzzleFlash.IsNull())
+	UShieldbreakImpactFXSubsystem* ImpactFX = UShieldbreakImpactFXSubsystem::Get(this);
+	if (ImpactFX)
+	{
+		// Energy weapons flash in their own colour; ballistic ones a hot amber.
+		const bool bEnergy = Stats.FireMode == EShieldbreakFireMode::Charge || Stats.bUsesHeat;
+		const FLinearColor FlashColor = bEnergy ? Stats.TracerColor : FLinearColor(1.f, 0.66f, 0.32f);
+		const float FlashStrength = Stats.ProjectileClass ? 2.f : UShieldbreakImpactFXSubsystem::StrengthForDamage(Stats.Damage);
+		ImpactFX->MuzzleFlash(WeaponMesh, Muzzle, GetBarrelDirection(), FlashColor, FlashStrength);
+	}
+	if (bHasArt && !Stats.MuzzleFlash.IsNull() && (!ImpactFX || UShieldbreakImpactFXSubsystem::UseLyraMuzzleFlash()))
 	{
 		UNiagaraComponent* Flash = ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
 		if (Flash && WeaponMesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
@@ -906,6 +916,13 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 
 void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
 {
+	if (UShieldbreakImpactFXSubsystem* ImpactFX = UShieldbreakImpactFXSubsystem::Get(this))
+	{
+		const bool bEnergy = Stats.FireMode == EShieldbreakFireMode::Charge || Stats.bUsesHeat;
+		ImpactFX->BulletImpact(Hit, FVector(Hit.TraceEnd - Hit.TraceStart).GetSafeNormal(), UShieldbreakImpactFXSubsystem::StrengthForDamage(Stats.Damage),
+			bEnergy ? FLinearColor(Stats.TracerColor.R, Stats.TracerColor.G, Stats.TracerColor.B, 0.6f) : FLinearColor(1.f, 1.f, 1.f, 0.f));
+		return;
+	}
 	const bool bHitCharacter = Cast<APawn>(Hit.GetActor()) != nullptr;
 	ShieldbreakArt::SpawnFX(this, bHitCharacter ? ShieldbreakArt::ImpactCharacter : ShieldbreakArt::ImpactConcrete,
 		Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
