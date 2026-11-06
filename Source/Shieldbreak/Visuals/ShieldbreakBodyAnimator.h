@@ -210,6 +210,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorGlowMIDs;
 	bool bScopeHidden = false;
+	bool bTriggerArmHidden = false;
 	TWeakObjectPtr<AActor> ScopeHiddenWeapon;
 	TWeakObjectPtr<class APlayerController> ScopeHidePC;
 	/** Last frame's left-palm target (world), for GetSupportHandError. */

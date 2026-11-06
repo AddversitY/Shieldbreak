@@ -616,7 +616,7 @@ void AShieldbreakHUD::DrawLongRangeScope(AShieldbreakCharacter* Character, float
 	const float Post = R * 0.62f;
 	for (const FVector2D D : { FVector2D(-1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(0.f, -1.f), FVector2D(0.f, 1.f) })
 	{
-		Line(CX + D.X * 3.f * S, CY + D.Y * 3.f * S, CX + D.X * Post, CY + D.Y * Post, Reticle, 1.5f * S);
+		Line(CX + D.X * 3.f * S, CY + D.Y * 3.f * S, CX + D.X * Post, CY + D.Y * Post, Reticle, 2.f * S);
 		Line(CX + D.X * Post, CY + D.Y * Post, CX + D.X * R, CY + D.Y * R, ReticleLight, 9.f * S);
 		Line(CX + D.X * Post, CY + D.Y * Post, CX + D.X * R, CY + D.Y * R, Reticle, 6.f * S);
 	}
@@ -628,9 +628,9 @@ void AShieldbreakHUD::DrawLongRangeScope(AShieldbreakCharacter* Character, float
 		const float Len = (I % 5 == 0 ? 9.f : 4.f) * S;
 		for (const float Side : { -1.f, 1.f })
 		{
-			Line(CX + Side * I * Mil, CY - Len, CX + Side * I * Mil, CY + Len, Reticle, 1.5f * S);
+			Line(CX + Side * I * Mil, CY - Len, CX + Side * I * Mil, CY + Len, Reticle, 2.f * S);
 		}
-		Line(CX - Len, CY + I * Mil, CX + Len, CY + I * Mil, Reticle, 1.5f * S);
+		Line(CX - Len, CY + I * Mil, CX + Len, CY + I * Mil, Reticle, 2.f * S);
 	}
 	// The second zoom level adds a rangefinder box around the centre.
 	if (Level >= 2)
