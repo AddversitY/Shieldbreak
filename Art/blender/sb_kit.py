@@ -19,7 +19,7 @@ PALETTE = {
     # after the after3 shots (0.075 albedo still read black on bots in sunlight).
     "ArmorMetal": ((0.2, 0.21, 0.23), 0.15, 0.5, 0.0),
     # Guns: mid grey over dark polymer (0.07-0.13 albedo still read black next to Keel's pale walls, after4).
-    "WeaponMetal": ((0.32, 0.325, 0.34), 0.15, 0.42, 0.0),  # task (10): 0.24 read near black under the BR rail
+    "WeaponMetal": ((0.27, 0.275, 0.29), 0.15, 0.42, 0.0),  # 0.24 near black unlit-below (task 10); 0.32 + bounce pale (task 13)
     "Steel": ((0.32, 0.34, 0.36), 0.9, 0.3, 0.0),
     # Gun furniture, armor joints and (in game) the soldier's suit and gloves under the armor. Weapons/armor only.
     "Polymer": ((0.06, 0.062, 0.068), 0.0, 0.62, 0.0),
