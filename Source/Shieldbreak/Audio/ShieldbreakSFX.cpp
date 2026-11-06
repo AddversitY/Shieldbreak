@@ -403,6 +403,7 @@ namespace ShieldbreakSFXPrivate
 		case S::ShieldImpact: { static const FBank B{ TEXT("Shield_Impact"), 6, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
 		case S::ShieldPop: { static const FBank B{ TEXT("Shield_Pop"), 3, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
 		case S::ShieldRecharge: { static const FBank B{ TEXT("Shield_Recharge"), 1, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
+		case S::ShieldLowWarning: { static const FBank B{ TEXT("Shield_LowWarn"), 2, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
 		case S::ShieldLowBeep: { static const FBank B{ TEXT("Shield_Low"), 1, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
 		case S::Footstep: { static const FBank B{ TEXT("Footstep"), 10, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
 		case S::Land: { static const FBank B{ TEXT("Land"), 4, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
@@ -420,7 +421,7 @@ namespace ShieldbreakSFXPrivate
 		case S::BattleRifleTail: case S::SidearmTail: case S::SniperTail: case S::RocketTail: case S::RailTail:
 		case S::SniperBolt: case S::ReloadBattleRifle: case S::ReloadSidearm: case S::ReloadSniper: case S::ReloadRocket:
 		case S::DryFireLight: case S::DryFireRifle: case S::DryFireHeavy: case S::DryFireEnergy: case S::WeaponRaise:
-		case S::ShieldImpact: case S::Footstep: case S::Land:
+		case S::ShieldImpact: case S::ShieldLowWarning: case S::Footstep: case S::Land:
 			return S::Count;
 		default: return Sound;
 		}

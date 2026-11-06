@@ -68,19 +68,31 @@ void UShieldbreakCharacterAudio::TickComponent(float DeltaTime, ELevelTick TickT
 
 	TickFootsteps(DeltaTime);
 
-	// Halo-style warning: keep beeping while your shield is gone.
+	// Danger cues for the owning player: a heartbeat pulse while the shield is low (faster as it drops), then the
+	// urgent alarm once it is gone. Both stop while the shield is recharging.
 	const UShieldHealthComponent* ShieldComponent = ObservedShield.Get();
 	const UWorld* World = GetWorld();
-	if (!ShieldComponent || !World || ShieldComponent->IsDead() || ShieldComponent->GetShield() > 0.f || !IsLocalPlayer())
+	if (!ShieldComponent || !World || ShieldComponent->IsDead() || !IsLocalPlayer())
 	{
 		return;
 	}
 
 	const float Now = World->GetTimeSeconds();
-	if (Now >= NextBeepTime)
+	const float Shield = ShieldComponent->GetShield();
+	const float Fraction = Shield / FMath::Max(ShieldComponent->GetMaxShield(), 1.f);
+	const bool bRecharging = RechargeWhine && RechargeWhine->IsPlaying();
+	if (Shield <= 0.f)
 	{
-		NextBeepTime = Now + LowShieldBeepInterval;
-		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.6f);
+		if (Now >= NextBeepTime)
+		{
+			NextBeepTime = Now + LowShieldBeepInterval;
+			FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.6f);
+		}
+	}
+	else if (Fraction < LowShieldFraction && !bRecharging && Now >= NextBeepTime)
+	{
+		NextBeepTime = Now + FMath::Lerp(0.6f, 1.2f, Fraction / LowShieldFraction);
+		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowWarning, 0.75f);
 	}
 }
 

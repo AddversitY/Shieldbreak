@@ -697,84 +697,126 @@ def grenade_explosion_dist(i, rng):
     return normalize(end_trim(to_mono(lp(x, 2400)), -58), -1.0)
 
 
-# ---- Shields (all original synthesis) --------------------------------------------------------------------------
+# ---- Shields: a "crystal lattice" energy field (all original synthesis) -------------------------------------------
+# One family of sounds built from the same material, so the player learns it: a low field hum plus glassy lattice
+# partials (A minor-ish, slightly inharmonic). Hits ping the lattice, low shield makes it strain and crackle, the break
+# shatters it, the recharge rebuilds it note by note.
+
+LATTICE = [(880.0, 1.0), (1318.5, 0.7), (1760.0 * 1.012, 0.45), (2637.0 * 0.994, 0.3), (3520.0 * 1.021, 0.18)]
+
+
+def lattice(seconds, rng, decay, scale=1.0, attack=0.001):
+    return ring(seconds, [(hz * scale * rng.uniform(0.995, 1.005), g) for hz, g in LATTICE], decay, rng, attack)
+
+
+def field_hum(seconds, hz=110.0, attack=0.02, decay=0.3, hold=0.0):
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    w = np.sin(2 * np.pi * hz * t) + 0.5 * np.sin(2 * np.pi * hz * 2.003 * t) + 0.25 * np.sin(2 * np.pi * hz * 3.01 * t)
+    w *= 1 + 0.3 * np.sin(2 * np.pi * 31 * t)  # electric beating
+    return (w * env(n, attack, decay, hold)).astype(np.float32)
+
+
+def crackle(seconds, rng, density, lo=2500, hi=10000):
+    n = int(seconds * SR)
+    z = bp(rng.uniform(-1, 1, n).astype(np.float32), lo, hi)
+    gate = signal.lfilter([1.0], [1.0, -0.99], (rng.uniform(0, 1, n) < density).astype(np.float32))
+    return z * np.clip(gate, 0, 1)
 
 
 @bank("Shield_Impact", 6)
 def shield_impact(i, rng):
-    """A round absorbed by an energy shield: a short glassy electric 'tsss-ting'. Heard around the victim."""
-    base = rng.uniform(1700, 2300)
-    x = stereo(bp(noise(0.12, rng, 0.0003, 0.02), 3500, 12000), 0.0003) * 0.8
-    x = mix(x, stereo(ring(0.3, [(base, 1.0), (base * 1.47, 0.6), (base * 2.13, 0.35), (base * 3.02, 0.2)], 0.05, rng)), 0, 0.5)
-    fizz = bp(rng.uniform(-1, 1, int(0.18 * SR)).astype(np.float32), 5000, 11000)
-    fizz *= (rng.uniform(0, 1, len(fizz)) < 0.06) * env(len(fizz), 0.002, 0.05)
-    x = mix(x, stereo(fizz), 0.005, 0.5)
-    x = mix(x, sub_thump(rng, 120, 70, 0.025, 0.12), 0, 0.25)
+    """A round absorbed by the shield: a hard glassy 'tink' on the lattice with a short electric fizz and a soft thud."""
+    scale = rng.uniform(0.9, 1.12)
+    x = stereo(bp(noise(0.08, rng, 0.0002, 0.008), 4000, 14000), 0.0003) * 0.7
+    x = mix(x, stereo(lattice(0.35, rng, 0.06, scale)), 0, 0.6)
+    x = mix(x, stereo(crackle(0.15, rng, 0.05) * env(int(0.15 * SR), 0.002, 0.04)), 0.004, 0.45)
+    x = mix(x, stereo(field_hum(0.15, 140 * scale, 0.002, 0.04)), 0, 0.3)
+    x = mix(x, sub_thump(rng, 130, 70, 0.025, 0.12), 0, 0.25)
     return normalize(end_trim(to_mono(x)), -3.0)
 
 
 @bank("Shield_Pop", 3)
 def shield_pop(i, rng):
-    """The shield collapsing: a bright crack, a burst of glass-like shards, a falling double tone and a low thump."""
-    x = silence(0.9)
-    x = mix(x, stereo(bp(noise(0.06, rng, 0.0001, 0.012), 4000, 16000), 0.0004), 0, 0.9)
-    shards = src("Impacts__Lyra_ImpactGlass", i * 2)
-    x = mix(x, hp(shards, 1500), 0.0, 0.45)
-    x = mix(x, stereo(tone(0.45, 1700, 170, 0.28, 0.001, 0.12, harmonics=(1.0, 0.35, 0.15))), 0, 0.6)
-    x = mix(x, stereo(tone(0.45, 2560, 255, 0.28, 0.001, 0.08)), 0.0, 0.3)
-    x = mix(x, sub_thump(rng, 120, 44, 0.12, 0.5), 0, 0.7)
-    zz = bp(rng.uniform(-1, 1, int(0.5 * SR)).astype(np.float32), 1500, 7000)
-    zz *= (rng.uniform(0, 1, len(zz)) < 0.03) * env(len(zz), 0.01, 0.15)
-    x = mix(x, stereo(zz, 0.0006), 0.02, 0.6)
-    return normalize(end_trim(saturate(x, 1.4)), -1.0)
+    """The lattice shattering: a bright crack, a cascade of glass shards falling in pitch, an electrical discharge and a
+    bass drop. Loud and unmistakable from across the map."""
+    x = silence(1.1)
+    x = mix(x, stereo(bp(noise(0.06, rng, 0.0001, 0.01), 3000, 16000), 0.0004), 0, 1.0)
+    x = mix(x, hp(src("Impacts__Lyra_ImpactGlass", i * 2 + 1), 1800), 0.0, 0.5)
+    # Shard cascade: lattice pings stepping down in pitch, scattered in time and across the stereo field.
+    for k in range(9):
+        at = 0.01 + k * 0.028 + rng.uniform(0, 0.012)
+        ping = lattice(0.25, rng, 0.04, 1.5 * (0.88 ** k))
+        side = rng.uniform(-0.6, 0.6)
+        st = np.stack([ping * (1 - side), ping * (1 + side)], axis=1)
+        x = mix(x, st, at, 0.35 * (0.92 ** k))
+    discharge = crackle(0.6, rng, 0.06, 1200, 8000) * env(int(0.6 * SR), 0.005, 0.18)
+    x = mix(x, stereo(discharge, 0.0006), 0.01, 0.7)
+    drop = tone(0.6, 220, 38, 0.35, 0.002, 0.2, harmonics=(1.0, 0.4))
+    x = mix(x, stereo(saturate(drop, 1.8)), 0, 0.8)
+    return normalize(end_trim(saturate(x, 1.3)), -1.0)
 
 
 @bank("Shield_Recharge", 1)
 def shield_recharge(i, rng):
-    """Shields coming back: a capacitor-style charge-up. A three-voice chord opens up through a rising filter while a
-    soft ticking speeds up, then settles on a bright 'full' chime. Distinct from any other game's recharge tone."""
-    dur = 1.9
-    n = int(dur * SR)
+    """The lattice rebuilding: the field hum swells while glassy notes step up an arpeggio and speed up, a shimmer
+    grows over the top, then everything locks with a bright 'crystallise' chord."""
+    dur = 2.0
+    x = silence(dur)
+    n = int(1.45 * SR)
     t = np.arange(n) / SR
-    prog = np.clip(t / 1.45, 0, 1)
-    chord = np.zeros(n, np.float32)
-    for f, g in ((196.0, 1.0), (293.7, 0.8), (440.0, 0.6)):
-        for det in (-0.004, 0.0, 0.005):
-            hz = f * (1 + det) * (1 + 0.5 * prog ** 1.6)
-            ph = 2 * np.pi * np.cumsum(hz) / SR + rng.uniform(0, 6.28)
-            chord += g * signal.sawtooth(ph).astype(np.float32) / 3
-    # Rising low-pass, applied block by block.
-    out = np.zeros(n, np.float32)
-    zi = None
-    for seg in np.array_split(np.arange(n), 60):
-        f = 300 * (4200 / 300) ** prog[seg[0]]
-        sos = signal.butter(2, f / (SR / 2), output="sos")
-        if zi is None:
-            zi = signal.sosfilt_zi(sos) * 0
-        out[seg], zi = signal.sosfilt(sos, chord[seg], zi=zi)
-    amp = np.clip(t / 0.25, 0, 1) * (0.35 + 0.65 * prog) * np.where(t > 1.45, np.exp(-(t - 1.45) / 0.18), 1.0)
-    out *= amp
-    # Ticks: a capacitor counting up.
-    tick_t = 0.08
-    while tick_t < 1.4:
-        k = ring(0.05, [(2600 + 1400 * tick_t, 1.0)], 0.006, rng)
-        s = int(tick_t * SR)
-        out[s:s + len(k)] += k[: n - s] * 0.12
-        tick_t += 0.16 * (1 - 0.6 * tick_t / 1.4)
-    chime = ring(0.6, [(1318.5, 1.0), (1975.5, 0.7), (2637.0, 0.4)], 0.16, rng, attack=0.004)
-    s = int(1.42 * SR)
-    out[s:s + len(chime)] += chime[: n - s] * 0.35
-    st = mix(convolve(stereo(out, 0.0007), room_ir(rng, 0.5)) * 0.25, stereo(out, 0.0007), 0.0)
-    return normalize(end_trim(st), -4.0)
+    prog = t / 1.45
+    hum = field_hum(1.45, 1.0, 0.0, 10.0)  # placeholder shape; real hum below with a pitch rise
+    ph = 2 * np.pi * np.cumsum(98 * (1 + 0.6 * prog ** 1.5)) / SR
+    hum = (np.sin(ph) + 0.5 * np.sin(2.003 * ph) + 0.3 * np.sin(3.01 * ph)) * (0.15 + 0.85 * prog ** 1.3)
+    hum *= 1 + 0.25 * np.sin(2 * np.pi * (8 + 30 * prog) * t)
+    x = mix(x, stereo(lp(hum.astype(np.float32), 2500), 0.0005), 0, 0.5)
+    notes = [440.0, 523.3, 659.3, 880.0, 1046.5, 1318.5, 1760.0, 2093.0]
+    at = 0.0
+    for k in range(14):
+        hz = notes[k % len(notes)] * (2 if k >= len(notes) else 1)
+        ping = ring(0.35, [(hz, 1.0), (hz * 2.01, 0.35), (hz * 3.03, 0.15)], 0.08, rng, attack=0.002)
+        side = 0.5 * np.sin(k * 1.7)
+        x = mix(x, np.stack([ping * (1 - side), ping * (1 + side)], axis=1), at, 0.18 + 0.12 * k / 13)
+        at += 0.16 * (1 - 0.055 * k)
+    shimmer = crackle(1.45, rng, 0.004, 5000, 14000) * (prog ** 2)
+    x = mix(x, stereo(shimmer, 0.0007), 0, 0.25)
+    lock = ring(0.7, [(1318.5, 1.0), (1760.0, 0.8), (2637.0, 0.5), (3520.0, 0.3)], 0.2, rng, attack=0.003)
+    x = mix(x, stereo(lock, 0.0004), 1.42, 0.55)
+    x = mix(x, stereo(bp(noise(0.05, rng, 0.0005, 0.012), 5000, 14000)), 1.42, 0.3)
+    wet = convolve(x, room_ir(rng, 0.6))
+    return normalize(end_trim(mix(wet * 0.25, x, 0.0)), -4.0)
+
+
+@bank("Shield_LowWarn", 2)
+def shield_low_warn(i, rng):
+    """Shield below ~40 %: danger. A heavy heartbeat (lub-dub) under a tense tritone pulse and lattice crackle, like
+    the field is failing. Repeats while low and the game speeds it up as the shield drops."""
+    x = silence(0.8)
+    for at, hz, g in ((0.0, 58.0, 1.0), (0.17, 52.0, 0.75)):
+        beat = tone(0.25, hz * 1.4, hz, 0.04, 0.004, 0.07, harmonics=(1.0, 0.3))
+        x = mix(x, stereo(saturate(beat, 2.0)), at, g)
+        x = mix(x, stereo(lp(noise(0.06, rng, 0.002, 0.02), 400)), at, 0.25 * g)
+    # Tense dissonant pulse: a tritone that swells in and is cut short.
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    pulse = (np.sin(2 * np.pi * 311.1 * t) + 0.8 * np.sin(2 * np.pi * 440.0 * t) + 0.3 * np.sin(2 * np.pi * 622.3 * t))
+    pulse *= np.sin(np.pi * np.clip(t / 0.45, 0, 1)) ** 2 * (1 + 0.5 * np.sin(2 * np.pi * 14 * t))
+    x = mix(x, stereo(lp(pulse.astype(np.float32), 2200), 0.0006), 0.05, 0.35)
+    x = mix(x, stereo(crackle(0.5, rng, 0.02, 2000, 9000) * env(int(0.5 * SR), 0.03, 0.12), 0.0005), 0.02, 0.4)
+    return normalize(end_trim(x), -5.0)
 
 
 @bank("Shield_Low", 1)
 def shield_low(i, rng):
-    """Shields-down warning beep: two quick tones, soft attack so it nags without stabbing."""
-    x = silence(0.25)
-    x = mix(x, stereo(tone(0.09, 1480, 1480, 0.1, 0.004, 0.035, harmonics=(1.0, 0.2))), 0, 1.0)
-    x = mix(x, stereo(tone(0.09, 1110, 1110, 0.1, 0.004, 0.04, harmonics=(1.0, 0.2))), 0.1, 0.8)
-    return normalize(end_trim(x), -6.0)
+    """Shield empty: an urgent, clipped alarm. Three fast descending chirps over a buzz, repeated by the game."""
+    x = silence(0.32)
+    for k, hz in enumerate((1760.0, 1480.0, 1245.0)):
+        chirp = tone(0.07, hz * 1.06, hz, 0.02, 0.003, 0.025, harmonics=(1.0, 0.45, 0.2))
+        x = mix(x, stereo(chirp), k * 0.075, 1.0)
+    buzz = tone(0.26, 110, 105, 0.2, 0.005, 0.12, harmonics=(1.0, 0.7, 0.5, 0.35, 0.25))
+    x = mix(x, stereo(lp(buzz, 1800)), 0, 0.35)
+    return normalize(end_trim(x), -5.0)
 
 
 # ---- Armoured footsteps ---------------------------------------------------------------------------------------
@@ -845,7 +887,7 @@ def make_preview():
         "05_rail_lance": [("Rail_Charge", 0), ("Rail_FP", 0.95), ("Rail_FPTail", 0.95)],
         "06_grenade": [("Grenade_Throw", 0), ("Grenade_Bounce", 0.45), ("Grenade_Bounce", 0.8), ("Grenade_Bounce", 1.0), ("Grenade_Explosion_FP", 1.6)],
         "07_distant_battle": [("BR_Dist", 0), ("BR_Dist", 0.06), ("BR_Dist", 0.12), ("Sniper_Dist", 0.9), ("Grenade_Explosion_Dist", 1.6), ("Sidearm_Dist", 2.6), ("Rail_Dist", 3.2)],
-        "08_shields": [("Shield_Impact", 0), ("Shield_Impact", 0.18), ("Shield_Impact", 0.36), ("Shield_Pop", 0.6), ("Shield_Low", 1.6), ("Shield_Low", 2.15), ("Shield_Recharge", 3.0)],
+        "08_shields": [("Shield_Impact", 0), ("Shield_Impact", 0.18), ("Shield_Impact", 0.36), ("Shield_LowWarn", 0.7), ("Shield_LowWarn", 1.7), ("Shield_Impact", 2.4), ("Shield_LowWarn", 2.55), ("Shield_Pop", 3.4), ("Shield_Low", 4.4), ("Shield_Low", 4.95), ("Shield_Low", 5.5), ("Shield_Recharge", 6.3)],
         "09_footsteps": [("Footstep", k * 0.33) for k in range(8)] + [("Land", 2.9)],
         "10_reloads": [("BR_Reload", 0), ("Sidearm_Reload", 2.3), ("Sniper_Reload", 4.0), ("DryFire_Rifle", 7.0), ("DryFire_Light", 7.4), ("DryFire_Heavy", 7.8), ("Weapon_Raise", 8.4)],
     }

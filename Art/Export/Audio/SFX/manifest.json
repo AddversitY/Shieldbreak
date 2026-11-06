@@ -293,35 +293,43 @@
   "count": 6,
   "mono": true,
   "seconds": [
-   0.205,
-   0.241,
-   0.27,
-   0.247,
-   0.266,
-   0.232
+   0.308,
+   0.328,
+   0.35,
+   0.35,
+   0.35,
+   0.35
   ]
  },
  "Shield_Low": {
   "count": 1,
   "mono": true,
   "seconds": [
-   0.21
+   0.28
+  ]
+ },
+ "Shield_LowWarn": {
+  "count": 2,
+  "mono": false,
+  "seconds": [
+   0.54,
+   0.54
   ]
  },
  "Shield_Pop": {
   "count": 3,
   "mono": false,
   "seconds": [
-   0.54,
-   0.54,
-   0.539
+   0.63,
+   0.63,
+   0.63
   ]
  },
  "Shield_Recharge": {
   "count": 1,
   "mono": false,
   "seconds": [
-   2.206
+   2.203
   ]
  },
  "Sidearm_Dist": {

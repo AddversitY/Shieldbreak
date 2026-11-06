@@ -27,6 +27,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Audio")
 	float LowShieldBeepInterval = 0.55f;
 
+	/** Below this shield fraction the owner hears the low-shield danger pulse. */
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	float LowShieldFraction = 0.4f;
+
 	/** Ground distance (cm) per footstep at walking speed and at full sprint. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
 	float StrideWalk = 170.f;
