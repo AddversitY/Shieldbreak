@@ -53,6 +53,14 @@ private:
 	void DrawTips(const class AShieldbreakCharacter* Character);
 
 	// Primitives (all coordinates in pixels).
+	/** Scope overlay while zoomed (EShieldbreakScope): lens mask, housing, reticle and readouts. True when one was
+	 *  drawn, so the hip reticle steps aside. */
+	bool DrawScope(class AShieldbreakCharacter* Character, bool bOnEnemy);
+	void DrawMarksmanScope(class AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters);
+	void DrawLongRangeScope(class AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters);
+	/** A soft-edged round lens mask: clear inside, Color outside, with a vignette toward the rim. */
+	void DrawLensMask(float CX, float CY, float R, const FLinearColor& Color);
+	class UTexture2D* GetLensMaskTexture();
 	void Text(const FString& Str, float X, float Y, const FLinearColor& Color, UFont* Font, float TextScale = 1.f, bool bCenter = false, bool bRight = false);
 	void Box(float X, float Y, float W, float H, const FLinearColor& Color);
 	void Line(float X0, float Y0, float X1, float Y1, const FLinearColor& Color, float Thickness = 1.f);
@@ -71,6 +79,10 @@ private:
 
 	/** Pixel scale relative to 1080p. */
 	float S = 1.f;
+	UPROPERTY(Transient)
+	TObjectPtr<class UTexture2D> LensMask;
+	/** Distance under the crosshair from this frame's reticle trace (cm, 0 = nothing hit). */
+	float AimDistance = 0.f;
 	/** World time the tips started, or a negative value before the first spawn. */
 	float TipsStartTime = -1.f;
 };

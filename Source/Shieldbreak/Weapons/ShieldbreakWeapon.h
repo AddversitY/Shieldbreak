@@ -26,6 +26,17 @@ enum class EShieldbreakFireMode : uint8
 	Charge
 };
 
+UENUM(BlueprintType)
+enum class EShieldbreakScope : uint8
+{
+	/** Zoom without an overlay (the hip reticle stays). */
+	None,
+	/** Mid-range optic: a wide lens with a chevron reticle (Battle Rifle). */
+	Marksman,
+	/** Long-range optic: a full-height lens with a fine cross and range ladder (Sniper). */
+	LongRange,
+};
+
 USTRUCT(BlueprintType)
 struct SHIELDBREAK_API FShieldbreakWeaponStats
 {
@@ -63,6 +74,10 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float OverheatLockout = 2.f;
 	/** 0 = no zoom. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ZoomFOV = 0.f;
+	/** 0 = one zoom level. Otherwise a second press of zoom goes to this narrower FOV, a third zooms out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ZoomFOV2 = 0.f;
+	/** Which scope overlay the HUD draws while zoomed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") EShieldbreakScope Scope = EShieldbreakScope::None;
 	/** Cosmetic only: how hard the gun model jumps in the hands on each shot. Shots never move the aim (no recoil). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float RecoilPitch = 0.2f;
 	/** Bullet magnetism (Halo-style aim assist, player shots only): a shot that would pass within this many degrees
@@ -113,6 +128,9 @@ public:
 	void OnUnequipped();
 	/** True when the attachment OnEquipped would pick now (hand vs camera viewmodel, art or not) differs from the last one. */
 	bool NeedsReattach() const;
+	/** First person: cm the gun sits higher in the hand than the socket, so the fingers close on the grip under the
+	 *  receiver and the index finger reaches the trigger (from the art's Trigger socket; plus sb.FPGunLift). */
+	float GetFirstPersonLift() const;
 
 	// ---- Local (owning client or server AI) ----
 	void StartFire();

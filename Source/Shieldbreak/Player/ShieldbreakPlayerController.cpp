@@ -167,8 +167,8 @@ void AShieldbreakPlayerController::OnUnPossess()
 	APawn* PreviousPawn = GetPawn();
 	Super::OnUnPossess();
 
-	// Keep watching the body until the respawn.
-	if (IsValid(PreviousPawn))
+	// Keep watching the body until the respawn, unless its death camera already has the view.
+	if (IsValid(PreviousPawn) && (GetViewTarget() == this || GetViewTarget() == PreviousPawn))
 	{
 		SetViewTarget(PreviousPawn);
 	}

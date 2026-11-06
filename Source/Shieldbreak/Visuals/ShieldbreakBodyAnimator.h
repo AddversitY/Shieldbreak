@@ -75,6 +75,11 @@ public:
 	float GetTriggerFingerError() const;
 	/** Trigger socket, finger pad and index_01_r in hand_r space (cm), for fitting the trigger art. */
 	FString DescribeTriggerFinger() const;
+	/** True when the held gun has a "SupportHand" socket (the rifles): first person then shows the left arm, reaching
+	 *  the hand onto that socket, and frames the gun so the trigger hand sits below the screen. */
+	bool WantsFirstPersonSupportArm() const;
+	/** Distance (cm) from hand_l to the support socket, or -1 without one (self-test). */
+	float GetSupportHandError() const;
 
 	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
 	 *  weapon's recoil (degrees), so heavier guns kick harder. */
@@ -123,6 +128,8 @@ private:
 	void AttachArmor(USkeletalMeshComponent* Mesh, bool bFirstPerson);
 	void UpdateFirstPersonArms();
 	void SetFirstPersonArmsVisible(bool bVisible);
+	void UpdateScopeHide(class AShieldbreakCharacter* OwnerCharacter);
+	void ClearScopeHide();
 	/** Places the arms on the camera so the gun hand sits at the viewmodel spot with the barrel toward the crosshair. */
 	void CalibrateFirstPersonArms();
 	bool UsesPistolAnimations() const;
@@ -150,6 +157,7 @@ private:
 	TObjectPtr<UAnimSequenceBase> CalibratedIdle;
 	FVector3f CalibratedGrip = FVector3f::ZeroVector;
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
+	float CalibratedLift = 0.f;
 	float FirstPersonIdleSince = -1.f;
 	FTransform CalibratedArmsTransform = FTransform::Identity;
 	/** Grenade throw, first person: world time it started (the arm and gun follow UpdateFirstPersonThrow's timeline),
@@ -157,6 +165,7 @@ private:
 	float FirstPersonThrowStart = -100.f;
 	float AppliedThrowDip = 0.f;
 	bool bFirstPersonLeftArmShown = false;
+	bool bFirstPersonThrowArm = false;
 	bool bFirstPersonThrowKicked = false;
 	/** Grenade throw, third person: world time the toss started (the grenade shows in the hand until release). */
 	float BodyThrowStart = -100.f;
@@ -181,6 +190,12 @@ private:
 	void UpdateTriggerFinger(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
 	/** The equipped gun's mesh with a "Trigger" socket, or null. */
 	class UStaticMeshComponent* GetTriggerMesh() const;
+	/** How far the left hand has reached onto the support socket (eases out for actions, swaps and throws). */
+	float SupportHandWeight = 0.f;
+	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
+	bool bSupportArmShown = false;
+	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
+	class UStaticMeshComponent* GetSupportMesh(bool bRequireAttached) const;
 	void ApplyFirstPersonArmsTransform(float Dip);
 	/** Steps the first-person motion springs and writes FirstPersonMotion. */
 	void UpdateFirstPersonMotion(float DeltaSeconds);
@@ -203,4 +218,7 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorTeamMIDs;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorGlowMIDs;
+	bool bScopeHidden = false;
+	TWeakObjectPtr<AActor> ScopeHiddenWeapon;
+	TWeakObjectPtr<class APlayerController> ScopeHidePC;
 };

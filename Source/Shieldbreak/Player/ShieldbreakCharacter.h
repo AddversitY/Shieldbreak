@@ -55,11 +55,18 @@ public:
 	UStaticMeshComponent* GetHeadMesh() const { return HeadMesh; }
 	UShieldbreakBodyAnimator* GetBodyAnimator() const { return BodyAnimator; }
 	AShieldbreakWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
+	/** While a local player watches this body die: the camera that follows it. */
+	class ACameraActor* GetDeathCamera() const { return DeathCamera; }
 	AShieldbreakWeapon* GetHolsteredWeapon() const;
 	int32 GetGrenadeCount() const { return GrenadeCount; }
 	int32 GetMaxGrenades() const { return MaxGrenades; }
 	bool IsAlive() const;
 	bool IsZoomed() const { return bZoomed; }
+	/** 0 = hip, 1 = first zoom, 2 = the second, longer zoom (weapons with a ZoomFOV2, the sniper). */
+	int32 GetZoomLevel() const { return bZoomed ? ZoomLevel : 0; }
+	/** 0..1: how far the scope view has come up (eases over about 0.12 s). The HUD fades the scope overlay with it
+	 *  and the first-person gun and arms hide once it passes half. */
+	float GetScopeBlend() const { return ScopeBlend; }
 	FVector GetAimOrigin() const;
 	FRotator GetAimRotation() const;
 	float GetSpreadMultiplier() const;
@@ -296,6 +303,11 @@ private:
 	/** Every frame while a local player watches this body: follows the ragdoll from the clearest side, never inside it. */
 	void UpdateDeathCamera(float DeltaSeconds);
 	float DeathCameraYaw = 0.f;
+	/** The local player's view while dead. A camera actor, not this body: the engine re-points a view whose pawn has
+	 *  lost its PlayerState (as a dead body does) back to the controller, which sat at the eye inside the ragdoll. */
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> DeathCamera;
+	/** The local controller that watched this body die (it has no pawn until the respawn). */
+	TWeakObjectPtr<class APlayerController> DeathViewer;
 	int32 DeathCameraSide = -1;
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();
@@ -368,6 +380,8 @@ private:
 	 *  jump input on that mode change, after Landed()). */
 	bool bJumpOnLandPending = false;
 	bool bZoomed = false;
+	int32 ZoomLevel = 0;
+	float ScopeBlend = 0.f;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;
 	bool bWantsEquipment = false;
