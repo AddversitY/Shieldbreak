@@ -30,7 +30,7 @@ namespace ShieldbreakImpactPrivate
 	TAutoConsoleVariable<float> CVarMuzzleLight(TEXT("sb.MuzzleLight"), 6.f, TEXT("Muzzle flash light candelas at strength 1 (0 = no light)."));
 	TAutoConsoleVariable<int32> CVarDebug(TEXT("sb.ImpactFXDebug"), 0, TEXT("1: muzzle flash cards stay lit and log where they are (capture diagnosis)."));
 	TAutoConsoleVariable<int32> CVarMuzzle(TEXT("sb.MuzzleFlash"), 1, TEXT("1: Shieldbreak's muzzle flash cards and light."));
-	TAutoConsoleVariable<int32> CVarLyraMuzzle(TEXT("sb.LyraMuzzleFlash"), 1, TEXT("1: Lyra's Niagara muzzle flash also plays under ours."));
+	TAutoConsoleVariable<int32> CVarLyraMuzzle(TEXT("sb.LyraMuzzleFlash"), 0, TEXT("1: Lyra's Niagara muzzle flash also plays under ours (off: ours draws on the first-person gun since FX4)."));
 
 	const TCHAR* const SparkMaterial = TEXT("/Game/Shieldbreak/Art/FX/M_SB_FXSpark.M_SB_FXSpark");
 	const TCHAR* const GlowMaterial = TEXT("/Game/Shieldbreak/Art/FX/M_SB_FXGlowInst.M_SB_FXGlowInst");
@@ -58,7 +58,7 @@ namespace ShieldbreakImpactPrivate
 	{
 		EShieldbreakImpactSurface Surface = EShieldbreakImpactSurface::Metal;
 		/** Dust colour for dirt (snow is white, sandstone warm). */
-		FLinearColor Dust = FLinearColor(0.2f, 0.17f, 0.13f);
+		FLinearColor Dust = FLinearColor(0.38f, 0.32f, 0.24f);
 	};
 
 	bool ContainsAny(const FString& Text, std::initializer_list<const TCHAR*> Words)
@@ -120,7 +120,7 @@ namespace ShieldbreakImpactPrivate
 			}
 			else if (ContainsAny(Name, { TEXT("sand"), TEXT("canyon") }))
 			{
-				Info.Dust = FLinearColor(0.32f, 0.22f, 0.14f);
+				Info.Dust = FLinearColor(0.5f, 0.38f, 0.26f);
 			}
 		}
 		Cache.Add(Component, Info);
@@ -360,7 +360,7 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 		{
 			FlashLight(Point + Normal * 12.f, Hot, 3.f * S, 120.f + 40.f * S, 0.06f);
 		}
-		PlaceDecal(Hit, 4.5f * FMath::Sqrt(S) + FMath::FRandRange(-0.4f, 0.4f), FLinearColor(0.035f, 0.03f, 0.028f), 0.8f, 1.f);
+		PlaceDecal(Hit, 4.5f * FMath::Sqrt(S) + FMath::FRandRange(-0.4f, 0.4f), FLinearColor(0.035f, 0.03f, 0.028f), 0.8f, 0.7f);
 		break;
 	}
 	case EShieldbreakImpactSurface::Dirt:
@@ -368,9 +368,9 @@ void UShieldbreakImpactFXSubsystem::BulletImpact(const FHitResult& Hit, const FV
 		const FSurfaceInfo Info = ClassifyWorld(Hit);
 		SpawnSparks(Point, Normal, SprayAxis, FMath::RoundToInt(2.f * S * SparkScale), 400.f, 900.f, 35.f, 0.2f, Hot, Cool, 18.f, 0.25f, 980.f);
 		// A jet of dust along the normal, a wider cloud, and a low skirt that hangs.
-		AddCard(false, Point + Normal * 4.f, Normal * 320.f, Info.Dust, 0.55f, 6.f * S, 34.f * S, 0.75f, 6.f);
-		AddCard(false, Point + Normal * 6.f, SprayAxis * 160.f + FVector(0.f, 0.f, 30.f), Info.Dust * 0.9f, 1.2f, 10.f * S, 60.f * S, 0.55f, 3.f);
-		AddCard(false, Point + Normal * 3.f, FVector(0.f, 0.f, 12.f), Info.Dust * 0.8f, 1.6f, 14.f * S, 75.f * S, 0.35f, 2.f);
+		AddCard(false, Point + Normal * 4.f, Normal * 320.f, Info.Dust, 0.6f, 8.f * S, 42.f * S, 0.95f, 6.f);
+		AddCard(false, Point + Normal * 6.f, SprayAxis * 160.f + FVector(0.f, 0.f, 30.f), Info.Dust * 0.9f, 1.3f, 12.f * S, 70.f * S, 0.8f, 3.f);
+		AddCard(false, Point + Normal * 3.f, FVector(0.f, 0.f, 12.f), Info.Dust * 0.8f, 1.8f, 16.f * S, 85.f * S, 0.55f, 2.f);
 		PlaceDecal(Hit, 5.5f * FMath::Sqrt(S), Info.Dust * 0.25f, 0.65f, 0.f);
 		break;
 	}
