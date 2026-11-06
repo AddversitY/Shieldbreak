@@ -48,6 +48,16 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (9), READY, same branch, at Claude's commit "Fit the first-person hand around the grip":**
+  From task (8)'s joints: the hand's knuckles sat inside the receiver (BR index knuckle 4.5 cm above the bore, the
+  receiver's underside at -4.5), so the hand vanished behind the BR and the sidearm sight came through the glove. Each
+  gun now sits higher in the hand by its Trigger socket's depth less 1.3 cm (sidearm 3.5 = your _b, BR/sniper/rail
+  5.7, rocket 3.3) and the arms drop by as much, so the gun stays put on screen and the hand shows under it. Death camera
+  check: it ran 2.5 s after a 10000 overkill, after the 3 s respawn; now just-lethal damage, checked 1.6 s after, with
+  the view target in the detail. Wear roughness variation down again (BR mottling).
+  Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` + grep "Failed to compile"; self-test once (hoping for
+  147/147: paste the trigger-finger and Death camera lines verbatim); FPS fixed FP and 4 bots once each;
+  `Tools\VisualShots.bat FP` once (SBTAG=_a). JPGs into docs/playtests/2026-11-06_task9/. Report in one message.
 - **2026-11-06 (8), READY, same branch, at Claude's commit "Death camera follows the ragdoll; FP fill off; lighter wear":**
   Thanks for (7) and the M_SB_Character VertexInterpolator fix. Vincent still saw the inside of his helmet while dead
   ("RESPAWN IN 1"): the death camera was placed once, 2.8 m behind the head, and the ragdoll thrown back from a frontal

@@ -141,6 +141,7 @@ private:
 	TObjectPtr<UAnimSequenceBase> CalibratedIdle;
 	FVector3f CalibratedGrip = FVector3f::ZeroVector;
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
+	float CalibratedLift = 0.f;
 	float FirstPersonIdleSince = -1.f;
 	FTransform CalibratedArmsTransform = FTransform::Identity;
 	/** The grenade throw's first-person dip (see UpdateFirstPersonArms). */

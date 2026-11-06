@@ -507,17 +507,22 @@ void AShieldbreakSelfTest::BuildSteps()
 		{
 			if (Phase == 0 && Elapsed > 1.f)
 			{
-				Damage(A, 10000.f, UDamageType_Ballistic::StaticClass(), B);
+				// Just lethal (a 10000 overkill flung the ragdoll metres away), and checked before the 3 s respawn: task (8)
+				// checked at 2.5 s after the kill and the player had already respawned elsewhere.
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(A, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
 				Phase = 1;
 			}
-			if (Phase == 1 && Elapsed > 3.5f)
+			if (Phase == 1 && Now() - Mark > 1.6f)
 			{
 				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
 				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (A ? A->GetActorLocation() : FVector::ZeroVector);
 				const float Distance = PC && PC->PlayerCameraManager ? static_cast<float>(FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Pelvis)) : -1.f;
 				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && PC && PC->GetViewTarget() == A && Distance > 150.f,
-					FString::Printf(TEXT("camera %s cm from the pelvis"), *ShieldbreakSelfTestPrivate::Num(Distance)));
+					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
+						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A && A->IsAlive() ? 1 : 0));
 				ClearDummies();
 				return true;
 			}

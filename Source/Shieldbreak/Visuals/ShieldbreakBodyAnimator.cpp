@@ -685,9 +685,12 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	const FVector3f Grip(CVarGripForward.GetValueOnGameThread(), CVarGripRight.GetValueOnGameThread(), CVarGripDown.GetValueOnGameThread());
 	const FVector2f Aim(CVarAimPitch.GetValueOnGameThread(), CVarAimYaw.GetValueOnGameThread());
 	const bool bSettled = World->GetTimeSeconds() - FirstPersonIdleSince > 0.3f && !Instance->GetActionAnimation();
-	if (bSettled && (CalibratedIdle != Idle || CalibratedGrip != Grip || CalibratedAim != Aim))
+	const AShieldbreakWeapon* HeldWeapon = OwnerCharacter->GetCurrentWeapon();
+	const float Lift = HeldWeapon ? HeldWeapon->GetFirstPersonLift() : 0.f;
+	if (bSettled && (CalibratedIdle != Idle || CalibratedGrip != Grip || CalibratedAim != Aim || !FMath::IsNearlyEqual(CalibratedLift, Lift, 0.05f)))
 	{
 		CalibratedIdle = Idle;
+		CalibratedLift = Lift;
 		CalibratedGrip = Grip;
 		CalibratedAim = Aim;
 		CalibrateFirstPersonArms();
@@ -933,7 +936,10 @@ void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
 	const FVector Desired = FRotator(CalibratedAim.X, CalibratedAim.Y, 0.f).Vector();
 	const FQuat Rotation = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
 	const FVector GripCamera(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
-	const FVector Location = GripCamera - Rotation.RotateVector(SocketComponent.GetLocation());
+	// The gun sits CalibratedLift above the socket (AShieldbreakWeapon::GetFirstPersonLift): lower the arms by as much,
+	// so the gun keeps its place on screen and the hand shows below it.
+	const FVector LiftedSocket = SocketComponent.GetLocation() + SocketComponent.TransformVectorNoScale(FVector(0.0, 0.0, CalibratedLift));
+	const FVector Location = GripCamera - Rotation.RotateVector(LiftedSocket);
 	CalibratedArmsTransform = FTransform(Rotation, Location);
 	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform);
 	UE_LOG(LogShieldbreak, Log, TEXT("First-person arms placed for %s: offset %s, rotation %s."),
