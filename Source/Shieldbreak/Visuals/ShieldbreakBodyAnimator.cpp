@@ -409,14 +409,14 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** A/B for the black first-person gun: the local player's hidden body and armor cast their shadow from the eye,
 	 *  so overhead lights may shade the gun held in front of the chest. 0 = the local body casts no hidden shadow. */
 	TAutoConsoleVariable<int32> CVarFPSelfShadow(TEXT("sb.FPSelfShadow"), 1, TEXT("1: the local player's hidden body casts a shadow (new spawns)."));
-	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 15.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
+	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 0.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
-	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 38.f, TEXT("First-person gun hand: cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 44.f, TEXT("First-person gun hand: cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), -35.f, TEXT("First-person grenade throw: degrees the arm rig pitches during the throw (negative tips it up so the left arm's swing crosses the screen; tuned on the PC)."));
-	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 13.f, TEXT("First-person gun hand: cm right of the eye."));
-	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 17.5f, TEXT("First-person gun hand: cm below the eye."));
+	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 14.f, TEXT("First-person gun hand: cm right of the eye."));
+	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 16.5f, TEXT("First-person gun hand: cm below the eye."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
 
@@ -784,9 +784,12 @@ FString UShieldbreakBodyAnimator::DescribeTriggerFinger() const
 	// The trigger socket in the gun's own mesh space too, so the art can be moved by exactly the miss.
 	const FVector PadInGun = Gun->GetComponentTransform().InverseTransformPosition(Pad);
 	const FVector TriggerInGun = Gun->GetComponentTransform().InverseTransformPosition(Gun->GetSocketLocation(TEXT("Trigger")));
-	return FString::Printf(TEXT("hand space: trigger %s pad %s index_01 %s; gun space: trigger (%.1f,%.1f,%.1f) pad (%.1f,%.1f,%.1f)"),
+	auto InGun = [Gun](const FVector& World) { const FVector P = Gun->GetComponentTransform().InverseTransformPosition(World); return FString::Printf(TEXT("(%.1f,%.1f,%.1f)"), P.X, P.Y, P.Z); };
+	return FString::Printf(TEXT("hand space: trigger %s pad %s index_01 %s; gun space: trigger (%.1f,%.1f,%.1f) pad (%.1f,%.1f,%.1f) index_01 %s hand_r %s middle_01 %s pinky_01 %s thumb_03 %s"),
 		*InHand(Gun->GetSocketLocation(TEXT("Trigger"))), *InHand(Pad), *InHand(FirstPersonArms->GetBoneLocation(TEXT("index_01_r"))),
-		TriggerInGun.X, TriggerInGun.Y, TriggerInGun.Z, PadInGun.X, PadInGun.Y, PadInGun.Z);
+		TriggerInGun.X, TriggerInGun.Y, TriggerInGun.Z, PadInGun.X, PadInGun.Y, PadInGun.Z,
+		*InGun(FirstPersonArms->GetBoneLocation(TEXT("index_01_r"))), *InGun(Hand.GetLocation()), *InGun(FirstPersonArms->GetBoneLocation(TEXT("middle_01_r"))),
+		*InGun(FirstPersonArms->GetBoneLocation(TEXT("pinky_01_r"))), *InGun(FirstPersonArms->GetBoneLocation(TEXT("thumb_03_r"))));
 }
 
 namespace ShieldbreakBodyAnimatorPrivate

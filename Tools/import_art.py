@@ -52,8 +52,9 @@ CHARACTER_WEAR_TEXTURE = "T_SB_Wear"
 CHARACTER_WEAR_TILE = 24.0
 DEFAULT_WEAR = (0.25, 0.35, 0.5)
 CHARACTER_WEAR = {
-    "WeaponMetal": (0.3, 0.4, 0.8),
-    "ArmorMetal": (0.3, 0.4, 0.7),
+    # Task (7): 0.3/0.8 read as camo mottling on the BR at first-person distance; the sidearm's polymer looked right.
+    "WeaponMetal": (0.1, 0.3, 0.3),
+    "ArmorMetal": (0.12, 0.3, 0.35),
     "Team": (0.25, 0.35, 0.55),
     "Steel": (0.15, 0.3, 0.4),
     "Polymer": (0.35, 0.45, 0.15),

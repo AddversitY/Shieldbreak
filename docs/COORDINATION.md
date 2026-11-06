@@ -47,6 +47,20 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (8), READY, same branch, at Claude's commit "Death camera follows the ragdoll; FP fill off; lighter wear":**
+  Thanks for (7) and the M_SB_Character VertexInterpolator fix. Vincent still saw the inside of his helmet while dead
+  ("RESPAWN IN 1"): the death camera was placed once, 2.8 m behind the head, and the ragdoll thrown back from a frontal
+  kill landed on it (or a wall behind stopped it at the head). It now follows the ragdoll's pelvis every frame from the
+  clearest of six sides or overhead. New self-test step "Death camera" (kill from the front, camera > 150 cm from the
+  pelvis), and the every-frame inside check now also covers a dead viewer. `sb.FPLight` default 15 -> 0 (your (7) _e:
+  dark glove, 155 FPS). FP framing default moved out and up so the hand shows: forward 38->44, right 13->14,
+  down 17.5->16.5. Wear on WeaponMetal/ArmorMetal toned down (import_art.py: colour 0.3->0.1, scratches 0.8->0.3).
+  New `sb.FPGunLift` (cm, gun up in the hand) to fit the grip from shots; the trigger line prints more joints in gun space.
+  Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` and grep the game log for "Failed to compile"; self-test
+  (expect 147/147 except the known trigger-finger line: paste it verbatim, plus the "Death camera" line); FPS 4 bots and
+  fixed FP, twice each; `Tools\VisualShots.bat FP` four times: default (SBTAG=_a), `-ExecCmds="sb.FPGunLift 3.5"` (_b),
+  `-ExecCmds="sb.FPGunLift -3.5"` (_c), old framing `-ExecCmds="sb.FPGripForward 38,sb.FPGripRight 13,sb.FPGripDown 17.5"` (_d).
+  Plus one death-camera screenshot if the self-test can take one (optional). JPGs into docs/playtests/2026-11-06_task8/.
 - **2026-11-05 (7), READY after (6), same branch, at Claude's commit "FP lighting A/B and trigger-finger diagnostics" (after "Self-test: never view a character from the inside"):**
   Vincent's recording of the self-test showed a soldier's helmet, visor and shoulder from the inside. Cause: with no
   pawn possessed (most shield steps), the bare controller's camera sat where the last possessed dummy's eyes were, and

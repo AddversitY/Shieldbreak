@@ -204,9 +204,9 @@ void AShieldbreakSelfTest::CheckViewNotInsideCharacter()
 	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
 	{
 		AShieldbreakCharacter* Character = *It;
-		if (!Character->IsAlive() || Character->IsActorBeingDestroyed())
+		if (Character->IsActorBeingDestroyed() || (!Character->IsAlive() && Character != Viewer))
 		{
-			continue;
+			continue; // a dead viewer is still checked: the death camera must not sit inside the ragdoll
 		}
 		if (Character != Viewer)
 		{
@@ -494,6 +494,35 @@ void AShieldbreakSelfTest::BuildSteps()
 			ClearDummies();
 			return true;
 		}, 6.f });
+
+	// ---- Death camera: killed from the front, the ragdoll is thrown back toward where the camera used to sit. ----
+	Steps.Add({ TEXT("Death camera"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA));
+			B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(300.f, 0.f, 0.f), 180.f, false);
+		},
+		[this](float Elapsed)
+		{
+			if (Phase == 0 && Elapsed > 1.f)
+			{
+				Damage(A, 10000.f, UDamageType_Ballistic::StaticClass(), B);
+				Phase = 1;
+			}
+			if (Phase == 1 && Elapsed > 3.5f)
+			{
+				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
+				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (A ? A->GetActorLocation() : FVector::ZeroVector);
+				const float Distance = PC && PC->PlayerCameraManager ? static_cast<float>(FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Pelvis)) : -1.f;
+				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && PC && PC->GetViewTarget() == A && Distance > 150.f,
+					FString::Printf(TEXT("camera %s cm from the pelvis"), *ShieldbreakSelfTestPrivate::Num(Distance)));
+				ClearDummies();
+				return true;
+			}
+			return false;
+		}, 8.f });
 
 	// ---- Controller aim assist: with the stick in use, the view eases onto an enemy just off the crosshair. ----
 	{
