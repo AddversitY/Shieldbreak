@@ -10,6 +10,7 @@ Halo geometry, layout, assets or textures are copied or traced, and there is no 
 
 Read: the Halopedia and Halo Fandom pages for Midship and its remakes (Heretic in Halo 3, Truth in Halo 5), PC
 Gamer's history of Halo 2's maps, Prima's Truth guide, a Bungie.org strategy write-up and Kotaku's top maps list.
+Vincent's walkthrough video (below) filled in the look.
 Overhead images could not be downloaded from the cloud (the image host blocks it), so the layout notes below come
 from those texts and general knowledge of the map. Exact sizes, lift counts and spawn timers are not published and
 are not claimed here.
@@ -48,6 +49,34 @@ impossible to master" idea in map form.
 **Spectacle outside, clarity inside.** It is the inside of an alien warship: curved purple metal, glowing light
 strips, and windows onto a planet and moon. The detail is in the shapes (every room has a different silhouette)
 and the view out, not in clutter on the floor, so play spaces stay readable.
+
+## What the walkthrough video shows
+
+Vincent sent a 2 min 40 s walkthrough of Midship (2026-11-06). I studied 54 frames, one every 3 s. These are notes
+only: no frames are kept in the repo.
+
+- **No flat boxes anywhere.** Walls lean, taper and curve into the ceiling. Ramps sweep round curved walls instead of
+  running straight. Bulkheads are angled slabs with bevelled edges. Doorways are arches or rounded portholes. Even
+  cover pieces are sculpted (rounded cowls and tapered pylons), so every room has its own silhouette.
+- **A small, strict material set, used everywhere.** Dark violet metal for walls, mottled rose and pink hull plates
+  with panel seams, cool blue-steel trim on edges and frames, and a dark perforated grating on most floors. Four
+  materials, but each is detailed (wear, mottling, seams), so the map reads rich without clutter.
+- **Light lines guide play.** Thin glowing strips run along the edge of every ramp, walkway and floor seam, in purple
+  or white. They show where you can walk, where an edge is, and which way a ramp turns, even in the dark.
+- **Wall art as landmarks.** Big glowing glyph panels and carved relief bands (raised tech patterns) mark rooms,
+  so each room is recognisable at a glance and easy to name in callouts.
+- **The view out is half the look.** Huge windows and skylights show a green nebula, the planet and a moon. Warm
+  light from the planet side falls through them onto the floors, against the cool interior. Glass floor and
+  skylight panels glow cyan.
+- **A real centrepiece.** The hub has a round raised platform on a glowing lift column, ringed by seats, consoles
+  and red-lit pipe columns. A second set piece is a ring of tapered pylons, each shooting a column of light upward.
+- **Lighting is low and contrasty.** Dark ambient, bright accents: light strips, glyphs, windows and light columns
+  carry the scene. Nothing is evenly lit.
+
+What this changes for Keel (applied in the proposal below): sculpted modules instead of boxes everywhere, not just at
+the centre; a fixed four-material hull set; edge light strips on every walkable edge; a glowing sign or relief
+panel per zone; windows to space in several rooms, not only the Breach; and a second set piece (a reactor pylon
+ring) besides the Cradle.
 
 ## Where Keel stands today
 
@@ -124,12 +153,20 @@ Every one gets its own silhouette and light colour so a new player learns them i
 Original shapes, scanned and modelled detail, performance first:
 
 - Ribbed gunmetal hull with heavy rounded frames (our faction's shape language: chunky, industrial, angled, not
-  Covenant curves and not Forerunner panels).
+  Covenant curves and not Forerunner panels). Every module is shaped: chamfered, ribbed or curved. No plain box
+  survives into the final map, including cover.
+- A fixed four-material hull set: dark gunmetal walls, worn hazard-orange panels, steel trim, dark tread-plate
+  grating floors. Detail goes into those four (wear, seams, decals), not into floor clutter.
+- Edge light strips (amber on our side of the palette, cold white in the Breach) on every ramp, walkway and drop,
+  so routes read in the dark.
+- One landmark sign per zone: a lit stencil number or relief panel (e.g. a big "02" on Red Bridge, a hazard chevron
+  wall at the Trench) for instant callouts.
+- A second set piece: a ring of reactor pylons in the Galleries, each throwing a light column up into the vault.
 - Contrast lighting: warm amber work lamps against cold blue light from the Breach and the space outside.
 - The Cradle is the hero set: crane arms, cables, the pod with hazard stripes, steam from the trench, volumetric
   shafts from the vault.
-- Spectacle through the windows and the Breach (planet, debris, distant ships), which costs little because it is
-  far away and simple.
+- Spectacle through windows in the Bridges, the Cradle vault and the Breach (planet, debris, distant ships), which
+  costs little because it is far away and simple. Warm planet light falls through them against the cool interior.
 - Modular kit: shared materials, instanced ribs and pipes, LODs, measured FPS before and after every step and no
   regression against the current Keel.
 
