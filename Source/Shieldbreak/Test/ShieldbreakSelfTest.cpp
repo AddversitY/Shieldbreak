@@ -3379,6 +3379,10 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
 				const FTransform Where = Arena && Arena->GetSpawnTransforms().Num() > 0 ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
 				A = PossessLocalDummy(Where);
+				if (A)
+				{
+					A->SetCanBeDamaged(false); // the fixture's own grenades must not kill the viewer before the later shots
+				}
 			},
 			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // also waits out the controls overlay
 		Shot(TEXT("fp_0_idle_br"), [Reset]() { Reset(); }, { 0.5f }, 1.f);
@@ -3415,6 +3419,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Shot(TEXT("tp_7_explosion"),
 			[this, Player]()
 			{
+				Mark = 0.f;
 				const AShieldbreakCharacter* P = Player();
 				if (!P || !GetWorld())
 				{
