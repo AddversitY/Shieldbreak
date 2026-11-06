@@ -570,7 +570,9 @@ void AShieldbreakCharacter::ApplyPlayerColor()
 		// Under the armor the mannequin is a plain matte suit in our own polymer material. M_Mannequin's gloves stayed
 		// white whatever its brightness, clear-coat and tint parameters were set to (desktop shots after3 and after4),
 		// so it is swapped out rather than tuned. The first-person arms copy the body's materials, so they match.
-		if (UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer")))
+		UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer"));
+		Suit = Suit ? Suit : ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"));
+		if (Suit)
 		{
 			for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
 			{
@@ -606,6 +608,11 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	if (CurrentWeapon && !CurrentWeapon->IsHidden() && CurrentWeapon->NeedsReattach())
 	{
 		CurrentWeapon->OnEquipped();
+	}
+
+	if (bDeathHandled)
+	{
+		UpdateDeathCamera(DeltaSeconds);
 	}
 
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
@@ -1440,21 +1447,86 @@ void AShieldbreakCharacter::StartDeathCamera()
 	{
 		return;
 	}
-	using namespace ShieldbreakCharacterPrivate;
-	const FRotator Facing(0.f, GetControlRotation().Yaw, 0.f);
-	const FVector Head = FirstPersonCamera->GetComponentLocation();
-	FVector Desired = Head + Facing.RotateVector(FVector(-DeathCameraBack, 0.f, DeathCameraUp));
+	DeathCameraYaw = GetControlRotation().Yaw;
+	DeathCameraSide = -1;
+	FirstPersonCamera->bUsePawnControlRotation = false;
+	UpdateDeathCamera(0.f);
+}
 
-	// Don't put the camera inside a wall: stop short of whatever is in the way.
-	FHitResult Hit;
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
-	if (GetWorld() && GetWorld()->SweepSingleByChannel(Hit, Head, Desired, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(12.f), Params))
+void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
+{
+	// The camera used to be placed once, 2.8 m behind the head. Shots from the front throw the ragdoll backwards
+	// onto it, and a wall behind stopped the sweep at the head, so the player watched the respawn timer from inside
+	// their own helmet (Vincent, 2026-11-06). Now it follows the ragdoll every frame from whichever side is clear.
+	using namespace ShieldbreakCharacterPrivate;
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!FirstPersonCamera || !PC || PC->GetViewTarget() != this)
 	{
-		Desired = Hit.Location;
+		return;
+	}
+	FVector Subject = GetActorLocation();
+	const USkeletalMeshComponent* Body = GetMesh();
+	if (Body && Body->GetSkeletalMeshAsset() && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE)
+	{
+		Subject = Body->GetBoneLocation(TEXT("pelvis"));
+	}
+	const FVector Pivot = Subject + FVector(0.f, 0.f, 40.f);
+
+	// Behind, the two back diagonals, the sides, in front, then straight overhead.
+	static const float SideYaws[] = { 180.f, 135.f, -135.f, 90.f, -90.f, 0.f };
+	constexpr int32 NumSides = UE_ARRAY_COUNT(SideYaws);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
+	const FCollisionShape Sphere = FCollisionShape::MakeSphere(20.f);
+	auto Candidate = [&](int32 Side)
+	{
+		if (Side >= NumSides)
+		{
+			return Pivot + FVector(0.f, 0.f, DeathCameraBack);
+		}
+		return Pivot + FRotator(0.f, DeathCameraYaw + SideYaws[Side], 0.f).Vector() * DeathCameraBack + FVector(0.f, 0.f, DeathCameraUp - 40.f);
+	};
+	auto Clearance = [&](int32 Side, FVector& OutLocation)
+	{
+		const FVector Wanted = Candidate(Side);
+		FHitResult Hit;
+		if (GetWorld()->SweepSingleByChannel(Hit, Pivot, Wanted, FQuat::Identity, ECC_Camera, Sphere, Params))
+		{
+			OutLocation = Hit.Location;
+			return static_cast<float>(FVector::Dist(Pivot, Hit.Location));
+		}
+		OutLocation = Wanted;
+		return static_cast<float>(FVector::Dist(Pivot, Wanted));
+	};
+
+	FVector Desired;
+	const float Full = FVector::Dist(Pivot, Candidate(0));
+	// Keep the current side while it stays mostly clear, so the camera doesn't hop between sides as the body rolls.
+	float Best = DeathCameraSide >= 0 ? Clearance(DeathCameraSide, Desired) : -1.f;
+	if (Best < Full * 0.8f)
+	{
+		Best = -1.f;
+		for (int32 Side = 0; Side <= NumSides; ++Side)
+		{
+			FVector Location;
+			const float Clear = Clearance(Side, Location);
+			if (Clear > Best + 1.f)
+			{
+				Best = Clear;
+				Desired = Location;
+				DeathCameraSide = Side;
+			}
+			if (Clear >= Full * 0.95f)
+			{
+				break;
+			}
+		}
 	}
 
-	FirstPersonCamera->bUsePawnControlRotation = false;
-	FirstPersonCamera->SetWorldLocationAndRotation(Desired, (GetActorLocation() - Desired).Rotation());
+	const FVector Current = FirstPersonCamera->GetComponentLocation();
+	// Snap on the first frame (and if the camera ended up within arm's reach of the body); ease after that.
+	const bool bSnap = DeltaSeconds <= 0.f || FVector::DistSquared(Current, Pivot) < FMath::Square(90.f);
+	const FVector Location = bSnap ? Desired : FMath::VInterpTo(Current, Desired, DeltaSeconds, 5.f);
+	FirstPersonCamera->SetWorldLocationAndRotation(Location, (Pivot - Location).Rotation());
 }
 
 void AShieldbreakCharacter::HandleDeath(AController* Killer)

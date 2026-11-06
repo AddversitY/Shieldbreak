@@ -179,3 +179,9 @@ not evidence of final AAA visual or animation quality.
 JPGs were exported with `Tools/shots_to_jpg.ps1 -SourcePath <preserved run folder> -Out <review folder>`.
 The optional source/filter arguments preserve the converter's default behavior and avoid exporting 1,968
 older unrelated shots. Original PNGs and failure logs remain in ignored `Saved/CharacterVerification-20261104/`.
+
+## Task (6), `fa56e50`
+
+Gameplay 144/145: the trigger-finger check fails at 3.51 cm. FP guns remain black-faced and the glove white. Full status in `docs/COORDINATION.md`.
+- [BR idle](after6/keel_fp_fp_0_idle_br_0.jpg), [BR hand crop](after6/crop_hand_br.jpg), [sidearm hand crop](after6/crop_hand_sidearm.jpg), [bot view](after6/bot_1.jpg).
+- [Gameplay](reports/after6-selftest.txt), [FP](reports/after6-fp.txt), [hand joints](reports/after6-hand-joints.txt), [sockets](reports/after6-sockets.txt), [import](reports/after6-import.txt), [winding](reports/after6-winding.txt).

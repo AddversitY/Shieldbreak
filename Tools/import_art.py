@@ -45,6 +45,22 @@ LOD_SETTINGS = {
     "Weapons": [(1.0, 1.0), (0.5, 0.1), (0.25, 0.04)],
     "Armor": [(1.0, 1.0), (0.5, 0.06), (0.25, 0.025)],
 }
+# Character and weapon surfaces (M_SB_Character, MI_SBC_<Palette>): wear from T_SB_Wear projected in the mesh's own
+# space, so it rides with the gun and the suit. Per palette key: (colour variation, roughness variation, scratches).
+# Keys not listed get DEFAULT_WEAR; glows, lenses and visors stay clean.
+CHARACTER_WEAR_TEXTURE = "T_SB_Wear"
+CHARACTER_WEAR_TILE = 24.0
+DEFAULT_WEAR = (0.25, 0.35, 0.5)
+CHARACTER_WEAR = {
+    # Task (7): 0.3/0.8 read as camo mottling on the BR at first-person distance; the sidearm's polymer looked right.
+    "WeaponMetal": (0.1, 0.3, 0.3),
+    "ArmorMetal": (0.12, 0.3, 0.35),
+    "Team": (0.25, 0.35, 0.55),
+    "Steel": (0.15, 0.3, 0.4),
+    "Polymer": (0.35, 0.45, 0.15),
+    "Undersuit": (0.3, 0.4, 0.0),
+    "GlowCyan": (0, 0, 0), "GlowAmber": (0, 0, 0), "TeamGlow": (0, 0, 0), "Lens": (0, 0, 0), "Visor": (0, 0, 0.05),
+}
 lines = []
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 mel = unreal.MaterialEditingLibrary
@@ -279,6 +295,202 @@ def world_material(default_texture):
     return mat
 
 
+def character_material(wear_texture):
+    """M_SB_Character: the palette surface (same parameters as M_SB_Surface, so team MIDs keep working) plus wear:
+    colour and roughness variation and bright, less rough scratches, from a triplanar sample of T_SB_Wear in
+    pre-skinned local space (no swimming on the skinned suit). Rebuilt on every run. Three samples of one 512 px
+    texture, used only by soldiers and guns."""
+    path = MATERIALS + "/M_SB_Character"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_Character", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    mel.set_base_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, True)
+
+    def node(cls, x, y, **props):
+        n = mel.create_material_expression(mat, cls, x, y)
+        for key, value in props.items():
+            n.set_editor_property(key, value)
+        return n
+
+    def link(a, a_out, b, b_in):
+        if not mel.connect_material_expressions(a, a_out, b, b_in):
+            log("M_SB_Character: could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
+
+    def scalar(name, default, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=default)
+
+    # Pre-skinned position and normal are vertex-shader only, so both reach the pixel shader through an interpolator.
+    pre_skinned = node(unreal.MaterialExpressionPreSkinnedPosition, -2000, 0)
+    position = node(unreal.MaterialExpressionVertexInterpolator, -1800, 0)
+    link(pre_skinned, "", position, "VS")
+    tile = scalar("WearTile", CHARACTER_WEAR_TILE, -1800, 150)
+    uvw = node(unreal.MaterialExpressionDivide, -1600, 0)
+    link(position, "", uvw, "A")
+    link(tile, "", uvw, "B")
+    samples = []
+    for i, (r, g, b) in enumerate(((False, True, True), (True, False, True), (True, True, False))):
+        mask = node(unreal.MaterialExpressionComponentMask, -1400, -300 + 300 * i, r=r, g=g, b=b, a=False)
+        link(uvw, "", mask, "")
+        sample = node(unreal.MaterialExpressionTextureSampleParameter2D, -1200, -300 + 300 * i,
+                      parameter_name="Wear", texture=wear_texture)
+        link(mask, "", sample, "UVs")
+        samples.append(sample)
+    pre_skinned_normal = node(unreal.MaterialExpressionPreSkinnedNormal, -1800, 700)
+    normal = node(unreal.MaterialExpressionVertexInterpolator, -1600, 700)
+    link(pre_skinned_normal, "", normal, "VS")
+    absolute = node(unreal.MaterialExpressionAbs, -1450, 700)
+    link(normal, "", absolute, "")
+    power = node(unreal.MaterialExpressionPower, -1300, 700, const_exponent=4.0)
+    link(absolute, "", power, "Base")
+    ones = node(unreal.MaterialExpressionConstant3Vector, -1300, 850, constant=unreal.LinearColor(1, 1, 1, 1))
+    total = node(unreal.MaterialExpressionDotProduct, -1150, 800)
+    link(power, "", total, "A")
+    link(ones, "", total, "B")
+    weights = node(unreal.MaterialExpressionDivide, -1000, 700)
+    link(power, "", weights, "A")
+    link(total, "", weights, "B")
+    wear = None
+    for i, (sample, channel) in enumerate(zip(samples, ("R", "G", "B"))):
+        mask = node(unreal.MaterialExpressionComponentMask, -850, 600 + 120 * i,
+                    r=channel == "R", g=channel == "G", b=channel == "B", a=False)
+        link(weights, "", mask, "")
+        weighted = node(unreal.MaterialExpressionMultiply, -700, -300 + 300 * i)
+        link(sample, "RGB", weighted, "A")
+        link(mask, "", weighted, "B")
+        if wear is None:
+            wear = weighted
+        else:
+            add = node(unreal.MaterialExpressionAdd, -550, -150 + 200 * i)
+            link(wear, "", add, "A")
+            link(weighted, "", add, "B")
+            wear = add
+
+    def channel(name, y):
+        m = node(unreal.MaterialExpressionComponentMask, -400, y, r=name == "R", g=name == "G", b=name == "B", a=False)
+        link(wear, "", m, "")
+        return m
+
+    colour_var, rough_var, scratch = channel("R", -400), channel("G", 0), channel("B", 400)
+    half = node(unreal.MaterialExpressionConstant, -400, 200, r=0.5)
+
+    # BaseColor * (1 + (R - 0.5) * 2 * ColourVariation), then lerp toward a bright bare-metal grey by the scratches.
+    base = node(unreal.MaterialExpressionVectorParameter, -400, -600, parameter_name="BaseColor",
+                default_value=unreal.LinearColor(0.2, 0.2, 0.2, 1))
+    colour_amount = scalar("ColourVariation", DEFAULT_WEAR[0], -250, -300)
+    centred = node(unreal.MaterialExpressionSubtract, -250, -420)
+    link(colour_var, "", centred, "A")
+    link(half, "", centred, "B")
+    scaled = node(unreal.MaterialExpressionMultiply, -100, -420)
+    link(centred, "", scaled, "A")
+    link(colour_amount, "", scaled, "B")
+    factor = node(unreal.MaterialExpressionMultiply, 50, -420, const_b=2.0)
+    link(scaled, "", factor, "A")
+    one_plus = node(unreal.MaterialExpressionAdd, 200, -420, const_b=1.0)
+    link(factor, "", one_plus, "A")
+    varied = node(unreal.MaterialExpressionMultiply, 350, -500)
+    link(base, "", varied, "A")
+    link(one_plus, "", varied, "B")
+    scratch_amount = scalar("Scratches", DEFAULT_WEAR[2], -250, 500)
+    scratch_mask = node(unreal.MaterialExpressionMultiply, -100, 420)
+    link(scratch, "", scratch_mask, "A")
+    link(scratch_amount, "", scratch_mask, "B")
+    bare = node(unreal.MaterialExpressionConstant3Vector, 350, -300, constant=unreal.LinearColor(0.42, 0.43, 0.45, 1))
+    colour = node(unreal.MaterialExpressionLinearInterpolate, 500, -400)
+    link(varied, "", colour, "A")
+    link(bare, "", colour, "B")
+    link(scratch_mask, "", colour, "Alpha")
+
+    # Roughness + (G - 0.5) * RoughnessVariation, minus a little on scratches (polished edges); Metallic up on them.
+    roughness = scalar("Roughness", 0.5, -250, 100)
+    rough_amount = scalar("RoughnessVariation", DEFAULT_WEAR[1], -250, 200)
+    rough_centred = node(unreal.MaterialExpressionSubtract, -100, 50)
+    link(rough_var, "", rough_centred, "A")
+    link(half, "", rough_centred, "B")
+    rough_scaled = node(unreal.MaterialExpressionMultiply, 50, 50)
+    link(rough_centred, "", rough_scaled, "A")
+    link(rough_amount, "", rough_scaled, "B")
+    rough_sum = node(unreal.MaterialExpressionAdd, 200, 100)
+    link(roughness, "", rough_sum, "A")
+    link(rough_scaled, "", rough_sum, "B")
+    polish = node(unreal.MaterialExpressionMultiply, 200, 300, const_b=0.25)
+    link(scratch_mask, "", polish, "A")
+    rough_final = node(unreal.MaterialExpressionSubtract, 350, 150)
+    link(rough_sum, "", rough_final, "A")
+    link(polish, "", rough_final, "B")
+    rough_clamped = node(unreal.MaterialExpressionClamp, 500, 150)
+    link(rough_final, "", rough_clamped, "")
+    metallic = scalar("Metallic", 0.5, -250, 300)
+    metal_up = node(unreal.MaterialExpressionMultiply, 200, 400, const_b=0.6)
+    link(scratch_mask, "", metal_up, "A")
+    metallic_sum = node(unreal.MaterialExpressionAdd, 350, 350)
+    link(metallic, "", metallic_sum, "A")
+    link(metal_up, "", metallic_sum, "B")
+    metallic_clamped = node(unreal.MaterialExpressionClamp, 500, 350)
+    link(metallic_sum, "", metallic_clamped, "")
+
+    glow = node(unreal.MaterialExpressionVectorParameter, 200, 600, parameter_name="EmissiveColor",
+                default_value=unreal.LinearColor(0, 0, 0, 1))
+    strength = scalar("EmissiveStrength", 0.0, 200, 750)
+    emissive = node(unreal.MaterialExpressionMultiply, 400, 650)
+    link(glow, "", emissive, "A")
+    link(strength, "", emissive, "B")
+
+    mel.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(metallic_clamped, "", unreal.MaterialProperty.MP_METALLIC)
+    mel.connect_material_property(rough_clamped, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("built %s (%d expressions)" % (path, mel.get_num_material_expressions(mat)))
+    return mat
+
+
+def character_instances(master):
+    """MI_SBC_<Palette>: every palette entry on M_SB_Character, with its CHARACTER_WEAR. Rewritten on every run."""
+    with open(os.path.join(EXPORT, "palette.json")) as f:
+        palette = json.load(f)
+    instances = {}
+    for name, (rgb, metallic, roughness, emissive) in palette.items():
+        path = "%s/MI_SBC_%s" % (MATERIALS, name)
+        if eal.does_asset_exist(path):
+            mi = unreal.load_asset(path)
+        else:
+            mi = tools.create_asset("MI_SBC_" + name, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        mel.set_material_instance_parent(mi, master)
+        colour_var, rough_var, scratches = CHARACTER_WEAR.get(name, DEFAULT_WEAR)
+        mel.set_material_instance_vector_parameter_value(mi, "BaseColor", color(rgb))
+        mel.set_material_instance_scalar_parameter_value(mi, "Metallic", metallic)
+        mel.set_material_instance_scalar_parameter_value(mi, "Roughness", roughness)
+        mel.set_material_instance_vector_parameter_value(mi, "EmissiveColor", color(rgb))
+        mel.set_material_instance_scalar_parameter_value(mi, "EmissiveStrength", emissive)
+        mel.set_material_instance_scalar_parameter_value(mi, "ColourVariation", colour_var)
+        mel.set_material_instance_scalar_parameter_value(mi, "RoughnessVariation", rough_var)
+        mel.set_material_instance_scalar_parameter_value(mi, "Scratches", scratches)
+        eal.save_asset(path)
+        instances["M_" + name] = mi
+    log("%d character instances on M_SB_Character" % len(instances))
+    return instances
+
+
+def import_texture(name):
+    """One texture from Art/Export/Textures (a narrow import still needs the character wear texture)."""
+    png = os.path.join(EXPORT, "Textures", name + ".png")
+    if not os.path.exists(png):
+        log("MISSING " + png)
+        return None
+    task = unreal.AssetImportTask()
+    task.filename = png
+    task.destination_path = TEXTURES
+    task.destination_name = name
+    task.automated = True
+    task.replace_existing = True
+    task.save = True
+    tools.import_asset_tasks([task])
+    return unreal.load_asset("%s/%s" % (TEXTURES, name))
+
+
 def world_instances(master, textures):
     for kind, (texture_name, tile_size, metallic, roughness, detail) in WORLD_STYLES.items():
         texture = textures.get(texture_name)
@@ -385,6 +597,11 @@ def main():
             world = world_material(textures.get("T_SB_Panel") or next(iter(textures.values())))
             world_instances(world, textures)
         import_audio()
+    character = {}
+    if not only or any(folder in LOD_SETTINGS for folder in only):
+        wear = import_texture(CHARACTER_WEAR_TEXTURE)
+        if wear:
+            character = character_instances(character_material(wear))
     for fbx in sorted(glob.glob(os.path.join(EXPORT, "*", "*.fbx"))):
         folder = os.path.basename(os.path.dirname(fbx))
         if only and folder not in only:
@@ -405,12 +622,14 @@ def main():
             mesh.set_editor_property("static_materials", materials)
             materials = mesh.get_editor_property("static_materials")
         missing = []
+        # Soldiers and guns wear the character material (with wear); everything else the plain palette.
+        bound = character if folder in LOD_SETTINGS and character else instances
         for index, slot in enumerate(materials):
             name = str(slot.material_slot_name)
             # The FBX importer can suffix slot names (M_Gunmetal_001, M_Gunmetal_Skin); match on the palette prefix.
-            key = next((k for k in instances if name == k or name.startswith(k + "_")), None)
+            key = next((k for k in bound if name == k or name.startswith(k + "_")), None)
             if key:
-                mesh.set_material(index, instances[key])
+                mesh.set_material(index, bound[key])
             else:
                 missing.append(name)
         lod_note = set_lods(mesh, folder)

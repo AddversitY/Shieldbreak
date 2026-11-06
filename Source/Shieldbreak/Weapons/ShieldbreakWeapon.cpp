@@ -6,6 +6,7 @@
 #include "Engine/HitResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -30,6 +31,8 @@
 
 namespace ShieldbreakWeaponPrivate
 {
+	/** Fitting aid for the first-person grip: moves the gun in the hand along its own up axis (cm, new equips). */
+	TAutoConsoleVariable<float> CVarFPGunLift(TEXT("sb.FPGunLift"), 0.f, TEXT("First-person gun: cm up (gun space) in the hand."));
 	// Halo-style viewmodel: low on the right, angled slightly in toward the crosshair.
 	const FVector EquippedOffset(46.f, 13.f, -15.f);
 	const FRotator EquippedRotation(1.5f, -4.f, 0.f);
@@ -212,7 +215,7 @@ void AShieldbreakWeapon::OnEquipped()
 		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
-		SetActorRelativeTransform(FTransform::Identity);
+		SetActorRelativeTransform(bFirstPerson ? FTransform(FVector(0.f, 0.f, ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread())) : FTransform::Identity);
 		// The body's shadow already carries a gun; the first-person one would add a second.
 		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}

@@ -73,6 +73,13 @@ private:
 	// Chase camera for the bot-match screenshots.
 	UPROPERTY(Transient) TObjectPtr<class ACameraActor> ChaseCamera;
 	TWeakObjectPtr<AShieldbreakCharacter> ChaseSubject;
+	// Watches the test range whenever the local player has no pawn: the bare controller's view sat at the last
+	// possessed dummy's eyes, so the next dummy spawned there was drawn from the inside (Vincent's recording, 2026-11-05).
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> OverviewCamera;
+	void ViewOverviewIfUnpossessed();
+	/** Every frame: the view must never sit inside a character, nor draw its own owner-visible body near the eye. */
+	void CheckViewNotInsideCharacter();
+	TArray<FString> InsideViewReports;
 
 	// A non-character actor a step watches (a rocket, a power-up).
 	TWeakObjectPtr<AActor> Probe;

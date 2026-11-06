@@ -28,6 +28,8 @@ PALETTE = {
     "Ivory": ((0.72, 0.72, 0.7), 0.25, 0.32, 0.0),
     "Hazard": ((0.8, 0.5, 0.04), 0.1, 0.5, 0.0),
     "GlowCyan": ((0.15, 0.85, 1.0), 0.0, 0.3, 6.0),
+    # Weapon screens (ammo counters, scope side displays): a dim readable glow, not a light source.
+    "Display": ((0.04, 0.32, 0.48), 0.0, 0.15, 1.6),
     "GlowAmber": ((1.0, 0.55, 0.12), 0.0, 0.3, 5.0),
     "Lens": ((0.02, 0.08, 0.12), 0.6, 0.08, 0.6),
     # Armor: "Team" is tinted per team in Unreal (TeamColor parameter); the preview shows red.

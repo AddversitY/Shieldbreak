@@ -293,6 +293,10 @@ private:
 	UFUNCTION() void HandleDeath(AController* Killer);
 	/** Local player only: moves the camera behind and above the body so they watch the ragdoll. */
 	void StartDeathCamera();
+	/** Every frame while a local player watches this body: follows the ragdoll from the clearest side, never inside it. */
+	void UpdateDeathCamera(float DeltaSeconds);
+	float DeathCameraYaw = 0.f;
+	int32 DeathCameraSide = -1;
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();
 
