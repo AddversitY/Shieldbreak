@@ -291,6 +291,9 @@ private:
 	/** Every frame while a local player watches this body: follows the ragdoll from the clearest side, never inside it. */
 	void UpdateDeathCamera(float DeltaSeconds);
 	float DeathCameraYaw = 0.f;
+	/** The local player's view while dead. A camera actor, not this body: the engine re-points a view whose pawn has
+	 *  lost its PlayerState (as a dead body does) back to the controller, which sat at the eye inside the ragdoll. */
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> DeathCamera;
 	int32 DeathCameraSide = -1;
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();

@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -246,6 +247,11 @@ void AShieldbreakCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (HasAuthority())
 	{
 		DestroyInventory();
+	}
+	if (DeathCamera)
+	{
+		DeathCamera->Destroy();
+		DeathCamera = nullptr;
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -1398,7 +1404,18 @@ void AShieldbreakCharacter::StartDeathCamera()
 	}
 	DeathCameraYaw = GetControlRotation().Yaw;
 	DeathCameraSide = -1;
-	FirstPersonCamera->bUsePawnControlRotation = false;
+	if (!DeathCamera && GetWorld())
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Params.ObjectFlags |= RF_Transient;
+		DeathCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FirstPersonCamera->GetComponentTransform(), Params);
+		if (DeathCamera && DeathCamera->GetCameraComponent())
+		{
+			DeathCamera->GetCameraComponent()->SetFieldOfView(FirstPersonCamera->FieldOfView);
+			DeathCamera->GetCameraComponent()->bConstrainAspectRatio = false;
+		}
+	}
 	UpdateDeathCamera(0.f);
 }
 
@@ -1409,7 +1426,7 @@ void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
 	// their own helmet (Vincent, 2026-11-06). Now it follows the ragdoll every frame from whichever side is clear.
 	using namespace ShieldbreakCharacterPrivate;
 	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (!FirstPersonCamera || !PC || PC->GetViewTarget() != this)
+	if (!DeathCamera || !PC || PC->GetViewTarget() != DeathCamera)
 	{
 		return;
 	}
@@ -1471,11 +1488,11 @@ void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
 		}
 	}
 
-	const FVector Current = FirstPersonCamera->GetComponentLocation();
+	const FVector Current = DeathCamera->GetActorLocation();
 	// Snap on the first frame (and if the camera ended up within arm's reach of the body); ease after that.
 	const bool bSnap = DeltaSeconds <= 0.f || FVector::DistSquared(Current, Pivot) < FMath::Square(90.f);
 	const FVector Location = bSnap ? Desired : FMath::VInterpTo(Current, Desired, DeltaSeconds, 5.f);
-	FirstPersonCamera->SetWorldLocationAndRotation(Location, (Pivot - Location).Rotation());
+	DeathCamera->SetActorLocationAndRotation(Location, (Pivot - Location).Rotation());
 }
 
 void AShieldbreakCharacter::HandleDeath(AController* Killer)
@@ -1544,7 +1561,10 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 		if (PC->IsLocalController())
 		{
 			StartDeathCamera();
-			PC->SetViewTarget(this);
+			if (DeathCamera)
+			{
+				PC->SetViewTarget(DeathCamera);
+			}
 		}
 	}
 

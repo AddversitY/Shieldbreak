@@ -204,11 +204,17 @@ void AShieldbreakSelfTest::CheckViewNotInsideCharacter()
 	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
 	{
 		AShieldbreakCharacter* Character = *It;
-		if (Character->IsActorBeingDestroyed() || (!Character->IsAlive() && Character != Viewer))
+		if (Character->IsActorBeingDestroyed())
 		{
-			continue; // a dead viewer is still checked: the death camera must not sit inside the ragdoll
+			continue;
 		}
-		if (Character != Viewer)
+		const bool bOwnBody = Character == Viewer || (!Character->IsAlive() && Viewer
+			&& Viewer->IsA<ACameraActor>() && Viewer != OverviewCamera && Viewer != ChaseCamera);
+		if (!Character->IsAlive() && !bOwnBody)
+		{
+			continue;
+		}
+		if (!bOwnBody)
 		{
 			if (Viewer && Viewer == ChaseCamera)
 			{
@@ -520,7 +526,11 @@ void AShieldbreakSelfTest::BuildSteps()
 				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
 				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (A ? A->GetActorLocation() : FVector::ZeroVector);
 				const float Distance = PC && PC->PlayerCameraManager ? static_cast<float>(FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Pelvis)) : -1.f;
-				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && PC && PC->GetViewTarget() == A && Distance > 150.f,
+				// Task (9): the view had fallen back to the controller (the engine drops a view on a pawn whose PlayerState
+				// is gone), which this test's overview camera then took. The body's own death camera must hold it.
+				const AActor* View = PC ? PC->GetViewTarget() : nullptr;
+				const bool bDeathView = View && View->IsA<ACameraActor>() && View != OverviewCamera && View != ChaseCamera;
+				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && bDeathView && Distance > 150.f,
 					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
 						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A && A->IsAlive() ? 1 : 0));
 				ClearDummies();

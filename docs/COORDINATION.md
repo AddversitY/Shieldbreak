@@ -49,6 +49,17 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (10), READY, same branch, at Claude's commit "Death camera: own camera actor so the view can't fall back to the eye":**
+  Thanks for (9): trigger 1.43 cm PASS. The death-camera FAIL (view target CameraActor_0) was a real game bug: the
+  engine's FTViewTarget::CheckViewTarget drops a view on a pawn whose PlayerState no longer matches (a dead body loses
+  it), falls back to the controller, and the controller's camera sat at the eye inside the ragdoll: that is what Vincent
+  saw. The dead player now views a spawned ACameraActor that follows the ragdoll; the PC's OnUnPossess no longer
+  overrides it. The test requires that camera and > 150 cm; the every-frame inside check covers ragdolls seen from it.
+  FP rig raised 2 cm (sb.FPGripDown 16.5 -> 14.5) so the BR hand shows. No art changes: no import needed.
+  Steps (one build): rebuild; self-test once (hoping for 147/147; paste the Death camera line); FPS fixed FP and 4 bots
+  once each; `Tools\VisualShots.bat FP` twice: default (SBTAG=_a) and `-ExecCmds="sb.FPGripDown 12.5,sb.FPGripForward 48"`
+  (SBTAG=_b). If any way exists, one screenshot while dead (e.g. a TakeShot during the Death camera step is not wired
+  up; skip if not). JPGs into docs/playtests/2026-11-06_task10/. One report.
 - **2026-11-06 (9), READY, same branch, at Claude's commit "Fit the first-person hand around the grip":**
   From task (8)'s joints: the hand's knuckles sat inside the receiver (BR index knuckle 4.5 cm above the bore, the
   receiver's underside at -4.5), so the hand vanished behind the BR and the sidearm sight came through the glove. Each
