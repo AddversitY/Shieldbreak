@@ -3415,7 +3415,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					B->ThrowGrenade();
 				}
 			}, { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f }, 1.5f);
-		// An explosion 7 m ahead on the floor: flash, fireball, smoke and the scorch left behind.
+		// An explosion 5 m ahead and to the left on the floor: flash, fireball, smoke and the scorch left behind.
 		Shot(TEXT("tp_7_explosion"),
 			[this, Player]()
 			{
@@ -3425,7 +3425,8 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				{
 					return;
 				}
-				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 700.f;
+				// Beside the tp_6 dummy (4 m ahead), not behind it, and short of the dark corridor (G3 shots).
+				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 500.f - P->GetActorRightVector() * 220.f;
 				FHitResult Floor;
 				FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakShotFloor), false, P);
 				const bool bFloor = GetWorld()->LineTraceSingleByChannel(Floor, Ahead + FVector(0.f, 0.f, 50.f), Ahead - FVector(0.f, 0.f, 400.f), ECC_Visibility, Query);

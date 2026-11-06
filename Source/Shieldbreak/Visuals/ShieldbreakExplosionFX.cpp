@@ -16,7 +16,7 @@
 
 namespace ShieldbreakExplosionPrivate
 {
-	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 30000.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
+	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 5000.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
 	TAutoConsoleVariable<float> CVarShake(TEXT("sb.ExplosionShake"), 1.f, TEXT("Explosion camera shake strength (0 = off)."));
 	TAutoConsoleVariable<int32> CVarCards(TEXT("sb.ExplosionCards"), 1, TEXT("1: fireball and smoke cards; 0: light, scorch and shake only (for FPS A/B)."));
 	TAutoConsoleVariable<int32> CVarScorch(TEXT("sb.ExplosionScorch"), 1, TEXT("1: explosions leave a scorch decal that fades out."));
@@ -125,7 +125,7 @@ void AShieldbreakExplosionFX::Build()
 		Flash->SetMobility(EComponentMobility::Movable);
 		Flash->SetIntensityUnits(ELightUnits::Candelas);
 		Flash->SetIntensity(FlashCandelas * S);
-		Flash->SetAttenuationRadius(1400.f * S);
+		Flash->SetAttenuationRadius(1000.f * S);
 		Flash->SetSourceRadius(40.f * S);
 		Flash->SetLightColor(FLinearColor(1.f, 0.62f, 0.3f));
 		Flash->SetCastShadows(false);
@@ -149,7 +149,7 @@ void AShieldbreakExplosionFX::Build()
 
 	auto Jitter = [S](float Horizontal, float Up) { return FVector(FMath::FRandRange(-Horizontal, Horizontal), FMath::FRandRange(-Horizontal, Horizontal), Up) * S; };
 	// Hot core: one big bright card for the first instant (the "pop").
-	AddCard(false, 0.f, 0.16f, 160.f * S, 330.f * S, FVector(0.f, 0.f, 45.f * S), FVector::ZeroVector);
+	AddCard(false, 0.f, 0.12f, 110.f * S, 240.f * S, FVector(0.f, 0.f, 45.f * S), FVector::ZeroVector);
 	// Fireball: three rolling flipbooks, offset so it isn't a flat disc, each a little later and higher.
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
@@ -267,8 +267,9 @@ void AShieldbreakExplosionFX::Tick(float DeltaSeconds)
 	{
 		// A sharp flash, then the fireball's own glow fading with it.
 		const float Peak = CVarFlash.GetValueOnGameThread() * FXScale;
-		const float Glow = 0.12f * FMath::Max(0.f, 1.f - Age / 0.7f);
-		const float Intensity = Peak * (FMath::Exp(-Age / 0.06f) + Glow);
+		// The 30k cd first version whited out the whole frame at 7 m for 0.3 s (desktop G3 shots).
+		const float Glow = 0.25f * FMath::Max(0.f, 1.f - Age / 0.7f);
+		const float Intensity = Peak * (FMath::Exp(-Age / 0.05f) + Glow);
 		Flash->SetIntensity(Intensity);
 		Flash->SetLightColor(FLinearColor::LerpUsingHSV(FLinearColor(1.f, 0.75f, 0.45f), FLinearColor(1.f, 0.35f, 0.08f), FMath::Clamp(Age / 0.5f, 0.f, 1.f)));
 		if (Age > 0.75f)
@@ -309,10 +310,11 @@ void AShieldbreakExplosionFX::Tick(float DeltaSeconds)
 		if (Card.bSmoke)
 		{
 			// In fast, out slow; lit orange by the fire for its first moments, then a warm dark grey.
-			const float Opacity = FMath::Min(1.f, T / 0.08f) * FMath::Pow(1.f - T, 1.4f) * 0.7f;
-			const float Firelit = FMath::Max(0.f, 1.f - (Age - Card.Delay) / 0.35f);
+			// Mid grey rather than near black: the first version vanished against Keel's dark corridors (G3 shots).
+			const float Opacity = FMath::Min(1.f, T / 0.08f) * FMath::Pow(1.f - T, 0.9f) * 0.85f;
+			const float Firelit = FMath::Max(0.f, 1.f - (Age - Card.Delay) / 0.4f);
 			Card.MID->SetScalarParameterValue(TEXT("Opacity"), Opacity);
-			Card.MID->SetVectorParameterValue(TEXT("Color"), FLinearColor::LerpUsingHSV(FLinearColor(0.07f, 0.065f, 0.06f), FLinearColor(0.9f, 0.4f, 0.12f), Firelit));
+			Card.MID->SetVectorParameterValue(TEXT("Color"), FLinearColor::LerpUsingHSV(FLinearColor(0.2f, 0.185f, 0.17f), FLinearColor(1.f, 0.45f, 0.15f), Firelit));
 			Card.MID->SetScalarParameterValue(TEXT("Frame"), Card.StartFrame + T * 6.f);
 		}
 		else
@@ -322,6 +324,7 @@ void AShieldbreakExplosionFX::Tick(float DeltaSeconds)
 			const FLinearColor Color = T < 0.3f ? FLinearColor::LerpUsingHSV(Hot, Mid, T / 0.3f) : FLinearColor::LerpUsingHSV(Mid, Cool, (T - 0.3f) / 0.7f);
 			Card.MID->SetVectorParameterValue(TEXT("Color"), Color);
 			Card.MID->SetScalarParameterValue(TEXT("Opacity"), FMath::Pow(1.f - T, 1.2f));
+			Card.MID->SetScalarParameterValue(TEXT("Intensity"), 5.f);
 			Card.MID->SetScalarParameterValue(TEXT("Frame"), FMath::Min(FireFrames - 1.f, Card.StartFrame + T * (FireFrames - 1.f)));
 		}
 	}

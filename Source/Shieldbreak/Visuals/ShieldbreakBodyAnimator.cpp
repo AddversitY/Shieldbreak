@@ -272,6 +272,14 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 		{
 			Piece->SetHiddenInGame(true);
 		}
+		for (UStaticMeshComponent* Piece : FirstPersonLeftArmor)
+		{
+			Piece->SetHiddenInGame(true);
+		}
+		if (FirstPersonHeldGrenade)
+		{
+			FirstPersonHeldGrenade->SetHiddenInGame(true);
+		}
 	}
 	Body->SetOwnerNoSee(false);
 	for (UStaticMeshComponent* Piece : ArmorPieces)
@@ -331,10 +339,12 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 	const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
 	for (const TCHAR* Bone : ArmorBones)
 	{
-		if (bFirstPerson && FCString::Strcmp(Bone, TEXT("lowerarm_r")) != 0)
+		const bool bLeftArm = FCString::Strcmp(Bone, TEXT("upperarm_l")) == 0 || FCString::Strcmp(Bone, TEXT("lowerarm_l")) == 0;
+		if (bFirstPerson && FCString::Strcmp(Bone, TEXT("lowerarm_r")) != 0 && !bLeftArm)
 		{
-			// The right forearm plate only: upper-arm plates sweep through the eye in full-body action clips, and the
-			// left arm is hidden in first person (a hidden bone does not hide what is attached to it).
+			// The right forearm plate, plus the left arm's plates for the grenade throw (shown only while it throws: the
+			// left arm is hidden otherwise, and a hidden bone does not hide what is attached to it). The right upper-arm
+			// plate sweeps through the eye in full-body action clips.
 			continue;
 		}
 		const int32 BoneIndex = RefSkeleton.FindBoneIndex(Bone);
@@ -372,7 +382,15 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 		// The piece is modeled where it sits on the reference pose, so undo the bone's reference transform.
 		Piece->SetRelativeTransform(RefPoseComponentSpace(RefSkeleton, BoneIndex).Inverse());
 		Piece->RegisterComponent();
-		Pieces.Add(Piece);
+		if (bFirstPerson && bLeftArm)
+		{
+			Piece->SetVisibility(false);
+			FirstPersonLeftArmor.Add(Piece);
+		}
+		else
+		{
+			Pieces.Add(Piece);
+		}
 
 		const TArray<FStaticMaterial>& Slots = Mesh->GetStaticMaterials();
 		for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
@@ -432,8 +450,12 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), 1.f, TEXT("First-person grenade throw: how far the gun dips down and right out of the throwing arm's way (1 = 20 deg and 9 cm)."));
 	TAutoConsoleVariable<float> CVarThrowReach(TEXT("sb.FPThrowReach"), 1.f, TEXT("First-person grenade throw: scales how far forward the left hand's path goes (camera space)."));
 	TAutoConsoleVariable<float> CVarThrowWrist(TEXT("sb.FPThrowWrist"), 1.f, TEXT("First-person grenade throw: wrist cock/snap amount; -1 flips its direction."));
-	TAutoConsoleVariable<float> CVarGripTime(TEXT("sb.FPThrowGripTime"), 0.15f, TEXT("Seconds into Lyra's toss whose left-finger pose holds the grenade."));
-	TAutoConsoleVariable<float> CVarHeldGrenadePalm(TEXT("sb.HeldGrenadePalm"), 4.f, TEXT("cm the held grenade sits off the palm (negative puts it on the back of the hand)."));
+	TAutoConsoleVariable<float> CVarGripTime(TEXT("sb.FPThrowGripTime"), -1.f, TEXT("Seconds into Lyra's toss whose left-finger pose the throw starts from (negative: the idle's fingers; the curl closes them either way)."));
+	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPThrowCurl"), 1.f, TEXT("First-person grenade throw: how far the left fingers close round the grenade (0 = open)."));
+	TAutoConsoleVariable<float> CVarShoulderX(TEXT("sb.FPThrowShoulderX"), -4.f, TEXT("First-person grenade throw: the throwing shoulder, cm in front of the eye (camera space)."));
+	TAutoConsoleVariable<float> CVarShoulderY(TEXT("sb.FPThrowShoulderY"), -20.f, TEXT("First-person grenade throw: the throwing shoulder, cm right of the eye (negative = left)."));
+	TAutoConsoleVariable<float> CVarShoulderZ(TEXT("sb.FPThrowShoulderZ"), -18.f, TEXT("First-person grenade throw: the throwing shoulder, cm above the eye (negative = below)."));
+	TAutoConsoleVariable<float> CVarHeldGrenadePalm(TEXT("sb.HeldGrenadePalm"), 3.5f, TEXT("cm the held grenade sits off the palm (negative puts it on the back of the hand)."));
 	TAutoConsoleVariable<float> CVarTossStart(TEXT("sb.TPThrowStart"), 0.1f, TEXT("Third-person toss: seconds of Lyra's clip skipped at the start."));
 	TAutoConsoleVariable<float> CVarTossRelease(TEXT("sb.TPThrowRelease"), 0.45f, TEXT("Third-person toss: seconds into Lyra's clip where the hand lets go (the play rate puts it at sb.GrenadeReleaseDelay)."));
 	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 13.f, TEXT("First-person gun hand: cm right of the eye."));
@@ -976,11 +998,12 @@ namespace ShieldbreakBodyAnimatorPrivate
 	void GetThrowKeys(float R, TArray<FThrowKey, TInlineAllocator<6>>& Keys)
 	{
 		Keys.Reset();
-		Keys.Add({ 0.f, FVector(14.f, -30.f, -50.f), FVector(-10.f, -25.f, -25.f), -10.f });
-		Keys.Add({ R * 0.55f, FVector(17.f, -24.f, -3.f), FVector(-14.f, -28.f, 4.f), -40.f });
-		Keys.Add({ R, FVector(48.f, -8.f, -5.f), FVector(-20.f, -18.f, -22.f), 15.f });
-		Keys.Add({ R + 0.1f, FVector(42.f, 3.f, -24.f), FVector(-18.f, -14.f, -26.f), 35.f });
-		Keys.Add({ R + 0.24f, FVector(22.f, -6.f, -58.f), FVector(-10.f, -24.f, -20.f), 20.f });
+		// Around a shoulder at sb.FPThrowShoulder (about 20 cm left of and below the eye, a little behind it).
+		Keys.Add({ 0.f, FVector(10.f, -30.f, -52.f), FVector(-12.f, -22.f, -18.f), -10.f });
+		Keys.Add({ R * 0.55f, FVector(13.f, -26.f, -5.f), FVector(-16.f, -20.f, 6.f), -40.f });
+		Keys.Add({ R, FVector(40.f, -9.f, -7.f), FVector(-22.f, -16.f, -18.f), 15.f });
+		Keys.Add({ R + 0.1f, FVector(34.f, 1.f, -25.f), FVector(-20.f, -12.f, -22.f), 35.f });
+		Keys.Add({ R + 0.24f, FVector(14.f, -8.f, -58.f), FVector(-10.f, -20.f, -18.f), 20.f });
 	}
 
 	FVector CatmullRom(const FVector& P0, const FVector& P1, const FVector& P2, const FVector& P3, float T)
@@ -1031,6 +1054,10 @@ float UShieldbreakBodyAnimator::UpdateFirstPersonThrow(UShieldbreakBodyAnimInsta
 		bFirstPersonLeftArmShown = bArm;
 		if (bArm) { FirstPersonArms->UnHideBoneByName(TEXT("upperarm_l")); }
 		else { FirstPersonArms->HideBoneByName(TEXT("upperarm_l"), EPhysBodyOp::PBO_None); }
+		for (UStaticMeshComponent* Piece : FirstPersonLeftArmor)
+		{
+			Piece->SetVisibility(bArm && FirstPersonArms->IsVisible());
+		}
 	}
 	UpdateHeldGrenade(FirstPersonArms, FirstPersonHeldGrenade, bArm && T < R, true);
 
@@ -1044,7 +1071,7 @@ float UShieldbreakBodyAnimator::UpdateFirstPersonThrow(UShieldbreakBodyAnimInsta
 
 	if (!bArm)
 	{
-		Instance->SetLeftArm(0.f, FVector::ZeroVector, FVector::ZeroVector, 0.f, nullptr, 0.f);
+		Instance->SetLeftArm(0.f, FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector, 0.f, 0.f, nullptr, 0.f);
 		LastLeftHandError = -1.f;
 		return ThrowDip(T, R);
 	}
@@ -1071,8 +1098,11 @@ float UShieldbreakBodyAnimator::UpdateFirstPersonThrow(UShieldbreakBodyAnimInsta
 	const FVector ElbowTarget = ArmsToCamera.InverseTransformPosition(ElbowCamera);
 	// Eased in over the first frames so the arm doesn't pop from its hidden idle pose.
 	const float Weight = FMath::Min(1.f, T / 0.03f) * FMath::Min(1.f, (ArmEnd - T) / 0.04f);
-	UAnimSequenceBase* Grip = GetActionAnimation(EShieldbreakAction::GrenadeThrow);
-	Instance->SetLeftArm(Weight, HandTarget, ElbowTarget, Wrist, Grip, CVarGripTime.GetValueOnGameThread());
+	const float GripTime = CVarGripTime.GetValueOnGameThread();
+	UAnimSequenceBase* Grip = GripTime >= 0.f ? GetActionAnimation(EShieldbreakAction::GrenadeThrow) : nullptr;
+	const FVector Shoulder = ArmsToCamera.InverseTransformPosition(FVector(CVarShoulderX.GetValueOnGameThread(),
+		CVarShoulderY.GetValueOnGameThread(), CVarShoulderZ.GetValueOnGameThread()));
+	Instance->SetLeftArm(Weight, Shoulder, HandTarget, ElbowTarget, Wrist, CVarFingerCurl.GetValueOnGameThread(), Grip, GripTime);
 	// How close last frame's evaluated hand got to last frame's target (reach limits show up here).
 	if (!LastLeftHandTarget.IsZero())
 	{
@@ -1135,5 +1165,5 @@ void UShieldbreakBodyAnimator::UpdateHeldGrenade(USkeletalMeshComponent* Mesh, T
 	const FVector Along = (Middle - Hand).GetSafeNormal();
 	const FVector Palm = FVector::CrossProduct(Index - Pinky, Middle - Hand).GetSafeNormal();
 	const float Off = ShieldbreakBodyAnimatorPrivate::CVarHeldGrenadePalm.GetValueOnGameThread();
-	Grenade->SetWorldLocationAndRotation(Hand + (Middle - Hand) * 0.6f + Palm * Off, FRotationMatrix::MakeFromZX(-Along, Palm).ToQuat());
+	Grenade->SetWorldLocationAndRotation(Hand + (Middle - Hand) * 0.75f + Palm * Off, FRotationMatrix::MakeFromZX(-Along, Palm).ToQuat());
 }

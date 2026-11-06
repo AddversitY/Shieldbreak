@@ -140,6 +140,9 @@ private:
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> FirstPersonArmor;
+	/** The left arm's plates in first person, shown only while it throws a grenade. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> FirstPersonLeftArmor;
 	/** The idle the arms were last placed for, and the settings used (re-placed when either changes). */
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimSequenceBase> CalibratedIdle;
