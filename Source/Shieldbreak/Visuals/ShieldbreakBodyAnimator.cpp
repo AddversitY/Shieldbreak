@@ -149,6 +149,7 @@ void UShieldbreakBodyAnimator::TickComponent(float DeltaTime, ELevelTick TickTyp
 		const FVector RightInComponent = Body->GetComponentTransform().InverseTransformVectorNoScale(Pawn->GetActorRightVector());
 		AnimInstance->SetAim(Pitch, RightInComponent);
 	}
+	UpdateThirdPersonGrip(AnimInstance, Body, DeltaTime);
 }
 
 float UShieldbreakBodyAnimator::GetAimPitch() const
@@ -462,6 +463,18 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.4f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
 	TAutoConsoleVariable<float> CVarPalmTilt(TEXT("sb.FPPalmTilt"), 0.6f, TEXT("First-person rifles: how far the left palm turns toward the gun's side (0 = straight up)."));
 	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPFingerCurl"), 0.8f, TEXT("First-person rifles: left finger curl around the forend (0 = open, 1 = gripping)."));
+	// Grip contact (Vincent 2026-11-06: fingers kept sinking into the guns). Every frame each finger joint traces the
+	// held gun's real surface: a joint whose finger crosses it opens, one that can close further without crossing
+	// closes, so fingers settle on the surface whatever the gun or framing.
+	TAutoConsoleVariable<int32> CVarGripContact(TEXT("sb.GripContact"), 1, TEXT("1: fingers curl until they touch the held gun's surface (traced each frame)."));
+	TAutoConsoleVariable<float> CVarGripSkin(TEXT("sb.GripSkin"), 0.55f, TEXT("Finger radius (cm) the grip contact keeps off the gun's surface."));
+	TAutoConsoleVariable<float> CVarGripRange(TEXT("sb.GripRange"), 2500.f, TEXT("Third-person bodies further than this (cm) from the camera skip the grip solve."));
+	// Grip contact helpers (defined with the grip code below).
+	void GripParts(const AShieldbreakWeapon* Weapon, TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Out);
+	int32 SolveGripContact(const USkeletalMeshComponent* Mesh, const TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Parts, bool bLeft,
+		float* Curls, float MinCurl, const float* MaxCurls, float DeltaSeconds);
+	const float* LeftMaxCurls();
+	const float* RightMaxCurls();
 	TAutoConsoleVariable<int32> CVarSupportHand(TEXT("sb.FPSupportHand"), 1, TEXT("1: on rifles the first-person left hand holds the gun's SupportHand socket."));
 
 	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
@@ -903,6 +916,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	}
 	UpdateTriggerFinger(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
 	UpdateSupportHand(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
+	UpdateFirstPersonRightGrip(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
 }
 
 UStaticMeshComponent* UShieldbreakBodyAnimator::GetHeldMagazine() const
@@ -1070,12 +1084,371 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 			FVector Unused1, Unused2;
 			ComputeSupportPalm(Gun, SupportPalmWorld, Unused1, Unused2);
 		}
+		// Fingers settle on the gun's real surface (see CVarGripContact), unless a move has taken the hand away.
+		const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+		if (Gun && CVarGripContact.GetValueOnGameThread() != 0 && MovePose.HandWeight <= 0.5f && OwnerCharacter)
+		{
+			if (!bFPLeftGripInit)
+			{
+				for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { FPLeftGrip[I] = ShieldbreakGrip::LeftNominal[I] * Curl; }
+				bFPLeftGripInit = true;
+			}
+			TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+			GripParts(OwnerCharacter->GetCurrentWeapon(), Parts);
+			SolveGripContact(FirstPersonArms, Parts, true, FPLeftGrip, -15.f, LeftMaxCurls(), DeltaSeconds);
+			Instance->SetLeftFingerCurls(FPLeftGrip);
+		}
+		else
+		{
+			Instance->SetLeftFingerCurls(nullptr);
+			bFPLeftGripInit = false;
+		}
 	}
 	else
 	{
 		Instance->SetSupportHand(SupportHandWeight, Instance->GetSupportTarget(), Instance->GetSupportFingers(), Instance->GetSupportPalmNormal(),
 			Instance->GetSupportCurl());
 	}
+}
+
+// ---- Grip contact ----
+
+namespace ShieldbreakBodyAnimatorPrivate
+{
+	/** The parts of a gun the hands can touch: the receiver mesh and, when shown, the magazine. */
+	void GripParts(const AShieldbreakWeapon* Weapon, TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Out)
+	{
+		Out.Reset();
+		if (!Weapon)
+		{
+			return;
+		}
+		for (UStaticMeshComponent* Part : { Weapon->GetWeaponMesh(), Weapon->GetMagazineMesh() })
+		{
+			if (Part && Part->GetStaticMesh() && Part->IsVisible() && Part->IsCollisionEnabled())
+			{
+				Out.Add(Part);
+			}
+		}
+	}
+
+	/** Does the segment cross a part's surface (Radius 0: the centre line; else a sphere of that radius)? Traced both
+	 *  ways, against the complex (render) triangles. */
+	bool SegmentHits(const TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Parts, const FVector& A, const FVector& B, float Radius)
+	{
+		if (FVector::DistSquared(A, B) < 0.0001)
+		{
+			return false;
+		}
+		static const FName Tag(TEXT("SBGrip"));
+		FCollisionQueryParams Params(Tag, true);
+		for (UPrimitiveComponent* Part : Parts)
+		{
+			FHitResult Hit;
+			if (Radius > 0.f)
+			{
+				const FCollisionShape Sphere = FCollisionShape::MakeSphere(Radius);
+				if (Part->SweepComponent(Hit, A, B, FQuat::Identity, Sphere, true) || Part->SweepComponent(Hit, B, A, FQuat::Identity, Sphere, true))
+				{
+					return true;
+				}
+			}
+			else if (Part->LineTraceComponent(Hit, A, B, Params) || Part->LineTraceComponent(Hit, B, A, Params))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** World joints of one finger (_01, _02, _03, tip). */
+	bool FingerPoints(const USkeletalMeshComponent* Mesh, const TCHAR* const* Bones, int32 Finger, FVector (&Out)[4])
+	{
+		for (int32 J = 0; J < 3; ++J)
+		{
+			const FName Bone(Bones[Finger * 3 + J]);
+			if (Mesh->GetBoneIndex(Bone) == INDEX_NONE)
+			{
+				return false;
+			}
+			Out[J] = Mesh->GetBoneLocation(Bone);
+		}
+		Out[3] = Out[2] + (Out[2] - Out[1]).GetSafeNormal() * ShieldbreakGrip::TipLength[Finger];
+		return true;
+	}
+
+	/** Palm normal from the hand's joints, as the anim proxy computes it. */
+	FVector PalmNormal(const USkeletalMeshComponent* Mesh, bool bLeft)
+	{
+		const TCHAR* const* Bones = bLeft ? ShieldbreakGrip::LeftBones : ShieldbreakGrip::RightBones;
+		const FName Hand(bLeft ? TEXT("hand_l") : TEXT("hand_r"));
+		if (Mesh->GetBoneIndex(Hand) == INDEX_NONE || Mesh->GetBoneIndex(FName(Bones[3])) == INDEX_NONE || Mesh->GetBoneIndex(FName(Bones[12])) == INDEX_NONE)
+		{
+			return FVector::ZeroVector;
+		}
+		const FVector Wrist = Mesh->GetBoneLocation(Hand);
+		const FVector F = (Mesh->GetBoneLocation(FName(Bones[3])) - Wrist).GetSafeNormal();
+		FVector T = Mesh->GetBoneLocation(FName(Bones[12])) - Wrist;
+		T = (T - F * FVector::DotProduct(T, F)).GetSafeNormal();
+		return (bLeft ? -1.f : 1.f) * FVector::CrossProduct(F, T).GetSafeNormal();
+	}
+
+	/** One servo step of every grip joint of one hand (see CVarGripContact). Curls are degrees toward the palm,
+	 *  kept within [MinCurl, MaxCurls[i]]. Returns how many fingers were crossing the gun this frame. */
+	int32 SolveGripContact(const USkeletalMeshComponent* Mesh, const TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Parts, bool bLeft,
+		float* Curls, float MinCurl, const float* MaxCurls, float DeltaSeconds)
+	{
+		const FVector Normal = PalmNormal(Mesh, bLeft);
+		if (Normal.IsNearlyZero() || Parts.Num() == 0)
+		{
+			return 0;
+		}
+		const float Skin = FMath::Max(0.f, CVarGripSkin.GetValueOnGameThread());
+		const float Step = FMath::Clamp(DeltaSeconds * 300.f, 1.f, 8.f);
+		const TCHAR* const* Bones = bLeft ? ShieldbreakGrip::LeftBones : ShieldbreakGrip::RightBones;
+		int32 Crossing = 0;
+		for (int32 Finger = 0; Finger < 5; ++Finger)
+		{
+			FVector P[4];
+			if ((!bLeft && Finger == 0) || !FingerPoints(Mesh, Bones, Finger, P))
+			{
+				continue;
+			}
+			bool bFingerCrossing = false;
+			for (int32 J = 0; J < 3; ++J)
+			{
+				float& Curl = Curls[Finger * 3 + J];
+				bool bNow = false;
+				for (int32 K = J; K < 3 && !bNow; ++K)
+				{
+					bNow = SegmentHits(Parts, P[K], P[K + 1], Skin);
+				}
+				if (bNow)
+				{
+					bFingerCrossing = true;
+					Curl = FMath::Max(MinCurl, Curl - Step * 1.5f);
+					continue;
+				}
+				if (Curl >= MaxCurls[Finger * 3 + J])
+				{
+					continue;
+				}
+				// Would one more step toward the palm still be clear?
+				const FVector Axis = FVector::CrossProduct((P[J + 1] - P[J]).GetSafeNormal(), Normal).GetSafeNormal();
+				if (Axis.IsNearlyZero())
+				{
+					continue;
+				}
+				const FQuat Turn(Axis, FMath::DegreesToRadians(Step));
+				FVector Q[4] = { P[0], P[1], P[2], P[3] };
+				for (int32 K = J + 1; K < 4; ++K)
+				{
+					Q[K] = P[J] + Turn.RotateVector(P[K] - P[J]);
+				}
+				bool bBlocked = false;
+				for (int32 K = J; K < 3 && !bBlocked; ++K)
+				{
+					bBlocked = SegmentHits(Parts, Q[K], Q[K + 1], Skin);
+				}
+				if (!bBlocked)
+				{
+					Curl = FMath::Min(MaxCurls[Finger * 3 + J], Curl + Step);
+				}
+			}
+			Crossing += bFingerCrossing ? 1 : 0;
+		}
+		return Crossing;
+	}
+
+	/** Max curls: the left hand may close up to 1.8x its nominal wrap; the right fingers up to 40 degrees past the pose. */
+	const float* LeftMaxCurls()
+	{
+		static float Max[ShieldbreakGrip::NumJoints];
+		static bool bInit = false;
+		if (!bInit)
+		{
+			for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { Max[I] = FMath::Max(20.f, ShieldbreakGrip::LeftNominal[I] * 1.8f); }
+			bInit = true;
+		}
+		return Max;
+	}
+	const float* RightMaxCurls()
+	{
+		static float Max[ShieldbreakGrip::NumJoints];
+		static bool bInit = false;
+		if (!bInit)
+		{
+			for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { Max[I] = 40.f; }
+			bInit = true;
+		}
+		return Max;
+	}
+}
+
+int32 UShieldbreakBodyAnimator::MeasureHandClipping(bool bFirstPerson, FString* OutDetail, bool bIncludeMagazine) const
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	const USkeletalMeshComponent* Mesh = bFirstPerson ? FirstPersonArms.Get() : GetBodyMesh();
+	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+	GripParts(Weapon, Parts);
+	if (!bIncludeMagazine && Parts.Num() > 1)
+	{
+		Parts.SetNum(1); // the receiver only (a reload's hand carries the magazine)
+	}
+	if (!Mesh || Parts.Num() == 0 || !Weapon->GetRootComponent() || Weapon->GetRootComponent()->GetAttachParent() != Mesh)
+	{
+		return -1;
+	}
+	// Probe: a line straight through the receiver must hit, or the surface isn't testable (no collision data).
+	const FTransform GunXf = Parts[0]->GetComponentTransform();
+	const FBoxSphereBounds LocalBounds = Parts[0]->CalcBounds(FTransform::Identity);
+	const FVector Centre = GunXf.TransformPosition(LocalBounds.Origin);
+	const FVector Across = GunXf.TransformVectorNoScale(FVector(1.0, 0.0, 0.0)) * (LocalBounds.BoxExtent.X + 5.0);
+	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Receiver;
+	Receiver.Add(Parts[0]);
+	if (!SegmentHits(Receiver, Centre - Across, Centre + Across, 0.f) && !SegmentHits(Receiver, Centre - GunXf.TransformVectorNoScale(FVector::UpVector) * 30.0,
+		Centre + GunXf.TransformVectorNoScale(FVector::UpVector) * 30.0, 0.f))
+	{
+		if (OutDetail) { *OutDetail = FString::Printf(TEXT("%s has no testable surface"), *GetNameSafe(Parts[0]->GetStaticMesh())); }
+		return -1;
+	}
+	int32 Count = 0;
+	FString Detail;
+	for (const bool bLeft : { true, false })
+	{
+		const FName Shoulder(bLeft ? TEXT("upperarm_l") : TEXT("upperarm_r"));
+		if (Mesh->GetBoneIndex(Shoulder) == INDEX_NONE || (bFirstPerson && !bLeft && bTriggerArmHidden)
+			|| (bFirstPerson && bLeft && !WantsFirstPersonSupportArm()))
+		{
+			continue; // that arm isn't drawn
+		}
+		const TCHAR* const* Bones = bLeft ? ShieldbreakGrip::LeftBones : ShieldbreakGrip::RightBones;
+		const FName Hand(bLeft ? TEXT("hand_l") : TEXT("hand_r"));
+		const FVector Wrist = Mesh->GetBoneLocation(Hand);
+		for (int32 Finger = 0; Finger < 5; ++Finger)
+		{
+			FVector P[4];
+			if (!FingerPoints(Mesh, Bones, Finger, P))
+			{
+				continue;
+			}
+			// Palm (wrist to knuckle) and the finger's three segments.
+			const FVector Chain[5] = { Wrist, P[0], P[1], P[2], P[3] };
+			for (int32 K = 0; K < 4; ++K)
+			{
+				if (SegmentHits(Parts, Chain[K], Chain[K + 1], 0.f))
+				{
+					++Count;
+					Detail += FString::Printf(TEXT(" %s%s"), K == 0 ? TEXT("palm>") : TEXT(""), Bones[Finger * 3 + FMath::Max(0, K - 1)]);
+				}
+			}
+		}
+	}
+	if (OutDetail) { *OutDetail = Detail.IsEmpty() ? TEXT("none") : Detail.TrimStart(); }
+	return Count;
+}
+
+void UShieldbreakBodyAnimator::UpdateFirstPersonRightGrip(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+	const bool bActive = bHolding && CVarGripContact.GetValueOnGameThread() != 0 && !bTriggerArmHidden && Weapon && Weapon->GetRootComponent()
+		&& Weapon->GetRootComponent()->GetAttachParent() == FirstPersonArms;
+	if (bActive)
+	{
+		GripParts(Weapon, Parts);
+		SolveGripContact(FirstPersonArms, Parts, false, FPRightGrip, -25.f, RightMaxCurls(), DeltaSeconds);
+	}
+	FPRightGripWeight = FMath::FInterpConstantTo(FPRightGripWeight, bActive ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
+	if (FPRightGripWeight <= 0.f)
+	{
+		FMemory::Memzero(FPRightGrip, sizeof(FPRightGrip));
+	}
+	Instance->SetRightFingerCurls(FPRightGrip, FPRightGripWeight);
+}
+
+void UShieldbreakBodyAnimator::UpdateThirdPersonGrip(UShieldbreakBodyAnimInstance* Instance, USkeletalMeshComponent* Body, float DeltaSeconds)
+{
+	using namespace ShieldbreakBodyAnimatorPrivate;
+	// Other players' and bots' bodies: the same forend hold for the left hand and the same contact solve for both
+	// hands' fingers, while no action (reload, throw, melee) is moving the arms. Skipped off screen and far away.
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	const UWorld* World = GetWorld();
+	const APlayerController* Viewer = World ? World->GetFirstPlayerController() : nullptr;
+	FVector ViewLocation = FVector::ZeroVector;
+	FRotator ViewRotation;
+	if (Viewer)
+	{
+		Viewer->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	}
+	const bool bNear = Viewer && FVector::DistSquared(ViewLocation, Body->GetComponentLocation()) < FMath::Square(CVarGripRange.GetValueOnGameThread());
+	const bool bHeld = Weapon && Weapon->GetRootComponent() && Weapon->GetRootComponent()->GetAttachParent() == Body;
+	const bool bActive = bHeld && bNear && Body->WasRecentlyRendered(0.25f) && !Instance->GetActionAnimation() && CVarGripContact.GetValueOnGameThread() != 0;
+	UStaticMeshComponent* Gun = bActive && Weapon->GetWeaponMesh()->DoesSocketExist(TEXT("SupportHand")) && CVarSupportHand.GetValueOnGameThread() != 0
+		? Weapon->GetWeaponMesh() : nullptr;
+
+	TPSupportWeight = FMath::FInterpConstantTo(TPSupportWeight, Gun ? 1.f : 0.f, DeltaSeconds, 1.f / 0.2f);
+	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+	if (TPGripTimer < 0.f)
+	{
+		TPGripTimer = FMath::FRand() * 0.1f; // stagger bodies across frames
+	}
+	TPGripTimer += DeltaSeconds;
+	const bool bSolveNow = TPGripTimer >= 0.1f;
+	const float SolveDelta = bSolveNow ? TPGripTimer : 0.f;
+	if (bSolveNow)
+	{
+		TPGripTimer = 0.f;
+	}
+	if (bActive && bSolveNow)
+	{
+		GripParts(Weapon, Parts);
+	}
+	if (Gun)
+	{
+		FVector Palm, Fingers, Normal;
+		ComputeSupportPalm(Gun, Palm, Fingers, Normal);
+		if (!bTPLeftGripInit)
+		{
+			for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { TPLeftGrip[I] = ShieldbreakGrip::LeftNominal[I] * CVarFingerCurl.GetValueOnGameThread(); }
+			bTPLeftGripInit = true;
+		}
+		if (Parts.Num() > 0)
+		{
+			SolveGripContact(Body, Parts, true, TPLeftGrip, -15.f, LeftMaxCurls(), SolveDelta);
+		}
+		const FTransform& ToBody = Body->GetComponentTransform();
+		Instance->SetSupportHand(TPSupportWeight, ToBody.InverseTransformPosition(Palm), ToBody.InverseTransformVectorNoScale(Fingers),
+			ToBody.InverseTransformVectorNoScale(Normal), CVarFingerCurl.GetValueOnGameThread());
+		Instance->SetLeftFingerCurls(TPLeftGrip);
+	}
+	else if (TPSupportWeight > 0.f)
+	{
+		Instance->SetSupportHand(TPSupportWeight, Instance->GetSupportTarget(), Instance->GetSupportFingers(), Instance->GetSupportPalmNormal(),
+			Instance->GetSupportCurl());
+	}
+	else
+	{
+		Instance->SetSupportHand(0.f, FVector::ZeroVector, FVector::ForwardVector, FVector::UpVector, 0.f);
+		Instance->SetLeftFingerCurls(nullptr);
+		bTPLeftGripInit = false;
+	}
+
+	if (bActive && Parts.Num() > 0)
+	{
+		SolveGripContact(Body, Parts, false, TPRightGrip, -25.f, RightMaxCurls(), SolveDelta);
+	}
+	TPRightGripWeight = FMath::FInterpConstantTo(TPRightGripWeight, bActive ? 1.f : 0.f, DeltaSeconds, 1.f / 0.2f);
+	if (TPRightGripWeight <= 0.f)
+	{
+		FMemory::Memzero(TPRightGrip, sizeof(TPRightGrip));
+	}
+	Instance->SetRightFingerCurls(TPRightGrip, TPRightGripWeight);
 }
 
 float UShieldbreakBodyAnimator::GetSupportHandError() const

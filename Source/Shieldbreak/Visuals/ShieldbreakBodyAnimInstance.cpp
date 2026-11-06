@@ -158,6 +158,10 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	SupportFingers = Instance->SupportFingers;
 	SupportPalmNormal = Instance->SupportPalmNormal;
 	SupportCurl = Instance->SupportCurl;
+	bLeftCurls = Instance->bLeftCurls;
+	FMemory::Memcpy(LeftCurls, Instance->LeftCurls, sizeof(LeftCurls));
+	RightCurlWeight = FMath::Clamp(Instance->RightCurlWeight, 0.f, 1.f);
+	FMemory::Memcpy(RightCurls, Instance->RightCurls, sizeof(RightCurls));
 }
 
 void FShieldbreakBodyAnimProxy::Advance(FTrack& Track, float DeltaSeconds)
@@ -330,6 +334,7 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 	ApplyAimPitch(Output);
 	ApplyTriggerFinger(Output);
 	ApplySupportHand(Output);
+	ApplyFingerCurls(Output, false, RightCurls, RightCurlWeight);
 	return true;
 }
 
@@ -431,29 +436,66 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 	Blend(Pose[Lower], LowerLocal);
 	Blend(Pose[Hand], HandLocal);
 
-	// 3) Close the fingers around the forend: each joint turns toward the palm side, about the axis across its own
-	// direction and the palm normal. The thumb closes a little along the gun's side.
-	if (SupportCurl <= 0.01f)
+	// 3) Close the fingers around the forend: the contact-solved curls when the game thread has them, else the nominal
+	// wrap scaled by SupportCurl.
+	float Curls[ShieldbreakGrip::NumJoints];
+	for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I)
+	{
+		Curls[I] = bLeftCurls ? LeftCurls[I] : ShieldbreakGrip::LeftNominal[I] * SupportCurl;
+	}
+	ApplyFingerCurls(Output, true, Curls, SupportWeight);
+}
+
+void FShieldbreakBodyAnimProxy::ApplyFingerCurls(FPoseContext& Output, bool bLeft, const float* Curls, float Weight) const
+{
+	using namespace ShieldbreakBodyAnimPrivate;
+	if (Weight <= 0.01f)
 	{
 		return;
 	}
-	const FVector PalmNormal = SupportPalmNormal.GetSafeNormal();
-	struct FCurl { const TCHAR* Bones[3]; float Degrees[3]; };
-	static const FCurl Fingers[] = {
-		{ { TEXT("index_01_l"), TEXT("index_02_l"), TEXT("index_03_l") }, { 30.f, 55.f, 35.f } },
-		{ { TEXT("middle_01_l"), TEXT("middle_02_l"), TEXT("middle_03_l") }, { 38.f, 60.f, 38.f } },
-		{ { TEXT("ring_01_l"), TEXT("ring_02_l"), TEXT("ring_03_l") }, { 42.f, 62.f, 40.f } },
-		{ { TEXT("pinky_01_l"), TEXT("pinky_02_l"), TEXT("pinky_03_l") }, { 48.f, 62.f, 40.f } },
-		{ { TEXT("thumb_01_l"), TEXT("thumb_02_l"), TEXT("thumb_03_l") }, { 8.f, 18.f, 18.f } },
-	};
-	for (const FCurl& Finger : Fingers)
+	FCompactPose& Pose = Output.Pose;
+	const FCompactPoseBoneIndex None(INDEX_NONE);
+	auto ComponentSpace = [&Pose, None](FCompactPoseBoneIndex Bone)
 	{
+		FTransform Out;
+		TransformRelativeTo(Pose, Bone, None, Out);
+		return Out;
+	};
+	const TCHAR* const* Bones = bLeft ? ShieldbreakGrip::LeftBones : ShieldbreakGrip::RightBones;
+	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, bLeft ? TEXT("hand_l") : TEXT("hand_r"));
+	const FCompactPoseBoneIndex Middle = FindCompactBone(Pose, Bones[3]);
+	const FCompactPoseBoneIndex Thumb = FindCompactBone(Pose, Bones[12]);
+	if (!Hand.IsValid() || !Middle.IsValid() || !Thumb.IsValid())
+	{
+		return;
+	}
+	// The palm normal from the hand's own joints: -(fingers x thumb) for a left hand, +(fingers x thumb) for a right.
+	const FVector Wrist = ComponentSpace(Hand).GetLocation();
+	const FVector F = (ComponentSpace(Middle).GetLocation() - Wrist).GetSafeNormal();
+	FVector T = ComponentSpace(Thumb).GetLocation() - Wrist;
+	T = (T - F * FVector::DotProduct(T, F)).GetSafeNormal();
+	const FVector PalmNormal = (bLeft ? -1.f : 1.f) * FVector::CrossProduct(F, T).GetSafeNormal();
+	if (PalmNormal.IsNearlyZero())
+	{
+		return;
+	}
+	for (int32 Finger = 0; Finger < 5; ++Finger)
+	{
+		if (!bLeft && Finger == 0)
+		{
+			continue; // the trigger finger
+		}
 		for (int32 J = 0; J < 3; ++J)
 		{
-			const FCompactPoseBoneIndex Bone = FindCompactBone(Pose, Finger.Bones[J]);
+			const float Degrees = Curls[Finger * 3 + J];
+			const FCompactPoseBoneIndex Bone = FindCompactBone(Pose, Bones[Finger * 3 + J]);
 			if (!Bone.IsValid())
 			{
 				break;
+			}
+			if (FMath::Abs(Degrees) < 0.05f)
+			{
+				continue;
 			}
 			const FTransform BoneCS = ComponentSpace(Bone);
 			const FTransform BoneParentCS = ComponentSpace(Pose.GetParentBoneIndex(Bone));
@@ -461,7 +503,7 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 			FVector Along;
 			if (J < 2)
 			{
-				const FCompactPoseBoneIndex Next = FindCompactBone(Pose, Finger.Bones[J + 1]);
+				const FCompactPoseBoneIndex Next = FindCompactBone(Pose, Bones[Finger * 3 + J + 1]);
 				Along = Next.IsValid() ? (ComponentSpace(Next).GetLocation() - BoneCS.GetLocation()) : FVector::ZeroVector;
 			}
 			else
@@ -473,9 +515,8 @@ void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const
 			{
 				continue;
 			}
-			const float Angle = FMath::DegreesToRadians(Finger.Degrees[J] * SupportCurl * SupportWeight);
 			FTransform NewBoneCS = BoneCS;
-			NewBoneCS.SetRotation((FQuat(Axis, Angle) * BoneCS.GetRotation()).GetNormalized());
+			NewBoneCS.SetRotation((FQuat(Axis, FMath::DegreesToRadians(Degrees * Weight)) * BoneCS.GetRotation()).GetNormalized());
 			Pose[Bone].SetRotation(NewBoneCS.GetRelativeTransform(BoneParentCS).GetRotation());
 		}
 	}

@@ -75,6 +75,9 @@ public:
 	bool WantsFirstPersonSupportArm() const;
 	/** Distance (cm) from hand_l to the support socket, or -1 without one (self-test). */
 	float GetSupportHandError() const;
+	/** Hand-through-gun check: how many finger and palm segments of the visible hands cross the held gun's surface
+	 *  (first-person arms or the third-person body). -1 when no gun is held or its surface can't be tested. */
+	int32 MeasureHandClipping(bool bFirstPerson, FString* OutDetail = nullptr, bool bIncludeMagazine = true) const;
 	/** First person: the hand-keyed reload / draw / melee (ShieldbreakViewmodelMoves) and this frame's pose. */
 	const FShieldbreakViewmodelMoves& GetViewmodelMoves() const { return Moves; }
 	const FShieldbreakViewmodelPose& GetViewmodelPose() const { return MovePose; }
@@ -215,4 +218,18 @@ private:
 	TWeakObjectPtr<class APlayerController> ScopeHidePC;
 	/** Last frame's left-palm target (world), for GetSupportHandError. */
 	FVector SupportPalmWorld = FVector::ZeroVector;
+	/** Contact-solved grip curls (ShieldbreakGrip order, degrees): first-person arms and third-person body. */
+	float FPLeftGrip[15] = {};
+	float FPRightGrip[15] = {};
+	float TPLeftGrip[15] = {};
+	float TPRightGrip[15] = {};
+	bool bFPLeftGripInit = false;
+	bool bTPLeftGripInit = false;
+	float FPRightGripWeight = 0.f;
+	float TPRightGripWeight = 0.f;
+	float TPSupportWeight = 0.f;
+	/** Third-person grip solves run ten times a second (staggered per body), not every frame: they cost traces. */
+	float TPGripTimer = -1.f;
+	void UpdateThirdPersonGrip(class UShieldbreakBodyAnimInstance* Instance, USkeletalMeshComponent* Body, float DeltaSeconds);
+	void UpdateFirstPersonRightGrip(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
 };
