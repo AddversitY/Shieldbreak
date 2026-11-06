@@ -3511,6 +3511,24 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Shot(TEXT("fp_3_grenade"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.08f, 0.2f, 0.35f, 0.5f }, 2.f);
 		// The throw up to its release (sb.GrenadeReleaseDelay, 0.15 s): hand rising, cocked with the grenade, coming through, after.
 		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.04f, 0.08f, 0.12f, 0.2f }, 2.f);
+		// The same throw held at two poses (sb.FPThrowFreeze), since a capture lands too late for the 0.15 s wind-up:
+		// cocked beside the head with the grenade, and the hand coming through just before it lets go.
+		for (const TPair<const TCHAR*, float>& Pose : { TPair<const TCHAR*, float>(TEXT("fp_3c_grenade_cocked"), 0.085f),
+			TPair<const TCHAR*, float>(TEXT("fp_3d_grenade_through"), 0.14f) })
+		{
+			const float Hold = Pose.Value;
+			Shot(Pose.Key, [Reset, Player, Hold]()
+				{
+					Reset();
+					if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(Hold); }
+					// The earlier throws spend the starting grenades.
+					if (AShieldbreakCharacter* P = Player()) { P->AddGrenades(1); P->ThrowGrenade(); }
+				}, { 0.4f }, 1.2f);
+		}
+		Steps.Add({ TEXT("Release the held throw pose"), []()
+			{
+				if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(-1.f); }
+			}, [](float Elapsed) { return Elapsed > 0.8f; }, 2.f });
 		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
 			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });

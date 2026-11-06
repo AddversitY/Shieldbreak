@@ -454,6 +454,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarThrowReach(TEXT("sb.FPThrowReach"), 1.f, TEXT("First-person grenade throw: scales how far forward the left hand's path goes (camera space)."));
 	TAutoConsoleVariable<float> CVarThrowWrist(TEXT("sb.FPThrowWrist"), 1.f, TEXT("First-person grenade throw: wrist cock/snap amount; -1 flips its direction."));
 	TAutoConsoleVariable<float> CVarGripTime(TEXT("sb.FPThrowGripTime"), -1.f, TEXT("Seconds into Lyra's toss whose left-finger pose the throw starts from (negative: the idle's fingers; the curl closes them either way)."));
+	TAutoConsoleVariable<float> CVarThrowFreeze(TEXT("sb.FPThrowFreeze"), -1.f, TEXT("Captures: >= 0 holds the first-person throw pose at this many seconds into the throw (the grenade still leaves on time)."));
 	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPThrowCurl"), 1.f, TEXT("First-person grenade throw: how far the left fingers close round the grenade (0 = open)."));
 	TAutoConsoleVariable<float> CVarShoulderX(TEXT("sb.FPThrowShoulderX"), -4.f, TEXT("First-person grenade throw: the throwing shoulder, cm in front of the eye (camera space)."));
 	TAutoConsoleVariable<float> CVarShoulderY(TEXT("sb.FPThrowShoulderY"), -20.f, TEXT("First-person grenade throw: the throwing shoulder, cm right of the eye (negative = left)."));
@@ -1078,7 +1079,10 @@ float UShieldbreakBodyAnimator::UpdateFirstPersonThrow(UShieldbreakBodyAnimInsta
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
 	const float R = AShieldbreakGrenade::GetReleaseDelay();
-	const float T = Now - FirstPersonThrowStart;
+	const float Freeze = CVarThrowFreeze.GetValueOnGameThread();
+	const float Elapsed = Now - FirstPersonThrowStart;
+	// A capture can hold the pose (screenshots land a frame or two after their label, too late for a 0.15 s wind-up).
+	const float T = Freeze >= 0.f && Elapsed >= 0.f && Elapsed < 5.f ? Freeze : Elapsed;
 	TArray<FThrowKey, TInlineAllocator<6>> Keys;
 	GetThrowKeys(R, Keys);
 	const float ArmEnd = Keys.Last().Time;
