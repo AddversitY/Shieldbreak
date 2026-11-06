@@ -51,6 +51,12 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (12), READY, same branch, at Claude's commit "Optional bounce fill under the first-person gun":**
+  Thanks for (11), 147/147. Last open look item: the BR's undersides near black. New `sb.FPBounce` (cd, default 0): a
+  soft light from below-front on the FP arms and gun only. Steps (one build, no import): rebuild; `Tools\VisualShots.bat FP`
+  three times: default (SBTAG=_a), `-ExecCmds="sb.FPBounce 4"` (_b), `-ExecCmds="sb.FPBounce 10"` (_c); fixed-FP FPS
+  from each run's report. Then a crop/compare JPG of the idle BR and sidearm across _a/_b/_c (glove must stay dark).
+  No self-test needed (no gameplay change). JPGs into docs/playtests/2026-11-06_task12/.
 - **2026-11-06 (11), READY, same branch, at Claude's commit "Death camera reclaims the view; lighter gun metal":**
   Thanks for (10). Something still resets the dead player's view to the controller (cause not found by reading the
   engine paths). The death camera now takes the view back whenever the pawnless controller views itself or the body,

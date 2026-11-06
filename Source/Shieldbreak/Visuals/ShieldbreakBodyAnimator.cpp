@@ -409,6 +409,9 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** A/B for the black first-person gun: the local player's hidden body and armor cast their shadow from the eye,
 	 *  so overhead lights may shade the gun held in front of the chest. 0 = the local body casts no hidden shadow. */
 	TAutoConsoleVariable<int32> CVarFPSelfShadow(TEXT("sb.FPSelfShadow"), 1, TEXT("1: the local player's hidden body casts a shadow (new spawns)."));
+	/** Bounce fill from below and in front for the gun's undersides (task 11: the BR read near black under the rail,
+	 *  lit only from the ceiling). Candelas; 0 = off. Lights only the first-person arms and gun (channel 1). */
+	TAutoConsoleVariable<float> CVarFirstPersonBounce(TEXT("sb.FPBounce"), 0.f, TEXT("Candelas of a fill from below for the first-person gun (0 = off, new spawns)."));
 	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 0.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
@@ -629,6 +632,28 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 			Fill->LightingChannels.bChannel1 = true;
 			Fill->bAffectsWorld = true;
 			Fill->RegisterComponent();
+		}
+		const float BounceCandelas = CVarFirstPersonBounce.GetValueOnGameThread();
+		if (BounceCandelas > 0.f)
+		{
+			// Ahead, right and well below the eye, like light coming back off the floor; about a metre from the gun so
+			// the hand and the barrel get the same amount. Warm-neutral, soft and shadowless.
+			UPointLightComponent* Bounce = NewObject<UPointLightComponent>(OwnerCharacter, TEXT("FirstPersonBounce"));
+			Bounce->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
+			Bounce->SetRelativeLocation(FVector(90.f, 40.f, -90.f));
+			Bounce->SetMobility(EComponentMobility::Movable);
+			Bounce->SetIntensityUnits(ELightUnits::Candelas);
+			Bounce->SetIntensity(BounceCandelas);
+			Bounce->SetAttenuationRadius(250.f);
+			Bounce->SetSourceRadius(40.f);
+			Bounce->SetLightColor(FLinearColor(0.95f, 0.95f, 1.f));
+			Bounce->SetCastShadows(false);
+			Bounce->SetAffectTranslucentLighting(false);
+			Bounce->SetVolumetricScatteringIntensity(0.f);
+			Bounce->SetSpecularScale(0.3f);
+			Bounce->LightingChannels.bChannel0 = false;
+			Bounce->LightingChannels.bChannel1 = true;
+			Bounce->RegisterComponent();
 		}
 		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
