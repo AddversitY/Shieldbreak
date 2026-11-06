@@ -433,24 +433,29 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** The left arm: hidden by default (see above), shown on rifles, whose left hand holds the front of the gun
 	 *  (Vincent, 2026-11-06, with Halo Infinite references: the support hand is the one you see). */
 	const TCHAR* const SupportArmBone = TEXT("upperarm_l");
+	/** On rifles the trigger arm (and its forearm plate) is hidden instead: the shooter sees the left hand on the front
+	 *  of the gun and no trigger hand (Vincent 2026-11-06: "maybe one finger"). Task (18) showed the right forearm and
+	 *  its red plate filling the lower right once the rifle was angled toward the centre. */
+	const TCHAR* const TriggerArmBone = TEXT("upperarm_r");
+	TAutoConsoleVariable<int32> CVarRifleHideTriggerArm(TEXT("sb.FPRifleHideTriggerArm"), 1, TEXT("1: first-person rifles hide the right (trigger) arm."));
 	// Rifle framing (guns with a SupportHand socket): the standard shooter layout. The gun enters from the lower right
 	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
 	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 32.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 18.f, TEXT("First-person rifles: gun origin cm below the eye."));
 	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 14.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -20.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -18.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
 	// palm sits here.
-	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), 1.5f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), -1.0f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
 	TAutoConsoleVariable<float> CVarPalmForward(TEXT("sb.FPPalmForward"), 4.0f, TEXT("First-person rifles: left palm offset forward of SupportHand (cm)."));
-	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), 1.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
-	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.85f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
+	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), 0.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.55f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
 	TAutoConsoleVariable<float> CVarPalmTilt(TEXT("sb.FPPalmTilt"), 0.6f, TEXT("First-person rifles: how far the left palm turns toward the gun's side (0 = straight up)."));
-	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPFingerCurl"), 1.f, TEXT("First-person rifles: left finger curl around the forend (0 = open, 1 = gripping)."));
+	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPFingerCurl"), 0.8f, TEXT("First-person rifles: left finger curl around the forend (0 = open, 1 = gripping)."));
 	TAutoConsoleVariable<int32> CVarSupportHand(TEXT("sb.FPSupportHand"), 1, TEXT("1: on rifles the first-person left hand holds the gun's SupportHand socket."));
 
 	/** How each action plays: start a little in (skipping the wind-up) and faster than authored, Halo-snappy. */
@@ -799,6 +804,28 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		else
 		{
 			FirstPersonArms->HideBoneByName(SupportArmBone, EPhysBodyOp::PBO_None);
+		}
+	}
+	const bool bHideTrigger = bRifle && CVarRifleHideTriggerArm.GetValueOnGameThread() != 0;
+	if (bHideTrigger != bTriggerArmHidden)
+	{
+		bTriggerArmHidden = bHideTrigger;
+		if (bHideTrigger)
+		{
+			FirstPersonArms->HideBoneByName(TriggerArmBone, EPhysBodyOp::PBO_None);
+		}
+		else
+		{
+			FirstPersonArms->UnHideBoneByName(TriggerArmBone);
+		}
+		// A hidden bone does not hide what is attached to it: the forearm plate goes too.
+		for (UStaticMeshComponent* Piece : FirstPersonArmor)
+		{
+			const FString Socket = Piece->GetAttachSocketName().ToString();
+			if (Socket.EndsWith(TEXT("_r")))
+			{
+				Piece->SetHiddenInGame(bHideTrigger);
+			}
 		}
 	}
 	const bool bSettled = World->GetTimeSeconds() - FirstPersonIdleSince > 0.3f && !Instance->GetActionAnimation();
