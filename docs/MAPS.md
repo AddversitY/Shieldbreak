@@ -58,6 +58,8 @@ Tools:
 | **Spire** | Narrows / Construct | 144 × 72 m, enclosed | Sniper on the crown, Rockets in the column room, Rail Lance per gallery, Aegis per vent block; 6 gravity lifts | CTF, KOTH |
 
 ## Keel
+Redesign brief (from a study of how Midship plays): [KEEL_MIDSHIP_STUDY.md](KEEL_MIDSHIP_STUDY.md).
+
 The inside of a derelict warship, fully enclosed (15 m ceiling). Each team's hangar (deck 3 m, gantry 6.5 m)
 sits behind a blast wall with three doors. The reactor hall in the middle has the rockets on the core (6.5 m),
 reached by two bridges and two lifts, with the overshield in the housing underneath. North: a cargo hold with a
