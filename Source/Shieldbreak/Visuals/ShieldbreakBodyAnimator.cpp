@@ -436,11 +436,11 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// Rifle framing (guns with a SupportHand socket): the standard shooter layout. The gun enters from the lower right
 	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
-	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 36.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 17.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 16.f, TEXT("First-person rifles: gun origin cm below the eye."));
-	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 9.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -12.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 32.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 14.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -20.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
