@@ -54,6 +54,8 @@ public:
 	UStaticMeshComponent* GetHeadMesh() const { return HeadMesh; }
 	UShieldbreakBodyAnimator* GetBodyAnimator() const { return BodyAnimator; }
 	AShieldbreakWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
+	/** While a local player watches this body die: the camera that follows it. */
+	class ACameraActor* GetDeathCamera() const { return DeathCamera; }
 	AShieldbreakWeapon* GetHolsteredWeapon() const;
 	int32 GetGrenadeCount() const { return GrenadeCount; }
 	int32 GetMaxGrenades() const { return MaxGrenades; }
@@ -294,6 +296,8 @@ private:
 	/** The local player's view while dead. A camera actor, not this body: the engine re-points a view whose pawn has
 	 *  lost its PlayerState (as a dead body does) back to the controller, which sat at the eye inside the ragdoll. */
 	UPROPERTY(Transient) TObjectPtr<class ACameraActor> DeathCamera;
+	/** The local controller that watched this body die (it has no pawn until the respawn). */
+	TWeakObjectPtr<class APlayerController> DeathViewer;
 	int32 DeathCameraSide = -1;
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();

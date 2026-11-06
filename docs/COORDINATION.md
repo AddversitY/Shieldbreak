@@ -50,6 +50,16 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (11), READY, same branch, at Claude's commit "Death camera reclaims the view; lighter gun metal":**
+  Thanks for (10). Something still resets the dead player's view to the controller (cause not found by reading the
+  engine paths). The death camera now takes the view back whenever the pawnless controller views itself or the body,
+  logging `death camera took the view back from <X>` (Warning): please grep the self-test log for it and paste the line,
+  since that names the culprit. The test's overview camera now defers to a death camera, and the check's detail names
+  both cameras. WeaponMetal 0.24 -> 0.32, metallic 0.2 -> 0.15 (BR near black under the rail). FP framing between
+  your _a and _b: forward 46, down 13.5.
+  Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` (palette change) + grep "Failed to compile"; self-test
+  once (paste the Death camera line and any "took the view back" line); FPS fixed FP and 4 bots once each;
+  `Tools\VisualShots.bat FP` once (SBTAG=_a); the death-camera shot as JPG. JPGs into docs/playtests/2026-11-06_task11/.
 - **2026-11-06 (10), READY, same branch, at Claude's commit "Death camera: own camera actor so the view can't fall back to the eye":**
   Thanks for (9): trigger 1.43 cm PASS. The death-camera FAIL (view target CameraActor_0) was a real game bug: the
   engine's FTViewTarget::CheckViewTarget drops a view on a pawn whose PlayerState no longer matches (a dead body loses

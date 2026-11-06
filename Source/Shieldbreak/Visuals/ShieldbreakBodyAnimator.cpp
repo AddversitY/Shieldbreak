@@ -413,10 +413,10 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
 	// negative = in toward the crosshair). Live-tunable; the arms re-place themselves when these change.
-	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 44.f, TEXT("First-person gun hand: cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarGripForward(TEXT("sb.FPGripForward"), 46.f, TEXT("First-person gun hand: cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarThrowDip(TEXT("sb.FPThrowDip"), -35.f, TEXT("First-person grenade throw: degrees the arm rig pitches during the throw (negative tips it up so the left arm's swing crosses the screen; tuned on the PC)."));
 	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 14.f, TEXT("First-person gun hand: cm right of the eye."));
-	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 14.5f, TEXT("First-person gun hand: cm below the eye."));
+	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 13.5f, TEXT("First-person gun hand: cm below the eye."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
 

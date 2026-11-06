@@ -176,6 +176,14 @@ void AShieldbreakSelfTest::ViewOverviewIfUnpossessed()
 	{
 		return;
 	}
+	// A dead player's death camera reclaims the view itself (AShieldbreakCharacter::UpdateDeathCamera).
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsAlive() && It->GetDeathCamera())
+		{
+			return;
+		}
+	}
 	if (!OverviewCamera)
 	{
 		FActorSpawnParameters CameraParams;
@@ -536,8 +544,9 @@ void AShieldbreakSelfTest::BuildSteps()
 				const AActor* View = PC ? PC->GetViewTarget() : nullptr;
 				const bool bDeathView = View && View->IsA<ACameraActor>() && View != OverviewCamera && View != ChaseCamera;
 				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && bDeathView && Distance > 150.f,
-					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
-						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A && A->IsAlive() ? 1 : 0));
+					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, death camera %s, overview %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
+						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A ? *GetNameSafe(A->GetDeathCamera()) : TEXT("none"),
+						*GetNameSafe(OverviewCamera), A && A->IsAlive() ? 1 : 0));
 				ClearDummies();
 				return true;
 			}

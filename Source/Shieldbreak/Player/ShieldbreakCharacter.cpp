@@ -1425,10 +1425,22 @@ void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
 	// onto it, and a wall behind stopped the sweep at the head, so the player watched the respawn timer from inside
 	// their own helmet (Vincent, 2026-11-06). Now it follows the ragdoll every frame from whichever side is clear.
 	using namespace ShieldbreakCharacterPrivate;
-	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (!DeathCamera || !PC || PC->GetViewTarget() != DeathCamera)
+	APlayerController* PC = DeathViewer.Get();
+	if (!DeathCamera || !PC)
 	{
 		return;
+	}
+	if (PC->GetViewTarget() != DeathCamera)
+	{
+		// Until the respawn gives the controller a pawn again, nothing else may take the view: something reset it to
+		// the controller itself (task 10, cause unknown), whose camera sits at the eye inside the ragdoll.
+		AActor* Taken = PC->GetViewTarget();
+		if (PC->GetPawn() || (Taken != PC && Taken != this))
+		{
+			return;
+		}
+		UE_LOG(LogShieldbreak, Warning, TEXT("%s: death camera took the view back from %s."), *GetName(), *GetNameSafe(Taken));
+		PC->SetViewTarget(DeathCamera);
 	}
 	FVector Subject = GetActorLocation();
 	const USkeletalMeshComponent* Body = GetMesh();
@@ -1563,6 +1575,7 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 			StartDeathCamera();
 			if (DeathCamera)
 			{
+				DeathViewer = PC;
 				PC->SetViewTarget(DeathCamera);
 			}
 		}
