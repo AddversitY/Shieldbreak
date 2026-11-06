@@ -68,8 +68,8 @@ void UShieldbreakCharacterAudio::TickComponent(float DeltaTime, ELevelTick TickT
 
 	TickFootsteps(DeltaTime);
 
-	// Danger cues for the owning player: a heartbeat pulse while the shield is low (faster as it drops), then the
-	// urgent alarm once it is gone. Both stop while the shield is recharging.
+	// Danger cue for the owning player: one alarm beep, repeated fast while the shield is low or gone. It stops as soon
+	// as the shield starts recharging (the recharge whine takes over).
 	const UShieldHealthComponent* ShieldComponent = ObservedShield.Get();
 	const UWorld* World = GetWorld();
 	if (!ShieldComponent || !World || ShieldComponent->IsDead() || !IsLocalPlayer())
@@ -78,21 +78,12 @@ void UShieldbreakCharacterAudio::TickComponent(float DeltaTime, ELevelTick TickT
 	}
 
 	const float Now = World->GetTimeSeconds();
-	const float Shield = ShieldComponent->GetShield();
-	const float Fraction = Shield / FMath::Max(ShieldComponent->GetMaxShield(), 1.f);
+	const float Fraction = ShieldComponent->GetShield() / FMath::Max(ShieldComponent->GetMaxShield(), 1.f);
 	const bool bRecharging = RechargeWhine && RechargeWhine->IsPlaying();
-	if (Shield <= 0.f)
+	if (Fraction < LowShieldFraction && !bRecharging && Now >= NextBeepTime)
 	{
-		if (Now >= NextBeepTime)
-		{
-			NextBeepTime = Now + LowShieldBeepInterval;
-			FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.6f);
-		}
-	}
-	else if (Fraction < LowShieldFraction && !bRecharging && Now >= NextBeepTime)
-	{
-		NextBeepTime = Now + FMath::Lerp(0.6f, 1.2f, Fraction / LowShieldFraction);
-		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowWarning, 0.75f);
+		NextBeepTime = Now + LowShieldBeepInterval;
+		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.55f);
 	}
 }
 
@@ -196,20 +187,6 @@ void UShieldbreakCharacterAudio::HandleShieldChanged(float NewValue, float MaxVa
 		StopRechargeWhine();
 	}
 
-	// A hit the shield soaked up (a break plays the pop instead). Rate-limited so bursts don't stack.
-	const UWorld* World = GetWorld();
-	if (World && NewValue > 0.f && LastShieldValue - NewValue > 0.5f && World->GetTimeSeconds() >= NextShieldImpactTime)
-	{
-		NextShieldImpactTime = World->GetTimeSeconds() + 0.07f;
-		if (IsLocalPlayer())
-		{
-			FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldImpact, 0.45f);
-		}
-		else if (GetOwner())
-		{
-			FShieldbreakSFX::PlayAt(this, EShieldbreakSound::ShieldImpact, GetOwner()->GetActorLocation(), 0.8f);
-		}
-	}
 	LastShieldValue = NewValue;
 }
 

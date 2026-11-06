@@ -289,47 +289,27 @@
    2.716
   ]
  },
- "Shield_Impact": {
-  "count": 6,
-  "mono": true,
-  "seconds": [
-   0.308,
-   0.328,
-   0.35,
-   0.35,
-   0.35,
-   0.35
-  ]
- },
  "Shield_Low": {
   "count": 1,
   "mono": true,
   "seconds": [
-   0.28
-  ]
- },
- "Shield_LowWarn": {
-  "count": 2,
-  "mono": false,
-  "seconds": [
-   0.54,
-   0.54
+   0.11
   ]
  },
  "Shield_Pop": {
   "count": 3,
   "mono": false,
   "seconds": [
-   0.63,
-   0.63,
-   0.63
+   0.62,
+   0.62,
+   0.62
   ]
  },
  "Shield_Recharge": {
   "count": 1,
   "mono": false,
   "seconds": [
-   2.203
+   1.766
   ]
  },
  "Sidearm_Dist": {

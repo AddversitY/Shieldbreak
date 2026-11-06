@@ -61,10 +61,6 @@ enum class EShieldbreakSound : uint8
 	DryFireHeavy,
 	DryFireEnergy,
 	WeaponRaise,
-	/** A round absorbed by an energy shield, heard around the victim. */
-	ShieldImpact,
-	/** Shield below ~40%: a heartbeat-and-tension "danger" pulse, repeated while low (owner only). */
-	ShieldLowWarning,
 	Footstep,
 	Land,
 	Count

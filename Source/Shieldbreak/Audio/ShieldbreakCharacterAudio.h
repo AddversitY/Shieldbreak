@@ -1,6 +1,6 @@
 // Shield, life and movement sounds for one character, driven by its UShieldHealthComponent events and its movement.
 // The recharge whine, vent results and the shields-down beep are heard only by the player who owns the character;
-// shield impacts, armoured footsteps and landings are heard by everyone (the owner hears them quieter, in 2D).
+// the shield break, armoured footsteps and landings are heard by everyone (the owner hears them quieter, in 2D).
 
 #pragma once
 
@@ -25,11 +25,11 @@ public:
 
 	/** Seconds between beeps while the local player's shield is empty. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	float LowShieldBeepInterval = 0.55f;
+	float LowShieldBeepInterval = 0.22f;
 
-	/** Below this shield fraction the owner hears the low-shield danger pulse. */
+	/** Below this shield fraction (and at zero) the owner hears the repeating alarm beep. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
-	float LowShieldFraction = 0.4f;
+	float LowShieldFraction = 0.25f;
 
 	/** Ground distance (cm) per footstep at walking speed and at full sprint. */
 	UPROPERTY(EditAnywhere, Category = "Audio")
@@ -60,7 +60,6 @@ private:
 	TWeakObjectPtr<UShieldHealthComponent> ObservedShield;
 	float LastShieldValue = -1.f;
 	float NextBeepTime = 0.f;
-	float NextShieldImpactTime = 0.f;
 	float StrideDistance = 0.f;
 	float FallSpeed = 0.f;
 	bool bWasFalling = false;
