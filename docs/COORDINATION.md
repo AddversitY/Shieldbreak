@@ -126,6 +126,13 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   Make one compare JPG of the three fp_0_idle_br_0 frames side by side. For each, say in words: is the left glove
   visible, where on screen, and does it wrap the forend or clip into the gun? JPGs into
   docs/playtests/2026-11-06_task17/. Run after (M1) if (M1) has already started, otherwise before it.
+- **2026-11-06 (M3), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Magazine follows the palm; gentler reload lift; melee keeps the shoulder out":**
+  Thanks for (M2). The magazine was placed from the wrist, while the IK places the palm, so it floated at the lower left.
+  Reloads lifted the gun over the crosshair, and the melee still showed the arm. Now the magazine follows the palm, the
+  lift is smaller and stays right of centre, and the melee rolls and dips instead of swinging left. Code only, no import. Steps: rebuild;
+  self-test once; the same seven fp_* JPGs into docs/playtests/2026-11-06_fpmoves_m3/. In words: is the magazine in
+  the glove in fp_reload_mag_out, is the crosshair clear in the reload shots, and is any arm or shoulder visible in fp_melee
+  or fp_pistol_fresh? No FPS run needed (keyframe values only).
 - **2026-11-06 (M2), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Reloads lift the gun into view; shorter melee thrust":**
   Thanks for (M1). Every reload happened below the frame, and the melee pushed the rig's shoulder into the eye. Reloads
   now bring the gun up and in (`sb.FPReloadLift`, default 1). The melee thrust is 9 cm (it was 18), with less yaw. No art changes and no
