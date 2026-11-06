@@ -132,6 +132,11 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   Make one compare JPG of the three fp_0_idle_br_0 frames side by side. For each, say in words: is the left glove
   visible, where on screen, and does it wrap the forend or clip into the gun? JPGs into
   docs/playtests/2026-11-06_task17/. Run after (M1) if (M1) has already started, otherwise before it.
+- **2026-11-06 (M5), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Sidearm reload rises higher":**
+  Thanks for (M4): the melee is clean. The sidearm reload now lifts the gun 9 cm (it was 5) and 5 cm farther out, so the fresh magazine and
+  the glove should come in above the bottom edge. Code only. Steps: rebuild; self-test once; fp_pistol_drop and
+  fp_pistol_fresh JPGs into docs/playtests/2026-11-06_fpmoves_m5/. In words: where are the glove and magazine in
+  fp_pistol_fresh (pixel box), and does the pistol cover the crosshair?
 - **2026-11-06 (M4), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Melee chops instead of thrusting; sidearm fresh magazine comes up sooner":**
   Thanks for (M3). The rifle reload now reads right. The melee still showed the shoulder, so it now chops down and in with about 3 cm of
   forward travel and no roll. The sidearm's fresh magazine reaches the grip earlier, so the fp_pistol_fresh shot should
