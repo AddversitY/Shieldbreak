@@ -225,16 +225,17 @@ def crucible():
 
 
 def keel():
-    """Keel (2026-11 redesign): the inside of a derelict warship, fully enclosed. Vertical control is the theme.
+    """Keel (2026-11-06 rebuild, brief: docs/KEEL_MIDSHIP_STUDY.md): a compact warship interior built as one loop
+    round a visible centrepiece. Enclosed, mirror-symmetric across x = 0 (reflect=True), red at -X.
 
-    Each team's hangar (deck at 3 m, gantry at 6.5 m) faces down the reactor hall. The rockets sit on top of the reactor
-    core (6.5 m) in the middle of the hall: two bridges and two gravity lifts reach it, all in view of each other.
-    The Overshield sits under the core on its own timer. Each flank is a cargo hold (ground floor, crates, with a
-    6.5 m catwalk along the hull: fast but exposed) at one end and an engine deck (6.5 m, machinery cover) over an
-    enclosed maintenance tunnel (protected, but cut off from teammates) at the other. Point-symmetric: red's
-    north hold mirrors into blue's south hold, red's south engine deck into blue's north one.
-    Levels: hold/hall floor 0, decks 300, catwalks/gantries/core 650, ceiling 1500."""
-    m = Map("Keel", "Keel", "Midship", 6800, 4400, wall_h=1500, max_z=1600)
+    Middle band (y -20..20 m): each team's command Bridge (deck 3.5 m, overwatch 7 m behind the flag) looks through a
+    long window over its approach deck (3.5 m) into the Cradle: a drydock trench (0 m) under a cargo pod hung at
+    6.5 m. Rockets on the pod (two crane-arm ramps from the decks, two lifts from the trench), Overshield under it.
+    North (shared): the Breach, a torn hull section open to space: an open floor (0 m) under a long catwalk (6.5 m)
+    along the hull, the long-range lane, Rail Lance mid-catwalk. South (shared): the Galleries, close-range engine
+    galleries (0 m, pipe runs, a ring of reactor pylons round the Camo) with an upper walkway (3.5 m) per side.
+    Levels: trench / Breach / Galleries 0, decks 350, pod / catwalk 650, overwatch 700, ceiling 1500."""
+    m = Map("Keel", "Keel", "Midship", 5200, 3600, wall_h=1500, max_z=1600)
     # Look: gunmetal hull, hazard-orange ramps and amber glow strips.
     m.palette = {"metal": (0.23, 0.24, 0.26), "wall": (0.10, 0.11, 0.12), "floor": (0.14, 0.15, 0.16),
                  "bridge": (0.27, 0.28, 0.30), "ramp": (0.78, 0.42, 0.08), "glow": (1.00, 0.52, 0.12),
@@ -242,108 +243,88 @@ def keel():
                  "red": (0.21, 0.15, 0.14), "blue": (0.13, 0.16, 0.21)}
     m.sun = (-52.0, 120.0)
     m.fog = 0.004
+    m.reflect = True
     m.check_reach = True
     m.roof()
-    L1, L2, S = 300, 650, 40
-    WY = 2630  # hall / flank dividing walls (60 thick, y 2600..2660)
+    D, P, O = 350, 650, 700   # deck, pod / catwalk, overwatch
+    BAND = 2000               # the middle band's walls (y = +-2000) against the Breach and the Galleries
 
-    # ---- Hangars (red at -X): deck at L1, gantry at L2 behind the flag, ramps down into the hall ----
-    m.block((-6800, -2600, 0), (-5300, 2600, L1), "red", sym=True)
-    m.block((-6800, -2600, L2 - S), (-6300, 2600, L2), "metal", sym=True)
-    m.block((-6360, -900, L2), (-6300, 900, L2 + 110), "metal", sym=True)          # gantry rail
-    m.ramp((-5400, 2250, L1), (-6300, 2250, L2), 400, sym=True)
-    m.ramp((-5400, -2250, L1), (-6300, -2250, L2), 400, sym=True)
-    m.ramp((-5300, 1500, L1), (-4600, 1500, 0), 500, sym=True)
-    m.ramp((-5300, -1500, L1), (-4600, -1500, 0), 500, sym=True)
-    # Blast wall across the hangar mouth: the hangar sees the hall only through its three doors (gangway, two ramps),
-    # so the flag room is defended from inside and the hall is not one 130 m sightline from hangar to hangar.
-    m.wall_y(-2600, 2600, -5270, 0, 1500, [(-350, 350, L1, 900), (1200, 1800, 0, 800), (-1800, -1200, 0, 800)],
+    # ---- Bridge (red): deck at D, overwatch at O behind the flag, a window wall facing the Cradle ----
+    m.block((-5200, -BAND, 0), (-3900, BAND, D), "red", sym=True)
+    m.block((-5200, -1700, 0), (-4800, 1700, O), "metal", sym=True)                # overwatch
+    m.ramp((-4100, 1350, D), (-4800, 1350, O), 400, sym=True)
+    m.ramp((-4100, -1350, D), (-4800, -1350, O), 400, sym=True)
+    # Window wall: a 110 cm sill under a long window (jump through it), and a door at each end.
+    m.wall_y(-BAND, BAND, -3900, D, 1500, [(-900, 900, D + 110, 820), (-1800, -1300, D, O), (1300, 1800, D, O)],
              color="red", sym=True)
-    # Gangway: the fast, exposed lane from the deck to the hall's loading platform (L1).
-    m.block((-5300, -350, L1 - S), (-3400, 350, L1), "bridge", sym=True)
-    # Loading platform in the hall (L1): ramps down toward the core and back toward the hangar.
-    m.block((-3400, -1100, 0), (-2300, 1100, L1), "metal", sym=True)
-    m.ramp((-2300, 850, L1), (-1700, 850, 0), 400, sym=True)
-    m.ramp((-3400, -850, L1), (-4000, -850, 0), 400, sym=True)
 
-    # ---- Reactor core: slab at L2 over a reactor housing (a small room with doors on the north and south sides,
-    # so the hall's long axis is blocked at every height). The Overshield is inside the housing. ----
-    m.block((-600, -600, L2 - S), (600, 600, L2), "metal")
-    m.wall_y(-450, 450, -420, 0, L2 - S, t=60, color="dark", sym=True)
-    m.wall_x(-450, 450, 420, 0, L2 - S, [(-250, 250, 0, 400)], t=60, color="dark", sym=True)
-    m.block((-250, 600, L2 - S), (250, 3800, L2), "bridge", sym=True)   # red's bridge to its north catwalk
-    m.lift((-1500, 0, 0), (-400, 0, L2), sym=True)
+    # ---- Approach deck (D) between the bridge and the trench ----
+    m.block((-3900, -BAND, 0), (-1300, BAND, D), "metal", sym=True)
+    m.ramp((-1300, 1250, D), (-500, 1250, 0), 400, sym=True)       # down into the trench
+    m.ramp((-1300, -1250, D), (-500, -1250, 0), 400, sym=True)
 
-    # ---- Hall / flank walls, full height, with doors (x0, x1, z_lo, z_hi) ----
-    m.wall_x(-6800, 0, WY, 0, 1500, [(-6000, -5500, L1, 700), (-4300, -3800, 0, 400), (-2000, -1500, 0, 400),
-                                    (-300, 0, 0, 1000)], sym=True)
-    m.block((-6000, 2600, 0), (-5500, 2660, L1), "red", sym=True)  # under the hangar door: deck height
-    m.wall_x(-6800, 0, -WY, 0, 1500, [(-6000, -5500, L1, 700), (-4700, -4200, 0, 400), (-2700, -2200, 0, 400),
-                                     (-300, 0, 0, 1000)], sym=True)
-    m.block((-6000, -2660, 0), (-5500, -2600, L1), "red", sym=True)
+    # ---- The Cradle: the pod hung over the trench, two crane-arm ramps and two lifts ----
+    m.block((-700, -400, 400), (700, 400, P), "bridge")              # the pod (4 m clear underneath)
+    m.ramp((-1300, 0, D), (-700, 0, P), 250, "bridge", sym=True)     # crane arm
+    m.lift((0, 1700, 0), (0, 250, P))
+    m.lift((0, -1700, 0), (0, -250, P))
 
-    # ---- North flank, red end: cargo hold with a catwalk along the hull ----
-    m.block((-6800, 2660, 0), (-5000, 4400, L1), "red", sym=True)                 # dock (L1)
-    m.ramp((-5000, 3400, L1), (-4300, 3400, 0), 600, sym=True)
-    m.ramp((-6300, 4100, L1), (-5300, 4100, L2), 500, sym=True)                   # dock -> catwalk landing
-    m.block((-5300, 3800, L2 - S), (-4400, 4400, L2), "metal", sym=True)
-    m.block((-4400, 3800, L2 - S), (300, 4400, L2), "metal", sym=True)            # catwalk
-    m.lift((-2200, 3150, 0), (-2200, 4100, L2), sym=True)
+    # ---- Band walls: doors to the docks (D), to the Breach / Galleries ramps (D) and the trench mouths (0) ----
+    for y in (BAND, -BAND):
+        m.wall_x(-5200, 0, y, 0, 1500, [(-4700, -4200, D, O), (-2800, -2300, D, O), (-1000, 0, 0, 450)], sym=True)
 
-    # ---- South flank, red end: engine deck (L2) over an enclosed maintenance tunnel ----
-    m.block((-6800, -4400, 0), (-5000, -2660, L1), "red", sym=True)               # dock (L1)
-    m.ramp((-5000, -3300, L1), (-4300, -3300, 0), 600, sym=True)
-    m.block((-4400, -4400, L2 - S), (-1600, -3200, L2), "metal", sym=True)        # engine deck
-    m.block((-1900, -3200, L2 - S), (-1600, -2700, L2), "metal", sym=True)        # its east landing
-    m.ramp((-5050, -4000, L1), (-4400, -4000, L2), 400, sym=True)                 # dock -> deck
-    m.ramp((-400, -2900, 0), (-1600, -2900, L2), 400, sym=True)                   # hall side -> deck
-    m.wall_x(-4400, -1600, -3230, 0, L2 - S, [(-3300, -2800, 0, 400)], sym=True)  # tunnel's inner wall
-    m.wall_y(-4400, -3260, -3900, 0, L2 - S, [(-3800, -3260, 0, 400)], sym=True)   # bulkheads: the tunnel doglegs,
-    m.wall_y(-4400, -3260, -2000, 0, L2 - S, [(-4400, -3860, 0, 400)], sym=True)   # no straight shot through it
+    # ---- Docks at each corner (D): the bridge's side doors open onto them ----
+    for s in (1, -1):
+        m.block((-5200, s * BAND, 0), (-3900, s * 3600, D), "red", sym=True)
+        m.ramp((-3900, s * 2500, D), (-3200, s * 2500, 0), 500, sym=True)            # down to the lane floor
+        m.ramp((-2550, s * 2030, D), (-2550, s * 2830, 0), 500, sym=True)            # approach deck -> lane
 
-    # ---- Cover: sightline breakers in the hall, low cover on every deck and catwalk ----
-    m.cover((-2100, 1250, 0), (-1500, 2000, 1500), "metal", sym=True)      # coolant tanks: break hall diagonals
-    m.cover((-2100, -2000, 0), (-1500, -1250, 1500), "metal", sym=True)
-    m.cover((-4200, 1000, 0), (-3900, 1300, 130), sym=True)
-    m.cover((-1100, -1600, 0), (-800, -1300, 130), sym=True)
-    m.cover((-3000, 1800, 0), (-2700, 2100, 130), sym=True)
-    m.cover((-3000, -2000, 0), (-2600, -1800, 130), sym=True)
-    m.cover((-1000, 1200, 0), (-700, 1500, 130), sym=True)
-    m.cover((-3000, -600, L1), (-2700, 600, 1500), "metal", sym=True)       # loading platform: crane column
-    m.cover((-450, 250, L2), (-350, 450, L2 + 110), "metal", sym=True)      # core top
-    m.cover((-5800, 700, L1), (-5600, 1000, L1 + 110), "metal", sym=True)   # hangar deck
-    m.cover((-5800, -1000, L1), (-5600, -700, L1 + 110), "metal", sym=True)
-    m.cover((-3600, 2900, 0), (-3300, 3400, 450), "metal", sym=True)        # hold: container + crates
-    m.cover((-3000, 3700, 0), (-2700, 4000, 130), sym=True)
-    m.cover((-1600, 3250, 0), (-1100, 3750, 450), "metal", sym=True)
-    m.cover((-3600, 3800, L2), (-3400, 3950, L2 + 110), "metal", sym=True)  # catwalk
-    m.cover((-1400, 4250, L2), (-1200, 4400, L2 + 110), "metal", sym=True)
-    m.cover((-3700, -4100, L2), (-3300, -3700, 1100), "metal", sym=True)    # engine deck machinery
-    m.cover((-2600, -3600, L2), (-2400, -3300, L2 + 110), "metal", sym=True)
-    m.cover((-3600, -4100, 0), (-3400, -3900, 130), sym=True)               # tunnel
-    # Hull ribs: 3 m frames off the hull and the hall walls, every 10 m where nothing else stands. They break the
-    # lines that hug the walls down the whole ship (long lines over 60 m, 10 m sample: 217 -> 135), so a long
-    # corridor is a run of 10 m bays. Split round the catwalk and the engine deck; none stands on a catwalk or bridge.
-    for a, b in [((-5030, 2660, L1), (-4970, 2960, 1500)), ((-4030, 4100, 0), (-3970, 4400, 610)),
-                 ((-3030, 2660, 0), (-2970, 2960, 1500)), ((-2030, 2660, 0), (-1970, 2960, 1500)),
-                 ((-1030, 4100, 0), (-970, 4400, 610)), ((-1030, 2660, 0), (-970, 2960, 1500)),
-                 ((-30, 4100, 0), (30, 4400, 610)), ((-30, 2660, 0), (30, 2960, 610)),
-                 ((970, 4100, 0), (1030, 4400, 1500)), ((970, 2300, 0), (1030, 2600, 1500)),
-                 ((1970, 4100, 0), (2030, 4400, 400)), ((1970, 4100, L2), (2030, 4400, 1500)),
-                 ((2970, 4100, 0), (3030, 4400, 610)), ((2970, 2660, 0), (3030, 2960, 1500)),
-                 ((3970, 4100, L2), (4030, 4400, 1500))]:
-        m.cover(a, b, "metal", sym=True)
+    # ---- North: the Breach. Catwalk along the hull (P), open floor under it ----
+    m.ramp((-3900, 3350, D), (-3200, 3350, P), 500, sym=True)
+    m.block((-3200, 3100, P - 40), (3200, 3600, P), "metal")
+
+    # ---- South: the Galleries. Upper walkway (D) along the hull per side, pipes and the pylon ring ----
+    m.block((-3900, -3600, D - 40), (-1800, -3100, D), "metal", sym=True)
+    m.ramp((-1800, -3350, D), (-1100, -3350, 0), 500, sym=True)
+
+    # ---- Cover ----
+    # Crane masts on the approach decks: floor to ceiling, they break the bridge-to-bridge lines beside the pod.
+    m.cover((-2300, 450, D), (-1900, 950, 1500), "metal", sym=True)
+    m.cover((-2300, -950, D), (-1900, -450, 1500), "metal", sym=True)
+    m.cover((-3400, 1300, D), (-3100, 1600, D + 130), sym=True)           # approach deck crates
+    m.cover((-3400, -1600, D), (-3100, -1300, D + 130), sym=True)
+    m.cover((-3000, -200, D), (-2800, 200, D + 130), "metal", sym=True)
+    m.cover((-4600, 600, D), (-4400, 900, D + 110), "metal", sym=True)    # bridge consoles
+    m.cover((-4600, -900, D), (-4400, -600, D + 110), "metal", sym=True)
+    m.cover((-1000, 500, 0), (-800, 800, 130), "metal", sym=True)         # trench: coolant blocks
+    m.cover((-1000, -800, 0), (-800, -500, 130), "metal", sym=True)
+    # Breach floor: hull debris.
+    m.cover((-2000, 2300, 0), (-1600, 2600, 1500), "metal", sym=True)   # fallen frame
+    m.cover((-1000, 2700, 0), (-600, 2900, 1500), "metal", sym=True)   # torn hull frame, floor to ceiling
+    m.cover((-1530, 3300, 0), (-1470, 3600, P - 40), "metal", sym=True)   # hull ribs under the catwalk
+    m.cover((-200, 2300, 0), (200, 2500, 130), "metal")
+    m.cover((-2000, 3450, P), (-1800, 3600, P + 110), "metal", sym=True)   # catwalk
+    # Galleries: pipe runs and the reactor pylon ring round the Camo.
+    for k in range(6):
+        a = k * math.pi / 3
+        cx, cy = 500 * math.cos(a), -2800 + 500 * math.sin(a)
+        m.cover((cx - 100, cy - 100, 0), (cx + 100, cy + 100, 600), "metal")
+    m.cover((-3300, -3000, 0), (-3000, -2900, 130), sym=True)
+    m.cover((-1700, -2900, 0), (-1300, -2700, 130), "metal", sym=True)
+    m.cover((-2200, -2650, 0), (-1900, -2350, 1500), "metal", sym=True)   # coolant stack
+    m.cover((570, -3600, 0), (630, -3400, 1500), "metal", sym=True)       # hull ribs
 
     # ---- Items and objectives ----
-    m.weapon("rockets", (0, 0, L2 + 70))
+    m.weapon("rockets", (0, 0, P + 70))
     m.powerup("overshield", (0, 0, 70))
-    m.weapon("rail", (-700, 3300, 70), sym=True)
-    m.powerup("aegis", (-1800, -3700, 70), sym=True)
-    for sp in [(-6000, 1300, L1), (-6000, -1300, L1), (-6300, 3300, L1), (-6300, -3400, L1), (-6600, 1500, L2)]:
+    m.weapon("rail", (0, 3350, P + 70))
+    m.powerup("camo", (0, -2800, 70))
+    m.powerup("aegis", (-3300, 0, D + 70), sym=True)
+    for sp in [(-4500, 1300, D), (-4500, -1300, D), (-5000, 0, O), (-5000, 2400, D), (-5000, -2400, D)]:
         m.spawn(sp)
-    m.flag((-6050, 0, L1 + 90))
-    m.hills = [(0, 0, L2 + 220), (-2850, 850, L1 + 220), (-2700, 3300, 220), (2850, -850, L1 + 220), (2700, -3300, 220)]
-    m.ball = (0, 1500, 90)
+    m.flag((-4400, 0, D + 90))
+    m.hills = [(0, 0, P + 220), (0, 2600, 220), (0, -2300, 220), (-2600, 0, D + 220), (2600, 0, D + 220)]
+    m.ball = (0, 1000, 90)
     return m
 
 

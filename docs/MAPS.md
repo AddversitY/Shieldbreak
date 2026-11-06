@@ -16,7 +16,7 @@ Spawning: the spawn picker (`AShieldbreakGameMode::ChooseSpawnTransform`) never 
 see (map geometry only, within 60 m) while a hidden one is left, so a team pushed back into its half is not spawn-trapped.
 
 Look (visual only, no collision): each map has a hero landmark made in Blender (`Art/blender/build_hero_kit.py`): a
-reactor crown hung over Keel's core, a keep-tower beyond Bastion's north wall, a hard-light condenser hung over Spire's
+reactor crown hung over Keel's centre, a keep-tower beyond Bastion's north wall, a hard-light condenser hung over Spire's
 column, and a sandstone arch beyond Creekbed's south cliff. Creekbed's and Bastion's rock and sand blocks wear a
 sandstone skin (`Art/blender/build_rock_skin.py`, `FShieldbreakMapLook::bRockSkin`). Kit glow takes each map's colour
 (`FShieldbreakMapLook::KitGlow`).
@@ -35,7 +35,7 @@ Tools:
 
 | Map | Spawn exposure (before / now) | Standing lines over 60 m | Flag-to-flag routes (sprint) |
 |---|---|---|---|
-| Keel | 89 / 0 | 217 | 14.2 / 15.7 / 17.1 s |
+| Keel (2026-11-06 rebuild) | 0 | 127 | 12.1 / 12.2 / 14.4 s |
 | Bastion | 131 / 0 | 846 (the long-range map) | 13.7 / 15.1 / 15.9 s |
 | Spire | 90 / 0 | 763 | 16.4 / 20.3 / 20.6 s |
 | Creekbed | 161 / 0 | 555 | 11.7 / 12.8 / 13.4 s |
@@ -51,7 +51,7 @@ Tools:
 
 | Map | Inspired by | Size | Power weapons / items | Best modes |
 |---|---|---|---|---|
-| **Keel** (default) | Midship | 136 × 88 m, enclosed | Rockets on the reactor core, Overshield under it, Rail Lance and Aegis per side (off the spawns) | CTF, Slayer |
+| **Keel** (default) | Midship | 104 × 72 m, enclosed | Rockets on the hung cargo pod, Overshield under it, Rail Lance on the Breach catwalk, Camo in the Galleries, Aegis per approach deck | CTF, Slayer, Oddball |
 | **Bastion** | Lockout | 128 × 104 m | Sniper on the neutral north tower, Rockets in the pit, Rail Lance on the library roof, Camo in the library, Aegis per side | KOTH, Oddball, Slayer |
 | **Sanctum** | Sanctuary / The Pit | 152 × 104 m | Rockets on the courtyard plinth (crouch-jump or Power Jump), Sniper per temple perch, Rail Lance per flank walkway, Aegis per courtyard crossing, Overshield in the south shrine | CTF, Slayer |
 | **Creekbed** | Beaver Creek | 120 × 80 m | Rockets on the mid-creek rock, Rail Lance on the arch, Aegis in the cave (all on the centre line) | Slayer, CTF, Oddball |
@@ -60,10 +60,13 @@ Tools:
 ## Keel
 Redesign brief (from a study of how Midship plays): [KEEL_MIDSHIP_STUDY.md](KEEL_MIDSHIP_STUDY.md).
 
-The inside of a derelict warship, fully enclosed (15 m ceiling). Each team's hangar (deck 3 m, gantry 6.5 m)
-sits behind a blast wall with three doors. The reactor hall in the middle has the rockets on the core (6.5 m),
-reached by two bridges and two lifts, with the overshield in the housing underneath. North: a cargo hold with a
-6.5 m catwalk. South: an engine deck over a maintenance tunnel.
+Rebuilt 2026-11-06 as a blockout of that brief: a compact warship interior built as one loop round a visible
+centrepiece, enclosed, mirror-symmetric across the middle (red at -X). Each team's command Bridge (deck 3.5 m, an
+overwatch at 7 m behind the flag) looks through a long window over its approach deck into the Cradle: a drydock
+trench (0 m) under a cargo pod hung at 6.5 m, with the rockets on the pod (crane-arm ramps from both decks, lifts
+from the trench) and the Overshield underneath. North, shared: the Breach, a long lane with a catwalk along the hull
+(Rail Lance). South, shared: the Galleries, close-range engine galleries round a ring of reactor pylons (Camo).
+Art is still the old hull kit; the look from the brief comes after a PC playtest of this layout.
 
 ![Keel](../Design/maps/Keel.png)
 
