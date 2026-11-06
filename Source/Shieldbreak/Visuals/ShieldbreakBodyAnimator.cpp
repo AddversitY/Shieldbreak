@@ -455,6 +455,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarThrowWrist(TEXT("sb.FPThrowWrist"), 1.f, TEXT("First-person grenade throw: wrist cock/snap amount; -1 flips its direction."));
 	TAutoConsoleVariable<float> CVarGripTime(TEXT("sb.FPThrowGripTime"), -1.f, TEXT("Seconds into Lyra's toss whose left-finger pose the throw starts from (negative: the idle's fingers; the curl closes them either way)."));
 	TAutoConsoleVariable<float> CVarThrowFreeze(TEXT("sb.FPThrowFreeze"), -1.f, TEXT("Captures: >= 0 holds the first-person throw pose at this many seconds into the throw (the grenade still leaves on time)."));
+	TAutoConsoleVariable<float> CVarHandRoll(TEXT("sb.FPThrowHandRoll"), 70.f, TEXT("First-person grenade throw: degrees the left hand turns about the forearm so the grenade shows (G6: at 0 only the back of the hand did)."));
 	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPThrowCurl"), 1.f, TEXT("First-person grenade throw: how far the left fingers close round the grenade (0 = open)."));
 	TAutoConsoleVariable<float> CVarShoulderX(TEXT("sb.FPThrowShoulderX"), -4.f, TEXT("First-person grenade throw: the throwing shoulder, cm in front of the eye (camera space)."));
 	TAutoConsoleVariable<float> CVarShoulderY(TEXT("sb.FPThrowShoulderY"), -20.f, TEXT("First-person grenade throw: the throwing shoulder, cm right of the eye (negative = left)."));
@@ -1037,7 +1038,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 		Keys.Reset();
 		// Around a shoulder at sb.FPThrowShoulder (about 20 cm left of and below the eye, a little behind it).
 		Keys.Add({ 0.f, FVector(10.f, -30.f, -52.f), FVector(-12.f, -22.f, -18.f), -10.f });
-		Keys.Add({ R * 0.55f, FVector(13.f, -26.f, -5.f), FVector(-16.f, -20.f, 6.f), -40.f });
+		// Cocked inside the view's left third (63 degrees off centre was out of frame, G6).
+		Keys.Add({ R * 0.55f, FVector(22.f, -17.f, -7.f), FVector(-14.f, -20.f, 4.f), -40.f });
 		Keys.Add({ R, FVector(40.f, -9.f, -7.f), FVector(-22.f, -16.f, -18.f), 15.f });
 		Keys.Add({ R + 0.1f, FVector(34.f, 1.f, -25.f), FVector(-20.f, -12.f, -22.f), 35.f });
 		Keys.Add({ R + 0.24f, FVector(14.f, -8.f, -58.f), FVector(-10.f, -20.f, -18.f), 20.f });
@@ -1142,6 +1144,8 @@ float UShieldbreakBodyAnimator::UpdateFirstPersonThrow(UShieldbreakBodyAnimInsta
 	UAnimSequenceBase* Grip = GripTime >= 0.f ? GetActionAnimation(EShieldbreakAction::GrenadeThrow) : nullptr;
 	const FVector Shoulder = ArmsToCamera.InverseTransformPosition(FVector(CVarShoulderX.GetValueOnGameThread(),
 		CVarShoulderY.GetValueOnGameThread(), CVarShoulderZ.GetValueOnGameThread()));
+	// The roll eases out after the release, so the follow-through ends palm down.
+	Instance->SetLeftHandRoll(CVarHandRoll.GetValueOnGameThread() * (T < R ? 1.f : FMath::Max(0.f, 1.f - (T - R) / 0.12f)));
 	Instance->SetLeftArm(Weight, Shoulder, HandTarget, ElbowTarget, Wrist, CVarFingerCurl.GetValueOnGameThread(), Grip, GripTime);
 	// How close last frame's evaluated hand got to last frame's target (reach limits show up here).
 	if (!LastLeftHandTarget.IsZero())

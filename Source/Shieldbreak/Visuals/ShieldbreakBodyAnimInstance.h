@@ -83,6 +83,7 @@ private:
 	float LeftWristFlex = 0.f;
 	FVector LeftShoulderTarget = FVector::ZeroVector;
 	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
 	const UAnimSequenceBase* GripAnimation = nullptr;
 	float GripTime = 0.f;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
@@ -126,6 +127,8 @@ public:
 		LeftArmWeight = Weight; LeftShoulderTarget = ShoulderTarget; LeftHandTarget = HandTarget; LeftElbowPole = ElbowPole;
 		LeftWristFlex = WristFlex; LeftFingerCurl = FingerCurl; LeftGrip = Grip; LeftGripTime = InGripTime;
 	}
+	/** Grenade throw: degrees the left hand turns about the forearm (to show the grenade in it rather than the back of the hand). */
+	void SetLeftHandRoll(float Degrees) { LeftHandRoll = Degrees; }
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -174,6 +177,7 @@ private:
 	float LeftWristFlex = 0.f;
 	FVector LeftShoulderTarget = FVector::ZeroVector;
 	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
 	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> LeftGrip;
 	float LeftGripTime = 0.f;
 };

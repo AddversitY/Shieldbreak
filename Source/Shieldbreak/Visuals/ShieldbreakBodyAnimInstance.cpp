@@ -159,6 +159,7 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	LeftWristFlex = Instance->LeftWristFlex;
 	LeftShoulderTarget = Instance->LeftShoulderTarget;
 	LeftFingerCurl = Instance->LeftFingerCurl;
+	LeftHandRoll = Instance->LeftHandRoll;
 	GripAnimation = Instance->LeftGrip;
 	GripTime = Instance->LeftGripTime;
 }
@@ -440,6 +441,11 @@ void FShieldbreakBodyAnimProxy::ApplyLeftArm(FPoseContext& Output) const
 	if (!Hinge.IsNearlyZero() && !FMath::IsNearlyZero(LeftWristFlex))
 	{
 		NewHand = (FQuat(Hinge, FMath::DegreesToRadians(LeftWristFlex)) * NewHand).GetNormalized();
+	}
+	const FVector Forearm = (NewE - NewJ).GetSafeNormal();
+	if (!Forearm.IsNearlyZero() && !FMath::IsNearlyZero(LeftHandRoll))
+	{
+		NewHand = (FQuat(Forearm, FMath::DegreesToRadians(LeftHandRoll)) * NewHand).GetNormalized();
 	}
 
 	const float W = LeftArmWeight;
