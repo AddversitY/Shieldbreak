@@ -411,7 +411,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<int32> CVarFPSelfShadow(TEXT("sb.FPSelfShadow"), 1, TEXT("1: the local player's hidden body casts a shadow (new spawns)."));
 	/** Bounce fill from below and in front for the gun's undersides (task 11: the BR read near black under the rail,
 	 *  lit only from the ceiling). Candelas; 0 = off. Lights only the first-person arms and gun (channel 1). */
-	TAutoConsoleVariable<float> CVarFirstPersonBounce(TEXT("sb.FPBounce"), 0.f, TEXT("Candelas of a fill from below for the first-person gun (0 = off, new spawns)."));
+	TAutoConsoleVariable<float> CVarFirstPersonBounce(TEXT("sb.FPBounce"), 1.5f, TEXT("Candelas of a fill from below for the first-person gun (0 = off, new spawns)."));
 	TAutoConsoleVariable<float> CVarFirstPersonLight(TEXT("sb.FPLight"), 0.f, TEXT("Candelas of the fill light that lights only the first-person arms and gun (0 = off)."));
 	TAutoConsoleVariable<int32> CVarFirstPersonArms(TEXT("sb.FPArms"), 1, TEXT("1: the local player sees first-person arms holding the gun; 0: the old floating viewmodel."));
 	// Where the gun hand sits in camera space (cm forward, right, down) and where the barrel points (degrees; yaw
