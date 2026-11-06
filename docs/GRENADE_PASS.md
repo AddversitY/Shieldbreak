@@ -39,3 +39,9 @@ cooking, ever. Performance first.
 "Grenade throw timing": no grenade before the release, grenade in hand meanwhile, no firing, exactly one grenade after
 the release and an empty hand, a second press mid-throw ignored, the arming light blinks, and the explosion draws its
 cards. Shots: `fp_3b_grenade_release_*` (around the release) and `tp_7_explosion_*` (0.03 to 3 s).
+
+## Range (2026-11-06)
+
+Vincent asked for throws at least 60% farther. `LaunchSpeed` went 1900 -> 2500 cm/s, which gives about 1.73x the flat range
+(range goes with speed squared). `MaxFuse` went 3 -> 4 s so long lobs land before they can go off in the air. `sb.GrenadeSpeedScale`
+tunes it live. Bots now solve the lob angle from the real speed, so they don't overthrow.

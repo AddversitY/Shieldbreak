@@ -34,6 +34,8 @@ public:
 	static float GetReleaseDelay();
 	/** Seconds a throw lasts (sb.GrenadeThrowTime): the minimum time between throws and the no-fire window. */
 	static float GetThrowDuration();
+	/** Launch speed of a throw (LaunchSpeed times sb.GrenadeSpeedScale), for bots aiming lobs. */
+	static float GetLaunchSpeed();
 	/** The grenade model (ours, else Lyra's, else null). Shared with the grenade shown in the throwing hand. */
 	static UStaticMesh* GetGrenadeMesh();
 
@@ -53,9 +55,11 @@ protected:
 	/** The arming light: a small unshadowed point light that blinks with the glow strip. */
 	UPROPERTY(VisibleAnywhere, Category = "Grenade") TObjectPtr<UPointLightComponent> ArmingLight;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float LaunchSpeed = 1900.f;
+	// 2500 (was 1900): Vincent wanted throws at least 60% farther (2026-11-06); flat range goes with speed squared (1.73x).
+	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float LaunchSpeed = 2500.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float FuseAfterBounce = 1.1f;
-	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float MaxFuse = 3.f;
+	// 4 s (was 3) so a long lob lands before it can go off in the air.
+	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float MaxFuse = 4.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float BaseDamage = 110.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float MinDamage = 10.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Grenade") float InnerRadius = 180.f;

@@ -25,6 +25,7 @@ namespace ShieldbreakGrenadePrivate
 {
 	TAutoConsoleVariable<float> CVarReleaseDelay(TEXT("sb.GrenadeReleaseDelay"), 0.15f,
 		TEXT("Seconds from the grenade press until the hand lets go (the grenade spawns then; the throw animations are timed to it)."));
+	TAutoConsoleVariable<float> CVarSpeedScale(TEXT("sb.GrenadeSpeedScale"), 1.f, TEXT("Multiplies the grenade launch speed (range goes with its square)."));
 	TAutoConsoleVariable<float> CVarThrowTime(TEXT("sb.GrenadeThrowTime"), 0.6f,
 		TEXT("Seconds a grenade throw lasts: minimum time between throws, and no firing meanwhile."));
 	TAutoConsoleVariable<int32> CVarLyraBurst(TEXT("sb.GrenadeLyraBurst"), 1,
@@ -39,6 +40,11 @@ namespace ShieldbreakGrenadePrivate
 float AShieldbreakGrenade::GetReleaseDelay()
 {
 	return FMath::Clamp(ShieldbreakGrenadePrivate::CVarReleaseDelay.GetValueOnGameThread(), 0.f, 1.f);
+}
+
+float AShieldbreakGrenade::GetLaunchSpeed()
+{
+	return GetDefault<AShieldbreakGrenade>()->LaunchSpeed * FMath::Max(0.1f, ShieldbreakGrenadePrivate::CVarSpeedScale.GetValueOnGameThread());
 }
 
 float AShieldbreakGrenade::GetThrowDuration()
@@ -172,7 +178,7 @@ void AShieldbreakGrenade::BeginPlay()
 
 void AShieldbreakGrenade::Launch(const FVector& Direction, const FVector& InheritedVelocity)
 {
-	ProjectileMovement->Velocity = Direction.GetSafeNormal() * LaunchSpeed + InheritedVelocity;
+	ProjectileMovement->Velocity = Direction.GetSafeNormal() * LaunchSpeed * FMath::Max(0.1f, ShieldbreakGrenadePrivate::CVarSpeedScale.GetValueOnGameThread()) + InheritedVelocity;
 	ProjectileMovement->UpdateComponentVelocity();
 
 	GetWorldTimerManager().SetTimer(FuseTimerHandle, this, &AShieldbreakGrenade::Explode, MaxFuse, false);
