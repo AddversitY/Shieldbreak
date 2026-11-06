@@ -1038,8 +1038,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 		Keys.Reset();
 		// Around a shoulder at sb.FPThrowShoulder (about 20 cm left of and below the eye, a little behind it).
 		Keys.Add({ 0.f, FVector(10.f, -30.f, -52.f), FVector(-12.f, -22.f, -18.f), -10.f });
-		// Cocked inside the view's left third (63 degrees off centre was out of frame, G6).
-		Keys.Add({ R * 0.55f, FVector(22.f, -17.f, -7.f), FVector(-14.f, -20.f, 4.f), -40.f });
+		// Cocked inside the view's left third (63 degrees off centre was out of frame, G6; 22 cm put the camera inside the hand, G7).
+		Keys.Add({ R * 0.55f, FVector(36.f, -19.f, -4.f), FVector(-14.f, -20.f, 4.f), -40.f });
 		Keys.Add({ R, FVector(40.f, -9.f, -7.f), FVector(-22.f, -16.f, -18.f), 15.f });
 		Keys.Add({ R + 0.1f, FVector(34.f, 1.f, -25.f), FVector(-20.f, -12.f, -22.f), 35.f });
 		Keys.Add({ R + 0.24f, FVector(14.f, -8.f, -58.f), FVector(-10.f, -20.f, -18.f), 20.f });

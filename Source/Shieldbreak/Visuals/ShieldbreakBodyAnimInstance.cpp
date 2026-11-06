@@ -488,7 +488,7 @@ void FShieldbreakBodyAnimProxy::ApplyLeftArm(FPoseContext& Output) const
 	};
 	// Degrees per joint: a loose fist round a 7 cm ball (the thumb wraps less).
 	// G5: the first values left the hand half open with the thumb out.
-	static const float Curl[][3] = { { 55.f, 65.f, 40.f }, { 58.f, 68.f, 40.f }, { 60.f, 68.f, 40.f }, { 62.f, 65.f, 40.f }, { 30.f, 40.f, 30.f } };
+	static const float Curl[][3] = { { 72.f, 85.f, 55.f }, { 75.f, 88.f, 55.f }, { 78.f, 88.f, 55.f }, { 80.f, 85.f, 55.f }, { 38.f, 48.f, 35.f } };
 	for (int32 Finger = 0; Finger < 5; ++Finger)
 	{
 		for (int32 Joint = 0; Joint < 2; ++Joint)
