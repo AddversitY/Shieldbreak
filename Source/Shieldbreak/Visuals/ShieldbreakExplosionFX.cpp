@@ -16,7 +16,7 @@
 
 namespace ShieldbreakExplosionPrivate
 {
-	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 800.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
+	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 300.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
 	TAutoConsoleVariable<float> CVarShake(TEXT("sb.ExplosionShake"), 1.f, TEXT("Explosion camera shake strength (0 = off)."));
 	TAutoConsoleVariable<int32> CVarCards(TEXT("sb.ExplosionCards"), 1, TEXT("1: fireball and smoke cards; 0: light, scorch and shake only (for FPS A/B)."));
 	TAutoConsoleVariable<int32> CVarScorch(TEXT("sb.ExplosionScorch"), 1, TEXT("1: explosions leave a scorch decal that fades out."));
@@ -267,7 +267,8 @@ void AShieldbreakExplosionFX::Tick(float DeltaSeconds)
 	{
 		// A sharp flash, then the fireball's own glow fading with it.
 		const float Peak = CVarFlash.GetValueOnGameThread() * FXScale;
-		// The 30k cd first version whited out the whole frame at 7 m for 0.3 s (desktop G3 shots).
+		// The 30k cd first version whited out the whole frame at 7 m for 0.3 s (desktop G3 shots); 800 cd still blew out the gun
+		// and a dummy at 2.8 m (G9), so the fire cards carry the brightness and the light only tints the room.
 		const float Glow = 0.25f * FMath::Max(0.f, 1.f - Age / 0.7f);
 		const float Intensity = Peak * (FMath::Exp(-Age / 0.05f) + Glow);
 		Flash->SetIntensity(Intensity);
