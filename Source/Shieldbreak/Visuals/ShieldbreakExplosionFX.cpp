@@ -16,7 +16,7 @@
 
 namespace ShieldbreakExplosionPrivate
 {
-	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 2500.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
+	TAutoConsoleVariable<float> CVarFlash(TEXT("sb.ExplosionFlash"), 800.f, TEXT("Peak candelas of an explosion's flash light (0 = no light)."));
 	TAutoConsoleVariable<float> CVarShake(TEXT("sb.ExplosionShake"), 1.f, TEXT("Explosion camera shake strength (0 = off)."));
 	TAutoConsoleVariable<int32> CVarCards(TEXT("sb.ExplosionCards"), 1, TEXT("1: fireball and smoke cards; 0: light, scorch and shake only (for FPS A/B)."));
 	TAutoConsoleVariable<int32> CVarScorch(TEXT("sb.ExplosionScorch"), 1, TEXT("1: explosions leave a scorch decal that fades out."));
@@ -125,7 +125,7 @@ void AShieldbreakExplosionFX::Build()
 		Flash->SetMobility(EComponentMobility::Movable);
 		Flash->SetIntensityUnits(ELightUnits::Candelas);
 		Flash->SetIntensity(FlashCandelas * S);
-		Flash->SetAttenuationRadius(1000.f * S);
+		Flash->SetAttenuationRadius(700.f * S);
 		Flash->SetSourceRadius(40.f * S);
 		Flash->SetLightColor(FLinearColor(1.f, 0.62f, 0.3f));
 		Flash->SetCastShadows(false);

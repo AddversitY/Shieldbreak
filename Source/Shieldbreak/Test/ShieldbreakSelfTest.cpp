@@ -3513,10 +3513,10 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.04f, 0.08f, 0.12f, 0.2f }, 2.f);
 		// The same throw held at two poses (sb.FPThrowFreeze), since a capture lands too late for the 0.15 s wind-up:
 		// cocked beside the head with the grenade, and the hand coming through just before it lets go.
-		// fp_3e repeats the cocked pose with the hand turned the other way (sb.FPThrowHandRoll), to pick the sign.
+		// fp_3e repeats the through pose with the hand turned the other way (G8 picked -70 for the cocked pose) (sb.FPThrowHandRoll), to pick the sign.
 		struct FHeldPose { const TCHAR* Name; float Hold; float Roll; };
-		for (const FHeldPose& Pose : { FHeldPose{ TEXT("fp_3c_grenade_cocked"), 0.09f, 70.f }, FHeldPose{ TEXT("fp_3d_grenade_through"), 0.14f, 70.f },
-			FHeldPose{ TEXT("fp_3e_grenade_cocked_roll"), 0.09f, -70.f } })
+		for (const FHeldPose& Pose : { FHeldPose{ TEXT("fp_3c_grenade_cocked"), 0.09f, -70.f }, FHeldPose{ TEXT("fp_3d_grenade_through"), 0.14f, -70.f },
+			FHeldPose{ TEXT("fp_3e_grenade_through_roll"), 0.14f, 70.f } })
 		{
 			const float Hold = Pose.Hold;
 			const float Roll = Pose.Roll;
@@ -3532,7 +3532,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 		Steps.Add({ TEXT("Release the held throw pose"), []()
 			{
 				if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(-1.f); }
-				if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(70.f); }
+				if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(-70.f); }
 			}, [](float Elapsed) { return Elapsed > 0.8f; }, 2.f });
 		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },

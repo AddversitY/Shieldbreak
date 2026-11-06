@@ -455,7 +455,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarThrowWrist(TEXT("sb.FPThrowWrist"), 1.f, TEXT("First-person grenade throw: wrist cock/snap amount; -1 flips its direction."));
 	TAutoConsoleVariable<float> CVarGripTime(TEXT("sb.FPThrowGripTime"), -1.f, TEXT("Seconds into Lyra's toss whose left-finger pose the throw starts from (negative: the idle's fingers; the curl closes them either way)."));
 	TAutoConsoleVariable<float> CVarThrowFreeze(TEXT("sb.FPThrowFreeze"), -1.f, TEXT("Captures: >= 0 holds the first-person throw pose at this many seconds into the throw (the grenade still leaves on time)."));
-	TAutoConsoleVariable<float> CVarHandRoll(TEXT("sb.FPThrowHandRoll"), 70.f, TEXT("First-person grenade throw: degrees the left hand turns about the forearm so the grenade shows (G6: at 0 only the back of the hand did)."));
+	TAutoConsoleVariable<float> CVarHandRoll(TEXT("sb.FPThrowHandRoll"), -70.f, TEXT("First-person grenade throw: degrees the left hand turns about the forearm so the grenade shows (G6: at 0 only the back of the hand did; G8: -70 shows it in the cocked pose, +70 did not)."));
 	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPThrowCurl"), 1.f, TEXT("First-person grenade throw: how far the left fingers close round the grenade (0 = open)."));
 	TAutoConsoleVariable<float> CVarShoulderX(TEXT("sb.FPThrowShoulderX"), -4.f, TEXT("First-person grenade throw: the throwing shoulder, cm in front of the eye (camera space)."));
 	TAutoConsoleVariable<float> CVarShoulderY(TEXT("sb.FPThrowShoulderY"), -20.f, TEXT("First-person grenade throw: the throwing shoulder, cm right of the eye (negative = left)."));
@@ -1200,7 +1200,7 @@ void UShieldbreakBodyAnimator::UpdateHeldGrenade(USkeletalMeshComponent* Mesh, T
 	{
 		return;
 	}
-	// In the palm: a little out from the hand toward the middle knuckles, off the palm face. The palm normal comes
+	// In the palm, under the middle knuckles so the curled fingers wrap it (G8: at 0.75 they closed short of it), off the palm face. The palm normal comes
 	// from the knuckles (for a left hand, index-to-pinky across the knuckles crossed with the hand's length).
 	const FVector Hand = Mesh->GetBoneLocation(TEXT("hand_l"));
 	const FVector Middle = Mesh->GetBoneLocation(TEXT("middle_01_l"));
@@ -1209,5 +1209,5 @@ void UShieldbreakBodyAnimator::UpdateHeldGrenade(USkeletalMeshComponent* Mesh, T
 	const FVector Along = (Middle - Hand).GetSafeNormal();
 	const FVector Palm = FVector::CrossProduct(Middle - Hand, Index - Pinky).GetSafeNormal();
 	const float Off = ShieldbreakBodyAnimatorPrivate::CVarHeldGrenadePalm.GetValueOnGameThread();
-	Grenade->SetWorldLocationAndRotation(Hand + (Middle - Hand) * 0.75f + Palm * Off, FRotationMatrix::MakeFromZX(-Along, Palm).ToQuat());
+	Grenade->SetWorldLocationAndRotation(Hand + (Middle - Hand) * 0.95f + Palm * Off, FRotationMatrix::MakeFromZX(-Along, Palm).ToQuat());
 }
