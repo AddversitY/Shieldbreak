@@ -133,6 +133,7 @@ public:
 	float GetFirstPersonLift() const;
 	/** The gun's mesh (sockets Muzzle, Trigger, SupportHand, Magazine). */
 	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	UStaticMeshComponent* GetMagazineMesh() const { return MagazineMesh; }
 	/** First person with split art (SM_SB_<Gun>_NoMag + SM_SB_<Gun>_Mag): the separate magazine the reload moves,
 	 *  seated in the gun's Magazine socket. Null otherwise (the gun mesh then carries its own magazine). */
 	UStaticMeshComponent* GetFirstPersonMagazine() const;

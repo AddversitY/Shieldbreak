@@ -56,7 +56,10 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	SetCanBeDamaged(false);
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// Query-only, ignoring every channel: no world trace or overlap ever sees the gun, but the hands' grip solver can
+	// test its exact surface with LineTraceComponent / SweepComponent (UShieldbreakBodyAnimator::SolveGripContact).
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	WeaponMesh->SetGenerateOverlapEvents(false);
 	WeaponMesh->SetCastShadow(false);
 	// Small moving props: their own mesh distance field made the scene's sky occlusion darken them to near black.
@@ -79,7 +82,8 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 
 	MagazineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MagazineMesh"));
 	MagazineMesh->SetupAttachment(WeaponMesh);
-	MagazineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MagazineMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MagazineMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	MagazineMesh->SetGenerateOverlapEvents(false);
 	MagazineMesh->SetCastShadow(false);
 	MagazineMesh->bAffectDistanceFieldLighting = false;
