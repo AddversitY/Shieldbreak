@@ -202,7 +202,8 @@ void AShieldbreakHUD::DrawHUD()
 	{
 		DrawScoreboard(GameState);
 	}
-	if (PC && PC->IsHelpVisible())
+	// The controls panel would sit over the reticle while scoped (task 15 shots), so it waits until zoom ends.
+	if (PC && PC->IsHelpVisible() && !(Character && Character->GetScopeBlend() > 0.f))
 	{
 		DrawHelp();
 	}
@@ -526,7 +527,7 @@ namespace ShieldbreakHUDPrivate
 void AShieldbreakHUD::DrawMarksmanScope(AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters)
 {
 	using namespace ShieldbreakHUDPrivate;
-	const FLinearColor Housing(0.015f, 0.02f, 0.025f, 0.97f * Alpha);
+	const FLinearColor Housing(0.008f, 0.01f, 0.012f, Alpha);
 	const FLinearColor Cyan = Faded(FLinearColor(0.45f, 0.95f, 1.f, 0.9f), Alpha);
 	const FLinearColor CyanDim = Faded(FLinearColor(0.45f, 0.95f, 1.f, 0.35f), Alpha);
 	const FLinearColor Reticle = bOnEnemy ? Faded(Danger, Alpha) : Faded(FLinearColor(0.8f, 1.f, 1.f, 0.95f), Alpha);
@@ -554,7 +555,7 @@ void AShieldbreakHUD::DrawMarksmanScope(AShieldbreakCharacter* Character, float 
 	const float Outer = R - 22.f * S;
 	for (const FVector2D D : { FVector2D(-1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(0.f, 1.f) })
 	{
-		Line(CX + D.X * Gap, CY + D.Y * Gap, CX + D.X * Mid, CY + D.Y * Mid, Reticle, 1.5f * S);
+		Line(CX + D.X * Gap, CY + D.Y * Gap, CX + D.X * Mid, CY + D.Y * Mid, Reticle, 2.5f * S);
 		Line(CX + D.X * Mid, CY + D.Y * Mid, CX + D.X * Outer, CY + D.Y * Outer, Reticle, 5.f * S);
 	}
 	const float Dm = 6.f * S;
@@ -598,7 +599,7 @@ void AShieldbreakHUD::DrawMarksmanScope(AShieldbreakCharacter* Character, float 
 void AShieldbreakHUD::DrawLongRangeScope(AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters)
 {
 	using namespace ShieldbreakHUDPrivate;
-	const FLinearColor Housing(0.01f, 0.01f, 0.012f, 0.98f * Alpha);
+	const FLinearColor Housing(0.005f, 0.005f, 0.006f, Alpha);
 	const FLinearColor Warm = Faded(FLinearColor(1.f, 0.82f, 0.55f, 0.92f), Alpha);
 	const FLinearColor WarmDim = Faded(FLinearColor(1.f, 0.82f, 0.55f, 0.4f), Alpha);
 	const FLinearColor Reticle = bOnEnemy ? Faded(Danger, Alpha) : Faded(FLinearColor(0.05f, 0.05f, 0.05f, 0.95f), Alpha);
@@ -609,8 +610,6 @@ void AShieldbreakHUD::DrawLongRangeScope(AShieldbreakCharacter* Character, float
 	DrawLensMask(CX, CY, R, Housing);
 	Circle(CX, CY, R + 6.f * S, Faded(FLinearColor(0.1f, 0.1f, 0.11f, 1.f), Alpha), 12.f * S, 128);
 	Circle(CX, CY, R - 2.f * S, WarmDim.CopyWithNewOpacity(0.25f * Alpha), 1.f * S, 128);
-	// A faint reflection arc on the glass, upper left.
-	Arc(CX, CY, R * 0.86f, 225.f, 50.f, FLinearColor(1.f, 1.f, 1.f, 0.05f * Alpha), 10.f * S);
 
 	// Fine cross through the whole lens, with heavy posts in from the rim on all four sides (dark, so it reads on
 	// bright sky; outlined warm so it reads in shadow) and a lit centre dot.

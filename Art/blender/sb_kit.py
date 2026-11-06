@@ -27,7 +27,7 @@ PALETTE = {
     "Sand": ((0.42, 0.36, 0.25), 0.15, 0.6, 0.0),
     "Ivory": ((0.72, 0.72, 0.7), 0.25, 0.32, 0.0),
     # Vanguard BR armor panels: pale satin ceramic, the light value against the gunmetal and polymer.
-    "Ceramic": ((0.5, 0.51, 0.52), 0.0, 0.36, 0.0),
+    "Ceramic": ((0.4, 0.41, 0.42), 0.0, 0.42, 0.0),  # 0.5 lost its panel detail under the FP lights (task 15)
     "Hazard": ((0.8, 0.5, 0.04), 0.1, 0.5, 0.0),
     "GlowCyan": ((0.15, 0.85, 1.0), 0.0, 0.3, 6.0),
     # Weapon screens (ammo counters, scope side displays): a dim readable glow, not a light source.

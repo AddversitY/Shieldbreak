@@ -78,6 +78,9 @@ private:
 	FVector TriggerTarget = FVector::ZeroVector;
 	float SupportWeight = 0.f;
 	FVector SupportTarget = FVector::ZeroVector;
+	FVector SupportFingers = FVector::ForwardVector;
+	FVector SupportPalmNormal = FVector::UpVector;
+	float SupportCurl = 0.f;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -110,8 +113,19 @@ public:
 	const FVector& GetTriggerTarget() const { return TriggerTarget; }
 	/** First-person rifles: Weight 0-1 of reaching the left hand (hand_l) to Target in component space (the gun's
 	 *  SupportHand socket). 0 leaves the arm as the animation has it. */
-	void SetSupportHand(float Weight, const FVector& TargetComponentSpace) { SupportWeight = Weight; SupportTarget = TargetComponentSpace; }
+	void SetSupportHand(float Weight, const FVector& PalmComponentSpace, const FVector& FingersComponentSpace, const FVector& PalmNormalComponentSpace,
+		float Curl)
+	{
+		SupportWeight = Weight;
+		SupportTarget = PalmComponentSpace;
+		SupportFingers = FingersComponentSpace;
+		SupportPalmNormal = PalmNormalComponentSpace;
+		SupportCurl = Curl;
+	}
 	const FVector& GetSupportTarget() const { return SupportTarget; }
+	const FVector& GetSupportFingers() const { return SupportFingers; }
+	const FVector& GetSupportPalmNormal() const { return SupportPalmNormal; }
+	float GetSupportCurl() const { return SupportCurl; }
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -156,4 +170,7 @@ private:
 	FVector TriggerTarget = FVector::ZeroVector;
 	float SupportWeight = 0.f;
 	FVector SupportTarget = FVector::ZeroVector;
+	FVector SupportFingers = FVector::ForwardVector;
+	FVector SupportPalmNormal = FVector::UpVector;
+	float SupportCurl = 0.f;
 };

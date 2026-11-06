@@ -197,4 +197,6 @@ private:
 	bool bScopeHidden = false;
 	TWeakObjectPtr<AActor> ScopeHiddenWeapon;
 	TWeakObjectPtr<class APlayerController> ScopeHidePC;
+	/** Last frame's left-palm target (world), for GetSupportHandError. */
+	FVector SupportPalmWorld = FVector::ZeroVector;
 };
