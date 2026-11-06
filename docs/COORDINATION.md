@@ -58,8 +58,8 @@ Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, s
   FP rig raised 2 cm (sb.FPGripDown 16.5 -> 14.5) so the BR hand shows. No art changes: no import needed.
   Steps (one build): rebuild; self-test once (hoping for 147/147; paste the Death camera line); FPS fixed FP and 4 bots
   once each; `Tools\VisualShots.bat FP` twice: default (SBTAG=_a) and `-ExecCmds="sb.FPGripDown 12.5,sb.FPGripForward 48"`
-  (SBTAG=_b). If any way exists, one screenshot while dead (e.g. a TakeShot during the Death camera step is not wired
-  up; skip if not). JPGs into docs/playtests/2026-11-06_task10/. One report.
+  (SBTAG=_b). The self-test now saves Saved/Screenshots/Shots/<map>_shot_death_camera.png while dead: include it as a
+  JPG. JPGs into docs/playtests/2026-11-06_task10/. One report.
 - **2026-11-06 (9), READY, same branch, at Claude's commit "Fit the first-person hand around the grip":**
   From task (8)'s joints: the hand's knuckles sat inside the receiver (BR index knuckle 4.5 cm above the bore, the
   receiver's underside at -4.5), so the hand vanished behind the BR and the sidearm sight came through the glove. Each

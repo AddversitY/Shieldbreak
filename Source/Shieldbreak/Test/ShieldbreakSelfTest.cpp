@@ -520,7 +520,12 @@ void AShieldbreakSelfTest::BuildSteps()
 				Mark = Now();
 				Phase = 1;
 			}
-			if (Phase == 1 && Now() - Mark > 1.6f)
+			if (Phase == 1 && Now() - Mark > 1.2f)
+			{
+				TakeShot(TEXT("death_camera"), true); // Saved/Screenshots/Shots/<map>_shot_death_camera.png
+				Phase = 2;
+			}
+			if (Phase == 2 && Now() - Mark > 1.6f)
 			{
 				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
 				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
