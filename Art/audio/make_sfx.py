@@ -767,15 +767,15 @@ def shield_recharge(i, rng):
 
 @bank("Shield_Low", 1)
 def shield_low(i, rng):
-    """Low/empty shield alarm: a low, buzzy beep (~205 Hz, pulse-wave timbre, a slight downward bend and a sub) about
+    """Low/empty shield alarm: a low, buzzy beep (~150 Hz, pulse-wave timbre, a slight downward bend and a sub) about
     90 ms long. The game repeats it every 0.2 s while the shield is low, so it reads as a pulsing danger buzz."""
     n = int(0.095 * SR)
     t = np.arange(n) / SR
-    hz = 205 * (1 + 0.035 * np.exp(-t / 0.02))
+    hz = 150 * (1 + 0.035 * np.exp(-t / 0.02))
     ph = np.cumsum(hz) / SR
     duty = 0.38 + 0.06 * np.sin(2 * np.pi * 9 * t)  # gently moving pulse width gives it its own colour
     pulse = np.where((ph % 1.0) < duty, 1.0, -1.0).astype(np.float32)
-    pulse = lp(pulse - np.mean(pulse), 3800, 2)
+    pulse = lp(pulse - np.mean(pulse), 3000, 2)
     sub = np.sin(2 * np.pi * np.cumsum(hz / 2) / SR) * 0.35
     w = (pulse * 0.8 + sub) * env(n, 0.004, 0.03, 0.05)
     return normalize(fade(stereo(w.astype(np.float32)), 0.002, 0.012), -5.0)
