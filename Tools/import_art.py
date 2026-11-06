@@ -320,7 +320,10 @@ def character_material(wear_texture):
     def scalar(name, default, x, y):
         return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=default)
 
-    position = node(unreal.MaterialExpressionPreSkinnedLocalPosition, -1800, 0)
+    # Pre-skinned position and normal are vertex-shader only, so both reach the pixel shader through an interpolator.
+    pre_skinned = node(unreal.MaterialExpressionPreSkinnedPosition, -2000, 0)
+    position = node(unreal.MaterialExpressionVertexInterpolator, -1800, 0)
+    link(pre_skinned, "", position, "VS")
     tile = scalar("WearTile", CHARACTER_WEAR_TILE, -1800, 150)
     uvw = node(unreal.MaterialExpressionDivide, -1600, 0)
     link(position, "", uvw, "A")
@@ -333,7 +336,9 @@ def character_material(wear_texture):
                       parameter_name="Wear", texture=wear_texture)
         link(mask, "", sample, "UVs")
         samples.append(sample)
-    normal = node(unreal.MaterialExpressionPreSkinnedNormal, -1600, 700)
+    pre_skinned_normal = node(unreal.MaterialExpressionPreSkinnedNormal, -1800, 700)
+    normal = node(unreal.MaterialExpressionVertexInterpolator, -1600, 700)
+    link(pre_skinned_normal, "", normal, "VS")
     absolute = node(unreal.MaterialExpressionAbs, -1450, 700)
     link(normal, "", absolute, "")
     power = node(unreal.MaterialExpressionPower, -1300, 700, const_exponent=4.0)
