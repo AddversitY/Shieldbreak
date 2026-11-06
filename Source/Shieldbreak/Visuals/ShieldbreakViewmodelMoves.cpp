@@ -12,6 +12,9 @@ namespace ShieldbreakViewmodelPrivate
 	TAutoConsoleVariable<float> CVarFPMovesRate(TEXT("sb.FPMovesRate"), 1.f,
 		TEXT("Draw and melee speed multiplier (reloads always fit the weapon's reload time)."));
 
+	TAutoConsoleVariable<float> CVarReloadLift(TEXT("sb.FPReloadLift"), 1.f,
+		TEXT("How far reloads bring the gun up and in so the magazine work is on screen (0 = keys only)."));
+
 	/** One gun pose: camera-space offset (cm) and rotation (pitch, yaw, roll degrees) about the gun hand. */
 	struct FGunKey { float T; FVector Offset; FVector Rotation; };
 
@@ -45,6 +48,10 @@ namespace ShieldbreakViewmodelPrivate
 
 	struct FStyleData
 	{
+		/** Reloads: the gun comes up and in toward the centre for the whole reload (on top of the keys), so the
+		 *  magazine well is on screen; desktop task (M1) showed every reload happening below the frame. */
+		FVector ReloadLift;
+		FVector ReloadLiftRotation;
 		/** Magazine socket in gun space when the mesh has none (art not reimported yet). */
 		FVector MagazineSocket;
 		/** hand_l (the wrist) relative to the Magazine socket when the hand holds the magazine, gun space. */
@@ -55,10 +62,10 @@ namespace ShieldbreakViewmodelPrivate
 
 	// Gun space: +Y down the barrel, +Z up, -X the gun's left side (where the left hand works).
 	const FStyleData Styles[] = {
-		/* Rifle */    { FVector(0.f, 13.3f, -3.6f), FVector(-4.2f, 2.0f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
-		/* Marksman */ { FVector(0.f, 14.5f, -3.6f), FVector(-4.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
-		/* Pistol */   { FVector(0.f, -2.2f, -2.4f), FVector(-3.6f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
-		/* Launcher */ { FVector(0.f, -22.f, 6.5f), FVector(-8.f, 0.f, -2.f), FVector(-2.f, 20.f, -7.f) },
+		/* Rifle */    { FVector(4.f, -4.f, 9.f), FVector(6.f, -3.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(-4.2f, 2.0f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
+		/* Marksman */ { FVector(4.f, -4.f, 8.f), FVector(5.f, -3.f, 0.f), FVector(0.f, 14.5f, -3.6f), FVector(-4.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
+		/* Pistol */   { FVector(2.f, -5.f, 8.f), FVector(8.f, -3.f, 0.f), FVector(0.f, -2.2f, -2.4f), FVector(-3.6f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
+		/* Launcher */ { FVector(0.f, -2.f, 4.f), FVector(0.f, 0.f, 0.f), FVector(0.f, -22.f, 6.5f), FVector(-8.f, 0.f, -2.f), FVector(-2.f, 20.f, -7.f) },
 	};
 
 	// ---- Reloads ----
@@ -201,21 +208,22 @@ namespace ShieldbreakViewmodelPrivate
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 
-	// ---- Melee: a short wind-up, the gun driven forward and across to the left (the hit lands at once in
+	// ---- Melee: a short wind-up, the gun driven forward (not far: the rig's shoulder sits just behind the eye and
+	// came into view at 16 cm, task M1) and across to the left (the hit lands at once in
 	// gameplay, so the strike peaks early), then recovery ----
 	const FGunKey RifleMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
-		{ 0.10f, FVector(-3.f, 5.f, -1.f), FVector(-4.f, 14.f, 12.f) },
-		{ 0.28f, FVector(16.f, -16.f, 3.f), FVector(4.f, -42.f, -28.f) },
-		{ 0.45f, FVector(12.f, -12.f, 2.f), FVector(3.f, -35.f, -22.f) },
-		{ 0.75f, FVector(-1.f, 1.f, -0.5f), FVector(-2.f, 4.f, 3.f) },
+		{ 0.10f, FVector(-3.f, 4.f, -1.f), FVector(-2.f, 6.f, 6.f) },
+		{ 0.28f, FVector(9.f, -8.f, 2.f), FVector(-6.f, -14.f, -10.f) },
+		{ 0.45f, FVector(7.f, -6.f, 1.5f), FVector(-5.f, -11.f, -8.f) },
+		{ 0.75f, FVector(-1.f, 1.f, -0.5f), FVector(-1.f, 2.f, 2.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 	const FGunKey PistolMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
-		{ 0.10f, FVector(-3.f, 4.f, 1.f), FVector(6.f, 10.f, 10.f) },
-		{ 0.28f, FVector(14.f, -12.f, 2.f), FVector(-10.f, -30.f, -40.f) },
-		{ 0.45f, FVector(10.f, -9.f, 1.5f), FVector(-7.f, -24.f, -32.f) },
+		{ 0.10f, FVector(-3.f, 4.f, 1.f), FVector(4.f, 6.f, 8.f) },
+		{ 0.28f, FVector(9.f, -8.f, 2.f), FVector(-8.f, -14.f, -24.f) },
+		{ 0.45f, FVector(7.f, -6.f, 1.5f), FVector(-6.f, -11.f, -19.f) },
 		{ 0.75f, FVector(-1.f, 1.f, -0.4f), FVector(1.f, 3.f, 3.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
@@ -388,6 +396,15 @@ FShieldbreakViewmodelPose FShieldbreakViewmodelMoves::SampleGunPose(EShieldbreak
 	const int32 Count = Data.Gun.Num();
 	Pose.Offset = Hermite<FVector>(Count, T, [&](int32 I) { return Data.Gun[I].T; }, [&](int32 I) { return Data.Gun[I].Offset; });
 	Pose.Rotation = Hermite<FVector>(Count, T, [&](int32 I) { return Data.Gun[I].T; }, [&](int32 I) { return Data.Gun[I].Rotation; });
+	if (InMove == EShieldbreakViewmodelMove::Reload)
+	{
+		// Up into view over the first 15%, held, back down over the last 15%.
+		const float Envelope = FMath::SmoothStep(0.f, 0.15f, T) * (1.f - FMath::SmoothStep(0.85f, 1.f, T))
+			* FMath::Max(0.f, CVarReloadLift.GetValueOnGameThread());
+		const FStyleData& Lift = Styles[static_cast<int32>(InStyle)];
+		Pose.Offset += Lift.ReloadLift * Envelope;
+		Pose.Rotation += Lift.ReloadLiftRotation * Envelope;
+	}
 	return Pose;
 }
 

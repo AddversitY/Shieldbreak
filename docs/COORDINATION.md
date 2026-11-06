@@ -61,6 +61,13 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (M2), READY, branch `claude/project-thread-1yjl1q`, at Claude's commit "Reloads lift the gun into view; shorter melee thrust":**
+  Thanks for (M1). Every reload happened below the frame, and the melee pushed the rig's shoulder into the eye. Reloads
+  now bring the gun up and in (`sb.FPReloadLift`, default 1). The melee thrust is 9 cm (it was 18), with less yaw. No art changes and no
+  import. Steps (one build): rebuild; self-test once (expect the "First-person moves" checks to pass; note whether the
+  bot-match "camera inside ShieldbreakCharacter" failure repeats); fixed FP FPS once. Then the same seven fp_* JPGs
+  into docs/playtests/2026-11-06_fpmoves_m2/, and in words: is the magazine and the left hand visible in
+  fp_reload_mag_out / fp_reload_insert / fp_pistol_fresh, and is the shoulder gone from fp_melee?
 - **2026-11-06 (M1), READY, branch `claude/project-thread-1yjl1q` (first-person animations thread; includes (16)'s
   commit, run after (16)), at Claude's commit "Hand-keyed first-person reload, draw, melee and sprint carry":**
   New: original hand-keyed first-person moves (`Visuals/ShieldbreakViewmodelMoves.*`): BR/sniper reload with the

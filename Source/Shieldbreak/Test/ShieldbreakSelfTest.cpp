@@ -752,7 +752,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			case 8: // melee strike peaks early
 				if (Since < 0.14f) { return false; }
 				Check(TEXT("A first-person melee drives the gun forward and across"),
-					Moves.GetMove() == EShieldbreakViewmodelMove::Melee && Animator->GetViewmodelPose().Offset.X > 8.f,
+					Moves.GetMove() == EShieldbreakViewmodelMove::Melee && Animator->GetViewmodelPose().Offset.X > 5.f,
 					FString::Printf(TEXT("gun %.1f cm forward, yaw %.1f"), Animator->GetViewmodelPose().Offset.X, Animator->GetViewmodelPose().Rotation.Y));
 				TakeShot(TEXT("fp_melee"), true);
 				Mark = Now(); Phase = 9; return false;
