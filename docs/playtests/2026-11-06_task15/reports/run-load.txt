@@ -1,0 +1,6 @@
+head b8956ba50582e02c28ed3cf38c53392de7b4f362 start 2026-11-06T08:05:26
+build exit 0 2026-11-06T08:05:49
+import exit 0 2026-11-06T08:06:16
+SelfTest1 exit 0 2026-11-06T08:09:43 wall 207s | CPU others: NZXT CAM#21312=44.1s, cam_helper#22308=17.7s, explorer#11260=3.4s, NZXT CAM#21032=2.8s, zenserver#17572=2.4s, claude#28168=1.6s | GPU@45s: 91 %, 2024 MiB
+fp_a exit 0 2026-11-06T08:10:54 wall 71s | CPU others: NZXT CAM#21312=14.3s, cam_helper#22308=5.9s, zenserver#22108=2s, explorer#11260=1s, NZXT CAM#21032=0.9s, claude#13840=0.8s | GPU@45s: 13 %, 3100 MiB
+done 2026-11-06T08:10:54
