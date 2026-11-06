@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/PackageName.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -75,6 +76,14 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	ChargeGlowMesh->SetCastShadow(false);
 	ChargeGlowMesh->SetUsingAbsoluteScale(true);
 	ChargeGlowMesh->SetVisibility(false);
+
+	MagazineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MagazineMesh"));
+	MagazineMesh->SetupAttachment(WeaponMesh);
+	MagazineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MagazineMesh->SetGenerateOverlapEvents(false);
+	MagazineMesh->SetCastShadow(false);
+	MagazineMesh->bAffectDistanceFieldLighting = false;
+	MagazineMesh->SetVisibility(false);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	if (SphereFinder.Succeeded())
@@ -252,6 +261,7 @@ void AShieldbreakWeapon::OnEquipped()
 		}
 		WeaponMesh->SetCastShadow(false);
 	}
+	ApplyMagazineLayout(EquippedLayout == EEquippedLayout::FirstPersonHand);
 	// The local player's gun draws with the first-person FOV and scale, like the arms holding it.
 	const EFirstPersonPrimitiveType ViewType = EquippedLayout == EEquippedLayout::Hand ? EFirstPersonPrimitiveType::None : EFirstPersonPrimitiveType::FirstPerson;
 	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
@@ -276,6 +286,8 @@ void AShieldbreakWeapon::OnEquipped()
 void AShieldbreakWeapon::OnUnequipped()
 {
 	EquippedLayout = EEquippedLayout::None;
+	// A swap mid-reload leaves the magazine wherever the hand had it.
+	ApplyMagazineLayout(false);
 	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;
@@ -833,6 +845,25 @@ void AShieldbreakWeapon::ApplyArt()
 	}
 
 	WeaponMesh->SetStaticMesh(Art);
+	FullArtMesh = Art;
+	// The first-person split exists only for our own guns (Art/blender/build_weapons.py), next to the whole gun.
+	NoMagazineArtMesh = nullptr;
+	MagazineArtMesh = nullptr;
+	if (!Stats.ArtMesh.IsNull() && Art->GetPathName() == Stats.ArtMesh.ToString())
+	{
+		auto Suffixed = [this](const TCHAR* Suffix)
+		{
+			const FString Name = Stats.ArtMesh.GetAssetName() + Suffix;
+			return FPackageName::GetLongPackagePath(Stats.ArtMesh.GetLongPackageName()) + TEXT("/") + Name + TEXT(".") + Name;
+		};
+		UStaticMesh* NoMagazine = ShieldbreakArt::Load<UStaticMesh>(*Suffixed(TEXT("_NoMag")));
+		UStaticMesh* Magazine = ShieldbreakArt::Load<UStaticMesh>(*Suffixed(TEXT("_Mag")));
+		if (NoMagazine && Magazine && NoMagazine->FindSocket(TEXT("Magazine")))
+		{
+			NoMagazineArtMesh = NoMagazine;
+			MagazineArtMesh = Magazine;
+		}
+	}
 	WeaponMesh->EmptyOverrideMaterials();
 	WeaponMesh->SetRelativeScale3D(FVector::OneVector);
 	BarrelMesh->SetVisibility(false);
@@ -876,6 +907,35 @@ void AShieldbreakWeapon::ApplyArt()
 	{
 		OnEquipped();
 	}
+}
+
+void AShieldbreakWeapon::ApplyMagazineLayout(bool bFirstPerson)
+{
+	const bool bSplit = bFirstPerson && NoMagazineArtMesh && MagazineArtMesh;
+	if (FullArtMesh)
+	{
+		UStaticMesh* Wanted = bSplit ? NoMagazineArtMesh.Get() : FullArtMesh.Get();
+		if (WeaponMesh->GetStaticMesh() != Wanted)
+		{
+			WeaponMesh->SetStaticMesh(Wanted);
+		}
+	}
+	if (bSplit)
+	{
+		if (MagazineMesh->GetStaticMesh() != MagazineArtMesh)
+		{
+			MagazineMesh->SetStaticMesh(MagazineArtMesh);
+		}
+		MagazineMesh->AttachToComponent(WeaponMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Magazine"));
+		MagazineMesh->SetRelativeTransform(FTransform::Identity);
+	}
+	MagazineMesh->SetVisibility(bSplit);
+}
+
+UStaticMeshComponent* AShieldbreakWeapon::GetFirstPersonMagazine() const
+{
+	return EquippedLayout == EEquippedLayout::FirstPersonHand && NoMagazineArtMesh && MagazineArtMesh
+		&& WeaponMesh->GetStaticMesh() == NoMagazineArtMesh ? MagazineMesh.Get() : nullptr;
 }
 
 FVector AShieldbreakWeapon::GetBarrelDirection() const

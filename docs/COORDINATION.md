@@ -54,6 +54,21 @@ Task (7) desktop status: **VERIFICATION COMPLETE; TRIGGER FINGER STILL FAILS**, 
 Task (6) desktop status: **VERIFICATION COMPLETE; ONE TEST FAILS, VISUAL GOALS NOT MET**, source `fa56e50`, branch `claude/project-thread-ndksis`, run by Claude on the desktop PC in Codex's place. Build/import PASS, winding all outward; gameplay **144/145**, FP **7/7**. FAIL: `...with the index finger on the trigger`, **3.51 cm** (limit 2 cm), identical in all five runs. Fixed FP **113.4 -> 125.9 / 126.2**, repeatable. Four-bot FPS **too noisy to compare** (108.2 / 108.3 / 127.6 at defaults against 120.6). FP guns still black with clipped white edges and the glove still white. No files reserved/jobs running. Details under Needs verification. Do not repeat this entry unchanged.
 Task (5) desktop status: **VERIFICATION COMPLETE; FP LIGHTING REVIEW NEEDED**, source `aad1a24`, claim `352910d`, branch `claude/project-thread-ndksis`. Build/import PASS; final gameplay **144/144 PASS**, FP **7/7 PASS** after fixing missing SkeletalMesh material usage. Three actual palette values/bindings and unchanged Gunmetal verified. FPS **132.2 -> 120.6** four bots, **145.7 -> 113.4** normal fixed FP (single observations; lower figures need review). Normal glove still clips white; a labeled `sb.FPLight 0` diagnostic restores a dark glove, isolating fill lighting as a contributor. Production light settings unchanged. No files reserved/jobs running; do not repeat this entry unchanged. Ready for Claude review/next task.
 
+- **2026-11-06 (M1), READY, branch `claude/project-thread-1yjl1q` (first-person animations thread; based on (15)'s
+  commit), at Claude's commit "Hand-keyed first-person reload, draw, melee and sprint carry":**
+  New: original hand-keyed first-person moves (`Visuals/ShieldbreakViewmodelMoves.*`): BR/sniper reload with the
+  magazine out in the left hand and back in, palm slap and charging handle; sidearm reload with the empty magazine
+  dropping and a fresh one brought up; launcher breech load; draw after a swap; melee swing; new sprint carry with an
+  arm-swing pump. Third-person bodies keep Lyra's clips. New split art: `SM_SB_<BattleRifle|Sniper|Sidearm>_NoMag`
+  and `_Mag` FBX next to the whole guns (which gained a `Magazine` socket). Do not change C++ or art on the PC. If the
+  build fails, report the errors and stop. Steps (one build): rebuild; `Tools\ImportCharacterArt.bat` and confirm the
+  six new meshes exist in /Game/Shieldbreak/Art/Weapons + grep "Failed to compile"; self-test once (expect the new
+  step "First-person moves": reload plays the hand-keyed move, magazine comes out > 4 cm, ends seated with the left
+  hand back, melee drives the gun forward, swap draw starts < 0.8 s, sidearm reload brings the left arm in). FPS:
+  4 bots and fixed FP once each, then fixed FP again with `-ExecCmds="sb.FPMoves 0"` (A/B). Copy the shots
+  `*_shot_fp_reload_mag_out`, `_fp_reload_insert`, `_fp_reload_charge`, `_fp_melee`, `_fp_draw`, `_fp_pistol_drop`,
+  `_fp_pistol_fresh` as JPGs into docs/playtests/2026-11-06_fpmoves/ and say in words what looks wrong in each
+  (hand far from the magazine, gun clipping the camera, magazine floating, arm stretched).
 - **2026-11-06 (15), READY, same branch, at Claude's commit "Vanguard BR v5, Longshot sniper, left-hand rifle grip, scope overlays":**
   Thanks for (14). This one is a large change. Vincent asked for a new, far more detailed BR; a white sniper; the LEFT
   hand visible on the rifle forend, with the trigger hand off screen; and scope overlays when zoomed (sniper with a

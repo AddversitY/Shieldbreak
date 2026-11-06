@@ -12,6 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Visuals/ShieldbreakViewmodelMoves.h"
 #include "ShieldbreakBodyAnimator.generated.h"
 
 class UAnimSequenceBase;
@@ -74,6 +75,11 @@ public:
 	bool WantsFirstPersonSupportArm() const;
 	/** Distance (cm) from hand_l to the support socket, or -1 without one (self-test). */
 	float GetSupportHandError() const;
+	/** First person: the hand-keyed reload / draw / melee (ShieldbreakViewmodelMoves) and this frame's pose. */
+	const FShieldbreakViewmodelMoves& GetViewmodelMoves() const { return Moves; }
+	const FShieldbreakViewmodelPose& GetViewmodelPose() const { return MovePose; }
+	/** Which keys the held gun's moves use. */
+	EShieldbreakViewmodelStyle GetViewmodelStyle() const;
 
 	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
 	 *  weapon's recoil (degrees), so heavier guns kick harder. */
@@ -168,6 +174,13 @@ private:
 	class UStaticMeshComponent* GetTriggerMesh() const;
 	/** How far the left hand has reached onto the support socket (eases out for actions, swaps and throws). */
 	float SupportHandWeight = 0.f;
+	/** First-person moves: the current one, its pose this frame, and a draw waiting for the arms to be re-placed. */
+	FShieldbreakViewmodelMoves Moves;
+	FShieldbreakViewmodelPose MovePose;
+	bool bDrawPending = false;
+	/** Steps the moves (call after the arms have their transform for this frame, before the support hand). */
+	void UpdateViewmodelMoves(bool bSwapping);
+	class UStaticMeshComponent* GetHeldMagazine() const;
 	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
 	bool bSupportArmShown = false;
 	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);

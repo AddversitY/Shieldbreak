@@ -247,6 +247,12 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 		return;
 	}
 	bRagdoll = true;
+	if (GetWorld())
+	{
+		Moves.Stop(GetWorld()->GetTimeSeconds(), GetHeldMagazine());
+	}
+	MovePose = FShieldbreakViewmodelPose();
+	bDrawPending = false;
 
 	if (FirstPersonArms)
 	{
@@ -524,7 +530,31 @@ void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Durat
 		FirstPersonThrowDuration = (Animation->GetPlayLength() - Timing.StartTime) / FMath::Max(0.05f, Timing.PlayRate);
 		FirstPersonThrowEnd = GetWorld()->GetTimeSeconds() + FirstPersonThrowDuration;
 	}
-	if (Action == EShieldbreakAction::Equip && GetWorld())
+	// First person: reload, draw and melee are hand-keyed moves on the arms (ShieldbreakViewmodelMoves); the Lyra
+	// clip still plays on the third-person body below for everyone else.
+	const bool bFirstPersonMove = FirstPersonArms && GetWorld() && FShieldbreakViewmodelMoves::IsEnabled()
+		&& Action != EShieldbreakAction::GrenadeThrow;
+	if (bFirstPersonMove)
+	{
+		const double Now = GetWorld()->GetTimeSeconds();
+		switch (Action)
+		{
+		case EShieldbreakAction::Reload:
+			Moves.Start(EShieldbreakViewmodelMove::Reload, GetViewmodelStyle(), Duration, Now, GetHeldMagazine());
+			break;
+		case EShieldbreakAction::Melee:
+			Moves.Start(EShieldbreakViewmodelMove::Melee, GetViewmodelStyle(), 0.f, Now, GetHeldMagazine());
+			break;
+		case EShieldbreakAction::Equip:
+			// The new gun comes up once the arms are placed for it (UpdateViewmodelMoves).
+			Moves.Stop(Now, nullptr);
+			bDrawPending = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (Action == EShieldbreakAction::Equip && GetWorld() && !bFirstPersonMove)
 	{
 		FirstPersonEquipEnd = GetWorld()->GetTimeSeconds() + (Animation->GetPlayLength() - Timing.StartTime) / FMath::Max(0.05f, Timing.PlayRate);
 		// Drop the arms at once, before the equip pose reaches the screen.
@@ -534,7 +564,7 @@ void UShieldbreakBodyAnimator::PlayAction(EShieldbreakAction Action, float Durat
 			ApplyFirstPersonArmsTransform(AppliedThrowDip);
 		}
 	}
-	for (USkeletalMeshComponent* Mesh : { GetBodyMesh(), FirstPersonArms.Get() })
+	for (USkeletalMeshComponent* Mesh : { GetBodyMesh(), bFirstPersonMove ? nullptr : FirstPersonArms.Get() })
 	{
 		if (UShieldbreakBodyAnimInstance* Instance = Mesh ? Cast<UShieldbreakBodyAnimInstance>(Mesh->GetAnimInstance()) : nullptr)
 		{
@@ -552,7 +582,10 @@ void UShieldbreakBodyAnimator::ApplyFirstPersonArmsTransform(float Dip)
 	// The procedural motion pivots around the gun hand, so sway and kick turn the gun rather than swing the whole rig.
 	const FVector Grip(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
 	const FTransform Motion = FTransform(-Grip) * FirstPersonMotion * FTransform(Grip);
-	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f))
+	// The hand-keyed move turns the arms about the gun hand too, under the procedural motion.
+	const FTransform MoveDelta(FRotator(MovePose.Rotation.X, MovePose.Rotation.Y, MovePose.Rotation.Z), MovePose.Offset);
+	const FTransform Move = FTransform(-Grip) * MoveDelta * FTransform(Grip);
+	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform * Move * FTransform(FRotator(-Pitch, 0.f, Pitch * 0.4f))
 		* Motion * FTransform(FVector(0.f, 0.f, -Lower)));
 	AppliedThrowDip = Dip;
 	AppliedSwapLower = SwapLower;
@@ -779,10 +812,13 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		: FVector2f(CVarAimPitch.GetValueOnGameThread(), CVarAimYaw.GetValueOnGameThread());
 	// Show the left arm only while it has a gun to hold (the grenade throw shows it for its own swing, then restores
 	// this state through WantsFirstPersonSupportArm).
-	if (bRifle != bSupportArmShown)
+	// A move can bring the left arm in for a gun that otherwise hides it (the sidearm's reload); it shows once the
+	// arm has reached its first, out-of-view, key.
+	const bool bShowArm = bRifle || (MovePose.bWantsLeftArm && SupportHandWeight > 0.95f);
+	if (bShowArm != bSupportArmShown)
 	{
-		bSupportArmShown = bRifle;
-		if (bRifle)
+		bSupportArmShown = bShowArm;
+		if (bShowArm)
 		{
 			FirstPersonArms->UnHideBoneByName(SupportArmBone);
 		}
@@ -818,10 +854,84 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	if (CalibratedIdle)
 	{
 		UpdateFirstPersonMotion(World->GetDeltaSeconds());
+		// Placed first with last frame's move pose, so the move's hand keys read the gun where it is now; then again
+		// with this frame's pose (only while a move plays).
 		ApplyFirstPersonArmsTransform(Dip);
+		const bool bHadMove = Moves.IsPlaying() || !MovePose.IsIdentity();
+		UpdateViewmodelMoves(bSwapping);
+		if (bHadMove || Moves.IsPlaying())
+		{
+			ApplyFirstPersonArmsTransform(Dip);
+		}
 	}
 	UpdateTriggerFinger(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
 	UpdateSupportHand(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
+}
+
+UStaticMeshComponent* UShieldbreakBodyAnimator::GetHeldMagazine() const
+{
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	return Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+}
+
+EShieldbreakViewmodelStyle UShieldbreakBodyAnimator::GetViewmodelStyle() const
+{
+	const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr;
+	if (!Weapon)
+	{
+		return EShieldbreakViewmodelStyle::Rifle;
+	}
+	const FShieldbreakWeaponStats& Stats = Weapon->GetStats();
+	if (Stats.bPistolAnimations)
+	{
+		return EShieldbreakViewmodelStyle::Pistol;
+	}
+	if (Stats.Scope == EShieldbreakScope::LongRange)
+	{
+		return EShieldbreakViewmodelStyle::Marksman;
+	}
+	if (Stats.Scope == EShieldbreakScope::Marksman || (Weapon->GetWeaponMesh() && Weapon->GetWeaponMesh()->DoesSocketExist(TEXT("Magazine"))))
+	{
+		return EShieldbreakViewmodelStyle::Rifle;
+	}
+	return EShieldbreakViewmodelStyle::Launcher;
+}
+
+void UShieldbreakBodyAnimator::UpdateViewmodelMoves(bool bSwapping)
+{
+	AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
+	const UWorld* World = GetWorld();
+	if (!OwnerCharacter || !World || !FirstPersonArms)
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+	AShieldbreakWeapon* Weapon = OwnerCharacter->GetCurrentWeapon();
+	UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+	if (!FShieldbreakViewmodelMoves::IsEnabled())
+	{
+		Moves.Stop(Now, Magazine);
+		bDrawPending = false;
+	}
+	// The draw waits until the arms are placed for the new gun (a pistol/rifle change re-places them), then comes up
+	// from below the screen in place of the old drop-and-rise.
+	if (bDrawPending && !bSwapping)
+	{
+		bDrawPending = false;
+		Moves.Start(EShieldbreakViewmodelMove::Draw, GetViewmodelStyle(), 0.f, Now, Magazine);
+		SwapLower = 0.f;
+	}
+	FShieldbreakViewmodelContext Context;
+	Context.Camera = OwnerCharacter->GetFirstPersonCamera()->GetComponentTransform();
+	Context.Gun = Weapon && Weapon->GetRootComponent() && Weapon->GetRootComponent()->GetAttachParent() == FirstPersonArms
+		? Weapon->GetWeaponMesh() : nullptr;
+	Context.Magazine = Context.Gun ? Magazine : nullptr;
+	Context.Arms = FirstPersonArms;
+	const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : -1.f;
+	Context.bReloading = Weapon && (Weapon->IsReloading() || (ReloadProgress >= 0.f && ReloadProgress < 1.f));
+	Moves.Update(Now, Context, MovePose);
 }
 
 UStaticMeshComponent* UShieldbreakBodyAnimator::GetSupportMesh(bool bRequireAttached) const
@@ -853,16 +963,23 @@ bool UShieldbreakBodyAnimator::WantsFirstPersonSupportArm() const
 void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
 {
 	UStaticMeshComponent* Gun = bHolding && WantsFirstPersonSupportArm() ? GetSupportMesh(true) : nullptr;
-	SupportHandWeight = FMath::FInterpConstantTo(SupportHandWeight, Gun ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
-	if (!Gun && SupportHandWeight <= 0.f)
+	// A first-person move (reload) can lead the left hand elsewhere: blended over the socket by its own weight,
+	// and still eased in and out here.
+	const bool bMoveHand = bHolding && MovePose.HandWeight > 0.f;
+	SupportHandWeight = FMath::FInterpConstantTo(SupportHandWeight, Gun || bMoveHand ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
+	if (!Gun && !bMoveHand && SupportHandWeight <= 0.f)
 	{
 		Instance->SetSupportHand(0.f, FVector::ZeroVector);
 		return;
 	}
-	if (Gun)
+	if (Gun || bMoveHand)
 	{
-		Instance->SetSupportHand(SupportHandWeight,
-			FirstPersonArms->GetComponentTransform().InverseTransformPosition(Gun->GetSocketLocation(TEXT("SupportHand"))));
+		FVector Target = Gun ? Gun->GetSocketLocation(TEXT("SupportHand")) : MovePose.HandWorld;
+		if (bMoveHand)
+		{
+			Target = FMath::Lerp(Target, MovePose.HandWorld, FMath::Clamp(MovePose.HandWeight, 0.f, 1.f));
+		}
+		Instance->SetSupportHand(SupportHandWeight, FirstPersonArms->GetComponentTransform().InverseTransformPosition(Target));
 	}
 	else
 	{
@@ -962,6 +1079,11 @@ FString UShieldbreakBodyAnimator::DescribeTriggerFinger() const
 namespace ShieldbreakBodyAnimatorPrivate
 {
 	TAutoConsoleVariable<float> CVarFPMotion(TEXT("sb.FPMotion"), 1.f, TEXT("First-person gun motion (bob, sway, kick, landing): 0 off, 1 normal."));
+	TAutoConsoleVariable<float> CVarSprintPitch(TEXT("sb.FPSprintPitch"), -14.f, TEXT("Sprint carry: rifle muzzle pitch (degrees, down negative)."));
+	TAutoConsoleVariable<float> CVarSprintYaw(TEXT("sb.FPSprintYaw"), -24.f, TEXT("Sprint carry: rifle muzzle yaw (degrees, negative = in across the body)."));
+	TAutoConsoleVariable<float> CVarSprintRoll(TEXT("sb.FPSprintRoll"), -26.f, TEXT("Sprint carry: rifle cant (degrees, negative = top toward the screen centre)."));
+	TAutoConsoleVariable<float> CVarSprintPistolPitch(TEXT("sb.FPSprintPistolPitch"), -24.f, TEXT("Sprint carry: sidearm muzzle pitch (degrees)."));
+	TAutoConsoleVariable<float> CVarSprintPump(TEXT("sb.FPSprintPump"), 1.f, TEXT("Sprint arm-swing pump on the gun (0 off)."));
 
 	/** Damped spring toward Target, sub-stepped so it behaves the same at 15 and 240 FPS. */
 	void StepSpring(FVector& Value, FVector& Velocity, const FVector& Target, float Frequency, float Damping, float DeltaSeconds)
@@ -1030,8 +1152,12 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonMotion(float DeltaSeconds)
 
 	// Sprint: gun down and turned in.
 	SprintBlend = Follow(SprintBlend, Movement->IsSprinting() ? 1.f : 0.f, 10.f, Dt);
-	TargetRotation += FVector(-10.f, -12.f, 6.f) * SprintBlend;
-	TargetOffset += FVector(-2.f, -2.f, -3.f) * SprintBlend;
+	// Sprint carry: the gun swings down and in across the body, canted with its top toward the screen centre, the
+	// sidearm held low and pointed down. The stride pump on top is added with the walk bob below.
+	const bool bPistolCarry = GetViewmodelStyle() == EShieldbreakViewmodelStyle::Pistol;
+	TargetRotation += (bPistolCarry ? FVector(CVarSprintPistolPitch.GetValueOnGameThread(), -10.f, -12.f)
+		: FVector(CVarSprintPitch.GetValueOnGameThread(), CVarSprintYaw.GetValueOnGameThread(), CVarSprintRoll.GetValueOnGameThread())) * SprintBlend;
+	TargetOffset += (bPistolCarry ? FVector(-3.f, -2.f, -6.f) : FVector(-4.f, -3.f, -5.f)) * SprintBlend;
 
 	// In the air the gun lags the jump: it sits low on the way up and floats up on the way down.
 	if (bFalling)
@@ -1059,14 +1185,19 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonMotion(float DeltaSeconds)
 		BobPhase = FMath::Fmod(BobPhase + Dt * 2.f * UE_PI * Speed / 520.f, 2.f * UE_PI);
 	}
 	const float BobScale = BobAmount * (OwnerCharacter->bIsCrouched ? 0.6f : 1.f);
-	const FVector Bob(0.f, 0.5f * FMath::Sin(BobPhase), -0.6f * 0.5f * (1.f - FMath::Cos(2.f * BobPhase)));
-	const float BobRoll = 0.6f * FMath::Sin(BobPhase);
+	FVector Bob(0.f, 0.5f * FMath::Sin(BobPhase), -0.6f * 0.5f * (1.f - FMath::Cos(2.f * BobPhase)));
+	float BobRoll = 0.6f * FMath::Sin(BobPhase);
+	// Sprinting: a bigger, arm-swing pump (one side-to-side swing per stride, a dip on each footfall).
+	const float Pump = SprintBlend * FMath::Max(0.f, CVarSprintPump.GetValueOnGameThread());
+	Bob += FVector(0.4f * FMath::Cos(2.f * BobPhase), 1.3f * FMath::Sin(BobPhase), -1.6f * 0.5f * (1.f - FMath::Cos(2.f * BobPhase))) * Pump;
+	BobRoll += 3.f * FMath::Sin(BobPhase) * Pump;
+	const FVector SprintSwing = FVector(1.2f * FMath::Sin(2.f * BobPhase), 2.f * FMath::Sin(BobPhase), 0.f) * Pump;
 
 	// Scoped aim keeps the gun steady; sb.FPMotion scales everything.
 	MotionScale = Follow(MotionScale, OwnerCharacter->IsZoomed() ? 0.3f : 1.f, 12.f, Dt);
 	const float Scale = MotionScale * FMath::Max(0.f, CVarFPMotion.GetValueOnGameThread());
 	const FVector Offset = (MotionOffset + Bob * BobScale) * Scale;
-	const FVector Rotation = (MotionRotation + FVector(0.f, 0.f, BobRoll * BobScale)) * Scale;
+	const FVector Rotation = (MotionRotation + FVector(0.f, 0.f, BobRoll * BobScale) + SprintSwing * BobScale) * Scale;
 	FirstPersonMotion = FTransform(FRotator(Rotation.X, Rotation.Y, Rotation.Z), Offset);
 }
 
