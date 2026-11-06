@@ -443,17 +443,17 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
 	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 32.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 18.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 19.f, TEXT("First-person rifles: gun origin cm below the eye."));
 	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 14.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -18.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -16.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
 	// palm sits here.
 	TAutoConsoleVariable<float> CVarPalmRight(TEXT("sb.FPPalmRight"), -1.0f, TEXT("First-person rifles: left palm offset right of SupportHand (cm)."));
 	TAutoConsoleVariable<float> CVarPalmForward(TEXT("sb.FPPalmForward"), 4.0f, TEXT("First-person rifles: left palm offset forward of SupportHand (cm)."));
-	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), 0.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
-	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.55f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
+	TAutoConsoleVariable<float> CVarPalmUp(TEXT("sb.FPPalmUp"), -1.5f, TEXT("First-person rifles: left palm offset above SupportHand (cm)."));
+	TAutoConsoleVariable<float> CVarPalmWrap(TEXT("sb.FPPalmWrap"), 0.4f, TEXT("First-person rifles: how far the left fingers point across the forend (0 = along the barrel, 1 = straight across)."));
 	TAutoConsoleVariable<float> CVarPalmTilt(TEXT("sb.FPPalmTilt"), 0.6f, TEXT("First-person rifles: how far the left palm turns toward the gun's side (0 = straight up)."));
 	TAutoConsoleVariable<float> CVarFingerCurl(TEXT("sb.FPFingerCurl"), 0.8f, TEXT("First-person rifles: left finger curl around the forend (0 = open, 1 = gripping)."));
 	TAutoConsoleVariable<int32> CVarSupportHand(TEXT("sb.FPSupportHand"), 1, TEXT("1: on rifles the first-person left hand holds the gun's SupportHand socket."));
