@@ -478,6 +478,139 @@ def character_instances(master):
     return instances
 
 
+# ---- Textured weapons (Art/blender/bake_weapons.py) -----------------------------------------------------------------
+# Each baked gun has T_SB_<Gun>_BC (sRGB colour, emissive mask in alpha), _ORM (AO, roughness, metallic) and _N
+# (DirectX tangent normal) in Art/Export/Textures/Weapons. Its FBX has one slot, M_SBW_<Gun>, bound to MI_SBW_<Gun>.
+WEAPON_TEXTURES = os.path.join(EXPORT, "Textures", "Weapons")
+WEAPON_TEXTURE_FOLDER = TEXTURES + "/Weapons"
+
+
+def import_weapon_textures():
+    """Imports the baked weapon maps with the right colour space and compression. Returns {gun: {suffix: texture}}."""
+    sets = {}
+    for png in sorted(glob.glob(os.path.join(WEAPON_TEXTURES, "T_SB_*_*.png"))):
+        name = os.path.splitext(os.path.basename(png))[0]
+        gun, suffix = name[len("T_SB_"):].rsplit("_", 1)
+        task = unreal.AssetImportTask()
+        task.filename = png
+        task.destination_path = WEAPON_TEXTURE_FOLDER
+        task.destination_name = name
+        task.automated = True
+        task.replace_existing = True
+        task.save = False
+        tools.import_asset_tasks([task])
+        texture = unreal.load_asset("%s/%s" % (WEAPON_TEXTURE_FOLDER, name))
+        if not texture:
+            log("FAILED " + png)
+            continue
+        if suffix == "N":
+            texture.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_NORMALMAP)
+            texture.set_editor_property("srgb", False)
+        elif suffix == "ORM":
+            texture.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
+            texture.set_editor_property("srgb", False)
+        else:
+            texture.set_editor_property("srgb", True)
+        group = getattr(unreal.TextureGroup, "TEXTUREGROUP_WEAPON", None)
+        if group is not None:
+            texture.set_editor_property("lod_group", group)
+        eal.save_asset(texture.get_path_name())
+        sets.setdefault(gun, {})[suffix] = texture
+        log("%s: %dx%d %s" % (name, texture.blueprint_get_size_x(), texture.blueprint_get_size_y(), suffix))
+    return {gun: maps for gun, maps in sets.items() if all(s in maps for s in ("BC", "ORM", "N"))}
+
+
+def weapon_pbr_material(defaults):
+    """M_SB_WeaponPBR: baked BC/ORM/N maps. BaseColor = BC * BaseTint; Roughness = ORM.g * RoughnessScale + RoughnessAdd;
+    Metallic = ORM.b; AO = lerp(1, ORM.r, AOStrength); Emissive = BC.rgb * BC.a * EmissiveStrength. Rebuilt every run."""
+    path = MATERIALS + "/M_SB_WeaponPBR"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_WeaponPBR", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+
+    def node(cls, x, y, **props):
+        n = mel.create_material_expression(mat, cls, x, y)
+        for key, value in props.items():
+            n.set_editor_property(key, value)
+        return n
+
+    def link(a, a_out, b, b_in):
+        if not mel.connect_material_expressions(a, a_out, b, b_in):
+            log("M_SB_WeaponPBR: could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
+
+    def scalar(name, default, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=default)
+
+    bc = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, -300, parameter_name="BC", texture=defaults["BC"],
+              sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
+    orm = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, 100, parameter_name="ORM", texture=defaults["ORM"],
+               sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    nrm = node(unreal.MaterialExpressionTextureSampleParameter2D, -900, 500, parameter_name="N", texture=defaults["N"],
+               sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    tint = node(unreal.MaterialExpressionVectorParameter, -600, -450, parameter_name="BaseTint",
+                default_value=unreal.LinearColor(1, 1, 1, 1))
+    colour = node(unreal.MaterialExpressionMultiply, -400, -350)
+    link(bc, "RGB", colour, "A")
+    link(tint, "", colour, "B")
+    rough_scale = scalar("RoughnessScale", 1.0, -600, 150)
+    rough_add = scalar("RoughnessAdd", 0.0, -600, 250)
+    rough_mul = node(unreal.MaterialExpressionMultiply, -400, 120)
+    link(orm, "G", rough_mul, "A")
+    link(rough_scale, "", rough_mul, "B")
+    rough_sum = node(unreal.MaterialExpressionAdd, -250, 150)
+    link(rough_mul, "", rough_sum, "A")
+    link(rough_add, "", rough_sum, "B")
+    rough = node(unreal.MaterialExpressionClamp, -100, 150)
+    link(rough_sum, "", rough, "")
+    ao_strength = scalar("AOStrength", 1.0, -600, 350)
+    one = node(unreal.MaterialExpressionConstant, -600, 30, r=1.0)
+    ao = node(unreal.MaterialExpressionLinearInterpolate, -250, 330)
+    link(one, "", ao, "A")
+    link(orm, "R", ao, "B")
+    link(ao_strength, "", ao, "Alpha")
+    em_strength = scalar("EmissiveStrength", 4.0, -600, -150)
+    em_mask = node(unreal.MaterialExpressionMultiply, -400, -150)
+    link(bc, "A", em_mask, "A")
+    link(em_strength, "", em_mask, "B")
+    emissive = node(unreal.MaterialExpressionMultiply, -250, -200)
+    link(bc, "RGB", emissive, "A")
+    link(em_mask, "", emissive, "B")
+    mel.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(orm, "B", unreal.MaterialProperty.MP_METALLIC)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    mel.connect_material_property(nrm, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("built %s (%d expressions)" % (path, mel.get_num_material_expressions(mat)))
+    return mat
+
+
+def weapon_pbr_instances():
+    """MI_SBW_<Gun> for every complete baked texture set, keyed by the FBX slot name M_SBW_<Gun>."""
+    sets = import_weapon_textures()
+    if not sets:
+        return {}
+    master = weapon_pbr_material(next(iter(sets.values())))
+    instances = {}
+    for gun, maps in sets.items():
+        path = "%s/MI_SBW_%s" % (MATERIALS, gun)
+        if eal.does_asset_exist(path):
+            mi = unreal.load_asset(path)
+        else:
+            mi = tools.create_asset("MI_SBW_" + gun, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+        mel.set_material_instance_parent(mi, master)
+        for suffix in ("BC", "ORM", "N"):
+            mel.set_material_instance_texture_parameter_value(mi, suffix, maps[suffix])
+        eal.save_asset(path)
+        instances["M_SBW_" + gun] = mi
+        log("%s on M_SB_WeaponPBR" % path)
+    return instances
+
+
 def import_texture(name):
     """One texture from Art/Export/Textures (a narrow import still needs the character wear texture)."""
     png = os.path.join(EXPORT, "Textures", name + ".png")
@@ -606,6 +739,8 @@ def main():
         wear = import_texture(CHARACTER_WEAR_TEXTURE)
         if wear:
             character = character_instances(character_material(wear))
+        character = dict(character)
+        character.update(weapon_pbr_instances())
     for fbx in sorted(glob.glob(os.path.join(EXPORT, "*", "*.fbx"))):
         folder = os.path.basename(os.path.dirname(fbx))
         if only and folder not in only:
