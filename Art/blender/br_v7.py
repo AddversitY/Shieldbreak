@@ -22,24 +22,37 @@ TZ = 14.4  # optic axis height (task 21/22 framing)
 
 
 def smooth(points, samples=6, closed=True):
-    """Catmull-Rom through the points: a flowing outline from a few control points. Corners stay where a point is
-    repeated."""
+    """A flowing outline through a few control points: Catmull-Rom tangents, each clamped to half the length of the
+    segment it shapes, so a long edge meeting a short one cannot loop past the corner (plain Catmull-Rom overshot by up
+    to 4 cm). Corners stay where a point is repeated."""
     pts = list(points)
     n = len(pts)
+
+    def tangent(i):
+        a, b = pts[(i - 1) % n], pts[(i + 1) % n]
+        if not closed and i == 0:
+            a = pts[0]
+        if not closed and i == n - 1:
+            b = pts[-1]
+        return ((b[0] - a[0]) * 0.5, (b[1] - a[1]) * 0.5)
+
+    def clamp(m, limit):
+        size = math.hypot(m[0], m[1])
+        return m if size <= limit or size == 0 else (m[0] * limit / size, m[1] * limit / size)
+
     out = []
     rng = range(n) if closed else range(n - 1)
     for i in rng:
-        p0 = pts[(i - 1) % n] if closed or i > 0 else pts[i]
-        p1 = pts[i]
-        p2 = pts[(i + 1) % n]
-        p3 = pts[(i + 2) % n] if closed or i + 2 < n else p2
+        p1, p2 = pts[i], pts[(i + 1) % n]
         if p1 == p2:
             continue
+        seg = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+        m1, m2 = clamp(tangent(i), seg * 0.5), clamp(tangent((i + 1) % n), seg * 0.5)
         for s in range(samples):
             t = s / samples
             t2, t3 = t * t, t * t * t
-            out.append(tuple(0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 +
-                                    (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3) for j in range(2)))
+            h00, h10, h01, h11 = 2 * t3 - 3 * t2 + 1, t3 - 2 * t2 + t, -2 * t3 + 3 * t2, t3 - t2
+            out.append(tuple(h00 * p1[j] + h10 * m1[j] + h01 * p2[j] + h11 * m2[j] for j in range(2)))
     # drop near-duplicates (bmesh faces need distinct verts)
     clean = []
     for p in out:
@@ -59,7 +72,7 @@ def battle_rifle_v7():
     S = 3
     # ---- Core: the dark alloy chassis. Narrower than the shell; shows as a band at the waist and under the nose ----
     p.append(shape("core", [(-13.0, -0.4), (-13.0, 6.0), (20, 6.2), (46, 4.2), (51.5, 1.6), (49, -1.6), (36, -2.6), (21, -2.6), (20.5, -0.4)],
-                   4.7, "WeaponMetal", bevel=0.5, segments=S))
+                   4.2, "WeaponMetal", bevel=0.5, segments=S))
     # ---- Upper shell: one swept ceramic piece from the receiver to the nose ----
     upper = [(-13.6, 3.8), (-13.6, 7.0), (-10.0, 9.2), (0.0, 9.9), (17.0, 9.9), (28.0, 9.0), (39.0, 7.3), (47.5, 5.0), (52.6, 2.7),
              (53.2, 1.5), (49.0, 1.0), (40.0, 2.6), (30.0, 3.6), (18.0, 3.7), (3.0, 3.5)]

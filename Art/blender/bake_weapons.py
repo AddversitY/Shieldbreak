@@ -106,26 +106,38 @@ def br_decals():
 
 
 def sniper_decals():
+    """Markings for the Longshot SR v4 (sn_v4.py)."""
     d = []
-    for side, xs in (("X-", (-3.3, -2.7)), ("X+", (2.7, 3.3))):
-        d += [(wd.text(13.5, 1.3, "LONGSHOT", "display", spacing=8), side, (-1.4, 12.1, 3.5, 4.8), xs, DARK_INK, "Ceramic"),
-              (wd.lines(10.0, 1.0, ["LS-3  SR  14.5x114 APFSDS", "SN 1108-4471-D"]), side, (-1.0, 9.0, 1.3, 2.3), xs, DARK_INK, "Ceramic"),
-              (wd.bar(14.5, 0.16), side, (-1.6, 12.9, 3.15, 3.31), xs, ORANGE, "Ceramic"),
-              (wd.emblem(3.0, 3.0), side, (-9.5, -6.5, -0.2, 2.8), xs, (0.16, 0.165, 0.17), "Ceramic"),
-              (wd.text(18.0, 0.7, "CAUTION  BARREL ASSEMBLY  DO NOT TOUCH", "bold"), side, (48.0, 66.0, 5.6, 6.3), (xs[0] + 0.3, xs[1] - 0.3) if side == "X-" else (xs[0] - 0.4, xs[1]), DARK_INK, "Ceramic"),
-              (wd.warning(5.5, 1.1, "HOT"), side, (77.0, 82.5, 1.8, 2.9), (xs[0] + 0.3, xs[1] - 0.3) if side == "X-" else (xs[0] - 0.4, xs[1]), ORANGE, "Ceramic"),
-              (wd.chevrons(3.6, 0.9), side, (69.5, 73.1, 5.0, 5.9), (xs[0] + 0.3, xs[1] - 0.3) if side == "X-" else (xs[0] - 0.4, xs[1]), ORANGE, "Ceramic"),
-              (wd.text(3.0, 0.6, "5 RD", "bold"), side, (12.6, 15.6, -6.0, -5.4), (-2.2 if side == "X-" else 1.5, -1.5 if side == "X-" else 2.2), LIGHT_INK, "Polymer"),
-              (wd.text(4.6, 0.7, "SAFE   FIRE", "bold"), side, (-5.4, -0.8, -3.2, -2.5), (-2.6 if side == "X-" else 2.0, -2.0 if side == "X-" else 2.6), LIGHT_INK, "Polymer")]
+    for side, xs in (("X-", (-3.2, -2.4)), ("X+", (2.4, 3.2))):
+        fx = (-2.9, -2.2) if side == "X-" else (2.2, 2.9)    # forend armour face
+        lx = (-2.6, -2.0) if side == "X-" else (2.0, 2.6)    # lower receiver
+        mx = (-2.2, -1.5) if side == "X-" else (1.5, 2.2)    # magazine
+        d += [(wd.text(13.0, 1.1, "LONGSHOT", "display", spacing=8), side, (0.5, 13.5, 5.8, 6.9), xs, DARK_INK, "Ceramic"),
+              (wd.bar(14.0, 0.13), side, (0.0, 14.0, 5.55, 5.68), xs, ORANGE, "Ceramic"),
+              (wd.lines(10.0, 1.0, ["LS-4  SR  14.5x114 APFSDS", "SN 1108-4471-E"]), side, (2.0, 12.0, 4.0, 5.0), xs, DARK_INK, "Ceramic"),
+              (wd.emblem(1.8, 1.8), side, (-11.6, -9.8, 5.8, 7.6), xs, (0.16, 0.165, 0.17), "Ceramic"),
+              (wd.text(19.0, 0.6, "CAUTION  BARREL ASSEMBLY  DO NOT TOUCH", "bold"), side, (22.5, 41.5, 6.4, 7.0), xs, DARK_INK, "Ceramic"),
+              (wd.warning(5.0, 0.9, "HOT"), side, (63.5, 68.5, -2.0, -1.1), fx, ORANGE, "Ceramic"),
+              (wd.chevrons(3.2, 0.9), side, (26.5, 29.7, -1.9, -1.0), fx, ORANGE, "Ceramic"),
+              (wd.text(4.6, 0.7, "SAFE   FIRE", "bold"), side, (-5.4, -0.8, -3.2, -2.5), lx, LIGHT_INK, "Polymer"),
+              (wd.text(3.0, 0.6, "5 RD", "bold"), side, (12.6, 15.6, -6.0, -5.4), mx, LIGHT_INK, "Polymer")]
+    d += [(wd.text(4.4, 0.7, "MKS-10X", "display", spacing=2), "X-", (-6.0, -1.6, 12.6, 13.3), (-2.4, -1.7), DARK_INK, "Ceramic"),
+          (wd.bar(19.0, 0.14), "Z+", (-5.0, 14.0, -0.85, -0.71), (15.6, 16.8), ORANGE, "Ceramic"),
+          (wd.text(4.0, 0.8, "MKS-10X", "display", spacing=2), "Z+", (7.0, 11.0, -0.4, 0.4), (15.8, 16.9), DARK_INK, "Ceramic"),
+          (wd.ticks(5.0, 0.36, 11), "Z+", (18.0, 23.0, 0.2, 0.56), (17.2, 17.9), DARK_INK, "Ceramic")]
     return d
 
 
 def sidearm_decals():
+    """Markings for the Kestrel v3 (sa_v3.py)."""
     d = []
     for side, xs in (("X-", (-2.1, -1.5)), ("X+", (1.5, 2.1))):
-        d += [(wd.text(7.5, 0.95, "KESTREL", "display", spacing=5), side, (7.5, 15.0, 1.0, 1.95), xs, (0.03, 0.03, 0.032), "Steel"),
-              (wd.text(5.0, 0.5, "KS-2  10mm CSL", "mono"), side, (8.0, 13.0, 0.35, 0.85), xs, (0.03, 0.03, 0.032), "Steel"),
-              (wd.text(5.5, 0.55, "SN 2290-0613-K", "mono"), side, (7.0, 12.5, -1.65, -1.1), (xs[0] + 0.1, xs[1] - 0.1) if side == "X-" else (xs[0] - 0.1, xs[1] - 0.1), LIGHT_INK, "WeaponMetal")]
+        d += [(wd.text(6.4, 0.85, "KESTREL", "display", align="center", spacing=5), side, (8.0, 14.4, 3.35, 4.2), xs, DARK_INK, "Ceramic"),
+              (wd.text(4.6, 0.42, "KS-3  10mm CSL", "mono", align="center"), side, (8.9, 13.5, 4.45, 4.87), xs, DARK_INK, "Ceramic"),
+              (wd.text(5.0, 0.5, "SN 2290-0613-L", "mono"), side, (4.5, 9.5, -2.15, -1.65), (-1.9, -1.3) if side == "X-" else (1.3, 1.9),
+               LIGHT_INK, "WeaponMetal"),
+              (wd.emblem(1.6, 1.6), side, (-4.6, -3.0, -6.0, -4.4), (-1.95, -1.4) if side == "X-" else (1.4, 1.95), LIGHT_INK,
+               "Polymer")]
     return d
 
 
@@ -291,8 +303,8 @@ def _high_cyl(name, center, radius, length, mat, axis="Y", verts=12, bevel=0.3, 
     return _orig_cyl(name, center, radius, length, mat, axis, verts, bevel, radius2)
 
 
-# Guns that get the full professional high poly (pro_highpoly.py): boolean cuts, recessed screws, real slots.
-PRO = {"SM_SB_BattleRifle"}
+# Guns built the professional way (pro_highpoly.py), and the module holding each one's extra machined cuts.
+PRO = {"SM_SB_BattleRifle": "br_v7", "SM_SB_Sniper": "sn_v4", "SM_SB_Sidearm": "sa_v3"}
 
 
 def build_parts(name, high):
@@ -319,11 +331,7 @@ def build_parts(name, high):
             else:
                 bpy.data.objects.remove(p, do_unlink=True)
         if high:
-            if name == "SM_SB_BattleRifle":
-                import br_v7
-                br_v7.extra_cuts(collector)
-            else:
-                ph.extra_cuts(collector)
+            __import__(PRO[name]).extra_cuts(collector)
             cuts = ph.finish_high(parts + extras, collector)
             print("  high poly: %d cutters, %d boolean cuts" % (len(collector.cutters), cuts), flush=True)
     return parts, extras, muzzle, collector

@@ -580,10 +580,22 @@ def _vanguard_v7():
     return br_v7.battle_rifle_v7()
 
 
+def _kestrel_v3():
+    """Kestrel v3 (2026-11-07 reshape). v2 is sidearm()."""
+    import sa_v3
+    return sa_v3.sidearm_v3()
+
+
+def _longshot_v4():
+    """Longshot SR v4 (2026-11-07 reshape). v3 is sniper()."""
+    import sn_v4
+    return sn_v4.sniper_v4()
+
+
 WEAPONS = {
     "SM_SB_BattleRifle": _vanguard_v7,
-    "SM_SB_Sidearm": sidearm,
-    "SM_SB_Sniper": sniper,
+    "SM_SB_Sidearm": _kestrel_v3,
+    "SM_SB_Sniper": _longshot_v4,
     "SM_SB_RocketLauncher": rocket_launcher,
     "SM_SB_RailLance": rail_lance,
 }

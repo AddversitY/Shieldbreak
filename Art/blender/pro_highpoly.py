@@ -24,7 +24,8 @@ import build_weapons as bw
 SLOT_PREFIXES = ("cool_slot", "side_slot", "brake_top", "brake_low", "mlok", "ch_channel", "adj_hole", "muzzle_port",
                  "vent_window", "seam")
 # Small parts the cutters must not touch (they sit in the recesses).
-NO_CUT = ("screw", "screw_hex", "tooth", "trigger", "pin", "witness", "rib", "knurl", "turret", "battery", "cut_")
+# "plain_" marks a part kept uncut on purpose (a long curved n-gon side where booleans bake as shading streaks).
+NO_CUT = ("screw", "screw_hex", "tooth", "trigger", "pin", "witness", "rib", "knurl", "turret", "battery", "cut_", "plain_")
 
 
 class Collector:
