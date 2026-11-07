@@ -129,7 +129,40 @@ def sidearm_decals():
     return d
 
 
-DECALS = {"SM_SB_BattleRifle": br_decals, "SM_SB_Sniper": sniper_decals, "SM_SB_Sidearm": sidearm_decals}
+def br_v7_decals():
+    """Markings placed on the v7 (swept shell) battle rifle. br_decals() is the v6 layout."""
+    d = []
+    for side, xs in (("X-", (-3.5, -2.7)), ("X+", (2.7, 3.5))):
+        fx = (-3.2, -2.45) if side == "X-" else (2.45, 3.2)  # forend armour face
+        lx = (-2.6, -2.0) if side == "X-" else (2.0, 2.6)    # lower receiver / magazine
+        sx = (-2.5, -1.7) if side == "X-" else (1.7, 2.5)    # stock
+        d += [# Shell, receiver panel between the y -4 and y 21 seams: model name over an orange stripe, data plate below.
+              (wd.text(11.0, 1.3, "VANGUARD", "display", spacing=6), side, (3.0, 14.0, 6.6, 7.9), xs, DARK_INK, "Ceramic"),
+              (wd.bar(13.0, 0.15), side, (2.0, 15.0, 6.22, 6.37), xs, ORANGE, "Ceramic"),
+              (wd.lines(8.0, 0.8, ["VGD-7  BR  9.5x40 CSL", "SN 0417-2291-C"]), side, (6.0, 14.0, 4.95, 5.75), xs, DARK_INK, "Ceramic"),
+              # Rear of the shell, above the charging handle: emblem stamp.
+              (wd.emblem(1.8, 1.8), side, (-9.6, -7.8, 6.6, 8.4), xs, (0.16, 0.165, 0.17), "Ceramic"),
+              # Front shell panel and forend: barrel caution, heat warning by the vents, a direction chevron at the hand.
+              (wd.text(9.5, 0.6, "CAUTION  BARREL ASSEMBLY", "bold"), side, (22.5, 32.0, 6.45, 7.05), xs, DARK_INK, "Ceramic"),
+              (wd.warning(4.0, 0.9, "HOT"), side, (42.2, 46.2, -3.2, -2.3), fx, ORANGE, "Ceramic"),
+              (wd.chevrons(3.2, 0.9), side, (24.0, 27.2, -3.1, -2.2), fx, ORANGE, "Ceramic"),
+              # Lower receiver: fire selector legend and magazine release.
+              (wd.text(4.6, 0.7, "SAFE   BURST", "bold"), side, (-5.4, -0.8, -3.2, -2.5), lx, LIGHT_INK, "Polymer"),
+              (wd.text(3.0, 0.55, "MAG REL", "bold"), side, (17.4, 20.4, -1.4, -0.85), lx, LIGHT_INK, "Polymer"),
+              # Magazine: round-count ladder and capacity.
+              (wd.ticks(3.6, 0.6), side, (12.4, 16.4, -12.6, -12.0), (-2.2, -1.5) if side == "X-" else (1.5, 2.2), LIGHT_INK, "Polymer"),
+              (wd.text(3.0, 0.6, "36 RD", "bold"), side, (12.6, 15.6, -5.6, -5.0), (-2.2, -1.5) if side == "X-" else (1.5, 2.2), LIGHT_INK, "Polymer"),
+              # Stock arm: barcode.
+              (wd.barcode(4.0, 0.8), side, (-30.0, -26.0, 4.2, 5.0), sx, LIGHT_INK, "Polymer")]
+    # Optic: model name on the camera side, and an index stripe, name and range ticks on top.
+    d += [(wd.text(5.0, 1.0, "MKS-4X", "display", spacing=3), "X-", (1.5, 6.5, 14.7, 15.7), (-2.9, -2.2), DARK_INK, "Ceramic"),
+          (wd.bar(11.0, 0.18), "Z+", (0.8, 11.8, -1.05, -0.87), (17.2, 18.0), ORANGE, "Ceramic"),
+          (wd.text(4.2, 1.0, "MKS-4X", "display", spacing=3), "Z+", (2.0, 6.2, -0.5, 0.5), (17.2, 18.0), DARK_INK, "Ceramic"),
+          (wd.ticks(5.0, 0.45, 11), "Z+", (14.5, 19.5, 0.3, 0.75), (18.1, 18.8), DARK_INK, "Ceramic")]
+    return d
+
+
+DECALS = {"SM_SB_BattleRifle": br_v7_decals, "SM_SB_Sniper": sniper_decals, "SM_SB_Sidearm": sidearm_decals}
 
 
 # =====================================================================================================================
@@ -286,7 +319,11 @@ def build_parts(name, high):
             else:
                 bpy.data.objects.remove(p, do_unlink=True)
         if high:
-            ph.extra_cuts(collector)
+            if name == "SM_SB_BattleRifle":
+                import br_v7
+                br_v7.extra_cuts(collector)
+            else:
+                ph.extra_cuts(collector)
             cuts = ph.finish_high(parts + extras, collector)
             print("  high poly: %d cutters, %d boolean cuts" % (len(collector.cutters), cuts), flush=True)
     return parts, extras, muzzle, collector

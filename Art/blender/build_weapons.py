@@ -574,8 +574,14 @@ def trigger_blade(front_y, top, bottom):
                                  (front_y - 1.2, bottom + 0.3), (front_y - 0.9, mid)], 0.8, "Steel", bevel=0.15)
 
 
+def _vanguard_v7():
+    """Vanguard BR v7 (2026-11-07 silhouette redesign: one swept body, integrated optic). v6 is battle_rifle()."""
+    import br_v7
+    return br_v7.battle_rifle_v7()
+
+
 WEAPONS = {
-    "SM_SB_BattleRifle": battle_rifle,
+    "SM_SB_BattleRifle": _vanguard_v7,
     "SM_SB_Sidearm": sidearm,
     "SM_SB_Sniper": sniper,
     "SM_SB_RocketLauncher": rocket_launcher,
