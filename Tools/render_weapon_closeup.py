@@ -1,7 +1,7 @@
-﻿"""3/4 close-up of the exported Battle Rifle with its baked textures, as Unreal would show it.
+﻿"""3/4 close-up of an exported weapon (Battle Rifle by default) with its baked textures, as Unreal would show it.
 
 Unreal reads the FBX numbers as-is but is left-handed, so a right-handed Blender render of the same numbers is the
-mirror image: render, then flip the image horizontally. Usage: python render_br34.py <ArtExportDir> <out.png>
+mirror image: render, then flip the image horizontally. Usage: python render_weapon_closeup.py <ArtExportDir> <out.png> [BattleRifle|Sniper|Sidearm]
 """
 import math
 import os
@@ -12,11 +12,12 @@ import numpy as np
 from mathutils import Vector
 
 export_dir, out_png = sys.argv[1], sys.argv[2]
+weapon = sys.argv[3] if len(sys.argv) > 3 else "BattleRifle"  # BattleRifle | Sniper | Sidearm
 tex = os.path.join(export_dir, "Textures", "Weapons")
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
-bpy.ops.import_scene.fbx(filepath=os.path.join(export_dir, "Weapons", "SM_SB_BattleRifle.fbx"), axis_forward="-Y", axis_up="Z")
+bpy.ops.import_scene.fbx(filepath=os.path.join(export_dir, "Weapons", "SM_SB_%s.fbx" % weapon), axis_forward="-Y", axis_up="Z")
 meshes = [o for o in scene.objects if o.type == "MESH"]
 for o in scene.objects:
     if o.type != "MESH":
@@ -41,7 +42,7 @@ bsdf = nt.nodes["Principled BSDF"]
 
 def img(suffix, cs):
     n = nt.nodes.new("ShaderNodeTexImage")
-    n.image = bpy.data.images.load(os.path.join(tex, "T_SB_BattleRifle_%s.png" % suffix))
+    n.image = bpy.data.images.load(os.path.join(tex, "T_SB_%s_%s.png" % (weapon, suffix)))
     n.image.colorspace_settings.name = cs
     n.image.alpha_mode = "CHANNEL_PACKED"
     return n
@@ -83,7 +84,7 @@ cam_data = bpy.data.cameras.new("cam")
 cam_data.lens = 70
 cam = bpy.data.objects.new("cam", cam_data)
 scene.collection.objects.link(cam)
-cam.location = center + d * size * 1.6
+cam.location = center + d * size * (float(sys.argv[4]) if len(sys.argv) > 4 else 1.6)  # optional distance factor
 cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
 cam_data.clip_start = size * 0.01
 cam_data.clip_end = size * 20

@@ -628,6 +628,12 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-11-07 Claude on the desktop, branch `gun-textures` (local commits only): **guns reshape**, Longshot v4
+  sniper + Kestrel v3 sidearm + BR tweaks. Bake 2048: BR 14,584 (NoMag 14,096), Sniper 15,248 (14,884), Sidearm
+  3,964 (3,832). Import clean (0 "Failed to compile"). Self-test **159/159**, 128.7 FPS with 4 bots; FP shots
+  8/8, fixed FP 145.8 FPS. The `-SBFPShots` pass now also shoots `fp_7_sidearm_idle`, `fp_8_sidearm_reload`,
+  `fp_9_sniper_idle` and `fp_10_sniper_reload` after the FPS figure. `render_weapon_closeup.py` takes a weapon name
+  and distance factor (`Sidearm 3.4`). Shots: `docs/playtests/2026-11-07_reshape/`.
 - 2026-11-07 Claude on the desktop, branch `gun-textures` (local commits only, GitHub suspended): **Vanguard BR v7**
   (swept shell, integrated optic). Bake 2048: LOW 14,632 / HIGH 82,653 tris; NoMag 14,144 + Mag 488. Import clean
   (0 "Failed to compile"). Self-test **159/159**, 129.1 FPS with 4 bots; FP shots 8/8, fixed FP 146.0 FPS. New

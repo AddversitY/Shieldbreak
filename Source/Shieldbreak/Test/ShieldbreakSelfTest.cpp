@@ -3829,5 +3829,28 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					(GFrameCounter - Value0) / Seconds, Seconds));
 				return true;
 			}, 25.f });
+		// After the FPS figure (so it stays comparable): the sidearm and the Sniper idle and mid reload.
+		auto EmptyRounds = [this, Player](const TCHAR* Name)
+		{
+			Steps.Add({ Name, [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
+				[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.4f; }, 4.f });
+		};
+		Shot(TEXT("fp_7_sidearm_idle"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 1.5f }, 2.f);
+		EmptyRounds(TEXT("Empty a few sidearm rounds"));
+		Shot(TEXT("fp_8_sidearm_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
+		Shot(TEXT("fp_9_sniper_idle"),
+			[this, Reset, Player]()
+			{
+				Reset();
+				AShieldbreakCharacter* P = Player();
+				if (!P) { return; }
+				P->GiveWeapon(AWeapon_SniperRifle::StaticClass());
+				for (TActorIterator<AWeapon_SniperRifle> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == P) { P->EquipWeapon(*It); break; }
+				}
+			}, { 1.8f }, 2.2f);
+		EmptyRounds(TEXT("Fire a sniper round"));
+		Shot(TEXT("fp_10_sniper_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
 	}
 }
