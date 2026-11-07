@@ -22,3 +22,6 @@ SM_SB_BattleRifle_NoMag: 14144 tris; SM_SB_BattleRifle_Mag: 488 tris, bounds X -
 SM_SB_BattleRifle bake: LOW 14392 tris, HIGH 80828 tris, 2048 px
 SM_SB_BattleRifle: 14348 tris, 1 material (textured), bounds X -3.6..3.4 Y -40.9..60.4 Z -17.5..16.9
 SM_SB_BattleRifle_NoMag: 13904 tris; SM_SB_BattleRifle_Mag: 488 tris, bounds X -2.0..2.0 Y -3.0..5.8 Z -13.9..1.4
+SM_SB_BattleRifle bake: LOW 14392 tris, HIGH 80828 tris, 2048 px
+SM_SB_BattleRifle: 14348 tris, 1 material (textured), bounds X -3.6..3.4 Y -40.9..60.4 Z -17.5..16.9
+SM_SB_BattleRifle_NoMag: 13904 tris; SM_SB_BattleRifle_Mag: 488 tris, bounds X -2.0..2.0 Y -3.0..5.8 Z -13.9..1.4
