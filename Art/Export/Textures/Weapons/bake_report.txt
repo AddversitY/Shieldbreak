@@ -16,3 +16,6 @@ SM_SB_Sniper_NoMag: 11072 tris; SM_SB_Sniper_Mag: 364 tris, bounds X -2.0..2.0 Y
 SM_SB_Sidearm bake: LOW 1372 tris, HIGH 8464 tris, 2048 px
 SM_SB_Sidearm: 1284 tris, 1 material (textured), bounds X -1.8..1.8 Y -7.1..18.3 Z -12.4..6.4
 SM_SB_Sidearm_NoMag: 1240 tris; SM_SB_Sidearm_Mag: 132 tris, bounds X -1.8..1.8 Y -4.7..2.4 Z -10.0..0.6
+SM_SB_BattleRifle bake: LOW 14632 tris, HIGH 82653 tris, 2048 px
+SM_SB_BattleRifle: 14588 tris, 1 material (textured), bounds X -3.6..3.4 Y -40.9..60.4 Z -17.5..18.6
+SM_SB_BattleRifle_NoMag: 14144 tris; SM_SB_BattleRifle_Mag: 488 tris, bounds X -2.0..2.0 Y -3.0..5.8 Z -13.9..1.4

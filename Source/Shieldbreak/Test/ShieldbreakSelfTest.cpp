@@ -567,9 +567,26 @@ void AShieldbreakSelfTest::BuildSteps()
 				{
 					return false;
 				}
+				TakeShot(TEXT("fp_br_hip"), true); // the Battle Rifle held at the hip, before zooming
+				Mark = Now();
+				Phase = 10;
+				return false;
+			case 10:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
 				Player->SetZoomed(true);
 				Mark = Now();
-				Phase = 2;
+				Phase = 11;
+				return false;
+			case 11: // mid zoom (the scope blend takes 0.12 s): the gun on its way up, before the optic view takes over
+				if (Now() - Mark < 0.05f)
+				{
+					return false;
+				}
+				TakeShot(TEXT("fp_br_ads_in"), true);
+				Phase = 2; // Mark stays at the zoom start
 				return false;
 			case 2:
 				if (Now() - Mark < 0.8f)

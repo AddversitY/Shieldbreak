@@ -180,6 +180,12 @@ bool AShieldbreakPlayerController::IsHelpVisible() const
 	{
 		return HelpOverride == 1;
 	}
+	// -SBNoHelp: keep the F1 controls overlay off (clean first-person captures); F1 still toggles it.
+	static const bool bNoHelp = FParse::Param(FCommandLine::Get(), TEXT("SBNoHelp"));
+	if (bNoHelp)
+	{
+		return false;
+	}
 	const UWorld* World = GetWorld();
 	return World && World->GetTimeSeconds() < HelpAutoHideTime;
 }

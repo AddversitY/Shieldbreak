@@ -628,6 +628,13 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-11-07 Claude on the desktop, branch `gun-textures` (local commits only, GitHub suspended): **Vanguard BR v7**
+  (swept shell, integrated optic). Bake 2048: LOW 14,632 / HIGH 82,653 tris; NoMag 14,144 + Mag 488. Import clean
+  (0 "Failed to compile"). Self-test **159/159**, 129.1 FPS with 4 bots; FP shots 8/8, fixed FP 146.0 FPS. New
+  `-SBNoHelp` keeps the F1 controls overlay off for captures; the scope step now also shoots `fp_br_hip` and
+  `fp_br_ads_in` (the scope view is already up 0.05 s into the zoom, so it matches `scope_marksman`).
+  `Tools/render_weapon_closeup.py` renders a 3/4 Blender close-up mirrored to match Unreal. Shots and reports:
+  `docs/playtests/2026-11-07_v7/`. The integrated optic covers ~17% of the hip frame.
 - 2026-11-02 Claude, driving the desktop remotely: **Spire and Creekbed redesign** (`Saved\RunR3.bat`, commit
   `b93e9e1`). Build OK, self-test 126/126. Tours: Spire Slayer 29/29 (115 FPS, 66 interior lamps), Spire CTF 39/39,
   Creekbed Slayer 23/23 (114 FPS), Creekbed Oddball 29/29, no bot stuck for 20 s. **Look pass** (`RunR4.bat`,
