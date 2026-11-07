@@ -1,0 +1,20 @@
+build head a15687457b4010a490fafeb71574c3e6bd2e8e29 start 2026-11-07T05:31:17
+build exit 0 2026-11-07T05:33:03
+fp head a15687457b4010a490fafeb71574c3e6bd2e8e29 start 2026-11-07T05:33:04
+fp_before exit 0 2026-11-07T05:35:05 wall 121s | CPU others: NZXT CAM#21312=24.1s, cam_helper#22308=12.1s, Discord#15936=9.9s, Agent#25820=8.4s, Battle.net#19460=4s, zenserver#30108=2.8s | GPU@45s: 0 %, 2228 MiB
+done fp_before 2026-11-07T05:35:05
+self head a15687457b4010a490fafeb71574c3e6bd2e8e29 start 2026-11-07T05:35:34
+self_before exit 0 2026-11-07T05:39:15 wall 220s | CPU others: NZXT CAM#21312=47.5s, Discord#15936=24.7s, cam_helper#22308=22.8s, audiodg#17152=11.9s, Battle.net#19460=8.6s, NZXT CAM#21032=3.7s | GPU@45s: 86 %, 2523 MiB
+done self_before 2026-11-07T05:39:15
+fp head 576fd54e71c078c62b72f59089bc9e96daa9216a start 2026-11-07T05:48:50
+fp_after1 exit 0 2026-11-07T05:50:07 wall 76s | CPU others: NZXT CAM#21312=16s, cam_helper#22308=7.7s, Discord#15936=7.6s, claude#25260=4.4s, Battle.net#19460=2.6s, zenserver#27528=2.5s | GPU@45s: 41 %, 3363 MiB
+done fp_after1 2026-11-07T05:50:07
+self head 576fd54e71c078c62b72f59089bc9e96daa9216a start 2026-11-07T05:50:07
+self_after1 exit 0 2026-11-07T05:53:47 wall 219s | CPU others: NZXT CAM#21312=48.3s, cam_helper#22308=23.1s, Discord#15936=21s, audiodg#17152=8.3s, Battle.net#19460=8.2s, NZXT CAM#21032=3.8s | GPU@45s: 86 %, 2521 MiB
+done self_after1 2026-11-07T05:53:47
+fp head 576fd54e71c078c62b72f59089bc9e96daa9216a start 2026-11-07T05:53:47
+fp_after2 exit 0 2026-11-07T05:55:03 wall 76s | CPU others: NZXT CAM#21312=15s, Discord#15936=11.6s, cam_helper#22308=7.7s, audiodg#17152=4.8s, Battle.net#19460=2.8s, zenserver#10936=2.7s | GPU@45s: 40 %, 3362 MiB
+done fp_after2 2026-11-07T05:55:03
+self head 576fd54e71c078c62b72f59089bc9e96daa9216a start 2026-11-07T05:55:03
+self_after2 exit 0 2026-11-07T05:58:42 wall 219s | CPU others: NZXT CAM#21312=49s, Discord#15936=22.4s, cam_helper#22308=22.2s, Battle.net#19460=8.4s, NZXT CAM#21032=3.9s, audiodg#17152=3.4s | GPU@45s: 88 %, 2523 MiB
+done self_after2 2026-11-07T05:58:42
