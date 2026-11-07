@@ -121,10 +121,12 @@ def sniper_decals():
               (wd.chevrons(3.2, 0.9), side, (26.5, 29.7, -1.9, -1.0), fx, ORANGE, "Ceramic"),
               (wd.text(4.6, 0.7, "SAFE   FIRE", "bold"), side, (-5.4, -0.8, -3.2, -2.5), lx, LIGHT_INK, "Polymer"),
               (wd.text(3.0, 0.6, "5 RD", "bold"), side, (12.6, 15.6, -6.0, -5.4), mx, LIGHT_INK, "Polymer")]
-    d += [(wd.text(4.4, 0.7, "MKS-10X", "display", spacing=2), "X-", (-6.0, -1.6, 12.6, 13.3), (-2.4, -1.7), DARK_INK, "Ceramic"),
-          (wd.bar(19.0, 0.14), "Z+", (-5.0, 14.0, -0.85, -0.71), (15.6, 16.8), ORANGE, "Ceramic"),
-          (wd.text(4.0, 0.8, "MKS-10X", "display", spacing=2), "Z+", (7.0, 11.0, -0.4, 0.4), (15.8, 16.9), DARK_INK, "Ceramic"),
-          (wd.ticks(5.0, 0.36, 11), "Z+", (18.0, 23.0, 0.2, 0.56), (17.2, 17.9), DARK_INK, "Ceramic")]
+    d += [(wd.text(3.6, 0.55, "MKS-10X", "display", align="center", spacing=2), "X-", (-1.6, 2.4, 12.3, 12.85), (-2.0, -1.3), DARK_INK,
+           "Ceramic"),
+          (wd.bar(12.0, 0.12), "Z+", (-1.0, 11.0, -0.7, -0.58), (14.3, 15.4), ORANGE, "Ceramic"),
+          (wd.text(3.2, 0.62, "MKS-10X", "display", align="center", spacing=2), "Z+", (6.6, 9.8, -0.31, 0.31), (14.4, 15.4), DARK_INK,
+           "Ceramic"),
+          (wd.ticks(4.0, 0.3, 9), "Z+", (13.2, 17.2, 0.15, 0.45), (15.3, 16.0), DARK_INK, "Ceramic")]
     return d
 
 
@@ -555,7 +557,7 @@ def bake_material(slot, ao_image, decals, target):
         scuff = g.mul(edge, g.remap(n_mid, 0.4, 0.7))
         col = g.scale_color(base + (1.0,), tone)
         col = g.mix(g.mul(scuff, 0.8), col, tuple(c * 2.4 + 0.012 for c in base))
-        col = g.mix(g.mul(grime, 0.55), col, DUST)
+        col = g.mix(g.mul(grime, 0.3), col, DUST)  # 0.55 read as cloudy blotches on the grips (PC shots)
         dl = decal_layer(g, decals, slot)
         if dl:
             col = g.mix(g.mul(dl[1], 0.85), col, dl[0])

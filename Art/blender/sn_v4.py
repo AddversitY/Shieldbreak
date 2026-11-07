@@ -18,7 +18,7 @@ import build_weapons as bw
 from br_v7 import shape
 
 BZ = 2.4   # bore height
-SZ = 14.0  # scope axis height
+SZ = 12.9  # scope axis height
 
 
 def sniper_v4():
@@ -135,40 +135,42 @@ def sniper_v4():
 
 
 def sniper_v4_scope(p, S):
-    """A long slim wedge housing on a low saddle: hooded big objective, slim eyecup, top turret and a rangefinder pod."""
-    p.append(shape("scope_mount", [(-2.0, 8.4), (16.0, 8.4), (14.6, 10.8), (-0.6, 10.8)], 2.6, "WeaponMetal", bevel=0.3, segments=2,
+    """A slim wedge housing on a low saddle (v4b: narrowed after the PC shots showed the first one filling 15% of the
+    frame): hooded objective, slim eyecup, top turret and a rangefinder pod."""
+    p.append(shape("scope_mount", [(0.0, 8.4), (13.0, 8.4), (12.0, 10.6), (1.0, 10.6)], 1.6, "WeaponMetal", bevel=0.3, segments=2,
                    samples=2))
-    for x in (1.4, -1.4):
-        bw.screw(p, x, 1.0, 9.4, 0.22)
-        bw.screw(p, x, 13.0, 9.4, 0.22)
-    p.append(shape("scope_body", [(-8.6, 10.9), (-9.4, 13.2), (-6.4, 15.9), (12.0, 16.6), (19.0, 17.0), (22.6, 16.4), (23.2, 11.8),
-                                  (20.4, 10.3), (0.0, 10.5)], 4.0, "Ceramic", bevel=0.75, segments=S + 1))
-    p.append(shape("scope_visor", [(16.0, 16.6), (17.0, 17.6), (24.4, 17.7), (25.6, 16.9), (25.2, 16.4), (21.0, 16.8)], 4.4, "Ceramic",
-                   bevel=0.3, segments=S, samples=4))
-    p.append(k.cyl("objective_bezel", (0, 23.6, SZ), 2.25, 0.9, "WeaponMetal", verts=32, bevel=0.15))
-    p.append(k.cyl("objective_ring", (0, 24.08, SZ), 2.02, 0.08, "GlowCyan", verts=32, bevel=0))
-    p.append(k.cyl("objective_lens", (0, 24.0, SZ), 1.9, 0.06, "Lens", verts=32, bevel=0))
-    p.append(k.cyl("eyecup", (0, -9.6, SZ - 0.6), 1.45, 1.4, "Polymer", verts=24, bevel=0.2, radius2=1.62))
-    for i in range(3):
-        p.append(k.cyl("eye_rib", (0, -10.1 + i * 0.45, SZ - 0.6), 1.7, 0.13, "Polymer", verts=24, bevel=0))
-    p.append(k.cyl("eye_lens", (0, -10.33, SZ - 0.6), 1.1, 0.05, "Lens", verts=24, bevel=0))
-    # Top elevation turret with a knurled ring and a glowing cap; side parallax knob; left rangefinder pod.
-    p.append(k.cyl("turret_top", (0, 4.0, 16.9), 1.15, 1.2, "WeaponMetal", axis="Z", verts=20, bevel=0.12))
-    for i in range(12):
-        a = i * math.pi / 6
-        p.append(k.box("turret_knurl", (1.17 * math.cos(a), 4.0 + 1.17 * math.sin(a), 16.95), (0.12, 0.12, 0.9), "Steel", bevel=0))
-    p.append(k.cyl("turret_cap", (0, 4.0, 17.55), 0.8, 0.12, "GlowCyan", axis="Z", verts=16, bevel=0))
-    p.append(k.cyl("battery", (2.15, 4.0, SZ - 0.6), 0.75, 0.5, "WeaponMetal", axis="X", verts=20, bevel=0.08))
-    p.append(shape("rangefinder", [(14.0, 11.6), (21.6, 11.6), (22.4, 12.6), (21.6, 13.8), (14.6, 13.8)], 0.9, "WeaponMetal",
-                   x=-2.35, bevel=0.2, segments=2, samples=2))
-    p.append(k.box("rangefinder_lens", (-2.35, 22.45, 12.7), (0.6, 0.1, 0.9), "Lens", bevel=0))
-    p.append(k.box("scope_display", (-2.42, 5.0, 12.2), (0.06, 6.0, 0.9), "Display", bevel=0))
-    for x in (2.02, -2.02):
+    for x in (0.85, -0.85):  # mount 1.6 wide: >= 0.8 cm inside the housing's skin, or the bake reads it as worn edges
+        bw.screw(p, x, 2.5, 9.4, 0.2)
+        bw.screw(p, x, 10.5, 9.4, 0.2)
+    # Uncut on the high poly ("plain_"): booleans on this curved side baked as glassy streaks.
+    p.append(shape("plain_scope_body", [(-2.4, 10.6), (-3.0, 12.4), (-0.8, 14.5), (10.0, 15.0), (14.6, 15.2), (17.0, 14.7), (17.4, 11.2),
+                                  (15.4, 10.3), (1.0, 10.4)], 3.2, "Ceramic", bevel=0.6, segments=S + 1))
+    p.append(shape("scope_visor", [(12.0, 14.9), (12.8, 15.7), (18.0, 15.8), (18.9, 15.2), (18.6, 14.8), (15.6, 15.1)], 3.5, "Ceramic",
+                   bevel=0.25, segments=S, samples=4))
+    p.append(k.cyl("objective_bezel", (0, 17.6, SZ), 1.7, 0.7, "WeaponMetal", verts=32, bevel=0.12))
+    p.append(k.cyl("objective_ring", (0, 17.97, SZ), 1.52, 0.07, "GlowCyan", verts=32, bevel=0))
+    p.append(k.cyl("objective_lens", (0, 17.9, SZ), 1.42, 0.05, "Lens", verts=32, bevel=0))
+    p.append(k.cyl("eyecup", (0, -3.3, SZ - 0.4), 1.1, 1.1, "Polymer", verts=24, bevel=0.18, radius2=1.24))
+    for i in range(2):
+        p.append(k.cyl("eye_rib", (0, -3.6 + i * 0.45, SZ - 0.4), 1.3, 0.12, "Polymer", verts=24, bevel=0))
+    p.append(k.cyl("eye_lens", (0, -3.88, SZ - 0.4), 0.85, 0.05, "Lens", verts=24, bevel=0))
+    # Top elevation turret with a knurled ring and a glowing cap; right battery cap; left rangefinder pod.
+    p.append(k.cyl("turret_top", (0, 5.0, 15.3), 0.9, 0.9, "WeaponMetal", axis="Z", verts=20, bevel=0.1))
+    for i in range(10):
+        a = i * math.pi / 5
+        p.append(k.box("turret_knurl", (0.92 * math.cos(a), 5.0 + 0.92 * math.sin(a), 15.35), (0.1, 0.1, 0.7), "Steel", bevel=0))
+    p.append(k.cyl("turret_cap", (0, 5.0, 15.78), 0.62, 0.1, "GlowCyan", axis="Z", verts=16, bevel=0))
+    p.append(k.cyl("battery", (1.72, 5.0, SZ - 0.4), 0.6, 0.4, "WeaponMetal", axis="X", verts=20, bevel=0.07))
+    p.append(shape("rangefinder", [(10.0, 10.8), (15.8, 10.8), (16.4, 11.6), (15.8, 12.4), (10.4, 12.4)], 0.7, "WeaponMetal",
+                   x=-1.9, bevel=0.15, segments=2, samples=2))
+    p.append(k.box("rangefinder_lens", (-1.9, 16.42, 11.6), (0.45, 0.08, 0.7), "Lens", bevel=0))
+    p.append(k.box("scope_display", (-1.66, 4.0, 11.5), (0.05, 4.4, 0.7), "Display", bevel=0))
+    for x in (1.62, -1.62):
         out = 1 if x > 0 else -1
-        p.append(shape("scope_band", [(-7.6, 10.7), (20.2, 10.7), (21.0, 11.5), (20.2, 12.0), (-7.0, 12.0)], 0.24, "WeaponMetal",
-                       x=x + out * 0.06, bevel=0.08, segments=2, samples=2))
-        bw.seam(p, x, (10.0, 12.1), (10.0, 16.4))
-        p.append(k.box("scope_line", (x + out * 0.02, 2.0, 15.0), (0.07, 14.0, 0.13), "GlowCyan", bevel=0))
+        p.append(shape("scope_band", [(-1.6, 10.6), (15.0, 10.6), (15.6, 11.1), (15.0, 11.5), (-1.2, 11.5)], 0.2, "WeaponMetal",
+                       x=x + out * 0.05, bevel=0.07, segments=2, samples=2))
+        bw.seam(p, x, (8.5, 11.6), (8.5, 14.8))
+        p.append(k.box("scope_line", (x + out * 0.02, 3.5, 14.0), (0.06, 9.0, 0.11), "GlowCyan", bevel=0))
 
 
 def extra_cuts(c):
@@ -180,4 +182,3 @@ def extra_cuts(c):
         c.cutter_box((s * 1.85, 14.5, -9.6), (0.3, 5.0, 1.2))                              # magazine panel
         c.cutter_box((s * 2.75, 32.0, 6.6), (0.3, 18.0, 0.14), rot_x=math.radians(-3.5))   # shell groove
         c.cutter_box((s * 2.75, 8.0, 7.4), (0.3, 10.0, 1.0))                               # receiver recessed panel
-        c.cutter_box((s * 2.05, 4.0, 13.6), (0.24, 8.0, 0.5))                              # scope window strip
