@@ -628,6 +628,11 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   it, so they're fine; self-test shooters now freeze their AI tick before aiming.
 
 ## Verified on the PC
+- 2026-11-07 Claude on the desktop, `gun-textures` (local only): **guns polish** (slimmer sniper scope, grip and
+  scope wear fixes). Bake 2048: BR 14,584 (NoMag 14,096), Sniper 15,132 (14,768), Sidearm 3,964 (3,832). Import
+  clean. Self-test **159/159** twice; FPS was 109.0/107.3 with 4 bots and 125.6 fixed FP while the Claude desktop
+  app used ~116 s of CPU per run, so those figures aren't comparable to 128.7/145.8. Shots:
+  `docs/playtests/2026-11-07_polish/`.
 - 2026-11-07 Claude on the desktop, branch `gun-textures` (local commits only): **guns reshape**, Longshot v4
   sniper + Kestrel v3 sidearm + BR tweaks. Bake 2048: BR 14,584 (NoMag 14,096), Sniper 15,248 (14,884), Sidearm
   3,964 (3,832). Import clean (0 "Failed to compile"). Self-test **159/159**, 128.7 FPS with 4 bots; FP shots
