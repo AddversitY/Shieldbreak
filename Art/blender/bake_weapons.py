@@ -59,14 +59,18 @@ SURFACES = {
 }
 # Paint wears through to this bare metal at the edges.
 BARE_METAL = (0.48, 0.47, 0.45)
-DARK_METAL = (0.07, 0.072, 0.078)  # what chipped white ceramic shows: the dark alloy shell under the paint
-EDGE_AO = (0.75, 0.45)  # inside-AO range mapped to the convex-edge mask on HIGH
+DARK_METAL = (0.16, 0.165, 0.175)  # what chipped white ceramic shows: the dark alloy shell under the paint
+EDGE_AO = (0.62, 0.36)  # 0.75/0.45 made whole small parts (hood rim, rail teeth, ribs) read as black wear  # inside-AO range mapped to the convex-edge mask on HIGH
 GRIME = (0.05, 0.045, 0.038)
 DUST = (0.16, 0.15, 0.13)
 
 # ---- Markings per gun: (image, axis, rect, slab, colour, surface). axis X-/X+ project onto the gun's sides:
 # rect = (y0, y1, z0, z1) in cm, slab = (x_lo, x_hi) keeps the decal to the outer skin. Z+ projects from above:
 # rect = (y0, y1, x0, x1), slab = (z_lo, z_hi). Text reads correctly from the side it is on (the FP camera sees -X).
+# Unreal shows these meshes as the mirror image of Blender's view (export_fbx keeps the numbers, Unreal is
+# left-handed), so markings are projected mirrored here and read correctly in game. Desktop run 2026-11-07 (guntex):
+# unmirrored "VANGUARD" and "MKS-4X" read reversed in the first-person shots. Blender previews show them mirrored.
+DECAL_MIRROR = True
 DARK_INK = (0.025, 0.026, 0.028)
 LIGHT_INK = (0.55, 0.55, 0.53)
 ORANGE = (0.62, 0.16, 0.02)
@@ -364,7 +368,7 @@ def high_material(kind_name):
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     kind = SURFACES.get(kind_name, SURFACES["WeaponMetal"])[0]
     co = g.coords()
-    bevel = g.add("ShaderNodeBevel", samples=8)
+    bevel = g.add("ShaderNodeBevel", samples=16)
     bevel.inputs["Radius"].default_value = 0.06
     height, strength = None, 0.0
     if kind == "polymer":
@@ -420,6 +424,8 @@ def decal_layer(g, decals, slot):
             v = g.mul(g.math("SUBTRACT", a1, co[0]), 1.0 / (a1 - a0))
             facing = g.remap(nrm[2], 0.6, 0.8, smooth=False)
             depth = co[2]
+        if DECAL_MIRROR:
+            u = g.math("SUBTRACT", 1.0, u)
         inside = g.mul(g.math("GREATER_THAN", depth, lo), g.math("LESS_THAN", depth, hi))
         tex = g.add("ShaderNodeTexImage", extension="CLIP", interpolation="Cubic")
         tex.image = d["image"]
@@ -480,7 +486,7 @@ def bake_material(slot, ao_image, decals, target):
     em = 0.0
     if kind == "paint":
         chip_src = g.addf(g.mul(edge, g.addf(0.35, g.mul(n_mid, 1.1))), g.mul(g.math("SUBTRACT", n_fine, 0.5), 0.35))
-        chip = g.remap(chip_src, 0.6, 0.66)
+        chip = g.remap(chip_src, 0.66, 0.72)
         rim = g.math("SUBTRACT", g.remap(chip_src, 0.5, 0.62), chip, clamp=True)  # darker primer ring round each chip
         scratches = g.remap(g.noise(g.vscale(co, (1.0, 0.07, 1.0)), 6.0, 2.0, 0.5), 0.665, 0.68)
         scratches = g.mul(scratches, g.remap(n_big, 0.35, 0.65))
@@ -488,7 +494,7 @@ def bake_material(slot, ao_image, decals, target):
         light = sum(base) / 3.0 > 0.25
         if not light:
             col = g.mix(g.mul(edge, 0.25), col, tuple(min(1.0, c * 1.35 + 0.02) for c in base))  # worn-bright edges
-        col = g.mix(g.mul(grime, 0.7 if light else 0.45), col, GRIME)
+        col = g.mix(g.mul(grime, 0.5 if light else 0.4), col, GRIME)
         dl = decal_layer(g, decals, slot)
         if dl:
             col = g.mix(g.mul(dl[1], g.math("SUBTRACT", 1.0, g.mul(chip, 1.0))), col, dl[0])
@@ -531,7 +537,7 @@ def bake_material(slot, ao_image, decals, target):
         # Coated glass: dark, with a violet-to-teal tint across it.
         s = g.sep(co)
         tint = g.remap(g.addf(s[0], s[2]), -2.0, 18.0)
-        col = g.mix(tint, base, (0.03, 0.012, 0.06))
+        col = g.mix(tint, base, (0.01, 0.06, 0.07))  # teal-cyan coating (the desktop read violet as purple)
         rough, metal, em = rough0, 0.0, var
     else:  # glow
         col = g.mix(g.mul(cavity, 0.4), base, tuple(c * 0.6 for c in base))
@@ -594,7 +600,7 @@ def pixels(img):
 
 
 def bake_normal(low, high, res):
-    scene = setup_cycles(4)
+    scene = setup_cycles(8)
     img = new_image("N", res)
     for slot in low.material_slots:
         tree = slot.material.node_tree
@@ -705,11 +711,22 @@ def save_png(arr, path, mode):
     Image.fromarray((arr * 255.0 + 0.5).astype(np.uint8), mode).save(path, optimize=True)
 
 
+def fix_normal_misses(n):
+    """Texels whose baked normal tilts more than ~73 degrees are ray misses (the cage ray grazed a wall of a cut or
+    a neighbouring part), which showed as solid olive islands: flatten them to the low poly's own normal."""
+    z = n[:, :, 2] * 2.0 - 1.0
+    used = n.sum(axis=2) > 0.05
+    bad = used & (z < 0.3)
+    n[bad] = (0.5, 0.5, 1.0)
+    return n
+
+
 def write_textures(name, normal_img, surf, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     short = name.replace("SM_SB_", "")
     n = pixels(normal_img)[:, :, :3].copy()
     n[:, :, 1] = 1.0 - n[:, :, 1]  # OpenGL (Blender) -> DirectX (Unreal) green
+    n = fix_normal_misses(n)
     save_png(n, os.path.join(out_dir, "T_SB_%s_N.png" % short), "RGB")
     bc = linear_to_srgb(surf["basecolor"][:, :, :3])
     alpha = surf["emit"][:, :, :1]
@@ -766,6 +783,10 @@ def export(name, low, ranges, muzzle, report):
     if name in bw.MAGAZINES:
         socket = bw.MAGAZINES[name][0]
         nomag = extract(low, name + "_NoMag", [gun])
+        # Unreal reads sockets by empty name: the full mesh's SOCKET_* empties must go first, or these become
+        # SOCKET_Muzzle.001 and the _NoMag mesh imports with no sockets (desktop guntex run, 2026-11-07).
+        for child in list(full.children):
+            bpy.data.objects.remove(child, do_unlink=True)
         for s, loc in sockets:
             k.socket(s, loc, nomag)
         magobj = extract(low, name + "_Mag", [mag, extra], socket_offset=socket)

@@ -603,6 +603,15 @@ void AShieldbreakSelfTest::BuildSteps()
 					return false;
 				}
 				Check(TEXT("...and zoomed out the gun is back"), !Hidden(), GetNameSafe(Weapon));
+				TakeShot(TEXT("fp_sniper_idle"), true); // the Sniper held, unzoomed
+				Mark = Now();
+				Phase = 9; // let the screenshot render before zooming
+				return false;
+			case 9:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
 				Player->ToggleZoom();
 				Mark = Now();
 				Phase = 4;

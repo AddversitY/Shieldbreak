@@ -102,13 +102,30 @@ def is_slot(obj):
 
 def slot_to_cutter(collector, obj):
     """A thin slab becomes a cutter 0.5 cm deep along its thinnest axis (centred on the slab)."""
+    # The cutter is 0.5 cm deep, centred on the slab's OUTER face, so it cuts a recess about 0.25 cm deep and never
+    # opens a hole through a panel (holes left the low poly's rays hitting cut walls: olive islands in the normal map).
     dims = obj.dimensions.copy()
     axis = min(range(3), key=lambda i: dims[i])
-    scale = [1.0, 1.0, 1.0]
-    scale[axis] = max(1.0, 0.5 / max(dims[axis], 1e-3))
+    bpy.context.view_layer.update()
+    pts = [obj.matrix_world @ Vector(cn) for cn in obj.bound_box]
+    centre = sum(pts, Vector()) / 8.0
+    side = 1.0 if centre[axis] >= 0 else -1.0
+    if abs(centre[axis]) < 0.05 and axis == 2:
+        side = 1.0
+    shift = side * dims[axis] * 0.5
     for mod in list(obj.modifiers):
         obj.modifiers.remove(mod)
+    scale = [1.0, 1.0, 1.0]
+    scale[axis] = 0.5 / max(dims[axis], 1e-3)
     obj.scale = Vector(scale)
+    loc = obj.location.copy()
+    # Scaling is about the object origin, not the slab, so measure where the slab went and move it into place.
+    offset = Vector((0.0, 0.0, 0.0))
+    bpy.context.view_layer.update()
+    pts2 = [obj.matrix_world @ Vector(cn) for cn in obj.bound_box]
+    centre2 = sum(pts2, Vector()) / 8.0
+    offset[axis] = (centre[axis] + shift) - centre2[axis]
+    obj.location = loc + offset
     obj.name = "cut_slot"
     obj.hide_render = True
     collector.cutters.append(obj)
