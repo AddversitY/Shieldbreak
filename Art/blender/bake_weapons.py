@@ -155,10 +155,10 @@ def br_v7_decals():
               # Stock arm: barcode.
               (wd.barcode(4.0, 0.8), side, (-30.0, -26.0, 4.2, 5.0), sx, LIGHT_INK, "Polymer")]
     # Optic: model name on the camera side, and an index stripe, name and range ticks on top.
-    d += [(wd.text(5.0, 1.0, "MKS-4X", "display", spacing=3), "X-", (1.5, 6.5, 14.7, 15.7), (-2.9, -2.2), DARK_INK, "Ceramic"),
-          (wd.bar(11.0, 0.18), "Z+", (0.8, 11.8, -1.05, -0.87), (17.2, 18.0), ORANGE, "Ceramic"),
-          (wd.text(4.2, 1.0, "MKS-4X", "display", spacing=3), "Z+", (2.0, 6.2, -0.5, 0.5), (17.2, 18.0), DARK_INK, "Ceramic"),
-          (wd.ticks(5.0, 0.45, 11), "Z+", (14.5, 19.5, 0.3, 0.75), (18.1, 18.8), DARK_INK, "Ceramic")]
+    d += [(wd.text(3.6, 0.7, "MKS-4X", "display", spacing=2), "X-", (3.6, 7.2, 14.6, 15.3), (-2.2, -1.6), DARK_INK, "Ceramic"),
+          (wd.bar(9.0, 0.14), "Z+", (4.0, 13.0, -0.85, -0.71), (15.6, 16.6), ORANGE, "Ceramic"),
+          (wd.text(3.2, 0.8, "MKS-4X", "display", spacing=2), "Z+", (5.0, 8.2, -0.4, 0.4), (15.6, 16.6), DARK_INK, "Ceramic"),
+          (wd.ticks(4.0, 0.36, 9), "Z+", (15.4, 19.4, 0.2, 0.56), (16.5, 17.2), DARK_INK, "Ceramic")]
     return d
 
 

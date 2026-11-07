@@ -162,40 +162,39 @@ def battle_rifle_v7():
 
 
 def battle_rifle_v7_optic(p, S):
-    """One chunky housing on a low mount: rounded body, a visor over a big objective, a ribbed eyecup and a display."""
-    # Low mount: an angular saddle from the receiver top into the housing.
-    p.append(shape("optic_mount", [(1.5, 9.4), (17.5, 9.4), (16.0, 11.4), (3.0, 11.4)], 3.2, "WeaponMetal", bevel=0.35, segments=2,
+    """A compact sight (v7b, slimmed after the 2026-11-07 PC shots showed the first housing filling 17% of the screen):
+    a low wedge housing 3.8 cm wide on a short mount, a small hooded objective and a slim eyecup."""
+    p.append(shape("optic_mount", [(4.0, 9.4), (16.0, 9.4), (15.0, 11.2), (5.0, 11.2)], 2.8, "WeaponMetal", bevel=0.3, segments=2,
                    samples=2))
-    for x in (1.7, -1.7):
-        bw.screw(p, x, 5.0, 10.4, 0.26)
-        bw.screw(p, x, 14.0, 10.4, 0.26)
-    # Housing: a rounded block, wider than the old tube.
-    p.append(shape("optic_body", [(-0.6, 11.2), (-1.2, 14.6), (2.8, 17.5), (14.0, 17.8), (19.5, 17.2), (21.6, 15.9), (22.2, 12.6),
-                                  (19.6, 10.8), (1.0, 10.7)], 5.0, "Ceramic", bevel=0.95, segments=S + 1))
-    # Visor over the objective, swept forward.
-    p.append(shape("optic_visor", [(12.0, 17.3), (13.0, 18.3), (22.0, 18.5), (24.2, 17.4), (23.8, 16.8), (20.0, 17.1)], 5.4, "Ceramic",
-                   bevel=0.45, segments=S, samples=4))
-    p.append(k.cyl("objective_bezel", (0, 21.8, TZ), 2.45, 0.9, "WeaponMetal", verts=32, bevel=0.15))
-    p.append(k.cyl("objective_ring", (0, 22.28, TZ), 2.2, 0.1, "GlowCyan", verts=32, bevel=0))
-    p.append(k.cyl("objective_lens", (0, 22.2, TZ), 2.05, 0.08, "Lens", verts=32, bevel=0))
-    # Eyecup: ribbed rubber at the rear, with the eye lens inside.
-    p.append(k.cyl("eyecup", (0, -2.3, TZ), 2.1, 2.2, "Polymer", verts=24, bevel=0.3, radius2=2.35))
-    for i in range(4):
-        p.append(k.cyl("eye_rib", (0, -3.1 + i * 0.55, TZ), 2.4, 0.18, "Polymer", verts=24, bevel=0))
-    p.append(k.cyl("eye_lens", (0, -3.45, TZ), 1.6, 0.06, "Lens", verts=24, bevel=0))
-    # Side controls (left: illumination knob, display; right: battery cap).
-    p.append(k.cyl("turret", (-2.75, 8.0, TZ + 0.6), 0.95, 0.9, "WeaponMetal", axis="X", verts=24, bevel=0.12))
-    p.append(k.cyl("turret_cap", (-3.25, 8.0, TZ + 0.6), 0.7, 0.18, "Steel", axis="X", verts=24, bevel=0.04))
-    p.append(k.cyl("battery", (2.7, 8.0, TZ), 0.85, 0.7, "WeaponMetal", axis="X", verts=20, bevel=0.1))
-    p.append(k.box("range_housing", (-2.58, 14.5, TZ - 1.1), (0.4, 5.0, 1.8), "Polymer", bevel=0.15))
-    p.append(k.box("range_display", (-2.8, 14.5, TZ - 1.1), (0.08, 4.2, 1.2), "Display", bevel=0))
-    for x in (2.52, -2.52):
+    for x in (1.5, -1.5):
+        bw.screw(p, x, 6.5, 10.3, 0.22)
+        bw.screw(p, x, 13.5, 10.3, 0.22)
+    # Housing: a low wedge, rising toward the objective.
+    p.append(shape("optic_body", [(2.6, 11.0), (2.2, 13.6), (4.6, 15.6), (13.0, 16.4), (17.4, 16.3), (18.6, 15.4), (18.8, 12.6),
+                                  (17.2, 10.9), (4.0, 10.8)], 3.8, "Ceramic", bevel=0.75, segments=S + 1))
+    # Short hood over the objective.
+    p.append(shape("optic_visor", [(14.0, 16.0), (14.8, 16.8), (19.6, 16.9), (20.6, 16.2), (20.2, 15.8), (17.6, 16.1)], 4.0, "Ceramic",
+                   bevel=0.3, segments=S, samples=4))
+    p.append(k.cyl("objective_bezel", (0, 18.9, TZ), 1.75, 0.7, "WeaponMetal", verts=32, bevel=0.12))
+    p.append(k.cyl("objective_ring", (0, 19.27, TZ), 1.55, 0.08, "GlowCyan", verts=32, bevel=0))
+    p.append(k.cyl("objective_lens", (0, 19.2, TZ), 1.45, 0.06, "Lens", verts=32, bevel=0))
+    # Slim eyecup.
+    p.append(k.cyl("eyecup", (0, 1.9, TZ), 1.35, 1.2, "Polymer", verts=24, bevel=0.2, radius2=1.5))
+    for i in range(2):
+        p.append(k.cyl("eye_rib", (0, 1.55 + i * 0.5, TZ), 1.58, 0.14, "Polymer", verts=24, bevel=0))
+    p.append(k.cyl("eye_lens", (0, 1.25, TZ), 1.05, 0.05, "Lens", verts=24, bevel=0))
+    # Side controls (left: illumination knob and range display; right: battery cap).
+    p.append(k.cyl("turret", (-2.1, 9.0, TZ + 0.4), 0.7, 0.6, "WeaponMetal", axis="X", verts=24, bevel=0.1))
+    p.append(k.cyl("turret_cap", (-2.45, 9.0, TZ + 0.4), 0.5, 0.14, "Steel", axis="X", verts=24, bevel=0.03))
+    p.append(k.cyl("battery", (2.05, 9.0, TZ), 0.65, 0.5, "WeaponMetal", axis="X", verts=20, bevel=0.08))
+    p.append(k.box("range_housing", (-1.98, 14.4, TZ - 1.4), (0.3, 3.6, 1.2), "Polymer", bevel=0.1))
+    p.append(k.box("range_display", (-2.14, 14.4, TZ - 1.4), (0.06, 3.0, 0.8), "Display", bevel=0))
+    for x in (1.92, -1.92):
         out = 1 if x > 0 else -1
-        # Dark armour band round the lower half of the housing: two-tone, so the optic stops reading as one block.
-        p.append(shape("optic_band", [(0.2, 11.0), (20.6, 11.0), (21.4, 12.2), (20.6, 13.1), (1.2, 13.1)], 0.3, "WeaponMetal",
-                       x=x + out * 0.08, bevel=0.1, segments=2, samples=2))
-        bw.seam(p, x, (12.0, 13.2), (12.0, 17.4))
-        p.append(k.box("optic_line", (x + out * 0.02, 6.0, 16.7), (0.08, 10.0, 0.16), "GlowCyan", bevel=0))
+        p.append(shape("optic_band", [(3.6, 11.0), (17.6, 11.0), (18.2, 11.9), (17.6, 12.5), (4.4, 12.5)], 0.24, "WeaponMetal",
+                       x=x + out * 0.06, bevel=0.08, segments=2, samples=2))
+        bw.seam(p, x, (11.5, 12.6), (11.5, 16.0))
+        p.append(k.box("optic_line", (x + out * 0.02, 8.0, 15.3), (0.07, 8.0, 0.13), "GlowCyan", bevel=0))
 
 
 def extra_cuts(c):
@@ -218,7 +217,7 @@ def extra_cuts(c):
         # Forend: a recessed grip panel.
         c.cutter_box((s * 2.85, 27.0, -2.6), (0.3, 9.0, 2.0))
         # Optic body: a recessed window strip.
-        c.cutter_box((s * 2.55, 6.0, 12.4), (0.3, 9.0, 0.8))
+        c.cutter_box((s * 1.95, 9.0, 13.4), (0.24, 6.0, 0.5))
     c.cutter_box((0.0, -9.5, 9.95), (4.2, 4.6, 0.25))  # channel round the counter bezel
     for i in range(3):
-        c.cutter_cyl((0.0, 2.0 + i * 0.5, TZ), 2.25, 0.12, "Y", 48)  # grip rings on the optic's rear
+        c.cutter_cyl((0.0, 3.4 + i * 0.4, TZ), 1.9, 0.1, "Y", 48)  # grip rings on the optic's rear
