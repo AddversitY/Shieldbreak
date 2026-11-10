@@ -13,6 +13,24 @@
 
 class UAnimSequenceBase;
 
+/** Grip fingers (index, middle, ring, pinky, thumb; joints _01.._03), the order every per-joint curl array uses. */
+namespace ShieldbreakGrip
+{
+	constexpr int32 NumJoints = 15;
+	inline const TCHAR* const LeftBones[NumJoints] = {
+		TEXT("index_01_l"), TEXT("index_02_l"), TEXT("index_03_l"), TEXT("middle_01_l"), TEXT("middle_02_l"), TEXT("middle_03_l"),
+		TEXT("ring_01_l"), TEXT("ring_02_l"), TEXT("ring_03_l"), TEXT("pinky_01_l"), TEXT("pinky_02_l"), TEXT("pinky_03_l"),
+		TEXT("thumb_01_l"), TEXT("thumb_02_l"), TEXT("thumb_03_l") };
+	inline const TCHAR* const RightBones[NumJoints] = {
+		TEXT("index_01_r"), TEXT("index_02_r"), TEXT("index_03_r"), TEXT("middle_01_r"), TEXT("middle_02_r"), TEXT("middle_03_r"),
+		TEXT("ring_01_r"), TEXT("ring_02_r"), TEXT("ring_03_r"), TEXT("pinky_01_r"), TEXT("pinky_02_r"), TEXT("pinky_03_r"),
+		TEXT("thumb_01_r"), TEXT("thumb_02_r"), TEXT("thumb_03_r") };
+	/** The left hand's forend wrap at sb.FPFingerCurl 1 (degrees, toward the palm), before contact correction. */
+	inline constexpr float LeftNominal[NumJoints] = { 30.f, 55.f, 35.f, 38.f, 60.f, 38.f, 42.f, 62.f, 40.f, 48.f, 62.f, 40.f, 8.f, 18.f, 18.f };
+	/** cm from a finger's _03 joint to its tip. */
+	inline constexpr float TipLength[5] = { 2.0f, 2.1f, 2.0f, 1.8f, 2.2f };
+}
+
 USTRUCT()
 struct SHIELDBREAK_API FShieldbreakBodyAnimProxy : public FAnimInstanceProxy
 {
@@ -50,6 +68,9 @@ private:
 	/** Two-bone IK of the left arm so hand_l reaches SupportTarget (component space); the hand keeps its animated
 	 *  component-space rotation, so it still holds the gun the way the rifle idle does. */
 	void ApplySupportHand(FPoseContext& Output) const;
+	/** Turns each grip-finger joint of one hand toward that hand's palm by Curls (degrees, negative opens) on top of the
+	 *  pose, scaled by Weight. The right index finger is left to ApplyTriggerFinger. */
+	void ApplyFingerCurls(FPoseContext& Output, bool bLeft, const float* Curls, float Weight) const;
 
 	FTrack Current;
 	FTrack Previous;
@@ -81,6 +102,11 @@ private:
 	FVector SupportFingers = FVector::ForwardVector;
 	FVector SupportPalmNormal = FVector::UpVector;
 	float SupportCurl = 0.f;
+	/** Per-joint finger curls from the game thread's contact solve (UShieldbreakBodyAnimator::SolveGripContact). */
+	float LeftCurls[ShieldbreakGrip::NumJoints] = {};
+	float RightCurls[ShieldbreakGrip::NumJoints] = {};
+	bool bLeftCurls = false;
+	float RightCurlWeight = 0.f;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -126,6 +152,18 @@ public:
 	const FVector& GetSupportFingers() const { return SupportFingers; }
 	const FVector& GetSupportPalmNormal() const { return SupportPalmNormal; }
 	float GetSupportCurl() const { return SupportCurl; }
+	/** Contact-solved finger curls (ShieldbreakGrip order, degrees). Left: replaces the nominal wrap while the support
+	 *  hand holds (null = nominal x Curl). Right: added to the pose's own fingers with Weight. */
+	void SetLeftFingerCurls(const float* Curls)
+	{
+		bLeftCurls = Curls != nullptr;
+		if (Curls) { FMemory::Memcpy(LeftCurls, Curls, sizeof(LeftCurls)); }
+	}
+	void SetRightFingerCurls(const float* Curls, float Weight)
+	{
+		RightCurlWeight = Curls ? Weight : 0.f;
+		if (Curls) { FMemory::Memcpy(RightCurls, Curls, sizeof(RightCurls)); }
+	}
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -173,4 +211,8 @@ private:
 	FVector SupportFingers = FVector::ForwardVector;
 	FVector SupportPalmNormal = FVector::UpVector;
 	float SupportCurl = 0.f;
+	float LeftCurls[ShieldbreakGrip::NumJoints] = {};
+	float RightCurls[ShieldbreakGrip::NumJoints] = {};
+	bool bLeftCurls = false;
+	float RightCurlWeight = 0.f;
 };
