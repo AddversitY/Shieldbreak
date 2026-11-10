@@ -54,7 +54,7 @@ namespace ShieldbreakViewmodelPrivate
 		FVector ReloadLiftRotation;
 		/** Magazine socket in gun space when the mesh has none (art not reimported yet). */
 		FVector MagazineSocket;
-		/** hand_l (the wrist) relative to the Magazine socket when the hand holds the magazine, gun space. */
+		/** The palm (the support-hand IK target) relative to the Magazine socket when the hand holds the magazine, gun space. */
 		FVector MagazineGrip;
 		/** SupportHand socket fallback (the sidearm has none). */
 		FVector SupportSocket;
@@ -62,9 +62,9 @@ namespace ShieldbreakViewmodelPrivate
 
 	// Gun space: +Y down the barrel, +Z up, -X the gun's left side (where the left hand works).
 	const FStyleData Styles[] = {
-		/* Rifle */    { FVector(4.f, -4.f, 9.f), FVector(6.f, -3.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(-4.2f, 2.0f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
-		/* Marksman */ { FVector(4.f, -4.f, 8.f), FVector(5.f, -3.f, 0.f), FVector(0.f, 14.5f, -3.6f), FVector(-4.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
-		/* Pistol */   { FVector(2.f, -5.f, 8.f), FVector(8.f, -3.f, 0.f), FVector(0.f, -2.2f, -2.4f), FVector(-3.6f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
+		/* Rifle */    { FVector(3.f, 1.5f, 6.f), FVector(5.f, 3.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(-3.2f, 2.0f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
+		/* Marksman */ { FVector(3.f, 1.5f, 5.5f), FVector(4.f, 3.f, 0.f), FVector(0.f, 14.5f, -3.6f), FVector(-3.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
+		/* Pistol */   { FVector(5.f, -1.f, 9.f), FVector(4.f, 4.f, -6.f), FVector(0.f, -2.2f, -2.4f), FVector(-3.0f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
 		/* Launcher */ { FVector(0.f, -2.f, 4.f), FVector(0.f, 0.f, 0.f), FVector(0.f, -22.f, 6.5f), FVector(-8.f, 0.f, -2.f), FVector(-2.f, 20.f, -7.f) },
 	};
 
@@ -161,7 +161,7 @@ namespace ShieldbreakViewmodelPrivate
 		{ 0.00f, EAnchor::Camera, FVector(16.f, -14.f, -44.f) },
 		{ 0.14f, EAnchor::Camera, FVector(16.f, -14.f, -44.f) },
 		{ 0.32f, EAnchor::Camera, FVector(20.f, -8.f, -40.f) },
-		{ 0.48f, EAnchor::Magazine, FVector(0.f, -0.5f, -12.f) },
+		{ 0.44f, EAnchor::Magazine, FVector(0.f, -0.5f, -7.f) },
 		{ 0.58f, EAnchor::Magazine, FVector(0.f, 0.f, 0.f) },
 		{ 0.65f, EAnchor::Magazine, FVector(-0.5f, 0.f, -3.f) },
 		{ 0.82f, EAnchor::Camera, FVector(18.f, -12.f, -42.f) },
@@ -208,22 +208,22 @@ namespace ShieldbreakViewmodelPrivate
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 
-	// ---- Melee: a short wind-up, the gun driven forward (not far: the rig's shoulder sits just behind the eye and
-	// came into view at 16 cm, task M1) and across to the left (the hit lands at once in
+	// ---- Melee: a short wind-up, then the gun chops down and in with almost no forward travel (the rig's
+	// shoulder sits just beside the eye: a 16 cm thrust put it on screen in task M1, 9 cm with a roll in M3) and across to the left (the hit lands at once in
 	// gameplay, so the strike peaks early), then recovery ----
 	const FGunKey RifleMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 		{ 0.10f, FVector(-3.f, 4.f, -1.f), FVector(-2.f, 6.f, 6.f) },
-		{ 0.28f, FVector(9.f, -8.f, 2.f), FVector(-6.f, -14.f, -10.f) },
-		{ 0.45f, FVector(7.f, -6.f, 1.5f), FVector(-5.f, -11.f, -8.f) },
+		{ 0.28f, FVector(3.f, -3.f, -4.f), FVector(-9.f, -8.f, 4.f) },
+		{ 0.45f, FVector(2.5f, -2.5f, -3.f), FVector(-7.f, -6.f, 3.f) },
 		{ 0.75f, FVector(-1.f, 1.f, -0.5f), FVector(-1.f, 2.f, 2.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 	const FGunKey PistolMelee[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 		{ 0.10f, FVector(-3.f, 4.f, 1.f), FVector(4.f, 6.f, 8.f) },
-		{ 0.28f, FVector(9.f, -8.f, 2.f), FVector(-8.f, -14.f, -24.f) },
-		{ 0.45f, FVector(7.f, -6.f, 1.5f), FVector(-6.f, -11.f, -19.f) },
+		{ 0.28f, FVector(3.f, -3.f, -3.f), FVector(-10.f, -8.f, 4.f) },
+		{ 0.45f, FVector(2.5f, -2.5f, -2.f), FVector(-8.f, -6.f, 3.f) },
 		{ 0.75f, FVector(-1.f, 1.f, -0.4f), FVector(1.f, 3.f, 3.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
@@ -318,6 +318,19 @@ namespace ShieldbreakViewmodelPrivate
 
 	/** Where the magazine sits in hand_l space when the hand holds it at the grip key: the socket relative to the
 	 *  hand placed at the grip with its current rotation. */
+	/** The left hand's frame as the support-hand IK places it: at the palm (between the wrist and the middle
+	 *  knuckle), turned like hand_l. */
+	FTransform PalmFrame(const USkeletalMeshComponent* Arms)
+	{
+		const FQuat Rotation = Arms->GetBoneQuaternion(TEXT("hand_l"), EBoneSpaces::WorldSpace);
+		FVector Location = Arms->GetBoneLocation(TEXT("hand_l"));
+		if (Arms->GetBoneIndex(TEXT("middle_01_l")) != INDEX_NONE)
+		{
+			Location = (Location + Arms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
+		}
+		return FTransform(Rotation, Location);
+	}
+
 	FTransform PredictHandToMagazine(EShieldbreakViewmodelStyle Style, const FShieldbreakViewmodelContext& Context)
 	{
 		const FStyleData& Data = Styles[static_cast<int32>(Style)];
@@ -496,7 +509,7 @@ void FShieldbreakViewmodelMoves::Update(double Now, const FShieldbreakViewmodelC
 	{
 		if (MagazineState == EMagazineState::InHand && Context.Arms && Context.Arms->GetBoneIndex(TEXT("hand_l")) != INDEX_NONE)
 		{
-			const FTransform Hand(Context.Arms->GetBoneQuaternion(TEXT("hand_l"), EBoneSpaces::WorldSpace), Context.Arms->GetBoneLocation(TEXT("hand_l")));
+			const FTransform Hand = PalmFrame(Context.Arms);
 			Magazine->SetWorldTransform(HandToMagazine * Hand);
 			Magazine->SetVisibility(true);
 		}
