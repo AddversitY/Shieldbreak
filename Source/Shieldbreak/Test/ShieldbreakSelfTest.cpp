@@ -39,7 +39,7 @@
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Visuals/ShieldbreakBodyAnimInstance.h"
 #include "Visuals/ShieldbreakShieldVisual.h"
-#include "Weapons/ShieldbreakWeaponClasses.h"
+#include "Visuals/ShieldbreakImpactFX.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakExplosionFX.h"
 #include "Camera/CameraComponent.h"
@@ -419,6 +419,11 @@ void AShieldbreakSelfTest::BuildSteps()
 		}, nullptr, 5.f });
 
 	// -SBShots / -SBFPShots: only take comparison screenshots (and a fixed-view FPS figure), no checks.
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBImpactShots")))
+	{
+		BuildImpactShotSteps();
+		return;
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
 		BuildShotSteps();
@@ -1408,6 +1413,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			ClearDummies();
 			A = SpawnDummy(RangeA, 0.f, true);
 			B = SpawnDummy(RangeA + FVector(700.f, 0.f, 0.f), 180.f, false);
+			const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this);
+			Value1 = FX ? static_cast<float>(FX->GetImpactCount()) : -1.f;
 		},
 		[this, ShieldOf, HealthOf](float Elapsed)
 		{
@@ -1445,8 +1452,17 @@ void AShieldbreakSelfTest::BuildSteps()
 				// Either way a headshot multiplier through the shield would be far more, and kill.
 				Check(TEXT("A burst into a shielded head does normal damage"), Lost >= 12.f && Lost <= 40.f && B->IsAlive(),
 					FString::Printf(TEXT("lost %s, alive %d"), *Num(Lost), B->IsAlive()));
+				if (const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this))
+				{
+					Check(TEXT("Rounds into a shield flare it (impact effects)"), FX->GetImpactCount() > Value1 && FX->GetMuzzleFlashCount() > 0
+						&& FX->GetLastSurface() == EShieldbreakImpactSurface::Shield,
+						FString::Printf(TEXT("impacts %d (was %s), flashes %d, surface %d, materials %d"), FX->GetImpactCount(), *Num(Value1),
+							FX->GetMuzzleFlashCount(), static_cast<int32>(FX->GetLastSurface()), FX->HasMaterials()));
+				}
 				Damage(B, ShieldOf(B), UDamageType_Ballistic::StaticClass());
 				Value0 = HealthOf(B);
+				const UShieldbreakImpactFXSubsystem* ArmorFX = UShieldbreakImpactFXSubsystem::Get(this);
+				Value1 = ArmorFX ? static_cast<float>(ArmorFX->GetSurfaceCount(EShieldbreakImpactSurface::Armor)) : 0.f;
 				A->StartFire();
 				Mark = Now();
 				Phase = 3;
@@ -1459,6 +1475,12 @@ void AShieldbreakSelfTest::BuildSteps()
 			else if (Phase == 4 && Now() - Mark > 0.8f)
 			{
 				Check(TEXT("An unshielded headshot kills"), !B->IsAlive(), FString::Printf(TEXT("health %s -> %s"), *Num(Value0), *Num(HealthOf(B))));
+				if (const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this))
+				{
+					// Counted, not the last surface: rounds after the kill land on the wall behind.
+					Check(TEXT("...and the killing round sparks off bare armor"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor) > Value1,
+						FString::Printf(TEXT("armor hits %d (was %s)"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor), *Num(Value1)));
+				}
 				return true;
 			}
 			return false;
