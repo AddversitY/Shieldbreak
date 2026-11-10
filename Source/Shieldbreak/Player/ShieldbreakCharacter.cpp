@@ -1020,7 +1020,7 @@ void AShieldbreakCharacter::Input_CrouchCompleted() { StopCrouchOrSlide(); }
 
 void AShieldbreakCharacter::StartFire()
 {
-	if (!IsAlive() || !CurrentWeapon || bAegisRaised || !CanFireWhileCarrying())
+	if (!IsAlive() || !CurrentWeapon || bAegisRaised || !CanFireWhileCarrying() || IsThrowingGrenade())
 	{
 		return;
 	}
@@ -1259,10 +1259,15 @@ void AShieldbreakCharacter::MulticastMeleeFX_Implementation(FVector_NetQuantize 
 
 void AShieldbreakCharacter::ThrowGrenade()
 {
-	if (!IsAlive() || GrenadeCount <= 0)
+	const UWorld* World = GetWorld();
+	const float Now = World ? World->GetTimeSeconds() : 0.f;
+	if (!IsAlive() || GrenadeCount <= 0 || Now - LastLocalThrowTime < AShieldbreakGrenade::GetThrowDuration())
 	{
 		return;
 	}
+	LastLocalThrowTime = Now;
+	// Halo: the gun dips out of the way while the other hand throws, so nothing fires mid-throw.
+	StopFire();
 	SetSprinting(false);
 	PlayActionAnimation(EShieldbreakAction::GrenadeThrow);
 
@@ -1274,6 +1279,12 @@ void AShieldbreakCharacter::ThrowGrenade()
 	{
 		ServerThrowGrenade();
 	}
+}
+
+bool AShieldbreakCharacter::IsThrowingGrenade() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() - LastLocalThrowTime < AShieldbreakGrenade::GetThrowDuration();
 }
 
 void AShieldbreakCharacter::ServerThrowGrenade_Implementation()
@@ -1288,22 +1299,62 @@ void AShieldbreakCharacter::DoThrowGrenade()
 	{
 		return;
 	}
+	// A little slack under the client's own limit for network jitter.
+	const float Now = World->GetTimeSeconds();
+	if (Now - LastServerThrowTime < AShieldbreakGrenade::GetThrowDuration() * 0.8f)
+	{
+		return;
+	}
+	LastServerThrowTime = Now;
+	// Spent at the press, so a second press during the wind-up can't throw a grenade we no longer have.
+	--GrenadeCount;
+	MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 
+	// The grenade leaves when the throwing hand comes forward, not at the press (both the first-person arm and the
+	// third-person toss are timed to this delay).
+	const float Delay = AShieldbreakGrenade::GetReleaseDelay();
+	if (Delay > 0.f)
+	{
+		World->GetTimerManager().SetTimer(GrenadeReleaseTimer, this, &AShieldbreakCharacter::ReleaseGrenade, Delay, false);
+	}
+	else
+	{
+		ReleaseGrenade();
+	}
+}
+
+void AShieldbreakCharacter::ReleaseGrenade()
+{
+	UWorld* World = GetWorld();
+	if (!World || !IsAlive() || !GrenadeClass)
+	{
+		// Killed during the wind-up: the grenade is lost with the player.
+		return;
+	}
+
+	// Aimed at release, like Halo, so the throw goes where you look when the hand comes through.
 	const FVector AimDir = GetAimRotation().Vector();
 	// Slight upward bias so throws arc like Halo frags.
 	const FVector ThrowDir = (AimDir + FVector(0.f, 0.f, 0.12f)).GetSafeNormal();
-	const FVector SpawnLocation = GetAimOrigin() + AimDir * 60.f;
+	// Leaves from in front of the eye, a little to the left (the throwing hand) and below the crosshair. Pulled back
+	// toward the eye if that spot is inside a wall, so a throw pressed against cover never starts on the far side.
+	const FRotator Aim = GetAimRotation();
+	const FVector Origin = GetAimOrigin();
+	FVector SpawnLocation = Origin + Aim.RotateVector(FVector(55.f, -12.f, -8.f));
+	FHitResult Blocked;
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakGrenadeRelease), false, this);
+	if (World->SweepSingleByChannel(Blocked, Origin, SpawnLocation, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeSphere(10.f), Query))
+	{
+		SpawnLocation = Blocked.Location;
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AShieldbreakGrenade* Grenade = World->SpawnActor<AShieldbreakGrenade>(GrenadeClass, SpawnLocation, AimDir.Rotation(), Params);
-	if (Grenade)
+	if (AShieldbreakGrenade* Grenade = World->SpawnActor<AShieldbreakGrenade>(GrenadeClass, SpawnLocation, AimDir.Rotation(), Params))
 	{
 		Grenade->Launch(ThrowDir, GetVelocity());
-		--GrenadeCount;
-		MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 	}
 }
 

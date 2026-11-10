@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/TimerHandle.h"
 #include "GameFramework/Character.h"
 #include "ShieldbreakCharacter.generated.h"
 
@@ -98,6 +99,8 @@ public:
 	void StopFire();
 	void Melee();
 	void ThrowGrenade();
+	/** True from a throw's press until the arm has followed through (no firing; the gun is dipped out of the way). */
+	bool IsThrowingGrenade() const;
 	void ReloadOrVent();
 	void SwapWeapon();
 	void Interact();
@@ -285,6 +288,8 @@ private:
 
 	void DoMelee();
 	void DoThrowGrenade();
+	/** Server: the hand lets go (sb.GrenadeReleaseDelay after the press), so the grenade leaves where the arm is. */
+	void ReleaseGrenade();
 	void DoSwapWeapon();
 	void DoInteract();
 
@@ -359,6 +364,10 @@ private:
 	/** 0..1: how close the crosshair is to an enemy (aim assist friction). */
 	float AimAssistStrength = 0.f;
 	float LastServerMeleeTime = -100.f;
+	/** Grenade throws: when this machine last started one (input), and when the server last accepted one. */
+	float LastLocalThrowTime = -100.f;
+	float LastServerThrowTime = -100.f;
+	FTimerHandle GrenadeReleaseTimer;
 	float LastShieldValue = -1.f;
 	float CrouchCameraOffset = 0.f;
 	float StepCameraOffset = 0.f;

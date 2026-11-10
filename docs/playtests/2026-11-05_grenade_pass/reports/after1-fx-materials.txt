@@ -1,0 +1,3 @@
+/Game/Shieldbreak/Art/FX/M_SB_FXFire: additive unlit, Tex found, params Frame/Columns/Rows/Color/Intensity/Opacity
+/Game/Shieldbreak/Art/FX/M_SB_FXSmoke: translucent unlit, noise found, params Frame/Color/Opacity
+/Game/Shieldbreak/Art/FX/M_SB_Scorch: deferred decal, translucent, lifetime fade

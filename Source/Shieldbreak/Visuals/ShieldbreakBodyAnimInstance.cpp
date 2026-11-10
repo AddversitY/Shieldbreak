@@ -153,6 +153,15 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 	TriggerWeight = FMath::Clamp(Instance->TriggerWeight, 0.f, 1.f);
 	TriggerTarget = Instance->TriggerTarget;
+	LeftArmWeight = FMath::Clamp(Instance->LeftArmWeight, 0.f, 1.f);
+	LeftHandTarget = Instance->LeftHandTarget;
+	LeftElbowPole = Instance->LeftElbowPole;
+	LeftWristFlex = Instance->LeftWristFlex;
+	LeftShoulderTarget = Instance->LeftShoulderTarget;
+	LeftFingerCurl = Instance->LeftFingerCurl;
+	LeftHandRoll = Instance->LeftHandRoll;
+	GripAnimation = Instance->LeftGrip;
+	GripTime = Instance->LeftGripTime;
 	SupportWeight = FMath::Clamp(Instance->SupportWeight, 0.f, 1.f);
 	SupportTarget = Instance->SupportTarget;
 	SupportFingers = Instance->SupportFingers;
@@ -334,8 +343,200 @@ bool FShieldbreakBodyAnimProxy::Evaluate(FPoseContext& Output)
 	ApplyAimPitch(Output);
 	ApplyTriggerFinger(Output);
 	ApplySupportHand(Output);
+	ApplyLeftArm(Output);
 	ApplyFingerCurls(Output, false, RightCurls, RightCurlWeight);
 	return true;
+}
+
+void FShieldbreakBodyAnimProxy::ApplyLeftArm(FPoseContext& Output) const
+{
+	using namespace ShieldbreakBodyAnimPrivate;
+	if (LeftArmWeight <= 0.01f)
+	{
+		return;
+	}
+	FCompactPose& Pose = Output.Pose;
+	const FCompactPoseBoneIndex Upper = FindCompactBone(Pose, TEXT("upperarm_l"));
+	const FCompactPoseBoneIndex Lower = FindCompactBone(Pose, TEXT("lowerarm_l"));
+	const FCompactPoseBoneIndex Hand = FindCompactBone(Pose, TEXT("hand_l"));
+	if (!Upper.IsValid() || !Lower.IsValid() || !Hand.IsValid() || Pose.GetParentBoneIndex(Lower) != Upper
+		|| Pose.GetParentBoneIndex(Hand) != Lower)
+	{
+		return;
+	}
+
+	// Fingers: the grip pose's local rotations for everything below hand_l (compact poses list parents first).
+	if (GripAnimation)
+	{
+		FPoseContext Grip(Output);
+		FTrack Track;
+		Track.Animation = GripAnimation;
+		Track.Time = FMath::Clamp(GripTime, 0.f, GripAnimation->GetPlayLength());
+		Track.bLoop = false;
+		Sample(Track, Grip);
+		TArray<bool, TInlineAllocator<128>> UnderHand;
+		UnderHand.SetNumZeroed(Pose.GetNumBones());
+		for (FCompactPoseBoneIndex Bone : Pose.ForEachBoneIndex())
+		{
+			const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Bone);
+			const bool bUnder = Parent.IsValid() && (Parent == Hand || UnderHand[Parent.GetInt()]);
+			UnderHand[Bone.GetInt()] = bUnder;
+			if (bUnder)
+			{
+				Pose[Bone].SetRotation(FQuat::Slerp(Pose[Bone].GetRotation(), Grip.Pose[Bone].GetRotation(), LeftArmWeight).GetNormalized());
+			}
+		}
+	}
+
+	// Component-space transforms of the chain (child * parent order, as in TransformRelativeTo).
+	auto ComponentSpace = [&Pose](FCompactPoseBoneIndex Bone)
+	{
+		FTransform Out = FTransform::Identity;
+		for (FCompactPoseBoneIndex Index = Bone; Index.IsValid(); Index = Pose.GetParentBoneIndex(Index))
+		{
+			Out = Out * Pose[Index];
+		}
+		return Out;
+	};
+	const FCompactPoseBoneIndex Shoulder = Pose.GetParentBoneIndex(Upper);
+
+	// Move the shoulder (the clavicle, so the upper arm keeps its length and the skin between them stays together)
+	// to where the throw starts from. The rig holds the gun with the body far right of the eye; the stretch toward
+	// the spine lands behind the near plane.
+	if (Shoulder.IsValid() && !LeftShoulderTarget.IsZero())
+	{
+		const FCompactPoseBoneIndex Spine = Pose.GetParentBoneIndex(Shoulder);
+		const FTransform SpineCS = Spine.IsValid() ? ComponentSpace(Spine) : FTransform::Identity;
+		const FTransform ClavicleCS = Pose[Shoulder] * SpineCS;
+		const FVector UpperNow = (Pose[Upper] * ClavicleCS).GetLocation();
+		const FVector Moved = ClavicleCS.GetLocation() + (LeftShoulderTarget - UpperNow) * LeftArmWeight;
+		Pose[Shoulder].SetTranslation(SpineCS.InverseTransformPosition(Moved));
+	}
+	const FTransform ParentCS = Shoulder.IsValid() ? ComponentSpace(Shoulder) : FTransform::Identity;
+	const FTransform UpperCS = Pose[Upper] * ParentCS;
+	const FTransform LowerCS = Pose[Lower] * UpperCS;
+	const FTransform HandCS = Pose[Hand] * LowerCS;
+
+	// Two-bone IK by the law of cosines, the elbow bending toward the pole.
+	const FVector A = UpperCS.GetLocation(), J = LowerCS.GetLocation(), E = HandCS.GetLocation();
+	const float L1 = static_cast<float>(FVector::Dist(A, J)), L2 = static_cast<float>(FVector::Dist(J, E));
+	FVector Dir = LeftHandTarget - A;
+	const float Reach = static_cast<float>(Dir.Size());
+	if (L1 < 1.f || L2 < 1.f || Reach < 1.f)
+	{
+		return;
+	}
+	Dir /= Reach;
+	const float D = FMath::Clamp(Reach, FMath::Abs(L1 - L2) + 1.f, (L1 + L2) * 0.995f);
+	FVector Bend = (LeftElbowPole - A) - Dir * FVector::DotProduct(LeftElbowPole - A, Dir);
+	if (!Bend.Normalize())
+	{
+		Bend = (J - A) - Dir * FVector::DotProduct(J - A, Dir);
+		if (!Bend.Normalize())
+		{
+			return;
+		}
+	}
+	const float CosA = FMath::Clamp((L1 * L1 + D * D - L2 * L2) / (2.f * L1 * D), -1.f, 1.f);
+	const FVector NewJ = A + Dir * (L1 * CosA) + Bend * (L1 * FMath::Sqrt(1.f - CosA * CosA));
+	const FVector NewE = A + Dir * D;
+
+	const FQuat UpperDelta = FQuat::FindBetweenVectors(J - A, NewJ - A);
+	const FQuat NewUpper = (UpperDelta * UpperCS.GetRotation()).GetNormalized();
+	const FVector MovedHand = NewJ + UpperDelta.RotateVector(E - J);
+	const FQuat LowerDelta = FQuat::FindBetweenVectors(MovedHand - NewJ, NewE - NewJ);
+	const FQuat NewLower = (LowerDelta * UpperDelta * LowerCS.GetRotation()).GetNormalized();
+	FQuat NewHand = (LowerDelta * UpperDelta * HandCS.GetRotation()).GetNormalized();
+	// Wrist: cocked back on the wind-up, snapped through on the release, about the elbow's hinge axis.
+	const FVector Hinge = FVector::CrossProduct(NewJ - A, NewE - NewJ).GetSafeNormal();
+	if (!Hinge.IsNearlyZero() && !FMath::IsNearlyZero(LeftWristFlex))
+	{
+		NewHand = (FQuat(Hinge, FMath::DegreesToRadians(LeftWristFlex)) * NewHand).GetNormalized();
+	}
+	const FVector Forearm = (NewE - NewJ).GetSafeNormal();
+	if (!Forearm.IsNearlyZero() && !FMath::IsNearlyZero(LeftHandRoll))
+	{
+		NewHand = (FQuat(Forearm, FMath::DegreesToRadians(LeftHandRoll)) * NewHand).GetNormalized();
+	}
+
+	const float W = LeftArmWeight;
+	auto Blend = [W](FTransform& Local, const FQuat& Target)
+	{
+		Local.SetRotation(FQuat::Slerp(Local.GetRotation(), Target, W).GetNormalized());
+	};
+	Blend(Pose[Upper], ParentCS.GetRotation().Inverse() * NewUpper);
+	Blend(Pose[Lower], NewUpper.Inverse() * NewLower);
+	Blend(Pose[Hand], NewLower.Inverse() * NewHand);
+
+	// Fingers round the grenade: each joint turns its bone toward the palm side, about the axis across the finger. The
+	// palm normal comes from the knuckles (index to pinky, crossed with the hand's length), so no bone axes are assumed.
+	if (LeftFingerCurl <= 0.01f)
+	{
+		return;
+	}
+	const FCompactPoseBoneIndex Middle1 = FindCompactBone(Pose, TEXT("middle_01_l"));
+	const FCompactPoseBoneIndex Index1 = FindCompactBone(Pose, TEXT("index_01_l"));
+	const FCompactPoseBoneIndex Pinky1 = FindCompactBone(Pose, TEXT("pinky_01_l"));
+	if (!Middle1.IsValid() || !Index1.IsValid() || !Pinky1.IsValid())
+	{
+		return;
+	}
+	const FVector HandAt = ComponentSpace(Hand).GetLocation();
+	// (Pinky to index) x (hand to knuckles) points out of the palm; the G4 shots, with the operands the other way
+	// round, bent the fingers backwards into an open, spread hand.
+	const FVector Palm = FVector::CrossProduct(ComponentSpace(Middle1).GetLocation() - HandAt,
+		ComponentSpace(Index1).GetLocation() - ComponentSpace(Pinky1).GetLocation()).GetSafeNormal();
+	if (Palm.IsNearlyZero())
+	{
+		return;
+	}
+	static const TCHAR* const Fingers[][3] = {
+		{ TEXT("index_01_l"), TEXT("index_02_l"), TEXT("index_03_l") },
+		{ TEXT("middle_01_l"), TEXT("middle_02_l"), TEXT("middle_03_l") },
+		{ TEXT("ring_01_l"), TEXT("ring_02_l"), TEXT("ring_03_l") },
+		{ TEXT("pinky_01_l"), TEXT("pinky_02_l"), TEXT("pinky_03_l") },
+		{ TEXT("thumb_01_l"), TEXT("thumb_02_l"), TEXT("thumb_03_l") },
+	};
+	// Degrees per joint: a loose fist round a 7 cm ball (the thumb wraps less).
+	// G5: the first values left the hand half open with the thumb out.
+	static const float Curl[][3] = { { 72.f, 85.f, 55.f }, { 75.f, 88.f, 55.f }, { 78.f, 88.f, 55.f }, { 80.f, 85.f, 55.f }, { 38.f, 48.f, 35.f } };
+	for (int32 Finger = 0; Finger < 5; ++Finger)
+	{
+		for (int32 Joint = 0; Joint < 2; ++Joint)
+		{
+			const FCompactPoseBoneIndex Bone = FindCompactBone(Pose, Fingers[Finger][Joint]);
+			const FCompactPoseBoneIndex Child = FindCompactBone(Pose, Fingers[Finger][Joint + 1]);
+			if (!Bone.IsValid() || !Child.IsValid() || Pose.GetParentBoneIndex(Child) != Bone)
+			{
+				break;
+			}
+			const FTransform BoneCS = ComponentSpace(Bone);
+			const FVector Along = (ComponentSpace(Child).GetLocation() - BoneCS.GetLocation()).GetSafeNormal();
+			const FVector Axis = FVector::CrossProduct(Along, Palm).GetSafeNormal();
+			if (Axis.IsNearlyZero())
+			{
+				continue;
+			}
+			const FQuat Turn(Axis, FMath::DegreesToRadians(Curl[Finger][Joint] * LeftFingerCurl * W));
+			const FCompactPoseBoneIndex Parent = Pose.GetParentBoneIndex(Bone);
+			const FQuat ParentRotation = Parent.IsValid() ? ComponentSpace(Parent).GetRotation() : FQuat::Identity;
+			Pose[Bone].SetRotation((ParentRotation.Inverse() * Turn * BoneCS.GetRotation()).GetNormalized());
+		}
+		// The last joint follows its parent's bend.
+		const FCompactPoseBoneIndex Last = FindCompactBone(Pose, Fingers[Finger][2]);
+		const FCompactPoseBoneIndex LastParent = FindCompactBone(Pose, Fingers[Finger][1]);
+		if (Last.IsValid() && LastParent.IsValid() && Pose.GetParentBoneIndex(Last) == LastParent)
+		{
+			const FTransform LastCS = ComponentSpace(Last);
+			const FVector Along = (LastCS.GetLocation() - ComponentSpace(LastParent).GetLocation()).GetSafeNormal();
+			const FVector Axis = FVector::CrossProduct(Along, Palm).GetSafeNormal();
+			if (!Axis.IsNearlyZero())
+			{
+				const FQuat Turn(Axis, FMath::DegreesToRadians(Curl[Finger][2] * LeftFingerCurl * W));
+				Pose[Last].SetRotation((ComponentSpace(LastParent).GetRotation().Inverse() * Turn * LastCS.GetRotation()).GetNormalized());
+			}
+		}
+	}
 }
 
 void FShieldbreakBodyAnimProxy::ApplySupportHand(FPoseContext& Output) const

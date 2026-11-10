@@ -33,6 +33,10 @@ enum class EShieldbreakSound : uint8
 	ShieldHitMarker,
 	/** Hit marker when your shot pops an enemy's shield: a bright crack. */
 	ShieldBreakMarker,
+	/** Grenade leaving the hand (play at release, sb.GrenadeReleaseDelay after the throw input). */
+	GrenadeThrow,
+	/** Grenade hitting a surface; scale Volume by impact speed. */
+	GrenadeBounce,
 	Count
 };
 

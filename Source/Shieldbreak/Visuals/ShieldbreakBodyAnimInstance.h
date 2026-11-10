@@ -65,6 +65,10 @@ private:
 	void ApplyAimPitch(FPoseContext& Output) const;
 	/** Curls the right index finger (CCD over index_01/02_r) so its pad rests on TriggerTarget (hand_r space). */
 	void ApplyTriggerFinger(FPoseContext& Output) const;
+	/** First-person grenade throw: moves the left shoulder to LeftShoulderTarget (the arms' rig holds it far right of
+	 *  the eye), curls the left fingers round the grenade, then a two-bone IK puts hand_l at LeftHandTarget with the
+	 *  elbow toward LeftElbowPole and flexes the wrist (all component space). */
+	void ApplyLeftArm(FPoseContext& Output) const;
 	/** Two-bone IK of the left arm so hand_l reaches SupportTarget (component space); the hand keeps its animated
 	 *  component-space rotation, so it still holds the gun the way the rifle idle does. */
 	void ApplySupportHand(FPoseContext& Output) const;
@@ -97,6 +101,15 @@ private:
 	float SeenKickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	FVector LeftShoulderTarget = FVector::ZeroVector;
+	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
+	const UAnimSequenceBase* GripAnimation = nullptr;
+	float GripTime = 0.f;
 	float SupportWeight = 0.f;
 	FVector SupportTarget = FVector::ZeroVector;
 	FVector SupportFingers = FVector::ForwardVector;
@@ -165,6 +178,19 @@ public:
 		if (Curls) { FMemory::Memcpy(RightCurls, Curls, sizeof(RightCurls)); }
 	}
 
+	/** First-person arms, grenade throw: Weight 0-1 of driving the left arm. The shoulder moves to ShoulderTarget, the
+	 *  hand goes to HandTarget with the elbow bent toward ElbowPole (all mesh component space), the wrist flexes by
+	 *  WristFlex degrees about the elbow's hinge and the fingers curl in by FingerCurl (1 = a grip round a grenade).
+	 *  Grip, when set, first takes that clip's finger pose at GripTime. */
+	void SetLeftArm(float Weight, const FVector& ShoulderTarget, const FVector& HandTarget, const FVector& ElbowPole, float WristFlex,
+		float FingerCurl, UAnimSequenceBase* Grip, float InGripTime)
+	{
+		LeftArmWeight = Weight; LeftShoulderTarget = ShoulderTarget; LeftHandTarget = HandTarget; LeftElbowPole = ElbowPole;
+		LeftWristFlex = WristFlex; LeftFingerCurl = FingerCurl; LeftGrip = Grip; LeftGripTime = InGripTime;
+	}
+	/** Grenade throw: degrees the left hand turns about the forearm (to show the grenade in it rather than the back of the hand). */
+	void SetLeftHandRoll(float Degrees) { LeftHandRoll = Degrees; }
+
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
 
@@ -206,6 +232,15 @@ private:
 	float KickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	FVector LeftShoulderTarget = FVector::ZeroVector;
+	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
+	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> LeftGrip;
+	float LeftGripTime = 0.f;
 	float SupportWeight = 0.f;
 	FVector SupportTarget = FVector::ZeroVector;
 	FVector SupportFingers = FVector::ForwardVector;

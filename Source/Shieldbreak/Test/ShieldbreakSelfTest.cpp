@@ -41,6 +41,7 @@
 #include "Visuals/ShieldbreakShieldVisual.h"
 #include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Visuals/ShieldbreakExplosionFX.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -1566,6 +1567,73 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			return false;
 		}, 8.f });
+
+	// ---- Grenade throw: the hand lets go after the wind-up, one throw at a time, no firing mid-throw ----
+	Steps.Add({ TEXT("Grenade throw timing"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, false);
+		},
+		[this](float Elapsed)
+		{
+			auto CountGrenades = [this]()
+			{
+				int32 Count = 0;
+				for (TActorIterator<AShieldbreakGrenade> It(GetWorld()); It; ++It) { ++Count; }
+				return Count;
+			};
+			const float Release = AShieldbreakGrenade::GetReleaseDelay();
+			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			if (Phase == 0 && Elapsed > 0.6f)
+			{
+				A->AddGrenades(2);
+				Value0 = static_cast<float>(A->GetGrenadeCount());
+				Value1 = static_cast<float>(CountGrenades());
+				A->ThrowGrenade();
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > Release * 0.4f)
+			{
+				Check(TEXT("A throw doesn't release the grenade at the press"), CountGrenades() == static_cast<int32>(Value1),
+					FString::Printf(TEXT("%d grenades %s s in (release at %s s)"), CountGrenades(), *Num(Now() - Mark), *Num(Release)));
+				Check(TEXT("...the grenade shows in the thrower's hand until then"), Animator && Animator->GetVisibleHeldGrenade(false) != nullptr);
+				Check(TEXT("...and the gun can't fire mid-throw"), A->IsThrowingGrenade());
+				A->ThrowGrenade();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > Release + 0.12f)
+			{
+				Check(TEXT("The grenade leaves the hand at the release"), CountGrenades() == static_cast<int32>(Value1) + 1,
+					FString::Printf(TEXT("%d new"), CountGrenades() - static_cast<int32>(Value1)));
+				Check(TEXT("...and the hand is empty after it"), Animator && Animator->GetVisibleHeldGrenade(false) == nullptr);
+				Check(TEXT("A second press mid-throw doesn't throw again"), A->GetGrenadeCount() == static_cast<int32>(Value0) - 1,
+					FString::Printf(TEXT("grenades %d -> %d"), static_cast<int32>(Value0), A->GetGrenadeCount()));
+				Value0 = 0.f;
+				Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				for (TActorIterator<AShieldbreakGrenade> It(GetWorld()); It; ++It)
+				{
+					Value0 = FMath::Max(Value0, It->GetBlinkLevel());
+				}
+				for (TActorIterator<AShieldbreakExplosionFX> It(GetWorld()); It; ++It)
+				{
+					Check(TEXT("The grenade blinks its arming light in flight"), Value0 > 0.5f, FString::Printf(TEXT("peak %s"), *Num(Value0)));
+					Check(TEXT("It goes off as a layered explosion"), It->GetCardCount() > 0,
+						FString::Printf(TEXT("%d fire/smoke cards (0 = M_SB_FX materials missing)"), It->GetCardCount()));
+					return true;
+				}
+				if (Now() - Mark > 6.f)
+				{
+					Check(TEXT("It goes off as a layered explosion"), false, TEXT("no explosion within 6 s"));
+					return true;
+				}
+			}
+			return false;
+		}, 9.f });
 
 	// ---- Melee and assassination ----
 	Steps.Add({ TEXT("Melee and assassination"),
@@ -3893,12 +3961,41 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
 				const FTransform Where = Arena && Arena->GetSpawnTransforms().Num() > 0 ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
 				A = PossessLocalDummy(Where);
+				if (A)
+				{
+					A->SetCanBeDamaged(false); // the fixture's own grenades must not kill the viewer before the later shots
+				}
 			},
 			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // also waits out the controls overlay
 		Shot(TEXT("fp_0_idle_br"), [Reset]() { Reset(); }, { 0.5f }, 1.f);
 		Shot(TEXT("fp_1_idle_sidearm"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f, 2.f }, 2.5f);
 		Shot(TEXT("fp_2_back_to_br"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f }, 2.f);
 		Shot(TEXT("fp_3_grenade"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.08f, 0.2f, 0.35f, 0.5f }, 2.f);
+		// The throw up to its release (sb.GrenadeReleaseDelay, 0.15 s): hand rising, cocked with the grenade, coming through, after.
+		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.04f, 0.08f, 0.12f, 0.2f }, 2.f);
+		// The same throw held at two poses (sb.FPThrowFreeze), since a capture lands too late for the 0.15 s wind-up:
+		// cocked beside the head with the grenade, and the hand coming through just before it lets go.
+		// fp_3e repeats the through pose with the hand turned the other way (G8 picked -70 for the cocked pose) (sb.FPThrowHandRoll), to pick the sign.
+		struct FHeldPose { const TCHAR* Name; float Hold; float Roll; };
+		for (const FHeldPose& Pose : { FHeldPose{ TEXT("fp_3c_grenade_cocked"), 0.09f, -70.f }, FHeldPose{ TEXT("fp_3d_grenade_through"), 0.14f, -70.f },
+			FHeldPose{ TEXT("fp_3e_grenade_through_roll"), 0.14f, 70.f } })
+		{
+			const float Hold = Pose.Hold;
+			const float Roll = Pose.Roll;
+			Shot(Pose.Name, [Reset, Player, Hold, Roll]()
+				{
+					Reset();
+					if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(Hold); }
+					if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(Roll); }
+					// The earlier throws spend the starting grenades.
+					if (AShieldbreakCharacter* P = Player()) { P->AddGrenades(1); P->ThrowGrenade(); }
+				}, { 0.4f }, 1.2f);
+		}
+		Steps.Add({ TEXT("Release the held throw pose"), []()
+			{
+				if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(-1.f); }
+				if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(-70.f); }
+			}, [](float Elapsed) { return Elapsed > 0.8f; }, 2.f });
 		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
 			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });
@@ -3923,6 +4020,24 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					B->ThrowGrenade();
 				}
 			}, { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f }, 1.5f);
+		// An explosion 5 m ahead and to the left on the floor: flash, fireball, smoke and the scorch left behind.
+		Shot(TEXT("tp_7_explosion"),
+			[this, Player]()
+			{
+				Mark = 0.f;
+				const AShieldbreakCharacter* P = Player();
+				if (!P || !GetWorld())
+				{
+					return;
+				}
+				// On open floor in front of the tp_6 dummy (4 m ahead): 7 m was behind it in the dark corridor (G3), 5 m
+				// and 2.2 m left was inside the left wall (G4).
+				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 280.f + P->GetActorRightVector() * 80.f;
+				FHitResult Floor;
+				FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakShotFloor), false, P);
+				const bool bFloor = GetWorld()->LineTraceSingleByChannel(Floor, Ahead + FVector(0.f, 0.f, 50.f), Ahead - FVector(0.f, 0.f, 400.f), ECC_Visibility, Query);
+				AShieldbreakExplosionFX::Spawn(GetWorld(), (bFloor ? Floor.ImpactPoint : Ahead) + FVector(0.f, 0.f, 10.f));
+			}, { 0.03f, 0.12f, 0.3f, 0.7f, 1.5f, 3.f }, 3.5f);
 		// FP captures also need a repeatable performance observation. Keep the
 		// possessed pawn and camera stationary after all action clips have ended.
 		Steps.Add({ TEXT("First-person fixed-view FPS (20 s)"),
