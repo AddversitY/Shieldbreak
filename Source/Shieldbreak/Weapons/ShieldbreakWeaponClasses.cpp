@@ -6,6 +6,7 @@
 
 AWeapon_BattleRifle::AWeapon_BattleRifle()
 {
+	Sounds = { EShieldbreakSound::BattleRifleShot, EShieldbreakSound::BattleRifleTail, EShieldbreakSound::ReloadBattleRifle, EShieldbreakSound::DryFireRifle };
 	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "BattleRifle", "Battle Rifle");
 	Stats.FireMode = EShieldbreakFireMode::Burst;
 	Stats.BurstCount = 3;
@@ -41,6 +42,8 @@ AWeapon_BattleRifle::AWeapon_BattleRifle()
 
 AWeapon_SniperRifle::AWeapon_SniperRifle()
 {
+	Sounds = { EShieldbreakSound::SniperShot, EShieldbreakSound::SniperTail, EShieldbreakSound::ReloadSniper, EShieldbreakSound::DryFireHeavy,
+		EShieldbreakSound::SniperBolt, 0.32f };
 	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "SniperRifle", "Sniper Rifle");
 	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
 	Stats.TimeBetweenShots = 0.7f;
@@ -77,6 +80,7 @@ AWeapon_SniperRifle::AWeapon_SniperRifle()
 
 AWeapon_RocketLauncher::AWeapon_RocketLauncher()
 {
+	Sounds = { EShieldbreakSound::RocketShot, EShieldbreakSound::RocketTail, EShieldbreakSound::ReloadRocket, EShieldbreakSound::DryFireHeavy };
 	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "RocketLauncher", "Rocket Launcher");
 	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
 	Stats.TimeBetweenShots = 0.9f;
@@ -105,6 +109,7 @@ AWeapon_RocketLauncher::AWeapon_RocketLauncher()
 
 AWeapon_Sidearm::AWeapon_Sidearm()
 {
+	Sounds = { EShieldbreakSound::SidearmShot, EShieldbreakSound::SidearmTail, EShieldbreakSound::ReloadSidearm, EShieldbreakSound::DryFireLight };
 	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "Sidearm", "Sidearm");
 	Stats.FireMode = EShieldbreakFireMode::SemiAuto;
 	Stats.TimeBetweenShots = 0.24f;
@@ -139,6 +144,7 @@ AWeapon_Sidearm::AWeapon_Sidearm()
 
 AWeapon_RailLance::AWeapon_RailLance()
 {
+	Sounds = { EShieldbreakSound::RailFire, EShieldbreakSound::RailTail, EShieldbreakSound::Count, EShieldbreakSound::DryFireEnergy };
 	Stats.DisplayName = NSLOCTEXT("Shieldbreak", "RailLance", "Rail Lance");
 	Stats.FireMode = EShieldbreakFireMode::Charge;
 	Stats.ChargeTime = 0.8f;

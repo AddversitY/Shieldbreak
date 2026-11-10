@@ -11,6 +11,7 @@
 #include "ShieldbreakWeapon.generated.h"
 
 class AShieldbreakCharacter;
+class UAudioComponent;
 class UDamageType;
 class UMaterialInstanceDynamic;
 class UStaticMesh;
@@ -188,8 +189,13 @@ protected:
 	/** First person only: the magazine as its own part, so the reload can take it out (see GetFirstPersonMagazine). */
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> MagazineMesh;
+	/** Layered shot, tail, reload, dry-fire and mechanism sounds (set per weapon class). */
+	FShieldbreakWeaponSounds Sounds;
 
 private:
+	void StopWeaponAudio(TWeakObjectPtr<UAudioComponent>& Audio);
+	void PlayReloadSound(bool bLocalView);
+
 	bool CanFireShotLocal() const;
 	void FireShotLocal();
 	FVector GetMuzzleLocation() const;
@@ -197,7 +203,7 @@ private:
 	void ApplyArt();
 	void PlayShotEffects(bool bLocalView);
 	void SpawnImpactFX(const FHitResult& Hit) const;
-	EShieldbreakSound GetShotSound() const;
+	void PlayDryFire();
 
 	UFUNCTION(Server, Reliable) void ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction);
 	UFUNCTION(Server, Reliable) void ServerStartReload();
@@ -261,4 +267,9 @@ private:
 	float ServerOverheatEndTime = -1.f;
 	float ServerChargeStartTime = -1.f;
 	FTimerHandle ReloadTimerHandle;
+
+	// Sounds that must stop early (swap cancels a reload, releasing the trigger ends the charge whine).
+	TWeakObjectPtr<UAudioComponent> ReloadAudio;
+	TWeakObjectPtr<UAudioComponent> ChargeAudio;
+	float LastDryFireTime = -100.f;
 };

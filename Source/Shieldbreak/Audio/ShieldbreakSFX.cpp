@@ -3,7 +3,10 @@
 #include "Components/AudioComponent.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 #include "Sound/SoundAttenuation.h"
+#include "Sound/SoundConcurrency.h"
+#include "Sound/SoundBase.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "TimerManager.h"
 
@@ -295,22 +298,200 @@ namespace ShieldbreakSFXPrivate
 		return Cache[Index];
 	}
 
-	USoundAttenuation* GetAttenuation()
+
+	// ---- Attenuation and voice limits ----
+
+	enum class EAtten : uint8 { Default, Gun, Tail, Far, Explosion, Foley, Shield, Num };
+
+	USoundAttenuation* GetAttenuation(EAtten Kind = EAtten::Default)
 	{
-		static USoundAttenuation* Attenuation = nullptr;
+		static USoundAttenuation* Cache[static_cast<int32>(EAtten::Num)] = {};
+		USoundAttenuation*& Attenuation = Cache[static_cast<int32>(Kind)];
 		if (!Attenuation)
 		{
+			// Inner radius, falloff distance, and whether distance muffles the sound (air absorption).
+			struct FShape { float Inner; float Falloff; bool bMuffle; };
+			static const FShape Shapes[] = {
+				{ 400.f, 7000.f, false },   // Default
+				{ 300.f, 6000.f, true },    // Gun: close layer, crossfades into Far by ~55 m
+				{ 800.f, 9000.f, true },    // Tail
+				{ 1000.f, 26000.f, true },  // Far: distant gunfire carries across the whole map
+				{ 600.f, 14000.f, true },   // Explosion
+				{ 150.f, 2600.f, false },   // Foley: steps, reloads, bounces
+				{ 200.f, 4500.f, false },   // Shield
+			};
+			const FShape& Shape = Shapes[static_cast<int32>(Kind)];
 			Attenuation = NewObject<USoundAttenuation>(GetTransientPackage());
 			Attenuation->AddToRoot();
 			FSoundAttenuationSettings& Settings = Attenuation->Attenuation;
 			Settings.bAttenuate = true;
 			Settings.bSpatialize = true;
 			Settings.AttenuationShape = EAttenuationShape::Sphere;
-			Settings.AttenuationShapeExtents = FVector(400.f, 0.f, 0.f);
-			Settings.FalloffDistance = 7000.f;
+			Settings.AttenuationShapeExtents = FVector(Shape.Inner, 0.f, 0.f);
+			Settings.FalloffDistance = Shape.Falloff;
 			Settings.DistanceAlgorithm = EAttenuationDistanceModel::NaturalSound;
+			Settings.bAttenuateWithLPF = Shape.bMuffle;
+			Settings.LPFRadiusMin = 1500.f;
+			Settings.LPFRadiusMax = Shape.Falloff;
+			Settings.LPFFrequencyAtMin = 20000.f;
+			Settings.LPFFrequencyAtMax = 3500.f;
 		}
 		return Attenuation;
+	}
+
+	/** Two voice pools: combat (guns, explosions, shields) and foley (steps, reloads, bounces). */
+	USoundConcurrency* GetConcurrency(bool bFoley)
+	{
+		static USoundConcurrency* Pools[2] = {};
+		USoundConcurrency*& Pool = Pools[bFoley ? 1 : 0];
+		if (!Pool)
+		{
+			Pool = NewObject<USoundConcurrency>(GetTransientPackage());
+			Pool->AddToRoot();
+			Pool->Concurrency.MaxCount = bFoley ? 12 : 24;
+			Pool->Concurrency.ResolutionRule = EMaxConcurrentResolutionRule::StopFarthestThenOldest;
+			Pool->Concurrency.bLimitToOwner = false;
+		}
+		return Pool;
+	}
+
+	// ---- Imported banks ----
+
+	struct FBank
+	{
+		const TCHAR* Near2D;   // first-person / non-positional version
+		int32 Near2DCount;
+		const TCHAR* Near3D;   // positional (mono) version; null = same as Near2D
+		int32 Near3DCount;
+		const TCHAR* Far;      // distant version crossfaded in by listener distance; null = none
+		int32 FarCount;
+		EAtten Atten;
+		float NearEnd;         // listener distance where the close layer has faded out
+		float FarStart;        // listener distance where the distant layer is at full volume
+		bool bFoley;
+	};
+
+	const FBank* GetBank(EShieldbreakSound Sound)
+	{
+		using S = EShieldbreakSound;
+		switch (Sound)
+		{
+		case S::BattleRifleShot: { static const FBank B{ TEXT("BR_FP"), 8, TEXT("BR_TP"), 8, TEXT("BR_Dist"), 4, EAtten::Gun, 5000.f, 4200.f, false }; return &B; }
+		case S::BattleRifleTail: { static const FBank B{ TEXT("BR_FPTail"), 3, TEXT("BR_TPTail"), 3, nullptr, 0, EAtten::Tail, 0.f, 0.f, false }; return &B; }
+		case S::SidearmShot: { static const FBank B{ TEXT("Sidearm_FP"), 6, TEXT("Sidearm_TP"), 6, TEXT("Sidearm_Dist"), 4, EAtten::Gun, 4500.f, 3800.f, false }; return &B; }
+		case S::SidearmTail: { static const FBank B{ TEXT("Sidearm_FPTail"), 3, TEXT("Sidearm_TPTail"), 3, nullptr, 0, EAtten::Tail, 0.f, 0.f, false }; return &B; }
+		case S::SniperShot: { static const FBank B{ TEXT("Sniper_FP"), 5, TEXT("Sniper_TP"), 5, TEXT("Sniper_Dist"), 4, EAtten::Gun, 6000.f, 5000.f, false }; return &B; }
+		case S::SniperTail: { static const FBank B{ TEXT("Sniper_FPTail"), 3, TEXT("Sniper_TPTail"), 3, nullptr, 0, EAtten::Tail, 0.f, 0.f, false }; return &B; }
+		case S::SniperBolt: { static const FBank B{ TEXT("Sniper_Bolt"), 3, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::RocketShot: { static const FBank B{ TEXT("Rocket_FP"), 4, TEXT("Rocket_TP"), 4, TEXT("Rocket_Dist"), 4, EAtten::Gun, 6000.f, 5000.f, false }; return &B; }
+		case S::RocketTail: { static const FBank B{ TEXT("Rocket_FPTail"), 3, TEXT("Rocket_TPTail"), 3, nullptr, 0, EAtten::Tail, 0.f, 0.f, false }; return &B; }
+		case S::RailFire: { static const FBank B{ TEXT("Rail_FP"), 4, TEXT("Rail_TP"), 4, TEXT("Rail_Dist"), 4, EAtten::Gun, 6000.f, 5000.f, false }; return &B; }
+		case S::RailTail: { static const FBank B{ TEXT("Rail_FPTail"), 3, TEXT("Rail_TPTail"), 3, nullptr, 0, EAtten::Tail, 0.f, 0.f, false }; return &B; }
+		case S::RailCharge: { static const FBank B{ TEXT("Rail_Charge"), 1, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
+		case S::GrenadeExplosion: { static const FBank B{ TEXT("Grenade_Explosion_FP"), 5, TEXT("Grenade_Explosion"), 5, TEXT("Grenade_Explosion_Dist"), 4, EAtten::Explosion, 7000.f, 5500.f, false }; return &B; }
+		case S::GrenadeThrow: { static const FBank B{ TEXT("Grenade_Throw"), 4, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::GrenadeBounce: { static const FBank B{ TEXT("Grenade_Bounce"), 6, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::ReloadBattleRifle: { static const FBank B{ TEXT("BR_Reload"), 2, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::ReloadSidearm: { static const FBank B{ TEXT("Sidearm_Reload"), 2, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::ReloadSniper: { static const FBank B{ TEXT("Sniper_Reload"), 2, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::ReloadRocket: { static const FBank B{ TEXT("Rocket_Reload"), 2, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::DryFireLight: { static const FBank B{ TEXT("DryFire_Light"), 3, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::DryFireRifle: { static const FBank B{ TEXT("DryFire_Rifle"), 3, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::DryFireHeavy: { static const FBank B{ TEXT("DryFire_Heavy"), 3, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::DryFireEnergy: { static const FBank B{ TEXT("DryFire_Energy"), 2, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::WeaponRaise: { static const FBank B{ TEXT("Weapon_Raise"), 3, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::ShieldPop: { static const FBank B{ TEXT("Shield_Pop"), 3, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
+		case S::ShieldRecharge: { static const FBank B{ TEXT("Shield_Recharge"), 1, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
+		case S::ShieldLowBeep: { static const FBank B{ TEXT("Shield_Low"), 1, nullptr, 0, nullptr, 0, EAtten::Shield, 0.f, 0.f, false }; return &B; }
+		case S::Footstep: { static const FBank B{ TEXT("Footstep"), 10, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		case S::Land: { static const FBank B{ TEXT("Land"), 4, nullptr, 0, nullptr, 0, EAtten::Foley, 0.f, 0.f, true }; return &B; }
+		default: return nullptr;
+		}
+	}
+
+	/** Procedural stand-in while a bank isn't imported (Count = silent). */
+	EShieldbreakSound GetSynthFallback(EShieldbreakSound Sound)
+	{
+		using S = EShieldbreakSound;
+		switch (Sound)
+		{
+		case S::SidearmShot: case S::SniperShot: case S::RocketShot: return S::BattleRifleShot;
+		case S::BattleRifleTail: case S::SidearmTail: case S::SniperTail: case S::RocketTail: case S::RailTail:
+		case S::SniperBolt: case S::ReloadBattleRifle: case S::ReloadSidearm: case S::ReloadSniper: case S::ReloadRocket:
+		case S::DryFireLight: case S::DryFireRifle: case S::DryFireHeavy: case S::DryFireEnergy: case S::WeaponRaise:
+		case S::Footstep: case S::Land:
+			return S::Count;
+		default: return Sound;
+		}
+	}
+
+	struct FLoadedBank
+	{
+		TArray<USoundBase*> Variants;
+		int32 Last = -1;
+	};
+
+	/** Loads SFX_<Name>_01..Count from /Game/Shieldbreak/Audio/SFX once; empty if not imported. */
+	FLoadedBank& LoadBank(const TCHAR* Name, int32 Count)
+	{
+		static TMap<FString, FLoadedBank> Banks;
+		const FString Key(Name);
+		if (FLoadedBank* Found = Banks.Find(Key))
+		{
+			return *Found;
+		}
+		FLoadedBank& Bank = Banks.Add(Key);
+		for (int32 Index = 1; Index <= Count; ++Index)
+		{
+			const FString Path = FString::Printf(TEXT("/Game/Shieldbreak/Audio/SFX/SFX_%s_%02d.SFX_%s_%02d"), Name, Index, Name, Index);
+			if (USoundBase* Sound = Cast<USoundBase>(StaticLoadObject(USoundBase::StaticClass(), nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet)))
+			{
+				Sound->AddToRoot();
+				Bank.Variants.Add(Sound);
+			}
+		}
+		return Bank;
+	}
+
+	/** A random variation, never the one played last. */
+	USoundBase* PickVariant(const TCHAR* Name, int32 Count)
+	{
+		if (!Name || Count <= 0)
+		{
+			return nullptr;
+		}
+		FLoadedBank& Bank = LoadBank(Name, Count);
+		const int32 Num = Bank.Variants.Num();
+		if (Num == 0)
+		{
+			return nullptr;
+		}
+		int32 Pick = FMath::RandRange(0, Num - 1);
+		if (Num > 1 && Pick == Bank.Last)
+		{
+			Pick = (Pick + 1 + FMath::RandRange(0, Num - 2)) % Num;
+		}
+		Bank.Last = Pick;
+		return Bank.Variants[Pick];
+	}
+
+	/** Small per-play jitter so repeated shots never sound copy-pasted. */
+	void Jitter(float& Volume, float& Pitch)
+	{
+		Volume *= FMath::FRandRange(0.9f, 1.f);
+		Pitch *= FMath::FRandRange(0.97f, 1.03f);
+	}
+
+	bool GetListener(const UWorld* World, FVector& OutLocation)
+	{
+		APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+		if (!Controller)
+		{
+			return false;
+		}
+		FVector Front, Right;
+		Controller->GetAudioListenerPosition(OutLocation, Front, Right);
+		return true;
 	}
 
 	USoundWaveProcedural* MakeWave(EShieldbreakSound Sound)
@@ -357,6 +538,56 @@ namespace ShieldbreakSFXPrivate
 	}
 }
 
+void FShieldbreakSFX::Preload()
+{
+	using namespace ShieldbreakSFXPrivate;
+	for (int32 Index = 0; Index < static_cast<int32>(EShieldbreakSound::Count); ++Index)
+	{
+		if (const FBank* Bank = GetBank(static_cast<EShieldbreakSound>(Index)))
+		{
+			LoadBank(Bank->Near2D, Bank->Near2DCount);
+			if (Bank->Near3D)
+			{
+				LoadBank(Bank->Near3D, Bank->Near3DCount);
+			}
+			if (Bank->Far)
+			{
+				LoadBank(Bank->Far, Bank->FarCount);
+			}
+		}
+	}
+}
+
+FString FShieldbreakSFX::DescribeMissingBanks(int32& OutLoaded)
+{
+	using namespace ShieldbreakSFXPrivate;
+	OutLoaded = 0;
+	TArray<FString> Missing;
+	auto CheckBank = [&](const TCHAR* Name, int32 Count)
+	{
+		if (!Name)
+		{
+			return;
+		}
+		const int32 Num = LoadBank(Name, Count).Variants.Num();
+		OutLoaded += Num;
+		if (Num < Count)
+		{
+			Missing.AddUnique(FString::Printf(TEXT("%s (%d/%d)"), Name, Num, Count));
+		}
+	};
+	for (int32 Index = 0; Index < static_cast<int32>(EShieldbreakSound::Count); ++Index)
+	{
+		if (const FBank* Bank = GetBank(static_cast<EShieldbreakSound>(Index)))
+		{
+			CheckBank(Bank->Near2D, Bank->Near2DCount);
+			CheckBank(Bank->Near3D, Bank->Near3DCount);
+			CheckBank(Bank->Far, Bank->FarCount);
+		}
+	}
+	return FString::Join(Missing, TEXT(", "));
+}
+
 UAudioComponent* FShieldbreakSFX::Play2D(const UObject* WorldContext, EShieldbreakSound Sound, float Volume, float Pitch)
 {
 	using namespace ShieldbreakSFXPrivate;
@@ -367,9 +598,22 @@ UAudioComponent* FShieldbreakSFX::Play2D(const UObject* WorldContext, EShieldbre
 		return nullptr;
 	}
 
-	USoundWaveProcedural* Wave = MakeWave(Sound);
+	if (const FBank* Bank = GetBank(Sound))
+	{
+		if (USoundBase* Imported = PickVariant(Bank->Near2D, Bank->Near2DCount))
+		{
+			Jitter(Volume, Pitch);
+			return UGameplayStatics::SpawnSound2D(World, Imported, Volume, Pitch, 0.f, GetConcurrency(Bank->bFoley));
+		}
+	}
+
+	const EShieldbreakSound Synth = GetSynthFallback(Sound);
+	USoundWaveProcedural* Wave = Synth != EShieldbreakSound::Count ? MakeWave(Synth) : nullptr;
 	UAudioComponent* Component = Wave ? UGameplayStatics::SpawnSound2D(World, Wave, Volume, Pitch) : nullptr;
-	StopAfter(World, Component, GetDuration(Sound) / FMath::Max(Pitch, 0.1f));
+	if (Component)
+	{
+		StopAfter(World, Component, GetDuration(Synth) / FMath::Max(Pitch, 0.1f));
+	}
 	return Component;
 }
 
@@ -383,12 +627,123 @@ UAudioComponent* FShieldbreakSFX::PlayAt(const UObject* WorldContext, EShieldbre
 		return nullptr;
 	}
 
-	USoundWaveProcedural* Wave = MakeWave(Sound);
+	if (const FBank* Bank = GetBank(Sound))
+	{
+		const TCHAR* NearName = Bank->Near3D ? Bank->Near3D : Bank->Near2D;
+		const int32 NearCount = Bank->Near3D ? Bank->Near3DCount : Bank->Near2DCount;
+		USoundBase* Near = PickVariant(NearName, NearCount);
+		if (Near)
+		{
+			Jitter(Volume, Pitch);
+			float NearWeight = 1.f;
+			float FarWeight = 0.f;
+			FVector Listener;
+			if (Bank->Far && GetListener(World, Listener))
+			{
+				// Close layer fades out toward NearEnd; the distant layer fades in from 60% of FarStart.
+				const float Distance = FVector::Dist(Listener, Location);
+				NearWeight = 1.f - FMath::SmoothStep(Bank->NearEnd * 0.5f, Bank->NearEnd, Distance);
+				FarWeight = FMath::SmoothStep(Bank->FarStart * 0.6f, Bank->FarStart, Distance);
+			}
+
+			UAudioComponent* Component = nullptr;
+			if (NearWeight > 0.03f)
+			{
+				Component = UGameplayStatics::SpawnSoundAtLocation(World, Near, Location, FRotator::ZeroRotator, Volume * NearWeight, Pitch,
+					0.f, GetAttenuation(Bank->Atten), GetConcurrency(Bank->bFoley));
+			}
+			if (FarWeight > 0.03f)
+			{
+				if (USoundBase* FarSound = PickVariant(Bank->Far, Bank->FarCount))
+				{
+					UAudioComponent* FarComponent = UGameplayStatics::SpawnSoundAtLocation(World, FarSound, Location, FRotator::ZeroRotator,
+						Volume * FarWeight, Pitch, 0.f, GetAttenuation(EAtten::Far), GetConcurrency(false));
+					Component = Component ? Component : FarComponent;
+				}
+			}
+			return Component;
+		}
+	}
+
+	const EShieldbreakSound Synth = GetSynthFallback(Sound);
+	USoundWaveProcedural* Wave = Synth != EShieldbreakSound::Count ? MakeWave(Synth) : nullptr;
 	UAudioComponent* Component = Wave
 		? UGameplayStatics::SpawnSoundAtLocation(World, Wave, Location, FRotator::ZeroRotator, Volume, Pitch, 0.f, GetAttenuation())
 		: nullptr;
-	StopAfter(World, Component, GetDuration(Sound) / FMath::Max(Pitch, 0.1f));
+	if (Component)
+	{
+		StopAfter(World, Component, GetDuration(Synth) / FMath::Max(Pitch, 0.1f));
+	}
 	return Component;
+}
+
+UAudioComponent* FShieldbreakSFX::PlayAttached(USceneComponent* AttachTo, EShieldbreakSound Sound, float Volume, float Pitch)
+{
+	using namespace ShieldbreakSFXPrivate;
+
+	UWorld* World = AttachTo ? AttachTo->GetWorld() : nullptr;
+	if (!CanPlay(World))
+	{
+		return nullptr;
+	}
+	const FBank* Bank = GetBank(Sound);
+	USoundBase* Imported = Bank ? PickVariant(Bank->Near3D ? Bank->Near3D : Bank->Near2D, Bank->Near3D ? Bank->Near3DCount : Bank->Near2DCount) : nullptr;
+	if (!Imported)
+	{
+		return PlayAt(AttachTo, Sound, AttachTo->GetComponentLocation(), Volume, Pitch);
+	}
+	Jitter(Volume, Pitch);
+	return UGameplayStatics::SpawnSoundAttached(Imported, AttachTo, NAME_None, FVector::ZeroVector, EAttachLocation::KeepRelativeOffset,
+		true, Volume, Pitch, 0.f, GetAttenuation(Bank->Atten), GetConcurrency(Bank->bFoley));
+}
+
+void FShieldbreakSFX::PlayShot(const UObject* WorldContext, const FShieldbreakWeaponSounds& Sounds, const FVector& Muzzle, bool bLocalView)
+{
+	using namespace ShieldbreakSFXPrivate;
+
+	UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!CanPlay(World))
+	{
+		return;
+	}
+
+	if (bLocalView)
+	{
+		Play2D(WorldContext, Sounds.Shot, 0.8f);
+		if (Sounds.Tail != EShieldbreakSound::Count)
+		{
+			Play2D(WorldContext, Sounds.Tail, 0.45f);
+		}
+	}
+	else
+	{
+		PlayAt(WorldContext, Sounds.Shot, Muzzle, 1.f);
+		if (Sounds.Tail != EShieldbreakSound::Count)
+		{
+			PlayAt(WorldContext, Sounds.Tail, Muzzle, 0.6f);
+		}
+	}
+
+	if (Sounds.Cycle != EShieldbreakSound::Count)
+	{
+		TWeakObjectPtr<const UObject> WeakContext(WorldContext);
+		const EShieldbreakSound Cycle = Sounds.Cycle;
+		FTimerHandle Handle;
+		World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakContext, Cycle, Muzzle, bLocalView]()
+		{
+			if (const UObject* Context = WeakContext.Get())
+			{
+				if (bLocalView)
+				{
+					FShieldbreakSFX::Play2D(Context, Cycle, 0.55f);
+				}
+				else
+				{
+					FShieldbreakSFX::PlayAt(Context, Cycle, Muzzle, 0.7f);
+				}
+			}
+		}), Sounds.CycleDelay, false);
+	}
 }
 
 float FShieldbreakSFX::GetDuration(EShieldbreakSound Sound)
