@@ -1,4 +1,43 @@
-# Handoff (2026-11-04)
+# Handoff (2026-11-10)
+
+Branch `handoff-2026-11-10` = `origin/main` + every pushed feature branch merged (newer work preferred).
+Build: **Succeeded** (`Tools/BuildEditor.bat`). SelfTest on this branch: **RESULT 170 passed, 1 failed**:
+`Hands never pass through guns (first person, reload, third person)` (BR 3 joints, Sniper 1, Sidearm 11). That
+check comes from the first-person moves work and has not been run against the reshaped guns before. Fix the hand
+poses/sockets or the check next. Bot FPS here 111.8 (4 bots, PC idle). It was ~129 on `gun-textures` alone, so
+the merge (audio/impact FX/grenade work) may cost frame time. Needs a controlled recheck.
+
+## Which branch holds what
+- `gun-textures`: baked gun textures, Vanguard BR v7, Longshot v4 sniper, Kestrel v3 sidearm, polish pass,
+  extended FP captures, `-SBNoHelp`. Includes `claude/project-thread-ndksis` (support hand / rifle grip).
+- `claude/project-thread-1yjl1q`: first-person moves (M1-M5: reload, melee, pistol magazine).
+- `claude/project-thread-yp1u5u`: grenade throw/merge (G1-G11). Its older throw dip was dropped for the newer
+  `Pitch` dip from `gun-textures`. Its left-finger cvar is now `CVarThrowCurl` (`sb.FPThrowCurl`).
+- `claude/project-thread-z6rvy1`: impact FX. `claude/project-thread-clu4v1`: layered weapon/footstep SFX.
+- `claude/project-thread-e45jnz`: Keel rebuilt from the Midship brief, bridge spawn fix, ramp validator.
+
+## Gun pipeline
+- Venv: `%USERPROFILE%\sb-bake-venv` (Python 3.13 + bpy). From `Art/blender`:
+  `"%USERPROFILE%\sb-bake-venv\Scripts\python.exe" bake_weapons.py SM_SB_BattleRifle --res 2048` (also
+  `SM_SB_Sniper`, `SM_SB_Sidearm`; ~3-15 min each, run one at a time on 8 GB).
+- Import: `powershell -ExecutionPolicy Bypass -File Tools\ImportArt.ps1 -Folders Weapons`. Exit 1 is the known
+  Armor LOD count check on a narrow import. Grep `Saved\Logs\ImportArt.txt` for "Failed to compile".
+- Captures: add `-SBNoHelp` to keep the F1 overlay off. `-SBSelfTest -SBFPShots -SBShotTag=<tag>` shoots BR,
+  sidearm and sniper idle/reload after the fixed FP FPS figure. 3/4 close-up:
+  `python -I Toolsender_weapon_closeup.py <Art\Export> <out.png> [BattleRifle|Sniper|Sidearm] [distance, 3.4 for the sidearm]`.
+
+## Gun status
+- Vanguard BR v7 (swept shell, integrated MKS-4X): LOW 14,584 / NoMag 14,096. Forend blotches gone. Markings read correctly.
+- Longshot v4 sniper: LOW 15,132 / NoMag 14,768. Slimmer scope, ~10% of the frame at idle and mid-reload (was 15-25%).
+- Kestrel v3 sidearm: LOW 3,964 / NoMag 3,832. KESTREL reads correctly. Grip blotches fixed.
+- Open: smeared grey/white edge mid-slide on the sidearm; cloudy rear sight insert on the sidearm; blurry
+  sniper magazine texture in the reload; no hands in frame at sniper idle.
+- Flaky self-tests (seen on and off, not gun related): "The camera never sits inside a character" (bot match)
+  and "The eye trails the step".
+- FPS on an idle PC with `gun-textures`: ~146 fixed first person, ~129 with 4 bots. Runs while the Claude
+  desktop app was busy read ~107-126 and aren't comparable.
+
+# Earlier handoff (2026-11-04)
 
 ## Movement, characters and guns (Claude, branch `claude/project-thread-ndksis`)
 
