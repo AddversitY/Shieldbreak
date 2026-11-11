@@ -433,6 +433,13 @@ def high_material(kind_name):
         scratch = g.remap(g.noise(g.vscale(co, (1.0, 0.08, 1.0)), 7.0, 2.0, 0.5), 0.62, 0.66, 0.0, 1.0)
         height = g.math("SUBTRACT", g.mul(peel, 0.35), g.mul(scratch, 0.6))
         strength = 0.05
+    elif kind == "fabric":
+        # Woven webbing: a crossed thread pattern with a little fuzz.
+        s3 = g.sep(co)
+        warp = g.math("SINE", g.mul(g.addf(s3[0], s3[1]), 26.0))
+        weft = g.math("SINE", g.mul(s3[2], 26.0))
+        height = g.addf(g.mul(g.mul(warp, weft), 0.5), g.mul(g.noise(co, 18.0, 3.0, 0.6), 0.6))
+        strength = 0.22
     if height is not None:
         bump = g.add("ShaderNodeBump")
         bump.inputs["Strength"].default_value = strength
@@ -563,6 +570,15 @@ def bake_material(slot, ao_image, decals, target):
             col = g.mix(g.mul(dl[1], 0.85), col, dl[0])
         rough = g.addf(rough0, g.addf(g.mul(g.math("SUBTRACT", n_mid, 0.5), 0.1), g.mul(grime, 0.15)))
         rough = g.math("SUBTRACT", rough, g.mul(scuff, 0.15))
+        metal = 0.0
+    elif kind == "fabric":
+        # Cloth: no chips; sun-faded folds, frayed pale edges, dirt worked into the creases.
+        fray = g.mul(edge, g.remap(n_mid, 0.3, 0.7))
+        col = g.scale_color(base + (1.0,), g.addf(tone, g.mul(g.math("SUBTRACT", n_fine, 0.5), 0.25)))
+        col = g.mix(g.mul(fray, 0.55), col, tuple(min(1.0, c * 2.2 + 0.03) for c in base))
+        col = g.mix(g.mul(grime, 0.6), col, GRIME)
+        col = g.mix(g.mul(g.remap(n_big, 0.55, 0.8), 0.3), col, DUST)
+        rough = g.addf(max(rough0, 0.8), g.mul(g.math("SUBTRACT", n_mid, 0.5), 0.1))
         metal = 0.0
     elif kind == "steel":
         brushed = g.noise(g.vscale(co, (6.0, 0.15, 6.0)), 8.0, 6.0, 0.6)
