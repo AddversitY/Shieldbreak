@@ -1,3 +1,7 @@
+﻿# Handoff: rifle reload re-key in progress (2026-11-11)
+
+Branch `claude/project-thread-cj978d` from `ace8b62`. Re-keyed rifle reload for continuous gun motion and a cleaner post-seat hand return (see the end of COORDINATION.md). Build PASS, focused moves 15/15, before-FPS 185.6. Clipping, full suite, FP captures, after-FPS and visual review still to run. Not visually approved.
+
 # Handoff: rifle reload reference pass; visual review pending (2026-11-11)
 
 Branch `handoff-2026-11-10`, starting at `ee4c366`. Vincent rejected that clip and asked to mimic the realism of [this reference](https://www.youtube.com/watch?v=XI90HrSe3pc). New authored keys add a side-grip wrist, per-joint finger closure/release, old-magazine release and fresh pickup, a seating impulse and forend recovery. The former cross-receiver sweep is gone. Receiver and magazine contact fitting protects the thumb. Magazine events consume once; cancellation blending preserves the refreshed hand frame. Gameplay duration/ammunition and imported art are unchanged.
@@ -191,7 +195,7 @@ and a shadowed wall.
 
 - Cover pass on the five enlarged maps: low cover, lane-splitting walls and base-top cover, placed by
   `fill_<map>()` in `Design/maps/shieldbreak_maps.py` and checked by its validator (exposed floor now 10-18%,
-  down from 31-48% after the 2× stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
+  down from 31-48% after the 2Ã— stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
 
 ## Latest cloud pass (2026-11-02): competitive map redesign
 

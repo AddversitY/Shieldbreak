@@ -1080,3 +1080,6 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   and eight-human play are not verified. Do not claim them.
 - **Lighting:** the near-black shadowed-wall bug is addressed in config and in the arena fill
   light on this branch. Confirm it visually on the desktop; it was not re-run here.
+
+## Reload polish in progress (Claude, 2026-11-11, branch `claude/project-thread-cj978d`): desktop released, done
+Re-keyed the rifle reload in `Visuals/ShieldbreakViewmodelMoves.cpp` only: continuous gun motion (strip yank, tip toward the returning hand, dip before the push, seat kick with damped rebound, settle overshoot), a post-seat heel push and slide forward to the forend instead of an open splayed hand, relaxed open-finger curls, and the shared reload lift envelope widened from 15% to 20% at each end (affects all reload styles). Build PASS. Focused moves **15/15** (fixed 30 fps, frames dumped). Fixed-view Keel FPS before this change **185.6** (after not yet measured). **Not yet run:** clipping fixture, full suite, FP captures, after-FPS, visual frame review. Not Vincent-approved. Desktop is free: no jobs running, no files reserved.
