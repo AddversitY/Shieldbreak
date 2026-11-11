@@ -6,7 +6,7 @@ enclosed ones. Same conventions as build_map_kit.py: 1 unit = 1 cm, pivot on the
 pieces, on their top face, so they hang down from the ceiling), material slots named after the shared palette;
 M_Glow* slots keep their emissive instance and the game recolours them per map (FShieldbreakMapLook::KitGlow).
 
-  ReactorCrown  Keel: the warship's reactor crown, an octagonal ring of armoured segments with an amber core,
+  ReactorCrown  (unused since 2026-11-11: Keel's centre is now build_keel_cradle.py) a reactor crown, an octagonal ring of armoured segments with an amber core,
                 hung from the ceiling over the reactor (top at z = 0, hangs to z = -260).
   Condenser     Spire: an inverted, stepped hard-light condenser over the energy column, hung from the ceiling
                 (top at z = 0, hangs to z = -420).

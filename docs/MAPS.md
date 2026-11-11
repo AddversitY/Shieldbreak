@@ -66,7 +66,9 @@ overwatch at 7 m behind the flag) looks through a long window over its approach 
 trench (0 m) under a cargo pod hung at 6.5 m, with the rockets on the pod (crane-arm ramps from both decks, lifts
 from the trench) and the Overshield underneath. North, shared: the Breach, a long lane with a catwalk along the hull
 (Rail Lance). South, shared: the Galleries, close-range engine galleries round a ring of reactor pylons (Camo).
-Art is still the old hull kit; the look from the brief comes after a PC playtest of this layout.
+Art pass, step 1 (2026-11-11): the Cradle. `Art/blender/build_keel_cradle.py` makes the pod's shell and cables, the
+overhead crane it hangs from, and each side's crane arm and trench wall (4 meshes, about 6,000 triangles in all, no
+collision, placed by `ShieldbreakMapArt::Plan`). The rest of the map still wears the old hull kit.
 
 ![Keel](../Design/maps/Keel.png)
 
