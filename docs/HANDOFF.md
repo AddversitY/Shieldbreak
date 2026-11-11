@@ -1,4 +1,16 @@
-# Handoff: grip correction complete; Codex paused (2026-11-10)
+# Handoff: reload corrected; Codex paused (2026-11-11)
+
+Branch `handoff-2026-11-10`, starting at `5548bb6`. Vincent reviewed the reload video and authorized this follow-up. **Completed; no files reserved or build/game jobs running. Wait for his next instruction.** Local Android settings and `fx1run/` are preserved; automation settings were not changed.
+
+The magazine follows the current evaluated palm instead of the prior frame. Hand anchors refresh after the current gun pose; grab captures the actual grasp; seating blends back into the socket. BR framing uses a smaller cant and brings the rifle forward/left/up. The magazine clears the well, moves into view to the viewer's left, then aligns for insertion. No imported art, gameplay reload timing, ammunition or network behavior changed.
+
+**Final validation:** build PASS; full gameplay **173/173**; fixed-30-fps reload fixture **11/11**, with **0.000 cm** carry drift and palm/magazine in view. Sidearm/sniper FP-capture suite **9/9** on the shared carry fix before the final BR-only key refinement. Matching fixed-view Keel, 1280x720 rendered offscreen, no bots: **91.5 FPS before / 93.7 after**. Single desktop observations, not a controlled benchmark; these do not settle the older grip-performance question below. Final four-bot Crucible **97.3 FPS**, after only.
+
+**Keep the camera-step issue open:** intermediate full **172/173** and isolated recheck **4 pass / 1 fail** failed the existing eye-trails-step check (eye **12.66 / 17.36 cm**). Final full passes at **9.23 cm** against a **30.00 cm** curb. Failures are retained; no threshold or movement code was changed. More hand/animation polish and prior texture/sidearm idle-framing issues remain. No online/eight-human or network-suite validation in this cosmetic pass.
+
+Review the [before/after videos, images and exact reports](playtests/2026-11-11_reload/README.md). Final MP4 is 1280x720, 30 fps, 3.33 seconds, no audio; actual rendered game frames. The palm centre is visible; this is not a claim that the entire glove stays in frame in every pose.
+
+# Previous grip handoff (2026-11-10)
 
 Branch `handoff-2026-11-10`, starting at `9c72567`. **Vincent requested finishing this pass and then pausing. Do not pick up the next task until he resumes.** No files reserved or build/game jobs left running by this pass. Local Android settings and `fx1run/` were preserved.
 

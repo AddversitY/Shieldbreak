@@ -844,6 +844,8 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		FirstPersonArms->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		FirstPersonArms->SetupAttachment(OwnerCharacter->GetFirstPersonCamera());
 		FirstPersonArms->RegisterComponent();
+		FirstPersonArms->RegisterOnBoneTransformsFinalizedDelegate(
+			FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateUObject(this, &UShieldbreakBodyAnimator::UpdateHeldMagazineAfterPose));
 		FirstPersonArms->AddTickPrerequisiteComponent(this);
 		for (const TCHAR* Bone : FirstPersonHiddenBones)
 		{
@@ -964,12 +966,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 		// Placed first with last frame's move pose, so the move's hand keys read the gun where it is now; then again
 		// with this frame's pose (only while a move plays).
 		ApplyFirstPersonArmsTransform(Dip);
-		const bool bHadMove = Moves.IsPlaying() || !MovePose.IsIdentity();
 		UpdateViewmodelMoves(bSwapping);
-		if (bHadMove || Moves.IsPlaying())
-		{
-			ApplyFirstPersonArmsTransform(Dip);
-		}
 	}
 	UpdateTriggerFinger(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
 	UpdateSupportHand(Instance, CalibratedIdle && !bSwapping && Dip <= 0.f && !Instance->GetActionAnimation(), World->GetDeltaSeconds());
@@ -1048,6 +1045,25 @@ void UShieldbreakBodyAnimator::UpdateViewmodelMoves(bool bSwapping)
 	const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : -1.f;
 	Context.bReloading = Weapon && (Weapon->IsReloading() || (ReloadProgress >= 0.f && ReloadProgress < 1.f));
 	Moves.Update(Now, Context, MovePose);
+	// Hand anchors must see this frame's gun placement, not the previous move pose.
+	ApplyFirstPersonArmsTransform(AppliedThrowDip);
+	Moves.RefreshHandTarget(Now, Context, MovePose);
+}
+
+void UShieldbreakBodyAnimator::UpdateHeldMagazineAfterPose()
+{
+	const AShieldbreakCharacter* Character = Cast<AShieldbreakCharacter>(GetOwner());
+	const AShieldbreakWeapon* Weapon = Character ? Character->GetCurrentWeapon() : nullptr;
+	if (!Weapon || !Weapon->GetRootComponent() || !FirstPersonArms || Weapon->GetRootComponent()->GetAttachParent() != FirstPersonArms) { return; }
+	// This callback precedes Unreal's attached-child update. Bring the gun to its
+	// new socket first, so the later child update cannot move the carried magazine again.
+	Weapon->GetRootComponent()->UpdateComponentToWorld();
+	FShieldbreakViewmodelContext Context;
+	Context.Camera = Character->GetFirstPersonCamera()->GetComponentTransform();
+	Context.Gun = Weapon->GetWeaponMesh();
+	Context.Magazine = Weapon->GetFirstPersonMagazine();
+	Context.Arms = FirstPersonArms;
+	Moves.UpdateMagazineAfterPose(GetWorld()->GetTimeSeconds(), Context);
 }
 
 UStaticMeshComponent* UShieldbreakBodyAnimator::GetSupportMesh(bool bRequireAttached) const

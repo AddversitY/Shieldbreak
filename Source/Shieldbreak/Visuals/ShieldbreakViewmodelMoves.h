@@ -83,6 +83,10 @@ public:
 
 	/** Steps the move and writes this frame's pose; also moves the magazine. */
 	void Update(double Now, const FShieldbreakViewmodelContext& Context, FShieldbreakViewmodelPose& OutPose);
+	/** Re-evaluate world anchors after the current gun pose has been applied. */
+	void RefreshHandTarget(double Now, const FShieldbreakViewmodelContext& Context, FShieldbreakViewmodelPose& OutPose) const;
+	/** Carry from the evaluated palm, after this frame's arm IK and attached gun have updated. */
+	void UpdateMagazineAfterPose(double Now, const FShieldbreakViewmodelContext& Context);
 
 	EShieldbreakViewmodelMove GetMove() const { return Move; }
 	bool IsPlaying() const { return Move != EShieldbreakViewmodelMove::None; }
@@ -119,4 +123,5 @@ private:
 	/** Hand-to-magazine offset (hand_l space) taken when the hand closed on it. */
 	FTransform HandToMagazine = FTransform::Identity;
 	bool bHasHandToMagazine = false;
+	bool bCaptureGripAfterPose = false;
 };

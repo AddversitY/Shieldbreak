@@ -223,6 +223,7 @@ private:
 	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
 	bool bSupportArmShown = false;
 	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
+	void UpdateHeldMagazineAfterPose();
 	class UStaticMeshComponent* GetSupportMesh(bool bRequireAttached) const;
 	void ApplyFirstPersonArmsTransform(float Dip);
 	/** Steps the first-person motion springs and writes FirstPersonMotion. */
