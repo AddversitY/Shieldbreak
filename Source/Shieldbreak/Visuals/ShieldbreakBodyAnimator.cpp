@@ -519,6 +519,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarGripRange(TEXT("sb.GripRange"), 2500.f, TEXT("Third-person bodies further than this (cm) from the camera skip the grip solve."));
 	// Grip contact helpers (defined with the grip code below).
 	void GripParts(const AShieldbreakWeapon* Weapon, TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Out);
+	bool SegmentHits(const TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Parts, const FVector& A, const FVector& B, float Radius);
 	int32 SolveGripContact(const USkeletalMeshComponent* Mesh, const TArray<UPrimitiveComponent*, TInlineAllocator<2>>& Parts, bool bLeft,
 		float* Curls, float MinCurl, const float* MaxCurls, float DeltaSeconds);
 	const float* LeftMaxCurls();
@@ -943,11 +944,11 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	}
 	const bool bSettled = World->GetTimeSeconds() - FirstPersonIdleSince > 0.3f && !Instance->GetActionAnimation() && GetFirstPersonThrowTime() < 0.f;
 	const AShieldbreakWeapon* HeldWeapon = OwnerCharacter->GetCurrentWeapon();
-	const float Lift = HeldWeapon ? HeldWeapon->GetFirstPersonLift() : 0.f;
-	if (bSettled && (CalibratedIdle != Idle || CalibratedGrip != Grip || CalibratedAim != Aim || !FMath::IsNearlyEqual(CalibratedLift, Lift, 0.05f)))
+	const FVector HandOffset = HeldWeapon ? HeldWeapon->GetHandGripOffset() : FVector::ZeroVector;
+	if (bSettled && (CalibratedIdle != Idle || CalibratedGrip != Grip || CalibratedAim != Aim || !CalibratedHandOffset.Equals(HandOffset, 0.05f)))
 	{
 		CalibratedIdle = Idle;
-		CalibratedLift = Lift;
+		CalibratedHandOffset = HandOffset;
 		CalibratedGrip = Grip;
 		CalibratedAim = Aim;
 		CalibrateFirstPersonArms();
@@ -1039,7 +1040,7 @@ void UShieldbreakBodyAnimator::UpdateViewmodelMoves(bool bSwapping)
 	{
 		// The hand is placed by its palm now: the move's forend key is the same palm point the idle hold uses.
 		FVector Palm, Fingers, Normal;
-		ComputeSupportPalm(SupportGun, Palm, Fingers, Normal);
+		ComputeSupportPalm(SupportGun, FirstPersonArms, Palm, Fingers, Normal);
 		Context.SupportPalmLocal = SupportGun->GetComponentTransform().InverseTransformPosition(Palm);
 		Context.bHasSupportPalm = true;
 	}
@@ -1075,9 +1076,19 @@ bool UShieldbreakBodyAnimator::WantsFirstPersonSupportArm() const
 	return CVarSupportHand.GetValueOnGameThread() != 0 && GetSupportMesh(false) != nullptr;
 }
 
-void UShieldbreakBodyAnimator::ComputeSupportPalm(const UStaticMeshComponent* Gun, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const
+void UShieldbreakBodyAnimator::ComputeSupportPalm(UStaticMeshComponent* Gun, const USkeletalMeshComponent* HandMesh, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
+	FSupportPalmCache& Cache = HandMesh == FirstPersonArms ? FirstPersonPalmCache : ThirdPersonPalmCache;
+	const FTransform& GunTransform = Gun->GetComponentTransform();
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Cache.Gun == Gun && Now < Cache.UpdateAt)
+	{
+		OutPalm = GunTransform.TransformPosition(Cache.Palm);
+		OutFingers = GunTransform.TransformVectorNoScale(Cache.Fingers);
+		OutPalmNormal = GunTransform.TransformVectorNoScale(Cache.Normal);
+		return;
+	}
 	// Gun axes from its sockets, in world space: forward from the trigger to the muzzle, up from the mesh, right
 	// from those two (Unreal is left-handed: Up x Forward points right).
 	const FVector Socket = Gun->GetSocketLocation(TEXT("SupportHand"));
@@ -1093,6 +1104,65 @@ void UShieldbreakBodyAnimator::ComputeSupportPalm(const UStaticMeshComponent* Gu
 	OutPalmNormal = (Up + Right * CVarPalmTilt.GetValueOnGameThread()).GetSafeNormal();
 	FVector Fingers = Right * Wrap + Forward * FMath::Sqrt(FMath::Max(0.f, 1.f - Wrap * Wrap));
 	OutFingers = (Fingers - OutPalmNormal * FVector::DotProduct(Fingers, OutPalmNormal)).GetSafeNormal();
+	// Solve a reachable palm before curling. IK clamps an unreachable wrist along
+	// its reach sphere, which otherwise raises the actual palm back into the gun.
+	const FVector Shoulder = HandMesh->GetBoneLocation(TEXT("upperarm_l"));
+	const FVector Elbow = HandMesh->GetBoneLocation(TEXT("lowerarm_l"));
+	const FVector Wrist = HandMesh->GetBoneLocation(TEXT("hand_l"));
+	const FVector Knuckle = HandMesh->GetBoneLocation(TEXT("middle_01_l"));
+	const FVector Thumb = HandMesh->GetBoneLocation(TEXT("thumb_01_l"));
+	const FVector HandForward = (Knuckle - Wrist).GetSafeNormal();
+	const FVector HandNormal = -FVector::CrossProduct(HandForward, Thumb - Wrist).GetSafeNormal();
+	const FQuat Turn = FRotationMatrix::MakeFromXZ(OutFingers, OutPalmNormal).ToQuat()
+		* FRotationMatrix::MakeFromXZ(HandForward, HandNormal).ToQuat().Inverse();
+	const FVector PalmOffset = Turn.RotateVector((Knuckle - Wrist) * 0.5f);
+	const float Reach = FVector::Distance(Shoulder, Elbow) + FVector::Distance(Elbow, Wrist) - 1.f;
+	const FVector AuthoredPalm = OutPalm;
+	FVector BestPalm = OutPalm;
+	int32 BestBlocked = 6;
+	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+	GripParts(Cast<AShieldbreakWeapon>(Gun->GetOwner()), Parts);
+	// A palm spans more than its centre: the wrist can overlap a magazine even
+	// with the centre under clear forend. Try the nearest outside hold first.
+	for (int32 Trial = 0; Trial < 5; ++Trial)
+	{
+		OutPalm = AuthoredPalm - Right * (Trial * 1.5f);
+		for (int32 Pass = 0; Pass < 3; ++Pass)
+		{
+			FHitResult Underside;
+			FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakSupportPalm), true);
+			if (Gun->LineTraceComponent(Underside, OutPalm - Up * 40.f, OutPalm + Up * 20.f, Query))
+			{
+				const float Gap = FVector::DotProduct(OutPalm - Underside.ImpactPoint, Up);
+				OutPalm -= Up * FMath::Max(0.f, Gap + 3.5f);
+			}
+			const FVector ToWrist = OutPalm - PalmOffset - Shoulder;
+			if (Reach <= 1.f || ToWrist.SizeSquared() <= FMath::Square(Reach)) { break; }
+			const double Along = FVector::DotProduct(ToWrist, Forward);
+			const double AcrossSquared = ToWrist.SizeSquared() - FMath::Square(Along);
+			if (AcrossSquared >= FMath::Square(Reach)) { break; }
+			const double Back = Along - FMath::Sqrt(FMath::Square(Reach) - AcrossSquared);
+			if (Back <= 0.0) { break; }
+			OutPalm -= Forward * (Back + 0.25);
+		}
+		const FVector FittedWrist = OutPalm - PalmOffset;
+		int32 Blocked = 0;
+		for (int32 Finger = 0; Finger < 5; ++Finger)
+		{
+			const FVector Base = HandMesh->GetBoneLocation(FName(ShieldbreakGrip::LeftBones[Finger * 3]));
+			Blocked += SegmentHits(Parts, FittedWrist, FittedWrist + Turn.RotateVector(Base - Wrist), 0.55f) ? 1 : 0;
+		}
+		if (Blocked < BestBlocked) { BestBlocked = Blocked; BestPalm = OutPalm; }
+		if (Blocked == 0) { break; }
+	}
+	OutPalm = BestPalm;
+	// Cache in gun space, so the target still follows its rendered pose every
+	// frame. Refit at 20 Hz for the owner and the existing 10 Hz body-grip rate.
+	Cache.Gun = Gun;
+	Cache.Palm = GunTransform.InverseTransformPosition(OutPalm);
+	Cache.Fingers = GunTransform.InverseTransformVectorNoScale(OutFingers);
+	Cache.Normal = GunTransform.InverseTransformVectorNoScale(OutPalmNormal);
+	Cache.UpdateAt = Now + (HandMesh == FirstPersonArms ? 0.05f : 0.1f);
 }
 
 void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds)
@@ -1114,7 +1184,8 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 		float Curl = FMath::Clamp(CVarFingerCurl.GetValueOnGameThread(), 0.f, 1.5f);
 		if (Gun)
 		{
-			ComputeSupportPalm(Gun, Palm, Fingers, PalmNormal);
+			ComputeSupportPalm(Gun, FirstPersonArms, Palm, Fingers, PalmNormal);
+			SupportPalmWorld = Palm;
 		}
 		else
 		{
@@ -1135,18 +1206,13 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 		const FTransform& ToArms = FirstPersonArms->GetComponentTransform();
 		Instance->SetSupportHand(SupportHandWeight, ToArms.InverseTransformPosition(Palm),
 			ToArms.InverseTransformVectorNoScale(Fingers), ToArms.InverseTransformVectorNoScale(PalmNormal), Curl);
-		if (Gun)
-		{
-			FVector Unused1, Unused2;
-			ComputeSupportPalm(Gun, SupportPalmWorld, Unused1, Unused2);
-		}
 		// Fingers settle on the gun's real surface (see CVarGripContact), unless a move has taken the hand away.
 		const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
 		if (Gun && CVarGripContact.GetValueOnGameThread() != 0 && MovePose.HandWeight <= 0.5f && OwnerCharacter)
 		{
 			if (!bFPLeftGripInit)
 			{
-				for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { FPLeftGrip[I] = ShieldbreakGrip::LeftNominal[I] * Curl; }
+				FMemory::Memzero(FPLeftGrip, sizeof(FPLeftGrip)); // close onto the surface from the open pose
 				bFPLeftGripInit = true;
 			}
 			TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
@@ -1229,7 +1295,15 @@ namespace ShieldbreakBodyAnimatorPrivate
 			}
 			Out[J] = Mesh->GetBoneLocation(Bone);
 		}
-		Out[3] = Out[2] + (Out[2] - Out[1]).GetSafeNormal() * ShieldbreakGrip::TipLength[Finger];
+		// The last joint can rotate without moving either _02 or _03. Extending their
+		// positions ignores that curl, so the contact servo never sees its distal fix.
+		const USkeletalMesh* Asset = Mesh->GetSkeletalMeshAsset();
+		if (!Asset) { return false; }
+		const int32 TipBone = Mesh->GetBoneIndex(FName(Bones[Finger * 3 + 2]));
+		const FTransform& RefLocal = Asset->GetRefSkeleton().GetRefBonePose()[TipBone];
+		const FVector TipAxis = RefLocal.InverseTransformVectorNoScale(RefLocal.GetTranslation()).GetSafeNormal();
+		Out[3] = Out[2] + Mesh->GetBoneTransform(TipBone).TransformVectorNoScale(TipAxis).GetSafeNormal()
+			* ShieldbreakGrip::TipLength[Finger];
 		return true;
 	}
 
@@ -1281,8 +1355,45 @@ namespace ShieldbreakBodyAnimatorPrivate
 				}
 				if (bNow)
 				{
+					bool bPenetrating = false;
+					for (int32 K = J; K < 3 && !bPenetrating; ++K)
+					{
+						bPenetrating = SegmentHits(Parts, P[K], P[K + 1], 0.f);
+					}
+					// A skin-radius touch is a resting contact. Only a crossing needs
+					// the escape search; repeatedly searching at rest wastes frame time.
+					if (!bPenetrating) { continue; }
 					bFingerCrossing = true;
-					Curl = FMath::Max(MinCurl, Curl - Step * 1.5f);
+					// Opening is not always the escape direction (a wrapped thumb or
+					// middle finger can open back through the receiver). Look both ways
+					// for a less obstructed bend, then approach it at the servo speed.
+					const FVector Along = J == 2 ? P[2] - P[1] : P[J + 1] - P[J];
+					const FVector Axis = FVector::CrossProduct(Along.GetSafeNormal(), Normal).GetSafeNormal();
+					int32 BestScore = 0;
+					// Escape centre-line crossings with cheap triangle rays. The normal
+					// closing prediction still uses skin-radius sweeps for resting contact.
+					for (int32 K = J; K < 3; ++K) { BestScore += SegmentHits(Parts, P[K], P[K + 1], 0.f) ? 1 : 0; }
+					float BestCurl = Curl;
+					const float MaxCurl = MaxCurls[Finger * 3 + J];
+					const int32 Samples = FMath::CeilToInt(FMath::Max(Curl - MinCurl, MaxCurl - Curl) / 8.f);
+					for (int32 Sample = 1; Sample <= Samples && BestScore > 0 && !Axis.IsNearlyZero(); ++Sample)
+					{
+						for (const float Sign : { -1.f, 1.f })
+						{
+							const float Candidate = FMath::Clamp(Curl + Sign * Sample * 8.f, MinCurl, MaxCurl);
+							const FQuat Turn(Axis, FMath::DegreesToRadians(Candidate - Curl));
+							FVector Q[4] = { P[0], P[1], P[2], P[3] };
+							for (int32 K = J + 1; K < 4; ++K) { Q[K] = P[J] + Turn.RotateVector(P[K] - P[J]); }
+							int32 Score = 0;
+							for (int32 K = J; K < 3; ++K) { Score += SegmentHits(Parts, Q[K], Q[K + 1], 0.f) ? 1 : 0; }
+							if (Score < BestScore) { BestScore = Score; BestCurl = Candidate; }
+							if (BestScore == 0) { break; }
+						}
+					}
+					const float Change = FMath::Clamp(BestCurl - Curl, -Step * 1.5f, Step * 1.5f);
+					Curl += Change;
+					const FQuat Turn(Axis, FMath::DegreesToRadians(Change));
+					for (int32 K = J + 1; K < 4; ++K) { P[K] = P[J] + Turn.RotateVector(P[K] - P[J]); }
 					continue;
 				}
 				if (Curl >= MaxCurls[Finger * 3 + J])
@@ -1290,7 +1401,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 					continue;
 				}
 				// Would one more step toward the palm still be clear?
-				const FVector Axis = FVector::CrossProduct((P[J + 1] - P[J]).GetSafeNormal(), Normal).GetSafeNormal();
+				const FVector Along = J == 2 ? P[2] - P[1] : P[J + 1] - P[J];
+				const FVector Axis = FVector::CrossProduct(Along.GetSafeNormal(), Normal).GetSafeNormal();
 				if (Axis.IsNearlyZero())
 				{
 					continue;
@@ -1309,6 +1421,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 				if (!bBlocked)
 				{
 					Curl = FMath::Min(MaxCurls[Finger * 3 + J], Curl + Step);
+					for (int32 K = J + 1; K < 4; ++K) { P[K] = Q[K]; }
 				}
 			}
 			Crossing += bFingerCrossing ? 1 : 0;
@@ -1328,6 +1441,21 @@ namespace ShieldbreakBodyAnimatorPrivate
 		}
 		return Max;
 	}
+	FVector TriggerContact(UStaticMeshComponent* Gun)
+	{
+		const FVector Socket = Gun->GetSocketLocation(TEXT("Trigger"));
+		const FVector Forward = Gun->GetComponentTransform().GetUnitAxis(EAxis::Y);
+		FHitResult Blade;
+		FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakTriggerContact), true);
+		// Stay within the guard's opening: the socket is behind the blade, so
+		// targeting it directly drives the index finger through the solid trigger.
+		if (Gun->LineTraceComponent(Blade, Socket + Forward * 2.f, Socket, Query))
+		{
+			return Blade.ImpactPoint + Forward * 0.65f;
+		}
+		return Socket;
+	}
+
 	const float* RightMaxCurls()
 	{
 		static float Max[ShieldbreakGrip::NumJoints];
@@ -1398,6 +1526,24 @@ int32 UShieldbreakBodyAnimator::MeasureHandClipping(bool bFirstPerson, FString* 
 				{
 					++Count;
 					Detail += FString::Printf(TEXT(" %s%s"), K == 0 ? TEXT("palm>") : TEXT(""), Bones[Finger * 3 + FMath::Max(0, K - 1)]);
+					if (FParse::Param(FCommandLine::Get(), TEXT("SBGripDebug")))
+					{
+						FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakGripDebug), true);
+						Query.bReturnFaceIndex = true;
+						for (UPrimitiveComponent* Part : Parts)
+						{
+							FHitResult Hit;
+							if (Part->LineTraceComponent(Hit, Chain[K], Chain[K + 1], Query)
+								|| Part->LineTraceComponent(Hit, Chain[K + 1], Chain[K], Query))
+							{
+								UE_LOG(LogShieldbreak, Log, TEXT("GripDebug %s %s %s%s: A %s B %s hit %s part %s face %d"),
+									*GetNameSafe(Weapon->GetClass()), bFirstPerson ? TEXT("FP") : TEXT("TP"), K == 0 ? TEXT("palm>") : TEXT(""),
+									Bones[Finger * 3 + FMath::Max(0, K - 1)],
+									*GunXf.InverseTransformPosition(Chain[K]).ToCompactString(), *GunXf.InverseTransformPosition(Chain[K + 1]).ToCompactString(),
+									*GunXf.InverseTransformPosition(Hit.ImpactPoint).ToCompactString(), *GetNameSafe(Part), Hit.FaceIndex);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1468,10 +1614,10 @@ void UShieldbreakBodyAnimator::UpdateThirdPersonGrip(UShieldbreakBodyAnimInstanc
 	if (Gun)
 	{
 		FVector Palm, Fingers, Normal;
-		ComputeSupportPalm(Gun, Palm, Fingers, Normal);
+		ComputeSupportPalm(Gun, Body, Palm, Fingers, Normal);
 		if (!bTPLeftGripInit)
 		{
-			for (int32 I = 0; I < ShieldbreakGrip::NumJoints; ++I) { TPLeftGrip[I] = ShieldbreakGrip::LeftNominal[I] * CVarFingerCurl.GetValueOnGameThread(); }
+			FMemory::Memzero(TPLeftGrip, sizeof(TPLeftGrip));
 			bTPLeftGripInit = true;
 		}
 		if (Parts.Num() > 0)
@@ -1503,6 +1649,16 @@ void UShieldbreakBodyAnimator::UpdateThirdPersonGrip(UShieldbreakBodyAnimInstanc
 	if (TPRightGripWeight <= 0.f)
 	{
 		FMemory::Memzero(TPRightGrip, sizeof(TPRightGrip));
+	}
+	if (bActive && Weapon->GetWeaponMesh()->DoesSocketExist(TEXT("Trigger")))
+	{
+		const FTransform Hand = Body->GetSocketTransform(TEXT("hand_r"), RTS_World);
+		Instance->SetTriggerFinger(TPRightGripWeight, Hand.InverseTransformPosition(TriggerContact(Weapon->GetWeaponMesh())),
+			Hand.InverseTransformVectorNoScale(Weapon->GetWeaponMesh()->GetComponentTransform().GetUnitAxis(EAxis::Y)));
+	}
+	else
+	{
+		Instance->SetTriggerFinger(TPRightGripWeight, Instance->GetTriggerTarget());
 	}
 	Instance->SetRightFingerCurls(TPRightGrip, TPRightGripWeight);
 }
@@ -1557,7 +1713,8 @@ void UShieldbreakBodyAnimator::UpdateTriggerFinger(UShieldbreakBodyAnimInstance*
 	if (Gun)
 	{
 		const FTransform Hand = FirstPersonArms->GetSocketTransform(TEXT("hand_r"), RTS_World);
-		Instance->SetTriggerFinger(TriggerFingerWeight, Hand.InverseTransformPosition(Gun->GetSocketLocation(TEXT("Trigger"))));
+		Instance->SetTriggerFinger(TriggerFingerWeight, Hand.InverseTransformPosition(ShieldbreakBodyAnimatorPrivate::TriggerContact(Gun)),
+			Hand.InverseTransformVectorNoScale(Gun->GetComponentTransform().GetUnitAxis(EAxis::Y)));
 	}
 	else
 	{
@@ -1567,7 +1724,7 @@ void UShieldbreakBodyAnimator::UpdateTriggerFinger(UShieldbreakBodyAnimInstance*
 
 float UShieldbreakBodyAnimator::GetTriggerFingerError() const
 {
-	const UStaticMeshComponent* Gun = GetTriggerMesh();
+	UStaticMeshComponent* Gun = GetTriggerMesh();
 	if (!Gun || !FirstPersonArms || FirstPersonArms->GetBoneIndex(TEXT("index_03_r")) == INDEX_NONE)
 	{
 		return -1.f;
@@ -1576,7 +1733,7 @@ float UShieldbreakBodyAnimator::GetTriggerFingerError() const
 	const FVector Last = FirstPersonArms->GetBoneLocation(TEXT("index_03_r"));
 	// Same pad point as the anim instance (1.6 cm past the last joint), in world space (the arms are unscaled).
 	const FVector Pad = Last + (Last - Middle).GetSafeNormal() * 1.6f;
-	return static_cast<float>(FVector::Dist(Pad, Gun->GetSocketLocation(TEXT("Trigger"))));
+	return static_cast<float>(FVector::Dist(Pad, ShieldbreakBodyAnimatorPrivate::TriggerContact(Gun)));
 }
 
 FString UShieldbreakBodyAnimator::DescribeTriggerFinger() const
@@ -1757,9 +1914,9 @@ void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
 	const FVector Desired = FRotator(CalibratedAim.X, CalibratedAim.Y, 0.f).Vector();
 	const FQuat Rotation = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
 	const FVector GripCamera(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
-	// The gun sits CalibratedLift above the socket (AShieldbreakWeapon::GetFirstPersonLift): lower the arms by as much,
-	// so the gun keeps its place on screen and the hand shows below it.
-	const FVector LiftedSocket = SocketComponent.GetLocation() + SocketComponent.TransformVectorNoScale(FVector(0.0, 0.0, CalibratedLift));
+	// Compensate for the whole fitting offset, keeping the gun's framing stable
+	// while the hand moves to a grip that clears the receiver.
+	const FVector LiftedSocket = SocketComponent.GetLocation() + SocketComponent.TransformVectorNoScale(CalibratedHandOffset);
 	const FVector Location = GripCamera - Rotation.RotateVector(LiftedSocket);
 	CalibratedArmsTransform = FTransform(Rotation, Location);
 	FirstPersonArms->SetRelativeTransform(CalibratedArmsTransform);

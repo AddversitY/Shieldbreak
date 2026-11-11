@@ -97,6 +97,13 @@ void AShieldbreakSelfTest::BeginPlay()
 {
 	Super::BeginPlay();
 	BuildSteps();
+	FString Filter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SBTestFilter="), Filter) && !Filter.IsEmpty())
+	{
+		Steps.RemoveAll([&Filter](const FStep& Step) { return Step.Name != TEXT("Settle") && !Step.Name.Contains(Filter); });
+		ModeTag = TEXT("Filtered");
+		Check(TEXT("Requested test filter matches a step"), Steps.Num() > 1, Filter);
+	}
 	Lines.Add(FString::Printf(TEXT("Shieldbreak self-test, %s"), *FDateTime::Now().ToString()));
 	UE_LOG(LogShieldbreak, Log, TEXT("SelfTest: %d steps queued."), Steps.Num());
 }
@@ -903,7 +910,10 @@ void AShieldbreakSelfTest::BuildSteps()
 					if (Since < 2.2f) { return false; }
 					FString Detail;
 					const int32 Count = Animator->MeasureHandClipping(true, &Detail);
+					Lines.Add(FString::Printf(TEXT("INFO  grip %s: %d (%s); support error %.2f cm; %s"),
+						*GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, *Detail, Animator->GetSupportHandError(), *Animator->DescribeTriggerFinger()));
 					Record(GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, Detail);
+					TakeShot(FString::Printf(TEXT("grip_%s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), true);
 					if (++*Index < UE_ARRAY_COUNT(Weapons)) { Phase = 0; Mark = Now(); return false; }
 					Equip(Player, AWeapon_BattleRifle::StaticClass());
 					Mark = Now(); Phase = 2; return false;
@@ -926,7 +936,7 @@ void AShieldbreakSelfTest::BuildSteps()
 					if (Since < (Phase == 5 ? 0.6f : 1.33f)) { return false; }
 					FString Detail;
 					const int32 Count = Animator->MeasureHandClipping(true, &Detail, false);
-					Record(FString::Printf(TEXT("BR reload at %.1f s"), Since), Count < 0 ? 0 : Count, Detail);
+					Record(FString::Printf(TEXT("BR reload at %.1f s"), Since), Count, Detail);
 					Phase = Phase == 5 ? 6 : 7; return false;
 				}
 				case 7: // a third-person soldier up close, facing the camera, Battle Rifle in hand
@@ -1650,6 +1660,9 @@ void AShieldbreakSelfTest::BuildSteps()
 				}
 				for (TActorIterator<AShieldbreakExplosionFX> It(GetWorld()); It; ++It)
 				{
+					// Smoke from the preceding damage fixture can outlive that step.
+					// Observe only explosions created after this throw was pressed.
+					if (It->GetGameTimeSinceCreation() > Now() - Mark) { continue; }
 					Check(TEXT("The grenade blinks its arming light in flight"), Value0 > 0.5f, FString::Printf(TEXT("peak %s"), *Num(Value0)));
 					Check(TEXT("It goes off as a layered explosion"), It->GetCardCount() > 0,
 						FString::Printf(TEXT("%d fire/smoke cards (0 = M_SB_FX materials missing)"), It->GetCardCount()));

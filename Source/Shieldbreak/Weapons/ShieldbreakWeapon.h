@@ -129,9 +129,11 @@ public:
 	void OnUnequipped();
 	/** True when the attachment OnEquipped would pick now (hand vs camera viewmodel, art or not) differs from the last one. */
 	bool NeedsReattach() const;
-	/** First person: cm the gun sits higher in the hand than the socket, so the fingers close on the grip under the
+	/** Vertical component of the shared hand fit, so the fingers close on the grip under the
 	 *  receiver and the index finger reaches the trigger (from the art's Trigger socket; plus sb.FPGunLift). */
 	float GetFirstPersonLift() const;
+	/** Socket-space fitting offset shared by the first- and third-person hands. */
+	FVector GetHandGripOffset() const;
 	/** The gun's mesh (sockets Muzzle, Trigger, SupportHand, Magazine). */
 	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	UStaticMeshComponent* GetMagazineMesh() const { return MagazineMesh; }

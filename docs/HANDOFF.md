@@ -1,4 +1,16 @@
-# Handoff (2026-11-10)
+# Handoff: grip correction complete; Codex paused (2026-11-10)
+
+Branch `handoff-2026-11-10`, starting at `9c72567`. **Vincent requested finishing this pass and then pausing. Do not pick up the next task until he resumes.** No files reserved or build/game jobs left running by this pass. Local Android settings and `fx1run/` were preserved.
+
+Fixed the merged hand-through-gun failure with shared FP/TP grip placement, reachable support-palm fitting, forward-bending trigger IK and corrected distal-finger contact probes. Palm fitting is cached in gun space; escape candidates use rays while closing predictions retain skin sweeps. No imported art changed and no clipping threshold was relaxed. The reload test now reports untestable geometry as a failure. Also isolated the grenade-light fixture from older lingering explosions; production grenade timing is unchanged.
+
+**Final desktop validation:** editor build succeeded; full gameplay **171 passed / 0 failed** (before **170/171**); first-person capture suite **9 passed / 0 failed**. All five FP weapons, sampled BR reload and TP BR pass the contact check. Earlier focused candidate: **3/3**. Exact reports and before/after JPEGs: [grip review](playtests/2026-11-10_grip/README.md).
+
+**FPS remains inconclusive:** four-bot Crucible **172.8 before / 97.0 after**; fixed-view Keel **153.0 before / 104.3 after**, same machine, 1280x720, rendered offscreen. WoW started at 23:07 local, after both baseline reports, and was consuming CPU alongside final verification (`reports/run-load.txt`). Do not call these controlled performance comparisons or claim restored performance. Intermediate lower observations and the initial grenade-fixture failure are retained. An idle-desktop before/after recheck remains open; the user's game was left running.
+
+**Remaining:** animation/hold polish beyond the sampled poses (sidearm glove now mostly below frame; TP support farther back by the magazine); the texture issues listed below; performance verification under matching load. No network scripts were rerun for this cosmetic/test pass; no online matchmaking, internet hosting or eight-human testing claimed. Desktop UE is installed at `C:\Users\addve\Epic Games\UE_5.8` (5.8.4); builds used `-MaxParallelActions=2`, with expensive jobs sequential.
+
+# Previous consolidated handoff (2026-11-10)
 
 Branch `handoff-2026-11-10` = `origin/main` + every pushed feature branch merged (newer work preferred).
 Build: **Succeeded** (`Tools/BuildEditor.bat`). SelfTest on this branch: **RESULT 170 passed, 1 failed**:

@@ -37,6 +37,8 @@ namespace ShieldbreakWeaponPrivate
 {
 	/** Fitting aid for the first-person grip: moves the gun in the hand along its own up axis (cm, new equips). */
 	TAutoConsoleVariable<float> CVarFPGunLift(TEXT("sb.FPGunLift"), 0.f, TEXT("First-person gun: cm up (gun space) in the hand."));
+	TAutoConsoleVariable<float> CVarHandGunRight(TEXT("sb.HandGunRight"), 0.f, TEXT("Hand grip fitting: extra gun-space X offset (cm, new equips)."));
+	TAutoConsoleVariable<float> CVarHandGunForward(TEXT("sb.HandGunForward"), 0.f, TEXT("Hand grip fitting: extra gun-space Y offset (cm, new equips)."));
 	// Halo-style viewmodel: low on the right, angled slightly in toward the crosshair.
 	const FVector EquippedOffset(46.f, 13.f, -15.f);
 	const FRotator EquippedRotation(1.5f, -4.f, 0.f);
@@ -213,17 +215,24 @@ AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 
 float AShieldbreakWeapon::GetFirstPersonLift() const
 {
-	// Lyra's rifle and pistol idles hold the weapon_r socket about where our receivers' bottoms are, so the knuckles
-	// sat inside the receiver (task 8 joints: BR index knuckle 4.5 cm above the bore, the receiver's underside at -4.5),
-	// the sidearm's rear sight came through the glove, and the trigger finger stopped 3.5 cm short. Raising the gun by
-	// the trigger's depth under the socket (less 1.3 cm) fits both shapes: sidearm 3.5 cm (task 8 shot _b), BR 5.7 cm.
+	// Keep the knuckles below the receiver while the index bends into the trigger
+	// opening. The camera calibration compensates for this fitting translation.
 	float Lift = 0.f;
 	if (WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger")))
 	{
 		const float TriggerZ = static_cast<float>(WeaponMesh->GetSocketTransform(TEXT("Trigger"), RTS_Component).GetLocation().Z);
-		Lift = FMath::Clamp(-1.3f - TriggerZ, 0.f, 8.f);
+		Lift = FMath::Clamp(2.7f - TriggerZ, 0.f, 12.f);
 	}
 	return Lift + ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread();
+}
+
+FVector AShieldbreakWeapon::GetHandGripOffset() const
+{
+	// Leave older fallback art at its authored socket. Our socket-bearing guns
+	// need the palm beside the grip rather than the receiver on the knuckles.
+	const bool bFitted = WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger"));
+	return FVector((bFitted ? 6.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunRight.GetValueOnGameThread(),
+		(bFitted ? 2.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunForward.GetValueOnGameThread(), GetFirstPersonLift());
 }
 
 bool AShieldbreakWeapon::NeedsReattach() const
@@ -254,7 +263,9 @@ void AShieldbreakWeapon::OnEquipped()
 		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
-		SetActorRelativeTransform(bFirstPerson ? FTransform(FVector(0.f, 0.f, GetFirstPersonLift())) : FTransform::Identity);
+		// Both views use the same weapon_r socket and hand pose. The receiver needs
+		// the same trigger-derived clearance on the body as on the first-person arms.
+		SetActorRelativeTransform(FTransform(GetHandGripOffset()));
 		// The body's shadow already carries a gun; the first-person one would add a second.
 		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}

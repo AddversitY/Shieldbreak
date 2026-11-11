@@ -63,7 +63,7 @@ private:
 	static void LockRoot(FPoseContext& Output);
 	void ApplyAction(FPoseContext& Output) const;
 	void ApplyAimPitch(FPoseContext& Output) const;
-	/** Curls the right index finger (CCD over index_01/02_r) so its pad rests on TriggerTarget (hand_r space). */
+	/** Fits the right index finger to the trigger, bending into the guard's opening. */
 	void ApplyTriggerFinger(FPoseContext& Output) const;
 	/** First-person grenade throw: moves the left shoulder to LeftShoulderTarget (the arms' rig holds it far right of
 	 *  the eye), curls the left fingers round the grenade, then a two-bone IK puts hand_l at LeftHandTarget with the
@@ -101,6 +101,7 @@ private:
 	float SeenKickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	FVector TriggerForward = FVector::ForwardVector;
 	float LeftArmWeight = 0.f;
 	FVector LeftHandTarget = FVector::ZeroVector;
 	FVector LeftElbowPole = FVector::ZeroVector;
@@ -148,7 +149,11 @@ public:
 
 	/** First-person arms: Weight 0-1 of curling the index finger onto the gun's trigger, at Target in hand_r bone
 	 *  space. 0 leaves the finger as the animation has it. */
-	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace) { TriggerWeight = Weight; TriggerTarget = TargetInHandSpace; }
+	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace, const FVector& ForwardInHandSpace = FVector::ZeroVector)
+	{
+		TriggerWeight = Weight; TriggerTarget = TargetInHandSpace;
+		if (!ForwardInHandSpace.IsNearlyZero()) { TriggerForward = ForwardInHandSpace; }
+	}
 	const FVector& GetTriggerTarget() const { return TriggerTarget; }
 	/** First-person rifles: Weight 0-1 of reaching the left hand (hand_l) to Target in component space (the gun's
 	 *  SupportHand socket). 0 leaves the arm as the animation has it. */
@@ -232,6 +237,7 @@ private:
 	float KickTotal = 0.f;
 	float TriggerWeight = 0.f;
 	FVector TriggerTarget = FVector::ZeroVector;
+	FVector TriggerForward = FVector::ForwardVector;
 	float LeftArmWeight = 0.f;
 	FVector LeftHandTarget = FVector::ZeroVector;
 	FVector LeftElbowPole = FVector::ZeroVector;

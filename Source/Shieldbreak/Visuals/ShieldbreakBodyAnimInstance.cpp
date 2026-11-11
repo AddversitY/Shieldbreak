@@ -153,6 +153,7 @@ void FShieldbreakBodyAnimProxy::PreUpdate(UAnimInstance* InAnimInstance, float D
 	AimAxis = Instance->AimAxis.GetSafeNormal();
 	TriggerWeight = FMath::Clamp(Instance->TriggerWeight, 0.f, 1.f);
 	TriggerTarget = Instance->TriggerTarget;
+	TriggerForward = Instance->TriggerForward;
 	LeftArmWeight = FMath::Clamp(Instance->LeftArmWeight, 0.f, 1.f);
 	LeftHandTarget = Instance->LeftHandTarget;
 	LeftElbowPole = Instance->LeftElbowPole;
@@ -757,32 +758,36 @@ void FShieldbreakBodyAnimProxy::ApplyTriggerFinger(FPoseContext& Output) const
 		return Last + (Last - OutJoints[1].GetLocation()).GetSafeNormal() * TriggerPadLength;
 	};
 
-	// Cyclic coordinate descent, tip joint first, a few passes, each turn capped so the finger never flips.
+	// A distance-only CCD solve can fold the middle joint backwards through the
+	// grip while its pad still reaches the trigger. Pick the forward bend of the
+	// two-link finger explicitly, preserving its lengths and the guard opening.
 	FTransform Joints[3];
-	for (int32 Pass = 0; Pass < 6; ++Pass)
+	const FVector Tip = Pad(Joints);
+	const FVector A = Joints[0].GetLocation(), B = Joints[1].GetLocation(), C = Joints[2].GetLocation();
+	const double L1 = FVector::Distance(A, B), L2 = FVector::Distance(B, Tip);
+	const FVector ToTarget = TriggerTarget - A;
+	const double Distance = ToTarget.Size();
+	if (L1 < 0.1 || L2 < 0.1 || Distance < 0.1) { return; }
+	const FVector Dir = ToTarget / Distance;
+	FVector Bend = TriggerForward - Dir * FVector::DotProduct(TriggerForward, Dir);
+	if (!Bend.Normalize())
 	{
-		for (int32 Joint = 1; Joint >= 0; --Joint)
-		{
-			const FVector Tip = Pad(Joints);
-			const FVector Pivot = Joints[Joint].GetLocation();
-			const FVector From = (Tip - Pivot).GetSafeNormal();
-			const FVector To = (TriggerTarget - Pivot).GetSafeNormal();
-			if (From.IsNearlyZero() || To.IsNearlyZero())
-			{
-				continue;
-			}
-			FQuat Delta = FQuat::FindBetweenNormals(From, To);
-			FVector Axis; float Angle;
-			Delta.ToAxisAndAngle(Axis, Angle);
-			Delta = FQuat(Axis, FMath::Min(Angle, FMath::DegreesToRadians(30.f)));
-			// Joint's parent rotation in hand space; rotate the joint by Delta in that space.
-			FTransform Parent;
-			TransformRelativeTo(Pose, Pose.GetParentBoneIndex(Chain[Joint]), Hand, Parent);
-			const FQuat ParentRotation = Parent.GetRotation();
-			FTransform& Local = Pose[Chain[Joint]];
-			Local.SetRotation((ParentRotation.Inverse() * Delta * ParentRotation * Local.GetRotation()).GetNormalized());
-		}
+		Bend = ((B - A) - Dir * FVector::DotProduct(B - A, Dir)).GetSafeNormal();
 	}
+	if (Bend.IsNearlyZero()) { return; }
+	const double D = FMath::Clamp(Distance, FMath::Abs(L1 - L2) + 0.01, L1 + L2 - 0.01);
+	const double CosA = FMath::Clamp((L1 * L1 + D * D - L2 * L2) / (2.0 * L1 * D), -1.0, 1.0);
+	const FVector NewB = A + L1 * (Dir * CosA + Bend * FMath::Sqrt(FMath::Max(0.0, 1.0 - CosA * CosA)));
+	const FVector NewTip = A + Dir * D;
+	const FQuat TurnRoot = FQuat::FindBetweenNormals((B - A).GetSafeNormal(), (NewB - A).GetSafeNormal());
+	const FQuat TurnMiddle = FQuat::FindBetweenNormals(TurnRoot.RotateVector((C - B).GetSafeNormal()), (NewTip - NewB).GetSafeNormal());
+	FTransform NewRoot = Joints[0], NewMiddle = Joints[1], Parent;
+	NewRoot.SetRotation((TurnRoot * Joints[0].GetRotation()).GetNormalized());
+	NewMiddle.SetLocation(NewB);
+	NewMiddle.SetRotation((TurnMiddle * TurnRoot * Joints[1].GetRotation()).GetNormalized());
+	TransformRelativeTo(Pose, Pose.GetParentBoneIndex(Chain[0]), Hand, Parent);
+	Pose[Chain[0]].SetRotation(NewRoot.GetRelativeTransform(Parent).GetRotation());
+	Pose[Chain[1]].SetRotation(NewMiddle.GetRelativeTransform(NewRoot).GetRotation());
 	for (int32 Joint = 0; Joint < 2; ++Joint)
 	{
 		Pose[Chain[Joint]].SetRotation(FQuat::Slerp(Original[Joint].GetRotation(), Pose[Chain[Joint]].GetRotation(), TriggerWeight).GetNormalized());

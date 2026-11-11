@@ -71,7 +71,7 @@ public:
 	UStaticMeshComponent* GetVisibleHeldGrenade(bool bFirstPerson) const;
 	/** First person: cm between the left hand and where the throw wants it (last evaluated pose), or -1. */
 	float GetLeftHandError() const { return LastLeftHandError; }
-	/** First person: cm between the index finger's pad and the gun's "Trigger" socket (last evaluated pose), or -1
+	/** First person: cm between the index finger's pad and the trigger's front contact point (last evaluated pose), or -1
 	 *  when there are no arms or the gun has no trigger socket. */
 	float GetTriggerFingerError() const;
 	/** Trigger socket, finger pad and index_01_r in hand_r space (cm), for fitting the trigger art. */
@@ -166,7 +166,7 @@ private:
 	TObjectPtr<UAnimSequenceBase> CalibratedIdle;
 	FVector3f CalibratedGrip = FVector3f::ZeroVector;
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
-	float CalibratedLift = 0.f;
+	FVector CalibratedHandOffset = FVector::ZeroVector;
 	float FirstPersonIdleSince = -1.f;
 	FTransform CalibratedArmsTransform = FTransform::Identity;
 	/** Grenade throw, first person: world time it started (the arm and gun follow UpdateFirstPersonThrow's timeline),
@@ -209,7 +209,17 @@ private:
 	void UpdateViewmodelMoves(bool bSwapping);
 	class UStaticMeshComponent* GetHeldMagazine() const;
 	/** The forend hold: palm point, fingers direction and palm normal (world) for a gun with a SupportHand socket. */
-	void ComputeSupportPalm(const class UStaticMeshComponent* Gun, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const;
+	void ComputeSupportPalm(class UStaticMeshComponent* Gun, const USkeletalMeshComponent* HandMesh, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const;
+	struct FSupportPalmCache
+	{
+		TWeakObjectPtr<UStaticMeshComponent> Gun;
+		FVector Palm = FVector::ZeroVector;
+		FVector Fingers = FVector::ForwardVector;
+		FVector Normal = FVector::UpVector;
+		float UpdateAt = -1.f;
+	};
+	mutable FSupportPalmCache FirstPersonPalmCache;
+	mutable FSupportPalmCache ThirdPersonPalmCache;
 	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
 	bool bSupportArmShown = false;
 	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
