@@ -1,11 +1,15 @@
 #include "Weapons/ShieldbreakWeapon.h"
 
+#include "Components/AudioComponent.h"
+
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/HitResult.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/PackageName.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -24,12 +28,17 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
+#include "Visuals/ShieldbreakImpactFX.h"
 #include "NiagaraComponent.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakTeams.h"
 
 namespace ShieldbreakWeaponPrivate
 {
+	/** Fitting aid for the first-person grip: moves the gun in the hand along its own up axis (cm, new equips). */
+	TAutoConsoleVariable<float> CVarFPGunLift(TEXT("sb.FPGunLift"), 0.f, TEXT("First-person gun: cm up (gun space) in the hand."));
+	TAutoConsoleVariable<float> CVarHandGunRight(TEXT("sb.HandGunRight"), 0.f, TEXT("Hand grip fitting: extra gun-space X offset (cm, new equips)."));
+	TAutoConsoleVariable<float> CVarHandGunForward(TEXT("sb.HandGunForward"), 0.f, TEXT("Hand grip fitting: extra gun-space Y offset (cm, new equips)."));
 	// Halo-style viewmodel: low on the right, angled slightly in toward the crosshair.
 	const FVector EquippedOffset(46.f, 13.f, -15.f);
 	const FRotator EquippedRotation(1.5f, -4.f, 0.f);
@@ -52,9 +61,14 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	SetCanBeDamaged(false);
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// Query-only, ignoring every channel: no world trace or overlap ever sees the gun, but the hands' grip solver can
+	// test its exact surface with LineTraceComponent / SweepComponent (UShieldbreakBodyAnimator::SolveGripContact).
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	WeaponMesh->SetGenerateOverlapEvents(false);
 	WeaponMesh->SetCastShadow(false);
+	// Small moving props: their own mesh distance field made the scene's sky occlusion darken them to near black.
+	WeaponMesh->bAffectDistanceFieldLighting = false;
 	RootComponent = WeaponMesh;
 
 	BarrelMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BarrelMesh"));
@@ -70,6 +84,15 @@ AShieldbreakWeapon::AShieldbreakWeapon()
 	ChargeGlowMesh->SetCastShadow(false);
 	ChargeGlowMesh->SetUsingAbsoluteScale(true);
 	ChargeGlowMesh->SetVisibility(false);
+
+	MagazineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MagazineMesh"));
+	MagazineMesh->SetupAttachment(WeaponMesh);
+	MagazineMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	MagazineMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MagazineMesh->SetGenerateOverlapEvents(false);
+	MagazineMesh->SetCastShadow(false);
+	MagazineMesh->bAffectDistanceFieldLighting = false;
+	MagazineMesh->SetVisibility(false);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	if (SphereFinder.Succeeded())
@@ -190,6 +213,28 @@ AShieldbreakWeapon::EEquippedLayout AShieldbreakWeapon::GetDesiredLayout() const
 	return bHasArt ? EEquippedLayout::CameraArt : EEquippedLayout::CameraPlain;
 }
 
+float AShieldbreakWeapon::GetFirstPersonLift() const
+{
+	// Keep the knuckles below the receiver while the index bends into the trigger
+	// opening. The camera calibration compensates for this fitting translation.
+	float Lift = 0.f;
+	if (WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger")))
+	{
+		const float TriggerZ = static_cast<float>(WeaponMesh->GetSocketTransform(TEXT("Trigger"), RTS_Component).GetLocation().Z);
+		Lift = FMath::Clamp(2.7f - TriggerZ, 0.f, 12.f);
+	}
+	return Lift + ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread();
+}
+
+FVector AShieldbreakWeapon::GetHandGripOffset() const
+{
+	// Leave older fallback art at its authored socket. Our socket-bearing guns
+	// need the palm beside the grip rather than the receiver on the knuckles.
+	const bool bFitted = WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger"));
+	return FVector((bFitted ? 6.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunRight.GetValueOnGameThread(),
+		(bFitted ? 2.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunForward.GetValueOnGameThread(), GetFirstPersonLift());
+}
+
 bool AShieldbreakWeapon::NeedsReattach() const
 {
 	return GetDesiredLayout() != EquippedLayout;
@@ -197,6 +242,14 @@ bool AShieldbreakWeapon::NeedsReattach() const
 
 void AShieldbreakWeapon::OnEquipped()
 {
+	if (EquippedLayout == EEquippedLayout::None)
+	{
+		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+		if (OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled())
+		{
+			FShieldbreakSFX::Play2D(this, EShieldbreakSound::WeaponRaise, 0.5f);
+		}
+	}
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 	EquippedLayout = GetDesiredLayout();
 	if (EquippedLayout == EEquippedLayout::None)
@@ -210,7 +263,9 @@ void AShieldbreakWeapon::OnEquipped()
 		USkeletalMeshComponent* Body = bFirstPerson ? OwnerCharacter->GetBodyAnimator()->GetFirstPersonArms() : OwnerCharacter->GetMesh();
 		const FName HandSocket = Body->DoesSocketExist(TEXT("weapon_r")) ? FName(TEXT("weapon_r")) : FName(TEXT("hand_r"));
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
-		SetActorRelativeTransform(FTransform::Identity);
+		// Both views use the same weapon_r socket and hand pose. The receiver needs
+		// the same trigger-derived clearance on the body as on the first-person arms.
+		SetActorRelativeTransform(FTransform(GetHandGripOffset()));
 		// The body's shadow already carries a gun; the first-person one would add a second.
 		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}
@@ -232,6 +287,7 @@ void AShieldbreakWeapon::OnEquipped()
 		}
 		WeaponMesh->SetCastShadow(false);
 	}
+	ApplyMagazineLayout(EquippedLayout == EEquippedLayout::FirstPersonHand);
 	// The local player's gun draws with the first-person FOV and scale, like the arms holding it.
 	const EFirstPersonPrimitiveType ViewType = EquippedLayout == EEquippedLayout::Hand ? EFirstPersonPrimitiveType::None : EFirstPersonPrimitiveType::FirstPerson;
 	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
@@ -256,6 +312,10 @@ void AShieldbreakWeapon::OnEquipped()
 void AShieldbreakWeapon::OnUnequipped()
 {
 	EquippedLayout = EEquippedLayout::None;
+	// A swap mid-reload leaves the magazine wherever the hand had it.
+	ApplyMagazineLayout(false);
+	StopWeaponAudio(ReloadAudio);
+	StopWeaponAudio(ChargeAudio);
 	CancelCharge();
 	StopFire();
 	BurstShotsRemaining = 0;
@@ -289,16 +349,58 @@ void AShieldbreakWeapon::StartFire()
 		{
 			StartReload();
 		}
+		else if (!HasAmmo())
+		{
+			PlayDryFire();
+		}
 		return;
 	}
 
 	bWantsToFire = true;
 	bSemiAutoLatched = false;
 
-	if (!HasAmmo() && !Stats.bUsesHeat && CanReload())
+	if (!HasAmmo() && !Stats.bUsesHeat)
 	{
-		StartReload();
+		if (CanReload())
+		{
+			StartReload();
+		}
+		else if (!bReloading && ReloadStartLocalTime < 0.f)
+		{
+			PlayDryFire();
+		}
 	}
+}
+
+void AShieldbreakWeapon::PlayDryFire()
+{
+	const UWorld* World = GetWorld();
+	if (World && World->GetTimeSeconds() - LastDryFireTime > 0.15f && Sounds.DryFire != EShieldbreakSound::Count)
+	{
+		LastDryFireTime = World->GetTimeSeconds();
+		FShieldbreakSFX::Play2D(this, Sounds.DryFire, 0.7f);
+	}
+}
+
+void AShieldbreakWeapon::StopWeaponAudio(TWeakObjectPtr<UAudioComponent>& Audio)
+{
+	if (UAudioComponent* Component = Audio.Get())
+	{
+		Component->FadeOut(0.06f, 0.f);
+	}
+	Audio.Reset();
+}
+
+void AShieldbreakWeapon::PlayReloadSound(bool bLocalView)
+{
+	if (Sounds.Reload == EShieldbreakSound::Count)
+	{
+		return;
+	}
+	StopWeaponAudio(ReloadAudio);
+	ReloadAudio = bLocalView
+		? FShieldbreakSFX::Play2D(this, Sounds.Reload, 0.65f, 1.f)
+		: FShieldbreakSFX::PlayAttached(GetRootComponent(), Sounds.Reload, 0.8f, 1.f);
 }
 
 void AShieldbreakWeapon::StopFire()
@@ -705,6 +807,8 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 	const FVector End = FVector(Origin) + ShotDir * Stats.Range;
 	const bool bHit = World->LineTraceSingleByChannel(Hit, Origin, End, ECC_Weapon, Params);
 	const FVector ImpactPoint = bHit ? FVector(Hit.ImpactPoint) : End;
+	// Effects go out before the damage, so this machine still sees the shield (or the living body) the round met.
+	MulticastShotFX(ImpactPoint);
 
 	// A raised Aegis barrier soaks the bullet instead of its owner.
 	AShieldbreakCharacter* BarrierOwner = bHit ? Cast<AShieldbreakCharacter>(Hit.GetActor()) : nullptr;
@@ -756,8 +860,6 @@ void AShieldbreakWeapon::ServerFireShot_Implementation(FVector_NetQuantize Origi
 			}
 		}
 	}
-
-	MulticastShotFX(ImpactPoint);
 }
 
 void AShieldbreakWeapon::MulticastShotFX_Implementation(FVector_NetQuantize End)
@@ -813,6 +915,25 @@ void AShieldbreakWeapon::ApplyArt()
 	}
 
 	WeaponMesh->SetStaticMesh(Art);
+	FullArtMesh = Art;
+	// The first-person split exists only for our own guns (Art/blender/build_weapons.py), next to the whole gun.
+	NoMagazineArtMesh = nullptr;
+	MagazineArtMesh = nullptr;
+	if (!Stats.ArtMesh.IsNull() && Art->GetPathName() == Stats.ArtMesh.ToString())
+	{
+		auto Suffixed = [this](const TCHAR* Suffix)
+		{
+			const FString Name = Stats.ArtMesh.GetAssetName() + Suffix;
+			return FPackageName::GetLongPackagePath(Stats.ArtMesh.GetLongPackageName()) + TEXT("/") + Name + TEXT(".") + Name;
+		};
+		UStaticMesh* NoMagazine = ShieldbreakArt::Load<UStaticMesh>(*Suffixed(TEXT("_NoMag")));
+		UStaticMesh* Magazine = ShieldbreakArt::Load<UStaticMesh>(*Suffixed(TEXT("_Mag")));
+		if (NoMagazine && Magazine && NoMagazine->FindSocket(TEXT("Magazine")))
+		{
+			NoMagazineArtMesh = NoMagazine;
+			MagazineArtMesh = Magazine;
+		}
+	}
 	WeaponMesh->EmptyOverrideMaterials();
 	WeaponMesh->SetRelativeScale3D(FVector::OneVector);
 	BarrelMesh->SetVisibility(false);
@@ -858,6 +979,35 @@ void AShieldbreakWeapon::ApplyArt()
 	}
 }
 
+void AShieldbreakWeapon::ApplyMagazineLayout(bool bFirstPerson)
+{
+	const bool bSplit = bFirstPerson && NoMagazineArtMesh && MagazineArtMesh;
+	if (FullArtMesh)
+	{
+		UStaticMesh* Wanted = bSplit ? NoMagazineArtMesh.Get() : FullArtMesh.Get();
+		if (WeaponMesh->GetStaticMesh() != Wanted)
+		{
+			WeaponMesh->SetStaticMesh(Wanted);
+		}
+	}
+	if (bSplit)
+	{
+		if (MagazineMesh->GetStaticMesh() != MagazineArtMesh)
+		{
+			MagazineMesh->SetStaticMesh(MagazineArtMesh);
+		}
+		MagazineMesh->AttachToComponent(WeaponMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("Magazine"));
+		MagazineMesh->SetRelativeTransform(FTransform::Identity);
+	}
+	MagazineMesh->SetVisibility(bSplit);
+}
+
+UStaticMeshComponent* AShieldbreakWeapon::GetFirstPersonMagazine() const
+{
+	return EquippedLayout == EEquippedLayout::FirstPersonHand && NoMagazineArtMesh && MagazineArtMesh
+		&& WeaponMesh->GetStaticMesh() == NoMagazineArtMesh ? MagazineMesh.Get() : nullptr;
+}
+
 FVector AShieldbreakWeapon::GetBarrelDirection() const
 {
 	return WeaponMesh->GetComponentQuat().RotateVector(ArtBarrelLocal).GetSafeNormal();
@@ -878,7 +1028,16 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 			Animator->AddBodyKick(Stats.RecoilPitch);
 		}
 	}
-	if (bHasArt && !Stats.MuzzleFlash.IsNull())
+	UShieldbreakImpactFXSubsystem* ImpactFX = UShieldbreakImpactFXSubsystem::Get(this);
+	if (ImpactFX)
+	{
+		// Energy weapons flash in their own colour; ballistic ones a hot amber.
+		const bool bEnergy = Stats.FireMode == EShieldbreakFireMode::Charge || Stats.bUsesHeat;
+		const FLinearColor FlashColor = bEnergy ? Stats.TracerColor : FLinearColor(1.f, 0.66f, 0.32f);
+		const float FlashStrength = Stats.ProjectileClass ? 2.f : UShieldbreakImpactFXSubsystem::StrengthForDamage(Stats.Damage);
+		ImpactFX->MuzzleFlash(WeaponMesh, Muzzle, GetBarrelDirection(), FlashColor, FlashStrength);
+	}
+	if (bHasArt && !Stats.MuzzleFlash.IsNull() && (!ImpactFX || UShieldbreakImpactFXSubsystem::UseLyraMuzzleFlash()))
 	{
 		UNiagaraComponent* Flash = ShieldbreakArt::SpawnFXAttached(*Stats.MuzzleFlash.ToString(), WeaponMesh, NAME_None, Muzzle, GetBarrelDirection().Rotation());
 		if (Flash && WeaponMesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
@@ -888,40 +1047,23 @@ void AShieldbreakWeapon::PlayShotEffects(bool bLocalView)
 		}
 	}
 
-	const float Pitch = FMath::FRandRange(0.96f, 1.04f);
-	const bool bPlayedImported = !Stats.FireSound.IsNull()
-		&& ShieldbreakArt::PlaySound(this, *Stats.FireSound.ToString(), bLocalView ? nullptr : &Muzzle, bLocalView ? 0.7f : 1.f, Pitch);
-	if (!bPlayedImported)
-	{
-		if (bLocalView)
-		{
-			FShieldbreakSFX::Play2D(this, GetShotSound(), 0.55f, Pitch);
-		}
-		else
-		{
-			FShieldbreakSFX::PlayAt(this, GetShotSound(), Muzzle, 0.9f, Pitch);
-		}
-	}
+	// Layered close/tail/distant banks (FShieldbreakSFX). Stats.FireSound is no longer used: Lyra's rifle MetaSound is an
+	// auto-fire loop that stays silent when played as a one-shot, which is why the guns had no sound at all.
+	FShieldbreakSFX::PlayShot(this, Sounds, Muzzle, bLocalView);
 }
 
 void AShieldbreakWeapon::SpawnImpactFX(const FHitResult& Hit) const
 {
+	if (UShieldbreakImpactFXSubsystem* ImpactFX = UShieldbreakImpactFXSubsystem::Get(this))
+	{
+		const bool bEnergy = Stats.FireMode == EShieldbreakFireMode::Charge || Stats.bUsesHeat;
+		ImpactFX->BulletImpact(Hit, FVector(Hit.TraceEnd - Hit.TraceStart).GetSafeNormal(), UShieldbreakImpactFXSubsystem::StrengthForDamage(Stats.Damage),
+			bEnergy ? FLinearColor(Stats.TracerColor.R, Stats.TracerColor.G, Stats.TracerColor.B, 0.6f) : FLinearColor(1.f, 1.f, 1.f, 0.f));
+		return;
+	}
 	const bool bHitCharacter = Cast<APawn>(Hit.GetActor()) != nullptr;
 	ShieldbreakArt::SpawnFX(this, bHitCharacter ? ShieldbreakArt::ImpactCharacter : ShieldbreakArt::ImpactConcrete,
 		Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
-}
-
-EShieldbreakSound AShieldbreakWeapon::GetShotSound() const
-{
-	if (Stats.FireMode == EShieldbreakFireMode::Charge)
-	{
-		return EShieldbreakSound::RailFire;
-	}
-	if (Stats.bUsesHeat)
-	{
-		return EShieldbreakSound::PlasmaShot;
-	}
-	return Stats.FireMode == EShieldbreakFireMode::Burst ? EShieldbreakSound::BattleRifleShot : EShieldbreakSound::SMGShot;
 }
 
 // ---- Reload ----
@@ -947,6 +1089,10 @@ void AShieldbreakWeapon::StartReload()
 	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
 	{
 		OwnerCharacter->PlayActionAnimation(EShieldbreakAction::Reload, Stats.ReloadTime);
+		if (OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled())
+		{
+			PlayReloadSound(true);
+		}
 	}
 
 	if (HasAuthority())
@@ -980,6 +1126,11 @@ void AShieldbreakWeapon::BeginReload()
 	if (AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter())
 	{
 		OwnerCharacter->MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::Reload));
+		// A listen-server host hears other players reload here (OnRep_Reloading doesn't run on the server).
+		if (!(OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled()))
+		{
+			PlayReloadSound(false);
+		}
 	}
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AShieldbreakWeapon::FinishReload, Stats.ReloadTime, false);
 }
@@ -999,6 +1150,11 @@ void AShieldbreakWeapon::OnRep_Reloading()
 	const UWorld* World = GetWorld();
 	if (bReloading)
 	{
+		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+		if (!(OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled()))
+		{
+			PlayReloadSound(false); // the reloading player already started it locally
+		}
 		if (ReloadStartLocalTime < 0.f && World)
 		{
 			ReloadStartLocalTime = World->GetTimeSeconds();
@@ -1060,6 +1216,7 @@ void AShieldbreakWeapon::ReleaseCharge()
 	const UWorld* World = GetWorld();
 	bCharging = false;
 	ChargeStartLocalTime = -1.f;
+	StopWeaponAudio(ChargeAudio);
 	UpdateChargeGlow();
 	if (World && CanFireShotLocal())
 	{
@@ -1076,6 +1233,7 @@ void AShieldbreakWeapon::CancelCharge()
 	}
 	bCharging = false;
 	ChargeStartLocalTime = -1.f;
+	StopWeaponAudio(ChargeAudio);
 	UpdateChargeGlow();
 	ServerSetCharging(false);
 }
@@ -1095,14 +1253,14 @@ void AShieldbreakWeapon::OnRep_Charging()
 		ChargeStartLocalTime = World->GetTimeSeconds();
 		const AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
 		const bool bLocalView = OwnerCharacter && OwnerCharacter->IsLocallyControlled() && OwnerCharacter->IsPlayerControlled();
-		if (bLocalView)
-		{
-			FShieldbreakSFX::Play2D(this, EShieldbreakSound::RailCharge, 0.6f);
-		}
-		else
-		{
-			FShieldbreakSFX::PlayAt(this, EShieldbreakSound::RailCharge, GetMuzzleLocation(), 0.9f);
-		}
+		StopWeaponAudio(ChargeAudio);
+		ChargeAudio = bLocalView
+			? FShieldbreakSFX::Play2D(this, EShieldbreakSound::RailCharge, 0.6f)
+			: FShieldbreakSFX::PlayAttached(GetRootComponent(), EShieldbreakSound::RailCharge, 0.9f);
+	}
+	else
+	{
+		StopWeaponAudio(ChargeAudio);
 	}
 	UpdateChargeGlow();
 }

@@ -1,0 +1,6 @@
+head afb76269ae9a15852ccc159db5a795fd52c41ed5 start 2026-11-05T22:01:21
+build exit 0 2026-11-05T22:01:52
+import exit 0 2026-11-05T22:02:34
+SelfTest1 exit 0 2026-11-05T22:05:57 wall 203s | CPU others: NZXT CAM#21312=43s, cam_helper#22308=17.6s, Discord#15936=4.5s, explorer#11260=3.7s, NZXT CAM#21032=3.5s, zenserver#30308=2.2s | GPU@45s: 90 %, 1992 MiB
+fp exit 0 2026-11-05T22:07:16 wall 77s | CPU others: NZXT CAM#21312=14.7s, cam_helper#22308=6.5s, zenserver#420=2.1s, explorer#11260=1s, NZXT CAM#21032=1s, CrashReportClientEditor#25260=0.3s | GPU@45s: 54 %, 2049 MiB
+done 2026-11-05T22:07:16

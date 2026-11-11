@@ -1,0 +1,62 @@
+Shieldbreak self-test, 2026.11.04-16.58.45
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 37 pieces
+-- Crouch camera settles without a capsule-height pop
+PASS  Crouching does not jump the camera by the 34 cm capsule change  -- largest frame change 8.81 cm
+PASS  Standing also eases the camera without delaying the capsule  -- largest frame change 8.81 cm
+-- The camera rides over a step instead of snapping
+PASS  The test walk climbs the 30 cm curb  -- rose 29.99 cm, largest capsule jump 16.45 cm
+PASS  The eye trails the step (no 30 cm one-frame snap)  -- largest eye change 11.65 cm vs capsule 16.45 cm, largest trail 16.45 cm
+PASS  ...and settles back to eye height  -- offset 0.00 cm 0.6 s after stopping
+-- Coyote time: a jump just after walking off a ledge still goes off
+PASS  A jump 0.06 s after leaving the ledge takes off  -- peak vertical speed 873.87 uu/s (jump 900.00)
+PASS  ...but a press 0.2 s into the fall does not (no air jumps)  -- peak vertical speed -313.60 uu/s
+-- A jump pressed just before landing goes off on touchdown
+PASS  The early press jumps again on landing  -- peak vertical speed 873.87 uu/s after pressing 60.00 cm above the floor
+-- Directional gait keeps its cycle through a turn
+PASS  A strafe turn advances the gait instead of restarting the feet  -- phase 0.175 -> 0.200
+-- Interrupted upper-body actions blend
+PASS  Reload-to-melee does not teleport the gun hand  -- hand moved 0.36 cm over 0.017 s
+-- Shield impacts and passive decay
+PASS  Absorbed bullets flash the character's shield overlay
+PASS  Shield flash fades and releases its overlay
+PASS  A shield break has a stronger pulse
+PASS  Health-only damage does not fake a shield impact
+PASS  Passive overshield decay does not flash
+PASS  Overshield damage does flash
+-- First-person gun kicks on a shot and settles
+PASS  The local player has first-person arms
+PASS  A shot tips the first-person gun up  -- peak pitch 1.39 deg (still: offset 0.00 cm)
+PASS  ...and it springs back to rest  -- offset 0.00 cm, pitch -0.00 deg after 0.8 s
+-- Walking bobs the first-person gun; standing does not
+PASS  Standing still keeps the gun steady  -- height range 0.00 cm
+PASS  Walking bobs the gun with the steps  -- height range 0.60 cm at 388.65 uu/s
+-- Firing never moves the aim (no recoil)
+PASS  Firing never moves the aim (no recoil)  -- pitch 0.00, yaw 0.00 deg after two bursts
+-- Bullet magnetism bends a near miss onto the enemy
+PASS  Bullet magnetism bends a near miss onto the enemy  -- bent 1.26 deg
+PASS  ...a clear miss stays a miss
+PASS  ...a direct hit is left exactly as aimed
+PASS  ...and nothing bends with aim assist off
+-- Aim slowdown works with a mouse
+PASS  Aim slowdown works with a mouse  -- strength 0.78
+PASS  ...without pulling a mouse player's view  -- yaw 0.00
+-- Hit markers report shield hits, shield pops and kills
+PASS  Hit markers report shield hits, shield pops and kills
+PASS  ...a shield pop is its own marker
+PASS  ...and bursts the shield bubble
+PASS  ...and a kill is a kill marker
+PASS  ...hurting yourself gives no marker
+-- An interrupted locomotion fade does not pop
+PASS  The gun hand moves smoothly through an interrupted fade  -- fastest hand movement 203.31 cm/s
+-- Locomotion plays in place (no root motion drift)
+PASS  The jogging body stays over its capsule  -- pelvis wandered 6.39 cm
+RESULT 42 passed, 0 failed

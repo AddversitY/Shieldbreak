@@ -1,0 +1,129 @@
+{
+  "materials": {
+    "ArmorMetal": {
+      "path": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "parent": "/Game/Shieldbreak/Art/Materials/M_SB_Surface.M_SB_Surface",
+      "Metallic": 0.30000001192092896,
+      "Roughness": 0.44999998807907104
+    },
+    "WeaponMetal": {
+      "path": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "parent": "/Game/Shieldbreak/Art/Materials/M_SB_Surface.M_SB_Surface",
+      "Metallic": 0.4000000059604645,
+      "Roughness": 0.3799999952316284
+    }
+  },
+  "meshes": {
+    "SM_SB_Armor_calf_l": {
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow",
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_calf_r": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow",
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_foot_l": {
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_foot_r": {
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"
+    },
+    "SM_SB_Armor_head": {
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_Visor": "/Game/Shieldbreak/Art/Materials/MI_SB_Visor.MI_SB_Visor",
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"
+    },
+    "SM_SB_Armor_lowerarm_l": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow"
+    },
+    "SM_SB_Armor_lowerarm_r": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow"
+    },
+    "SM_SB_Armor_pelvis": {
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_spine_03": {
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_spine_05": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_TeamGlow": "/Game/Shieldbreak/Art/Materials/MI_SB_TeamGlow.MI_SB_TeamGlow",
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"
+    },
+    "SM_SB_Armor_thigh_l": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"
+    },
+    "SM_SB_Armor_thigh_r": {
+      "M_Undersuit": "/Game/Shieldbreak/Art/Materials/MI_SB_Undersuit.MI_SB_Undersuit",
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"
+    },
+    "SM_SB_Armor_upperarm_l": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_Armor_upperarm_r": {
+      "M_Team": "/Game/Shieldbreak/Art/Materials/MI_SB_Team.MI_SB_Team",
+      "M_ArmorMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal.MI_SB_ArmorMetal"
+    },
+    "SM_SB_BattleRifle": {
+      "M_WeaponMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "M_Olive": "/Game/Shieldbreak/Art/Materials/MI_SB_Olive.MI_SB_Olive",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_Steel": "/Game/Shieldbreak/Art/Materials/MI_SB_Steel.MI_SB_Steel",
+      "M_Lens": "/Game/Shieldbreak/Art/Materials/MI_SB_Lens.MI_SB_Lens",
+      "M_GlowCyan": "/Game/Shieldbreak/Art/Materials/MI_SB_GlowCyan.MI_SB_GlowCyan"
+    },
+    "SM_SB_RailLance": {
+      "M_Ivory": "/Game/Shieldbreak/Art/Materials/MI_SB_Ivory.MI_SB_Ivory",
+      "M_WeaponMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_GlowCyan": "/Game/Shieldbreak/Art/Materials/MI_SB_GlowCyan.MI_SB_GlowCyan"
+    },
+    "SM_SB_RocketLauncher": {
+      "M_Olive": "/Game/Shieldbreak/Art/Materials/MI_SB_Olive.MI_SB_Olive",
+      "M_WeaponMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_Hazard": "/Game/Shieldbreak/Art/Materials/MI_SB_Hazard.MI_SB_Hazard",
+      "M_Lens": "/Game/Shieldbreak/Art/Materials/MI_SB_Lens.MI_SB_Lens",
+      "M_GlowAmber": "/Game/Shieldbreak/Art/Materials/MI_SB_GlowAmber.MI_SB_GlowAmber"
+    },
+    "SM_SB_Sidearm": {
+      "M_Steel": "/Game/Shieldbreak/Art/Materials/MI_SB_Steel.MI_SB_Steel",
+      "M_WeaponMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_GlowCyan": "/Game/Shieldbreak/Art/Materials/MI_SB_GlowCyan.MI_SB_GlowCyan"
+    },
+    "SM_SB_Sniper": {
+      "M_WeaponMetal": "/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal.MI_SB_WeaponMetal",
+      "M_Polymer": "/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer",
+      "M_Olive": "/Game/Shieldbreak/Art/Materials/MI_SB_Olive.MI_SB_Olive",
+      "M_Steel": "/Game/Shieldbreak/Art/Materials/MI_SB_Steel.MI_SB_Steel",
+      "M_Lens": "/Game/Shieldbreak/Art/Materials/MI_SB_Lens.MI_SB_Lens",
+      "M_GlowCyan": "/Game/Shieldbreak/Art/Materials/MI_SB_GlowCyan.MI_SB_GlowCyan"
+    }
+  },
+  "shared_gunmetal_sha256_before_and_after": "53d2bd0ab8bf4a97ededbcab88db49199e3f4b986db903e47ea25d610fab7158",
+  "result": "PASS: new materials loaded and bound; all 19 meshes have three LODs; shared Gunmetal unchanged"
+}

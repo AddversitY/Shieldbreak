@@ -12,6 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Visuals/ShieldbreakViewmodelMoves.h"
 #include "ShieldbreakBodyAnimator.generated.h"
 
 class UAnimSequenceBase;
@@ -64,6 +65,30 @@ public:
 	USkeletalMeshComponent* GetFirstPersonArms() const;
 	/** True when the arms are on screen and the equipped gun should go in their hand. */
 	bool HasFirstPersonArms() const;
+	/** First person: seconds into the current grenade throw, or -1 when not throwing. */
+	float GetFirstPersonThrowTime() const;
+	/** The grenade shown in the first-person (or third-person) hand, when visible; null otherwise. */
+	UStaticMeshComponent* GetVisibleHeldGrenade(bool bFirstPerson) const;
+	/** First person: cm between the left hand and where the throw wants it (last evaluated pose), or -1. */
+	float GetLeftHandError() const { return LastLeftHandError; }
+	/** First person: cm between the index finger's pad and the trigger's front contact point (last evaluated pose), or -1
+	 *  when there are no arms or the gun has no trigger socket. */
+	float GetTriggerFingerError() const;
+	/** Trigger socket, finger pad and index_01_r in hand_r space (cm), for fitting the trigger art. */
+	FString DescribeTriggerFinger() const;
+	/** True when the held gun has a "SupportHand" socket (the rifles): first person then shows the left arm, reaching
+	 *  the hand onto that socket, and frames the gun so the trigger hand sits below the screen. */
+	bool WantsFirstPersonSupportArm() const;
+	/** Distance (cm) from hand_l to the support socket, or -1 without one (self-test). */
+	float GetSupportHandError() const;
+	/** Hand-through-gun check: how many finger and palm segments of the visible hands cross the held gun's surface
+	 *  (first-person arms or the third-person body). -1 when no gun is held or its surface can't be tested. */
+	int32 MeasureHandClipping(bool bFirstPerson, FString* OutDetail = nullptr, bool bIncludeMagazine = true) const;
+	/** First person: the hand-keyed reload / draw / melee (ShieldbreakViewmodelMoves) and this frame's pose. */
+	const FShieldbreakViewmodelMoves& GetViewmodelMoves() const { return Moves; }
+	const FShieldbreakViewmodelPose& GetViewmodelPose() const { return MovePose; }
+	/** Which keys the held gun's moves use. */
+	EShieldbreakViewmodelStyle GetViewmodelStyle() const;
 
 	/** Local player's view: a shot kicks the first-person arms back and up, then they spring home. Strength is the
 	 *  weapon's recoil (degrees), so heavier guns kick harder. */
@@ -112,6 +137,8 @@ private:
 	void AttachArmor(USkeletalMeshComponent* Mesh, bool bFirstPerson);
 	void UpdateFirstPersonArms();
 	void SetFirstPersonArmsVisible(bool bVisible);
+	void UpdateScopeHide(class AShieldbreakCharacter* OwnerCharacter);
+	void ClearScopeHide();
 	/** Places the arms on the camera so the gun hand sits at the viewmodel spot with the barrel toward the crosshair. */
 	void CalibrateFirstPersonArms();
 	bool UsesPistolAnimations() const;
@@ -131,22 +158,73 @@ private:
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> FirstPersonArmor;
+	/** The left arm's plates in first person, shown only while it throws a grenade. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> FirstPersonLeftArmor;
 	/** The idle the arms were last placed for, and the settings used (re-placed when either changes). */
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimSequenceBase> CalibratedIdle;
 	FVector3f CalibratedGrip = FVector3f::ZeroVector;
 	FVector2f CalibratedAim = FVector2f::ZeroVector;
+	FVector CalibratedHandOffset = FVector::ZeroVector;
 	float FirstPersonIdleSince = -1.f;
 	FTransform CalibratedArmsTransform = FTransform::Identity;
-	/** The grenade throw's first-person dip (see UpdateFirstPersonArms). */
-	float FirstPersonThrowEnd = -1.f;
-	float FirstPersonThrowDuration = 0.f;
+	/** Grenade throw, first person: world time it started (the arm and gun follow UpdateFirstPersonThrow's timeline),
+	 *  and the gun's current dip (0-1). */
+	float FirstPersonThrowStart = -100.f;
 	float AppliedThrowDip = 0.f;
+	bool bFirstPersonLeftArmShown = false;
+	bool bFirstPersonThrowArm = false;
+	bool bFirstPersonThrowKicked = false;
+	/** Grenade throw, third person: world time the toss started (the grenade shows in the hand until release). */
+	float BodyThrowStart = -100.f;
+	bool bBodyTossReleased = true;
+	/** The grenade in the throwing hand until it is let go: first person (owner only) and third person (everyone else). */
+	UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> FirstPersonHeldGrenade;
+	UPROPERTY(Transient) TObjectPtr<UStaticMeshComponent> BodyHeldGrenade;
+	/** First person: drives the left arm (IK), the held grenade and the gun's dip for the throw; returns the dip. */
+	float UpdateFirstPersonThrow(class UShieldbreakBodyAnimInstance* Instance, float Now);
+	/** Shows Grenade in Mesh's left palm (placed from the hand's own joints), or hides it. Creates it on first use. */
+	void UpdateHeldGrenade(USkeletalMeshComponent* Mesh, TObjectPtr<UStaticMeshComponent>& Grenade, bool bVisible, bool bFirstPerson);
 	/** Weapon swap: the arms drop out of view while the equip animation plays and until they are re-placed for the
 	 *  new gun's idle (the equip pose and the old placement put a shoulder plate across the screen), then rise. */
 	float FirstPersonEquipEnd = -1.f;
 	float SwapLower = 0.f;
 	float AppliedSwapLower = 0.f;
+	FVector LastLeftHandTarget = FVector::ZeroVector;
+	float LastLeftHandError = -1.f;
+	/** How far the index finger is curled onto the trigger (eases out for actions and swaps). */
+	float TriggerFingerWeight = 0.f;
+	/** Finds the equipped gun's "Trigger" socket and hands the arms' anim instance the finger target. */
+	void UpdateTriggerFinger(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
+	/** The equipped gun's mesh with a "Trigger" socket, or null. */
+	class UStaticMeshComponent* GetTriggerMesh() const;
+	/** How far the left hand has reached onto the support socket (eases out for actions, swaps and throws). */
+	float SupportHandWeight = 0.f;
+	/** First-person moves: the current one, its pose this frame, and a draw waiting for the arms to be re-placed. */
+	FShieldbreakViewmodelMoves Moves;
+	FShieldbreakViewmodelPose MovePose;
+	bool bDrawPending = false;
+	/** Steps the moves (call after the arms have their transform for this frame, before the support hand). */
+	void UpdateViewmodelMoves(bool bSwapping);
+	class UStaticMeshComponent* GetHeldMagazine() const;
+	/** The forend hold: palm point, fingers direction and palm normal (world) for a gun with a SupportHand socket. */
+	void ComputeSupportPalm(class UStaticMeshComponent* Gun, const USkeletalMeshComponent* HandMesh, FVector& OutPalm, FVector& OutFingers, FVector& OutPalmNormal) const;
+	struct FSupportPalmCache
+	{
+		TWeakObjectPtr<UStaticMeshComponent> Gun;
+		FVector Palm = FVector::ZeroVector;
+		FVector Fingers = FVector::ForwardVector;
+		FVector Normal = FVector::UpVector;
+		float UpdateAt = -1.f;
+	};
+	mutable FSupportPalmCache FirstPersonPalmCache;
+	mutable FSupportPalmCache ThirdPersonPalmCache;
+	/** Whether upperarm_l is currently shown on the arms (only with a support socket; the throw shows it too). */
+	bool bSupportArmShown = false;
+	void UpdateSupportHand(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
+	void UpdateHeldMagazineAfterPose();
+	class UStaticMeshComponent* GetSupportMesh(bool bRequireAttached) const;
 	void ApplyFirstPersonArmsTransform(float Dip);
 	/** Steps the first-person motion springs and writes FirstPersonMotion. */
 	void UpdateFirstPersonMotion(float DeltaSeconds);
@@ -169,4 +247,27 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorTeamMIDs;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> ArmorGlowMIDs;
+	bool bScopeHidden = false;
+	bool bTriggerArmHidden = false;
+	TWeakObjectPtr<AActor> ScopeHiddenWeapon;
+	TWeakObjectPtr<class APlayerController> ScopeHidePC;
+	/** Last frame's left-palm target (world), for GetSupportHandError. */
+	FVector SupportPalmWorld = FVector::ZeroVector;
+	/** Contact-solved grip curls (ShieldbreakGrip order, degrees): first-person arms and third-person body. */
+	float FPLeftGrip[15] = {};
+	float FPReloadGrip[15] = {};
+	float LastReloadGripTarget[15] = {};
+	bool bFPReloadGripInit = false;
+	float FPRightGrip[15] = {};
+	float TPLeftGrip[15] = {};
+	float TPRightGrip[15] = {};
+	bool bFPLeftGripInit = false;
+	bool bTPLeftGripInit = false;
+	float FPRightGripWeight = 0.f;
+	float TPRightGripWeight = 0.f;
+	float TPSupportWeight = 0.f;
+	/** Third-person grip solves run ten times a second (staggered per body), not every frame: they cost traces. */
+	float TPGripTimer = -1.f;
+	void UpdateThirdPersonGrip(class UShieldbreakBodyAnimInstance* Instance, USkeletalMeshComponent* Body, float DeltaSeconds);
+	void UpdateFirstPersonRightGrip(class UShieldbreakBodyAnimInstance* Instance, bool bHolding, float DeltaSeconds);
 };

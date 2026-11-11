@@ -1,0 +1,45 @@
+Shieldbreak self-test, 2026.11.06-09.01.52
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 217 pieces
+-- No bots
+-- Possess a soldier at the first spawn
+-- fp_0_idle_br
+INFO  screenshot keel_fp_b_fp_0_idle_br_0
+-- fp_1_idle_sidearm
+INFO  screenshot keel_fp_b_fp_1_idle_sidearm_0
+INFO  screenshot keel_fp_b_fp_1_idle_sidearm_1
+-- fp_2_back_to_br
+INFO  screenshot keel_fp_b_fp_2_back_to_br_0
+-- fp_3_grenade
+INFO  screenshot keel_fp_b_fp_3_grenade_0
+INFO  screenshot keel_fp_b_fp_3_grenade_1
+INFO  screenshot keel_fp_b_fp_3_grenade_2
+INFO  screenshot keel_fp_b_fp_3_grenade_3
+-- fp_4_melee
+INFO  screenshot keel_fp_b_fp_4_melee_0
+INFO  screenshot keel_fp_b_fp_4_melee_1
+INFO  screenshot keel_fp_b_fp_4_melee_2
+-- Empty a few rounds
+-- fp_5_reload
+INFO  screenshot keel_fp_b_fp_5_reload_0
+INFO  screenshot keel_fp_b_fp_5_reload_1
+INFO  screenshot keel_fp_b_fp_5_reload_2
+-- tp_6_grenade
+INFO  screenshot keel_fp_b_tp_6_grenade_0
+INFO  screenshot keel_fp_b_tp_6_grenade_1
+INFO  screenshot keel_fp_b_tp_6_grenade_2
+INFO  screenshot keel_fp_b_tp_6_grenade_3
+INFO  screenshot keel_fp_b_tp_6_grenade_4
+INFO  screenshot keel_fp_b_tp_6_grenade_5
+-- First-person fixed-view FPS (20 s)
+INFO  fixed-view FPS 150.2 over 19.7 s (first person, no bots)
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 8 passed, 0 failed

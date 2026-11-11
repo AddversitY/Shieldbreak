@@ -1,0 +1,6 @@
+self head 14a673fd170bdc4f20dc4780ad91d2d3408764c8 start 2026-11-07T07:27:14
+v7 exit 0 2026-11-07T07:30:54 wall 220s | CPU others: NZXT CAM#21312=47.6s, Discord#15936=25.8s, cam_helper#22308=23.1s, Battle.net#19460=8.9s, audiodg#17152=6.1s, NZXT CAM#21032=5.4s | GPU@45s: 86 %, 2527 MiB
+done v7 2026-11-07T07:30:54
+fp head 14a673fd170bdc4f20dc4780ad91d2d3408764c8 start 2026-11-07T07:31:29
+fp_v7 exit 0 2026-11-07T07:32:41 wall 71s | CPU others: NZXT CAM#21312=15.2s, cam_helper#22308=7.2s, Discord#15936=5.2s, Battle.net#19460=2.8s, zenserver#26096=2.5s, NZXT CAM#21032=1.3s | GPU@45s: 29 %, 3405 MiB
+done fp_v7 2026-11-07T07:32:41

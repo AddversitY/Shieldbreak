@@ -13,13 +13,25 @@ from mathutils import Matrix, Vector
 # name: (base color RGB linear, metallic, roughness, emissive strength)
 PALETTE = {
     "Gunmetal": ((0.1, 0.105, 0.115), 0.8, 0.42, 0.0),
+    # Armor and weapon metal: Gunmetal is mostly metal, and with Lumen off a metal surface only shows what it
+    # reflects, so the suit and guns read near black in shade (desktop shots 2026-11-04). These keep the same dark
+    # grey but light like painted metal. Separate keys so the map kits' Gunmetal is unchanged. Raised to mid grey
+    # after the after3 shots (0.075 albedo still read black on bots in sunlight).
+    "ArmorMetal": ((0.2, 0.21, 0.23), 0.15, 0.5, 0.0),
+    # Guns: mid grey over dark polymer (0.07-0.13 albedo still read black next to Keel's pale walls, after4).
+    "WeaponMetal": ((0.27, 0.275, 0.29), 0.15, 0.42, 0.0),  # 0.24 near black unlit-below (task 10); 0.32 + bounce pale (task 13)
     "Steel": ((0.32, 0.34, 0.36), 0.9, 0.3, 0.0),
-    "Polymer": ((0.03, 0.031, 0.034), 0.0, 0.6, 0.0),
+    # Gun furniture, armor joints and (in game) the soldier's suit and gloves under the armor. Weapons/armor only.
+    "Polymer": ((0.06, 0.062, 0.068), 0.0, 0.62, 0.0),
     "Olive": ((0.11, 0.13, 0.075), 0.2, 0.55, 0.0),
     "Sand": ((0.42, 0.36, 0.25), 0.15, 0.6, 0.0),
     "Ivory": ((0.72, 0.72, 0.7), 0.25, 0.32, 0.0),
+    # Vanguard BR armor panels: pale satin ceramic, the light value against the gunmetal and polymer.
+    "Ceramic": ((0.3, 0.31, 0.32), 0.0, 0.38, 0.0),  # 0.5, then 0.4 read flat white under the FP lights (tasks 15, 19)
     "Hazard": ((0.8, 0.5, 0.04), 0.1, 0.5, 0.0),
     "GlowCyan": ((0.15, 0.85, 1.0), 0.0, 0.3, 6.0),
+    # Weapon screens (ammo counters, scope side displays): a dim readable glow, not a light source.
+    "Display": ((0.04, 0.32, 0.48), 0.0, 0.15, 1.6),
     "GlowAmber": ((1.0, 0.55, 0.12), 0.0, 0.3, 5.0),
     "Lens": ((0.02, 0.08, 0.12), 0.6, 0.08, 0.6),
     # Armor: "Team" is tinted per team in Unreal (TeamColor parameter); the preview shows red.
@@ -247,7 +259,15 @@ def bounds(obj):
 
 
 def write_palette(path):
-    """palette.json for Tools/import_art.py: name -> [rgb, metallic, roughness, emissive]."""
+    """palette.json for Tools/import_art.py: name -> [rgb, metallic, roughness, emissive]. Entries other scripts added
+    are kept, and the file keeps the CRLF line endings the desktop checkout writes, so a rerun only shows real edits."""
     import json
-    with open(path, "w") as f:
-        json.dump({name: [list(rgb), m, r, e] for name, (rgb, m, r, e) in PALETTE.items()}, f, indent=1)
+    import os
+    data = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+    for name, (rgb, m, r, e) in PALETTE.items():
+        data[name] = [list(rgb), m, r, e]
+    with open(path, "w", newline="") as f:
+        f.write(json.dumps(data, indent=1).replace("\n", "\r\n") + "\r\n")

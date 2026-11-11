@@ -46,6 +46,10 @@ private:
 
 	AShieldbreakCharacter* SpawnDummy(const FVector& Location, float Yaw, bool bWithController);
 	void ClearDummies();
+	/** A solid box (engine cube) with its base centered on BaseCenter, removed by ClearDummies. */
+	AActor* SpawnTestBlock(const FVector& BaseCenter, const FVector& Size);
+	/** Height of the floor under Location (traced down 20 m), or Location.Z - 100 if nothing is there. */
+	float FloorZ(const FVector& Location) const;
 	/** A dummy with a frozen bot controller, so it has a PlayerState and a team. */
 	AShieldbreakCharacter* SpawnTeamDummy(const FVector& Location, float Yaw, uint8 Team);
 	/** Kills a team dummy and destroys its controller so the game mode can't respawn it. */
@@ -69,6 +73,13 @@ private:
 	// Chase camera for the bot-match screenshots.
 	UPROPERTY(Transient) TObjectPtr<class ACameraActor> ChaseCamera;
 	TWeakObjectPtr<AShieldbreakCharacter> ChaseSubject;
+	// Watches the test range whenever the local player has no pawn: the bare controller's view sat at the last
+	// possessed dummy's eyes, so the next dummy spawned there was drawn from the inside (Vincent's recording, 2026-11-05).
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> OverviewCamera;
+	void ViewOverviewIfUnpossessed();
+	/** Every frame: the view must never sit inside a character, nor draw its own owner-visible body near the eye. */
+	void CheckViewNotInsideCharacter();
+	TArray<FString> InsideViewReports;
 
 	// A non-character actor a step watches (a rocket, a power-up).
 	TWeakObjectPtr<AActor> Probe;
@@ -80,6 +91,8 @@ private:
 	void BuildMapSteps(const class AShieldbreakArena* Arena);
 	/** -SBShots: fixed-camera map views + FPS; -SBFPShots: first-person idle/throw/melee/reload. -SBShotTag=<name> names the files. */
 	void BuildShotSteps();
+	/** -SBImpactShots: bullet hits, shield flares and muzzle flashes captured mid-effect, then 20 s of firing FPS (ShieldbreakImpactFXShots.cpp). */
+	void BuildImpactShotSteps();
 	void TakeShot(const FString& Name, bool bShowUI);
 	/** Spawns a soldier and gives it to the local player controller (the human has no pawn during a self-test). */
 	AShieldbreakCharacter* PossessLocalDummy(const FTransform& Where);

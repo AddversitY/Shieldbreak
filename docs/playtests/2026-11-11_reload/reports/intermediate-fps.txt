@@ -1,0 +1,7 @@
+PASS  Requested test filter matches a step  -- First-person fixed-view FPS
+Shieldbreak self-test, 2026.11.11-02.50.54
+-- Settle
+-- First-person fixed-view FPS (20 s)
+INFO  fixed-view FPS 96.4 over 19.1 s (first person, no bots)
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 2 passed, 0 failed

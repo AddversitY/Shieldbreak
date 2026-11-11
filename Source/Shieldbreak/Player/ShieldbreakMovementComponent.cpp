@@ -4,7 +4,14 @@
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
 #include "Player/ShieldbreakCharacter.h"
+
+namespace ShieldbreakMovementPrivate
+{
+	TAutoConsoleVariable<float> CVarCoyoteTime(TEXT("sb.CoyoteTime"), -1.f,
+		TEXT("Seconds after leaving a ledge that a jump still works (-1 = the movement default, 0 = off)."));
+}
 
 // ---- Network prediction: carry the sprint intent in the saved move ----
 
@@ -16,6 +23,7 @@ public:
 	uint8 Saved_bWantsToSprint : 1;
 	uint8 Saved_bWantsPowerJump : 1;
 	float Saved_JumpCharge = 0.f;
+	float Saved_CoyoteTimeLeft = 0.f;
 
 	FSavedMove_Shieldbreak()
 		: Saved_bWantsToSprint(0)
@@ -29,6 +37,7 @@ public:
 		Saved_bWantsToSprint = 0;
 		Saved_bWantsPowerJump = 0;
 		Saved_JumpCharge = 0.f;
+		Saved_CoyoteTimeLeft = 0.f;
 	}
 
 	virtual uint8 GetCompressedFlags() const override
@@ -63,6 +72,7 @@ public:
 			Saved_bWantsToSprint = Movement->Safe_bWantsToSprint;
 			Saved_bWantsPowerJump = Movement->Safe_bWantsPowerJump;
 			Saved_JumpCharge = Movement->JumpCharge;
+			Saved_CoyoteTimeLeft = Movement->CoyoteTimeLeft;
 		}
 	}
 
@@ -74,6 +84,7 @@ public:
 			Movement->Safe_bWantsToSprint = Saved_bWantsToSprint;
 			Movement->Safe_bWantsPowerJump = Saved_bWantsPowerJump;
 			Movement->JumpCharge = Saved_JumpCharge;
+			Movement->CoyoteTimeLeft = Saved_CoyoteTimeLeft;
 		}
 	}
 };
@@ -215,6 +226,15 @@ bool UShieldbreakMovementComponent::CanAttemptJump() const
 
 void UShieldbreakMovementComponent::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
+	if (IsFalling())
+	{
+		CoyoteTimeLeft = FMath::Max(0.f, CoyoteTimeLeft - DeltaSeconds);
+	}
+	else
+	{
+		CoyoteTimeLeft = 0.f;
+	}
+
 	if (CharacterOwner)
 	{
 		// Crouched entry is allowed so landing from a slide-jump with crouch held chains straight into another slide.
@@ -378,6 +398,18 @@ void UShieldbreakMovementComponent::OnMovementModeChanged(EMovementMode Previous
 	}
 
 	const bool bWasSliding = PreviousMovementMode == MOVE_Custom && PreviousCustomMode == CMOVE_Slide;
+
+	// Walking or sliding off a ledge (not a jump or Power Jump, which leave with upward speed) opens a short window in
+	// which the jump still takes off. Every take-off clears it (AShieldbreakCharacter::OnJumped_Implementation).
+	if ((PreviousMovementMode == MOVE_Walking || bWasSliding) && MovementMode == MOVE_Falling && Velocity.Z <= 1.f)
+	{
+		const float Override = ShieldbreakMovementPrivate::CVarCoyoteTime.GetValueOnGameThread();
+		CoyoteTimeLeft = Override >= 0.f ? Override : CoyoteTime;
+	}
+	else if (MovementMode != MOVE_Falling)
+	{
+		CoyoteTimeLeft = 0.f;
+	}
 	if (bWasSliding && MovementMode == MOVE_Falling)
 	{
 		bMomentumCarry = true;

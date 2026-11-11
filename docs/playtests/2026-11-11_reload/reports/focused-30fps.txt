@@ -1,0 +1,23 @@
+PASS  Requested test filter matches a step  -- First-person moves
+Shieldbreak self-test, 2026.11.11-03.00.00
+-- Settle
+-- First-person moves
+PASS  A first-person reload plays the hand-keyed move, not the third-person clip  -- move 1, progress 0.32, hand weight 1.00, gun roll 20.9
+PASS  ...the magazine comes out of the gun with the left hand  -- 11.8 cm from its socket
+INFO  screenshot crucible_reload_verified-video_fp_reload_mag_out
+PASS  The reload keeps the carried magazine and palm in frame  -- palm 612,679; magazine 586,553; viewport 1280x720
+INFO  screenshot crucible_reload_verified-video_fp_reload_carry
+PASS  The carried magazine stays fixed in the evaluated palm  -- maximum grip drift 0.000 cm
+INFO  screenshot crucible_reload_verified-video_fp_reload_insert
+INFO  screenshot crucible_reload_verified-video_fp_reload_charge
+PASS  ...and ends with the magazine seated and the left hand back on the forend  -- magazine 0.00 cm off, support hand 0.00 cm (before 0.00)
+PASS  A first-person melee chops the gun down and in  -- gun 2.7 cm forward, pitch -8.8, yaw -7.4
+INFO  screenshot crucible_reload_verified-video_fp_melee
+PASS  A weapon swap brings the new gun up with the hand-keyed draw  -- draw began 0.37 s after the swap
+INFO  screenshot crucible_reload_verified-video_fp_draw
+INFO  screenshot crucible_reload_verified-video_fp_pistol_drop
+PASS  The sidearm reload brings the left arm in with a fresh magazine  -- move 1, progress 0.52
+INFO  screenshot crucible_reload_verified-video_fp_pistol_fresh
+PASS  ...and puts it away again
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 11 passed, 0 failed

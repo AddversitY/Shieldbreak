@@ -11,6 +11,7 @@
 #include "ShieldbreakWeapon.generated.h"
 
 class AShieldbreakCharacter;
+class UAudioComponent;
 class UDamageType;
 class UMaterialInstanceDynamic;
 class UStaticMesh;
@@ -24,6 +25,17 @@ enum class EShieldbreakFireMode : uint8
 	FullAuto,
 	/** Hold to charge, release to fire; only a full charge does full damage (Rail Lance). */
 	Charge
+};
+
+UENUM(BlueprintType)
+enum class EShieldbreakScope : uint8
+{
+	/** Zoom without an overlay (the hip reticle stays). */
+	None,
+	/** Mid-range optic: a wide lens with a chevron reticle (Battle Rifle). */
+	Marksman,
+	/** Long-range optic: a full-height lens with a fine cross and range ladder (Sniper). */
+	LongRange,
 };
 
 USTRUCT(BlueprintType)
@@ -63,6 +75,10 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float OverheatLockout = 2.f;
 	/** 0 = no zoom. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ZoomFOV = 0.f;
+	/** 0 = one zoom level. Otherwise a second press of zoom goes to this narrower FOV, a third zooms out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float ZoomFOV2 = 0.f;
+	/** Which scope overlay the HUD draws while zoomed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") EShieldbreakScope Scope = EShieldbreakScope::None;
 	/** Cosmetic only: how hard the gun model jumps in the hands on each shot. Shots never move the aim (no recoil). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") float RecoilPitch = 0.2f;
 	/** Bullet magnetism (Halo-style aim assist, player shots only): a shot that would pass within this many degrees
@@ -113,6 +129,17 @@ public:
 	void OnUnequipped();
 	/** True when the attachment OnEquipped would pick now (hand vs camera viewmodel, art or not) differs from the last one. */
 	bool NeedsReattach() const;
+	/** Vertical component of the shared hand fit, so the fingers close on the grip under the
+	 *  receiver and the index finger reaches the trigger (from the art's Trigger socket; plus sb.FPGunLift). */
+	float GetFirstPersonLift() const;
+	/** Socket-space fitting offset shared by the first- and third-person hands. */
+	FVector GetHandGripOffset() const;
+	/** The gun's mesh (sockets Muzzle, Trigger, SupportHand, Magazine). */
+	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	UStaticMeshComponent* GetMagazineMesh() const { return MagazineMesh; }
+	/** First person with split art (SM_SB_<Gun>_NoMag + SM_SB_<Gun>_Mag): the separate magazine the reload moves,
+	 *  seated in the gun's Magazine socket. Null otherwise (the gun mesh then carries its own magazine). */
+	UStaticMeshComponent* GetFirstPersonMagazine() const;
 
 	// ---- Local (owning client or server AI) ----
 	void StartFire();
@@ -161,7 +188,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> ChargeGlowMesh;
 
+	/** First person only: the magazine as its own part, so the reload can take it out (see GetFirstPersonMagazine). */
+	UPROPERTY(VisibleAnywhere, Category = "Weapon")
+	TObjectPtr<UStaticMeshComponent> MagazineMesh;
+	/** Layered shot, tail, reload, dry-fire and mechanism sounds (set per weapon class). */
+	FShieldbreakWeaponSounds Sounds;
+
 private:
+	void StopWeaponAudio(TWeakObjectPtr<UAudioComponent>& Audio);
+	void PlayReloadSound(bool bLocalView);
+
 	bool CanFireShotLocal() const;
 	void FireShotLocal();
 	FVector GetMuzzleLocation() const;
@@ -169,7 +205,7 @@ private:
 	void ApplyArt();
 	void PlayShotEffects(bool bLocalView);
 	void SpawnImpactFX(const FHitResult& Hit) const;
-	EShieldbreakSound GetShotSound() const;
+	void PlayDryFire();
 
 	UFUNCTION(Server, Reliable) void ServerFireShot(FVector_NetQuantize Origin, FVector_NetQuantizeNormal Direction);
 	UFUNCTION(Server, Reliable) void ServerStartReload();
@@ -208,6 +244,12 @@ private:
 	float ArtHalfLength = 30.f;
 	float ArtViewScale = 1.f;
 	FRotator ArtAlign = FRotator::ZeroRotator;
+	/** The whole gun (third person, pickups) and, when imported, the first-person split: gun without magazine + magazine. */
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> FullArtMesh;
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> NoMagazineArtMesh;
+	UPROPERTY(Transient) TObjectPtr<UStaticMesh> MagazineArtMesh;
+	/** Shows the split art in first person (or the whole gun everywhere else). */
+	void ApplyMagazineLayout(bool bFirstPerson);
 
 	// Local fire loop.
 	bool bWantsToFire = false;
@@ -227,4 +269,9 @@ private:
 	float ServerOverheatEndTime = -1.f;
 	float ServerChargeStartTime = -1.f;
 	FTimerHandle ReloadTimerHandle;
+
+	// Sounds that must stop early (swap cancels a reload, releasing the trigger ends the charge whine).
+	TWeakObjectPtr<UAudioComponent> ReloadAudio;
+	TWeakObjectPtr<UAudioComponent> ChargeAudio;
+	float LastDryFireTime = -100.f;
 };
