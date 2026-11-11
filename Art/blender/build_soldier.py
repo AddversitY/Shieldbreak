@@ -431,19 +431,19 @@ def build(verts, j, high=False):
             out.y *= 1.06
         return out
 
-    helm = [cap("helm_shell", hc, R, "ArmorDark", lambda l: l.z > -0.86, thick=0.0, segs=(20, 12), power=(0.66, 0.8, 0.74),
+    helm = [cap("helm_shell", hc, R, "ArmorDark", lambda l: l.z > -0.86, thick=0.0, segs=(24, 16), power=(0.66, 0.8, 0.74),
                 shape=helm_shape, bev=0.0, sharp=30)]
     # Crown: three overlapping lames running front to back, the centre one proud (a keel ridge).
     helm.append(cap("crown_mid", hc, (R[0] + 0.9, R[1] + 0.9, R[2] + 1.0), "ArmorTeam",
-                    lambda l: abs(l.x) < 0.3 and l.z > -0.05 and (l.y < 0.72 or l.z > 0.45), thick=1.0, segs=(20, 12),
+                    lambda l: abs(l.x) < 0.3 and l.z > -0.05 and (l.y < 0.72 or l.z > 0.45), thick=1.0, segs=(24, 16),
                     power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.3, sharp=30))
     for sx in (1, -1):
         helm.append(cap("crown_side", hc, (R[0] + 0.45, R[1] + 0.45, R[2] + 0.5), "ArmorPlate",
                         lambda l, sx=sx: 0.3 < l.x * sx < 0.99 and l.z > 0.12 and l.y < 0.6 and l.y > -0.8, thick=0.9,
-                        segs=(20, 12), power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.3, sharp=30))
+                        segs=(24, 16), power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.3, sharp=30))
         # Cheek guard, below the visor line, wrapping to the ear.
         helm.append(cap("cheek", hc, (R[0] + 0.5, R[1] + 0.5, R[2] + 0.4), "ArmorPlate",
-                        lambda l, sx=sx: l.x * sx > 0.36 and -0.82 < l.z < -0.2 and l.y > -0.25, thick=0.9, segs=(20, 12),
+                        lambda l, sx=sx: l.x * sx > 0.36 and -0.82 < l.z < -0.2 and l.y > -0.25, thick=0.9, segs=(24, 16),
                         power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.3, sharp=30))
         ear = hc + Vector((sx * (R[0] + 0.3), -2.0, -0.5))
         helm.append(ocyl("ear", ear, 3.3, 2.2, "ArmorDark", X * sx, verts=10, bev=0.4, radius2=2.6))
@@ -457,14 +457,14 @@ def build(verts, j, high=False):
             helm.append(ocyl("filter_rib", can + can_axis * (-1.4 + i * 1.1), 2.5, 0.35, "Rubber", can_axis, verts=12, bev=0.08))
     # Rear neck guard.
     helm.append(cap("nape", hc, (R[0] + 0.6, R[1] + 0.8, R[2] + 0.4), "ArmorPlate",
-                    lambda l: l.y < -0.35 and -0.86 < l.z < -0.1, thick=1.0, segs=(20, 12), power=(0.66, 0.8, 0.74),
+                    lambda l: l.y < -0.35 and -0.86 < l.z < -0.1, thick=1.0, segs=(24, 16), power=(0.66, 0.8, 0.74),
                     shape=helm_shape, bev=0.3, sharp=30))
     # Visor: a narrow amber band under a heavy brow.
     helm.append(cap("visor", hc, (R[0] + 0.7, R[1] + 0.8, R[2] + 0.4), "Visor",
-                    lambda l: l.y > 0.4 and -0.22 < l.z < 0.1 and abs(l.x) < 0.84, thick=0.9, segs=(20, 12),
+                    lambda l: l.y > 0.4 and -0.22 < l.z < 0.1 and abs(l.x) < 0.84, thick=0.9, segs=(24, 16),
                     power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.0, sharp=30))
     helm.append(cap("brow", hc, (R[0] + 1.1, R[1] + 1.7, R[2] + 0.8), "ArmorPlate",
-                    lambda l: l.y > 0.25 and 0.06 < l.z < 0.5 and abs(l.x) < 0.95, thick=1.6, segs=(20, 12),
+                    lambda l: l.y > 0.25 and 0.06 < l.z < 0.5 and abs(l.x) < 0.95, thick=1.6, segs=(24, 16),
                     power=(0.66, 0.8, 0.74), shape=helm_shape, bev=0.35, sharp=30))
     # Respirator: a wedge under the visor with slats, and a chin bar.
     muzzle = hc + Vector((0, 12.6, -6.4))
@@ -657,7 +657,7 @@ def build(verts, j, high=False):
                          lambda l: -0.38 < l.z < 0.3 and l.x > -0.2, (bx, by, bz), thick=1.3, segs=(16, 10), power=(0.72, 0.78, 0.7),
                          bev=0.4, sharp=32))
         parts.append(cap("pauldron_rim", base, (rr[0] + 0.5, rr[1] + 0.5, rr[2] + 0.3), "ArmorDark",
-                         lambda l: 0.0 < l.z < 0.16 and l.x > -0.9, (bx, by, bz), thick=1.0, segs=(16, 10), power=(0.72, 0.78, 0.7),
+                         lambda l: 0.0 < l.z < 0.3 and l.x > -0.9, (bx, by, bz), thick=1.0, segs=(16, 10), power=(0.72, 0.78, 0.7),
                          bev=0.3, sharp=32))
         if big:
             # A raised blast collar along the neck side and a hard-point rail on top.
@@ -713,10 +713,10 @@ def build(verts, j, high=False):
     hback = hdir.cross(across).normalized()
     if hback.x < 0:
         hback = -hback
-    hc0 = hd0 + (mid1 - hd0) * 0.55 + hback * 2.3
-    hand = [obox("hand_plate", hc0, (7.4, 1.3, 7.0), "ArmorPlate", hback, -hdir, bev=0.45, segments=2, taper=(0.86, 0.86)),
-            obox("knuckle_bar", mid1 + hback * 2.5 + hdir * 0.4, (8.2, 1.5, 2.2), "ArmorDark", hback, -hdir, bev=0.5, segments=2),
-            obox("wrist_tab", hd0 + hback * 2.4 + hdir * 0.6, (5.6, 1.1, 2.6), "ArmorDark", hback, -hdir, bev=0.35)]
+    hc0 = hd0 + (mid1 - hd0) * 0.55 + hback * 1.7
+    hand = [obox("hand_plate", hc0, (7.0, 1.0, 6.4), "ArmorPlate", hback, -hdir, bev=0.45, segments=2, taper=(0.86, 0.86)),
+            obox("knuckle_bar", mid1 + hback * 1.9 + hdir * 0.2, (7.8, 1.3, 2.0), "ArmorDark", hback, -hdir, bev=0.5, segments=2),
+            obox("wrist_tab", hd0 + hback * 1.9 + hdir * 0.8, (5.4, 0.9, 2.4), "ArmorDark", hback, -hdir, bev=0.35)]
     for sgn in (-1, 1):
         hand += bolt("b_hand", hc0 + across * sgn * 2.6 + hback * 0.7, hback, r=0.32)
     P["hand_l"] = hand

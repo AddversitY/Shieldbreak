@@ -1,16 +1,18 @@
 source: SKM_Manny.obj (build_soldier.py v3, 2048 px atlas, 1 material)
-SM_SB_Armor_head: 3756 tris, bounds X -13.2..13.2 Y -12.2..18.4 Z 159.5..183.7
-SM_SB_Armor_spine_05: 6974 tris, bounds X -25.3..25.3 Y -28.3..24.4 Z 117.8..160.2
+SM_SB_Armor_head: 4808 tris, bounds X -13.2..13.2 Y -12.4..18.4 Z 159.5..183.7
+SM_SB_Armor_spine_05: 7150 tris, bounds X -25.3..25.3 Y -28.3..24.4 Z 117.8..160.2
 SM_SB_Armor_spine_03: 1128 tris, bounds X -17.3..17.3 Y -11.0..17.0 Z 101.0..121.0
-SM_SB_Armor_pelvis: 2170 tris, bounds X -21.9..21.9 Y -16.8..16.9 Z 82.1..102.6
-SM_SB_Armor_upperarm_l: 1706 tris, bounds X 7.8..39.4 Y -16.5..11.4 Z 116.8..162.4
-SM_SB_Armor_upperarm_r: 1662 tris, bounds X -39.4..-10.7 Y -14.0..8.9 Z 116.8..156.6
+SM_SB_Armor_pelvis: 3330 tris, bounds X -21.9..24.6 Y -16.8..18.4 Z 82.1..104.0
+SM_SB_Armor_upperarm_l: 1958 tris, bounds X 7.8..39.4 Y -17.0..11.9 Z 116.8..162.4
+SM_SB_Armor_upperarm_r: 1914 tris, bounds X -39.4..-10.5 Y -14.5..9.4 Z 116.8..156.6
 SM_SB_Armor_lowerarm_l: 1063 tris, bounds X 29.5..52.2 Y -11.0..19.3 Z 100.6..126.4
 SM_SB_Armor_lowerarm_r: 1063 tris, bounds X -52.2..-29.5 Y -11.0..19.3 Z 100.6..126.4
+SM_SB_Armor_hand_l: 260 tris, bounds X 47.4..56.7 Y 13.9..25.7 Z 98.4..107.1
+SM_SB_Armor_hand_r: 260 tris, bounds X -56.7..-47.4 Y 13.9..25.7 Z 98.4..107.1
 SM_SB_Armor_thigh_l: 1422 tris, bounds X -1.3..27.8 Y -10.0..16.0 Z 52.9..88.0
 SM_SB_Armor_thigh_r: 1422 tris, bounds X -27.8..1.3 Y -10.0..16.0 Z 52.9..88.0
 SM_SB_Armor_calf_l: 2008 tris, bounds X 2.4..24.5 Y -10.5..15.0 Z 8.5..56.0
 SM_SB_Armor_calf_r: 2008 tris, bounds X -24.5..-2.4 Y -10.5..15.0 Z 8.5..56.0
 SM_SB_Armor_foot_l: 1434 tris, bounds X 7.9..23.3 Y -8.3..24.6 Z -1.3..12.6
 SM_SB_Armor_foot_r: 1434 tris, bounds X -23.3..-7.9 Y -8.3..24.6 Z -1.3..12.6
-total: 29250 tris
+total: 32662 tris

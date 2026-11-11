@@ -49,8 +49,8 @@ def soldier_decals():
     import weapon_decals as wd
     return [
         # Big left pauldron, outer face: trooper number over a bar; right pauldron: rank chevrons.
-        (wd.text(8.0, 5.0, "21", "display"), "X+", (-7.5, 0.5, 145.5, 150.5), (24.0, 42.0), WHITE, "ArmorTeam"),
-        (wd.bar(9.0, 0.5), "X+", (-8.0, 1.0, 144.2, 144.7), (24.0, 42.0), WHITE, "ArmorTeam"),
+        (wd.text(10.0, 7.0, "21", "display"), "X+", (-9.0, 1.0, 144.6, 151.6), (24.0, 42.0), WHITE, "ArmorTeam"),
+        (wd.bar(10.0, 0.6), "X+", (-9.0, 1.0, 143.2, 143.8), (24.0, 42.0), WHITE, "ArmorTeam"),
         (wd.chevrons(5.0, 3.2), "X-", (-6.0, -1.0, 144.5, 147.7), (-42.0, -24.0), WHITE, "ArmorTeam"),
         # Chest: emblem on the soldier's right pectoral, service plate on the left.
         (wd.emblem(4.2, 4.2), "Y+", (-18.5, -14.3, 140.0, 144.2), (8.0, 24.0), WHITE, "ArmorTeam"),
