@@ -22,9 +22,9 @@ TEX_OUT = os.path.join(bw.EXPORT, "Textures", "Armor")
 SLOT = "M_Team_Soldier"
 # Surface looks for the suit (kind, base colour, roughness, metallic, tone variation); see bake_weapons.SURFACES.
 bw.SURFACES.update({
-    "ArmorPlate": ("paint", (0.2, 0.205, 0.21), 0.46, 0.2, 0.09),
+    "ArmorPlate": ("paint", (0.135, 0.14, 0.145), 0.47, 0.25, 0.12),
     # Team plates bake as a paler neutral paint; the material multiplies the team colour in through the mask.
-    "ArmorTeam": ("paint", (0.34, 0.34, 0.34), 0.44, 0.1, 0.07),
+    "ArmorTeam": ("paint", (0.3, 0.3, 0.3), 0.45, 0.1, 0.10),
     "ArmorDark": ("paint", (0.075, 0.078, 0.085), 0.48, 0.35, 0.10),
     "Webbing": ("fabric", (0.085, 0.095, 0.05), 0.88, 0.0, 0.10),
     "Canvas": ("fabric", (0.2, 0.165, 0.105), 0.9, 0.0, 0.10),
@@ -35,6 +35,37 @@ bw.SURFACES.update({
     # Team lights bake near white: the material tints them (and the plates) with the team colour through the mask.
     "TeamGlow": ("glow", (0.85, 0.85, 0.85), 0.3, 0.0, 1.0),
 })
+
+
+bw.CHIP_BIAS = 0.16
+bw.GRIME_GAIN = 1.7
+WHITE = (0.62, 0.62, 0.6)
+YELLOW = (0.62, 0.42, 0.04)
+
+
+def soldier_decals():
+    """Original unit markings (image, axis, rect, slab, colour, surface); see bake_weapons.decal_layer. Mesh space,
+    cm: X = the soldier's left, Y = forward. Trooper number 21, a Shieldbreak emblem and service stencils."""
+    import weapon_decals as wd
+    return [
+        # Big left pauldron, outer face: trooper number over a bar; right pauldron: rank chevrons.
+        (wd.text(8.0, 5.0, "21", "display"), "X+", (-7.5, 0.5, 145.5, 150.5), (24.0, 42.0), WHITE, "ArmorTeam"),
+        (wd.bar(9.0, 0.5), "X+", (-8.0, 1.0, 144.2, 144.7), (24.0, 42.0), WHITE, "ArmorTeam"),
+        (wd.chevrons(5.0, 3.2), "X-", (-6.0, -1.0, 144.5, 147.7), (-42.0, -24.0), WHITE, "ArmorTeam"),
+        # Chest: emblem on the soldier's right pectoral, service plate on the left.
+        (wd.emblem(4.2, 4.2), "Y+", (-18.5, -14.3, 140.0, 144.2), (8.0, 24.0), WHITE, "ArmorTeam"),
+        (wd.lines(5.0, 1.6, ["TRP 21 / 3 PLT", "O POS  NKA"]), "Y+", (13.2, 18.2, 141.6, 143.2), (8.0, 24.0), WHITE, "ArmorTeam"),
+        # Power pack: hatch warning, cell label, barcode.
+        (wd.warning(7.0, 1.5, "HIGH ENERGY"), "Y-", (-3.5, 3.5, 143.2, 144.7), (-34.0, -24.0), YELLOW, "ArmorTeam"),
+        (wd.text(8.0, 1.0, "PWR UNIT 4 / VENT BEFORE SERVICE", "bold"), "Y-", (-4.0, 4.0, 126.6, 127.6), (-34.0, -24.0), WHITE, "ArmorPlate"),
+        (wd.barcode(5.0, 1.0), "Y-", (-2.5, 2.5, 128.4, 129.4), (-34.0, -24.0), WHITE, "ArmorPlate"),
+        # Helmet: number on the back of the crown stripe, hazard ticks on the brow.
+        (wd.text(3.6, 2.2, "21", "display"), "Y-", (-1.8, 1.8, 172.5, 174.7), (-16.0, -6.0), WHITE, "ArmorTeam"),
+        # Left leg (mirrored onto the right, so symmetric marks only): bar and ticks on the greave, bar on the cuisse.
+        (wd.bar(6.0, 0.6), "Y+", (9.6, 15.6, 40.6, 41.2), (4.0, 18.0), YELLOW, "ArmorPlate"),
+        (wd.ticks(6.0, 0.8, 9), "Y+", (9.6, 15.6, 39.2, 40.0), (4.0, 18.0), WHITE, "ArmorPlate"),
+        (wd.bar(7.0, 0.7), "Y+", (7.5, 14.5, 80.0, 80.7), (6.0, 20.0), WHITE, "ArmorPlate"),
+    ]
 
 
 def bake_team_mask(low, high, res):
@@ -98,7 +129,12 @@ def run(args, verts, joints):
     bw.unwrap(low)
     normal = bw.bake_normal(low, high, res)
     print("  normal baked (%.0fs)" % (time.time() - t0), flush=True)
-    surf = bw.bake_surfaces_from_high(low, high, [], res, 16 if res >= 2048 else 8)
+    import weapon_decals as wd
+    decals = []
+    for i, (img, axis, rect, slab, colour, surface) in enumerate(soldier_decals()):
+        path = wd.save(img, bw.DECAL_DIR, "Soldier_%02d" % i)
+        decals.append({"image": bpy.data.images.load(path), "axis": axis, "rect": rect, "slab": slab, "color": colour, "surface": surface})
+    surf = bw.bake_surfaces_from_high(low, high, decals, res, 16 if res >= 2048 else 8)
     team = bake_team_mask(low, high, res)
     bpy.data.objects.remove(high, do_unlink=True)
     bw.write_textures("SM_SB_Soldier", normal, surf, TEX_OUT)
@@ -135,5 +171,14 @@ def run(args, verts, joints):
             for name in list(bpy.data.objects.keys()):
                 if name.startswith(("Cam", "Key", "Rim", "Fill", "Plane")):
                     bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
-            sb_render.render_views(pieces, os.path.join(preview, "SB_Soldier_%s.png" % label), bs.VIEWS, resolution=(800, 1200), floor=True)
+            out = os.path.join(preview, "SB_Soldier_%s.png" % label)
+            sb_render.render_views(pieces, out, bs.VIEWS, resolution=(800, 1200), floor=True)
+            if bw.DECAL_MIRROR:
+                # Unreal shows these meshes mirrored against Blender (see DECAL_MIRROR), so flip each view to match.
+                from PIL import Image, ImageOps
+                sheet = Image.open(out)
+                w = sheet.width // len(bs.VIEWS)
+                for v in range(len(bs.VIEWS)):
+                    sheet.paste(ImageOps.mirror(sheet.crop((v * w, 0, (v + 1) * w, sheet.height))), (v * w, 0))
+                sheet.save(out)
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(preview, "Soldier_textured.blend"), compress=True)

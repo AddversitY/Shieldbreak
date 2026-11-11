@@ -522,6 +522,10 @@ def build(verts, j, high=False):
                              res=(5, 2), bev=0.15))
         torso.append(T.panel("strap_b", 0.4, 0.93, 180 + sgn * 32 - 6, 180 + sgn * 32 + 6, "Webbing", pad=3.8, thick=0.7,
                              design=plate_d(2.8), res=(5, 2), bev=0.15))
+    for sgn in (1, -1):
+        bc = T.surface(0.5, sgn * 30, 4.6, plate_d(3.6))
+        torso.append(obox("strap_buckle", bc + T.out(sgn * 30) * 0.5, (4.4, 0.9, 2.2), "ArmorDark", T.out(sgn * 30), bev=0.25))
+        torso.append(obox("strap_buckle_bar", bc + T.out(sgn * 30) * 1.0, (3.0, 0.4, 0.7), "Steel", T.out(sgn * 30), bev=0.1))
     # Wearer's left chest: two red-capped signal canisters in loops. Wearer's right: a radio.
     for i in range(2):
         ang = -34 + i * 11  # negative angles are +X (the wearer's left) on the torso limb
@@ -615,6 +619,16 @@ def build(verts, j, high=False):
         for i, ang in enumerate((142, 166)):
             c = H.surface(0.74, sgn * ang, 1.6, lambda t, a: hd(a))
             pelvis += pouch("belt_pouch", c + H.out(sgn * ang) * 1.6, (5.2, 3.2, 6.4), H.out(sgn * ang))
+    # Front of the belt: admin pouches either side of the buckle, and two grenades on the soldier's left hip.
+    for sgn in (1, -1):
+        c = H.surface(0.78, sgn * 30, 1.6, lambda t, a: hd(a))
+        pelvis += pouch("admin_pouch", c + H.out(sgn * 30) * 1.4, (5.6, 2.6, 5.4), H.out(sgn * 30))
+    for i, ang in enumerate((-52, -70)):
+        c = H.surface(0.6, ang, 3.4, lambda t, a: hd(a) + 2.4) + H.out(ang) * 2.6 + UP * 4.4
+        pelvis.append(cap("frag_%d" % i, c, (2.5, 2.5, 3.0), "Webbing", lambda l: True, thick=0.0, segs=(10, 8), power=(0.9, 0.9, 0.9), bev=0))
+        pelvis.append(ocyl("frag_ring_%d" % i, c, 2.6, 0.5, "ArmorDark", UP, verts=10, bev=0.1))
+        pelvis.append(ocyl("frag_fuze_%d" % i, c + UP * 3.4, 1.0, 1.6, "Steel", UP, verts=8, bev=0.15))
+        pelvis.append(obox("frag_lever_%d" % i, c + UP * 2.2 + H.out(ang) * 1.9, (0.9, 0.4, 3.6), "Steel", H.out(ang), bev=0.1))
     P["pelvis"] = pelvis
 
     # ---- Arms -----------------------------------------------------------------------------------------------------
@@ -642,6 +656,9 @@ def build(verts, j, high=False):
         parts.append(cap("pauldron_lame", low, (rr[0] - 0.8, rr[1] - 0.6, rr[2] - 1.5), "ArmorPlate",
                          lambda l: -0.38 < l.z < 0.3 and l.x > -0.2, (bx, by, bz), thick=1.3, segs=(16, 10), power=(0.72, 0.78, 0.7),
                          bev=0.4, sharp=32))
+        parts.append(cap("pauldron_rim", base, (rr[0] + 0.5, rr[1] + 0.5, rr[2] + 0.3), "ArmorDark",
+                         lambda l: 0.0 < l.z < 0.16 and l.x > -0.9, (bx, by, bz), thick=1.0, segs=(16, 10), power=(0.72, 0.78, 0.7),
+                         bev=0.3, sharp=32))
         if big:
             # A raised blast collar along the neck side and a hard-point rail on top.
             parts.append(obox("blast_lip", base + bz * (rr[2] - 1.0) - bx * (rr[0] * 0.55), (2.0, rr[1] * 1.5, 6.5), "ArmorPlate", by,
@@ -688,6 +705,21 @@ def build(verts, j, high=False):
     fore += bolt("b_vam", F.surface(0.3, 20, 1.6, lambda t, a: vam(t, a) + 0.95), F.out(20), r=0.35)
     fore += bolt("b_vam", F.surface(0.82, 20, 1.6, lambda t, a: vam(t, a) + 0.95), F.out(20), r=0.35)
     P["lowerarm_l"] = fore
+
+    # ---- Hands: a knuckle guard on the back of the glove (rigid on the hand bone; the fingers stay free). ----------
+    hd0, mid1 = j["hand_l"], j["middle_01_l"]
+    hdir = (mid1 - hd0).normalized()
+    across = (j["pinky_01_l"] - j["index_01_l"]).normalized()
+    hback = hdir.cross(across).normalized()
+    if hback.x < 0:
+        hback = -hback
+    hc0 = hd0 + (mid1 - hd0) * 0.55 + hback * 2.3
+    hand = [obox("hand_plate", hc0, (7.4, 1.3, 7.0), "ArmorPlate", hback, -hdir, bev=0.45, segments=2, taper=(0.86, 0.86)),
+            obox("knuckle_bar", mid1 + hback * 2.5 + hdir * 0.4, (8.2, 1.5, 2.2), "ArmorDark", hback, -hdir, bev=0.5, segments=2),
+            obox("wrist_tab", hd0 + hback * 2.4 + hdir * 0.6, (5.6, 1.1, 2.6), "ArmorDark", hback, -hdir, bev=0.35)]
+    for sgn in (-1, 1):
+        hand += bolt("b_hand", hc0 + across * sgn * 2.6 + hback * 0.7, hback, r=0.32)
+    P["hand_l"] = hand
 
     # ---- Legs -----------------------------------------------------------------------------------------------------
     hip, knee, ankle, ball = j["thigh_l"], j["calf_l"], j["foot_l"], j["ball_l"]
@@ -771,8 +803,8 @@ def build(verts, j, high=False):
     return P
 
 
-MIRRORED = {"lowerarm_l": "lowerarm_r", "thigh_l": "thigh_r", "calf_l": "calf_r", "foot_l": "foot_r"}
-ORDER = ["head", "spine_05", "spine_03", "pelvis", "upperarm_l", "upperarm_r", "lowerarm_l", "thigh_l", "calf_l", "foot_l"]
+MIRRORED = {"hand_l": "hand_r", "lowerarm_l": "lowerarm_r", "thigh_l": "thigh_r", "calf_l": "calf_r", "foot_l": "foot_r"}
+ORDER = ["head", "spine_05", "spine_03", "pelvis", "upperarm_l", "upperarm_r", "lowerarm_l", "hand_l", "thigh_l", "calf_l", "foot_l"]
 
 
 def join_all(pieces, prefix):
