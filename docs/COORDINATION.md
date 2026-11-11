@@ -1,4 +1,4 @@
-# Shieldbreak development handoff
+﻿# Shieldbreak development handoff
 
 Claude and Codex share this handoff. **main** is the integration branch. This branch unifies
 main (ChatGPT's menu, 4v4 rules, connection recovery, desktop verification) with PR #2
@@ -63,7 +63,7 @@ Final editor build **PASS**. Full gameplay **171 passed / 0 failed**, including 
 
 Raw four-bot Crucible FPS **172.8 before / 97.0 after** at 1280x720 rendered offscreen. These are **not controlled performance comparisons**: WoW started at 23:07 local after the baseline (22:42) and was consuming CPU during final verification. Preserved `reports/run-load.txt` records 5.33 WoW CPU-seconds alongside 8.30 Unreal CPU-seconds in three wall seconds. Intermediate observations (79.2/82.6 bot FPS) are retained too. An idle-desktop recheck remains unresolved; no claim of performance recovery. No network suites, internet hosting or eight-human test in this cosmetic/test pass. Further animation polish and the prior texture issues remain open.
 
-Codex automation **Shieldbreak — pick up Claude tasks** (`shieldbreak-pick-up-claude-tasks`) checks this queue every **15 minutes** in the existing desktop chat. Vincent no longer needs to relay each task. The PC must be available and the desktop app running for local work; usage/access limits still apply.
+Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pick-up-claude-tasks`) checks this queue every **15 minutes** in the existing desktop chat. Vincent no longer needs to relay each task. The PC must be available and the desktop app running for local work; usage/access limits still apply.
 
 - Claude pushes a numbered, ready task to the shared working branch, with branch name, prerequisite commits, exact desktop steps and expected results. If work moves to another branch, leave its queue/pointer on the current shared branch or main so the monitor can find it. Drafts and tasks with missing prerequisites wait.
 - Codex fetches, picks the oldest ready unfinished task, records its number/source revision and in-progress status, then performs the agreed desktop verification. Existing fully specified open entries are eligible once their prerequisite commits are present. Read the numbered task status below for actual results; enabling the automation does not certify a task as tested.
@@ -517,14 +517,14 @@ Historical first-pass status, before `eba0b73` (superseded by task (2) above): t
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## Launch roadmap (decided by Vincent, 2026-10-21; details in docs/DESIGN.md)
-Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sandbox, strafing that matters.
+Target: 5 maps Ã— 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sandbox, strafing that matters.
 
 | # | Work | Owner |
 |---|---|---|
 | 1 | Mechanics: remove Shield Shaping; walk 660 + snappier acceleration; spawn BR + **Sidearm**; SMG/Plasma out of play; **Rail Lance** (charge weapon); **Aegis Shield** (frontal barrier item); **Active Camo** power-up | Code |
 | 2 | Mode framework + **CTF**, **King of the Hill**, **Oddball** (+ HUD, bots play objectives) | Code |
 | 3 | Map framework (code-built layouts, per-map weapon/power-up/objective placement) + 5 greybox maps: **Keel, Bastion, Sanctum, Creekbed, Spire** | Code |
-| 4 | Self-test coverage for 1–3; screenshots of every map/mode; FPS per map | PC |
+| 4 | Self-test coverage for 1â€“3; screenshots of every map/mode; FPS per map | PC |
 | 5 | Find free, properly licensed art for the art pass: a modular sci-fi/ruins environment kit (Fab), a sidearm/rail weapon/rocket model, shield/barrier, flag and hill VFX. Record licenses in ASSET_CREDITS.md. Import only after Vincent approves the pick. | PC |
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
@@ -549,7 +549,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   animation/movement-presentation/shield-hit pass are complete. See desktop
   verification records below. No files reserved; main is the shared handoff.
 
-## Needs verification (code session → PC)
+## Needs verification (code session â†’ PC)
 - 2026-11-06 Claude (desktop), **task (14), `fb67012`**: build PASS (no compile fixes). Import **19 meshes / three LODs / all slots matched**, `M_SB_Character` 108 expressions, `MI_SB_WeaponMetal` 0.27 metallic 0.15. "Failed to compile" count **0** in the import, self-test and FP logs. Every step ran once. Run started after the grenade session (G4) handed the checkout back.
   Gameplay **147/147**, FP **8/8**, `The camera never sits inside a character...` PASS. Death camera PASS **310.88 cm**, view target and death camera both `CameraActor_1`. Trigger finger PASS **1.44 cm** (0.94 in task 11; the limit is 2). The take-back Warning appears once again, same frame as the kill, so the reset is still happening and the guard still handles it: `[2026.11.06-03.11.20:077][410]LogShieldbreak: Warning: ShieldbreakCharacter_2: death camera took the view back from ShieldbreakPlayerController_0.`
   **Fresh FPS baseline, 1280x720, one run each.** Four bots **114.4**, fixed FP **127.8**. Earlier: task 11 132.9 / 148.4, task 13 fixed FP 120.7 to 129.9 at 0 to 2.5 cd. So fixed FP stays in the lower range task (13) found, and four bots is also down, though four bots has shown a low cluster near 108 before. Cause **not established**.
@@ -1070,7 +1070,7 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
   Lyra-type errors. Content here is Git LFS pointers, so inbound asset references could not
   be read. `docs/ASSET_CREDITS.md` and the packaging notes say anim modifiers and layers
   are still referenced by animations that the game loads. They were not deleted.
-- **Performance:** the Iris Xe laptop history is about 15–35 FPS. The desktop (RTX 2080 Ti)
+- **Performance:** the Iris Xe laptop history is about 15â€“35 FPS. The desktop (RTX 2080 Ti)
   reported about 116 FPS on main's last self-test. That number is not a result for this branch.
 - **Bots:** locomotion is single-node sequence swapping. PR #2 added `UShieldbreakBodyAnimInstance`
   as a step toward a real anim blueprint; blend spaces and aim offsets are still open.
@@ -1081,5 +1081,6 @@ Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sand
 - **Lighting:** the near-black shadowed-wall bug is addressed in config and in the arena fill
   light on this branch. Confirm it visually on the desktop; it was not re-run here.
 
-## Reload polish in progress (Claude, 2026-11-11, branch `claude/project-thread-cj978d`): desktop released, done
-Re-keyed the rifle reload in `Visuals/ShieldbreakViewmodelMoves.cpp` only: continuous gun motion (strip yank, tip toward the returning hand, dip before the push, seat kick with damped rebound, settle overshoot), a post-seat heel push and slide forward to the forend instead of an open splayed hand, relaxed open-finger curls, and the shared reload lift envelope widened from 15% to 20% at each end (affects all reload styles). Build PASS. Focused moves **15/15** (fixed 30 fps, frames dumped). Fixed-view Keel FPS before this change **185.6** (after not yet measured). **Not yet run:** clipping fixture, full suite, FP captures, after-FPS, visual frame review. Not Vincent-approved. Desktop is free: no jobs running, no files reserved.
+## Reload polish (Claude, 2026-11-11, branch `claude/project-thread-cj978d`): DONE, desktop released
+Re-keyed the rifle reload in `Visuals/ShieldbreakViewmodelMoves.cpp` only. The gun moves continuously (strip yank, tips toward the returning hand, dips before the push, seat kick with a damped rebound, settle overshoot). After the seat, the hand heel-pushes the magazine and slides forward to the forend instead of opening splayed. The open-finger curls are relaxed. The shared reload lift envelope is widened from 15% to 20% at each end, so all reload styles ease a little more. Magazine event times, gameplay timing, art and audio are unchanged.
+Build PASS. Focused moves **15/15**. Clipping **3/3**. Full gameplay **177/177**. FP captures **9/9**. FPS, fixed-view Keel back-to-back under the same evening load: old keys **119.6**, new **125.0**, so no regression. The morning **185.6** reading on the old keys shows the drop comes from background load. An earlier clipping run is invalid: another session switched the checkout to a Keel branch while it ran. Evidence: `docs/playtests/2026-11-11_reload_polish/`. Not yet approved by Vincent. No jobs running, no files reserved: **done**, the queued desktop jobs may start.

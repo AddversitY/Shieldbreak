@@ -1,6 +1,6 @@
-﻿# Handoff: rifle reload re-key in progress (2026-11-11)
+﻿# Handoff: rifle reload continuous-motion pass (2026-11-11)
 
-Branch `claude/project-thread-cj978d` from `ace8b62`. Re-keyed rifle reload for continuous gun motion and a cleaner post-seat hand return (see the end of COORDINATION.md). Build PASS, focused moves 15/15, before-FPS 185.6. Clipping, full suite, FP captures, after-FPS and visual review still to run. Not visually approved.
+Branch `claude/project-thread-cj978d` from `ace8b62` (Claude took over from Codex). This pass re-keys only the rifle reload: continuous gun motion with strip and seat reactions, a post-seat heel push and slide to the forend instead of a splayed open hand, relaxed fingers, and a 20% lift ease at each end. Build PASS. Moves **15/15**. Clipping **3/3**. Full gameplay **177/177**. FP **9/9**. Back-to-back FPS: old keys **119.6**, new **125.0** (no regression; evening background load lowered both). [Review media and reports](playtests/2026-11-11_reload_polish/README.md). Awaiting Vincent's visual review. Open items: the hand is off-frame about 0.3 s during the fresh pickup, the return to idle is still quick, and audio timing and other weapon styles remain. No jobs running; the desktop is released.
 
 # Handoff: rifle reload reference pass; visual review pending (2026-11-11)
 
