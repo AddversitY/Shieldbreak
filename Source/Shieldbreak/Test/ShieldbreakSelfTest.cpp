@@ -704,13 +704,17 @@ void AShieldbreakSelfTest::BuildSteps()
 	// reload. Screenshots at the key poses: Saved/Screenshots/Shots/<map>_shot_fp_*.png ----
 	const TSharedRef<FTransform> ReloadGrip = MakeShared<FTransform>();
 	const TSharedRef<float> ReloadGripDrift = MakeShared<float>(0.f);
+	const TSharedRef<bool> FreshGripSampled = MakeShared<bool>(false);
+	const TSharedRef<bool> EmptyDropSampled = MakeShared<bool>(false);
+	const TSharedRef<FQuat> IdleReloadWrist = MakeShared<FQuat>();
+	const TSharedRef<FQuat> IdleReloadFinger = MakeShared<FQuat>();
 	Steps.Add({ TEXT("First-person moves"),
 		[this]()
 		{
 			ClearDummies();
 			A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
 		},
-		[this, ReloadGrip, ReloadGripDrift](float Elapsed)
+		[this, ReloadGrip, ReloadGripDrift, FreshGripSampled, EmptyDropSampled, IdleReloadWrist, IdleReloadFinger](float Elapsed)
 		{
 			APlayerController* PC = GetWorld()->GetFirstPlayerController();
 			AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
@@ -753,6 +757,12 @@ void AShieldbreakSelfTest::BuildSteps()
 			case 3:
 				if (Since < 0.6f) { return false; }
 				Value0 = Animator->GetSupportHandError();
+				if (Weapon)
+				{
+					const USkeletalMeshComponent* Arms = Animator->GetFirstPersonArms();
+					*IdleReloadWrist = Weapon->GetWeaponMesh()->GetComponentQuat().Inverse() * Arms->GetBoneQuaternion(TEXT("hand_l"));
+					*IdleReloadFinger = Arms->GetBoneQuaternion(TEXT("middle_01_l")).Inverse() * Arms->GetBoneQuaternion(TEXT("middle_02_l"));
+				}
 				if (Weapon) { Weapon->StartReload(); }
 				Mark = Now(); Phase = 4; return false;
 			case 4: // t ~ 0.3: magazine out, in the left hand
@@ -769,6 +779,8 @@ void AShieldbreakSelfTest::BuildSteps()
 						const FVector Palm = (Arms->GetBoneLocation(TEXT("hand_l")) + Arms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
 						*ReloadGrip = Magazine->GetComponentTransform().GetRelativeTransform(FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm));
 						*ReloadGripDrift = 0.f;
+						*FreshGripSampled = false;
+						*EmptyDropSampled = false;
 						const float Out = static_cast<float>(Magazine->GetRelativeLocation().Size());
 						Check(TEXT("...the magazine comes out of the gun with the left hand"), Moves.IsMagazineOut() && Out > 4.f,
 							FString::Printf(TEXT("%.1f cm from its socket"), Out));
@@ -782,17 +794,36 @@ void AShieldbreakSelfTest::BuildSteps()
 				TakeShot(TEXT("fp_reload_mag_out"), true);
 				Phase = 5; return false;
 			case 5: // t ~ 0.665: magazine seated
-				if (Since < 1.15f)
+				if (Moves.IsMagazineFalling() && !*EmptyDropSampled)
+				{
+					Check(TEXT("The extracted magazine releases before a fresh one is brought up"), true, TEXT("observed falling after the strip"));
+					*EmptyDropSampled = true;
+				}
+				// Measure the NEW grasp, after the release/reach into the pouch and
+				// before the seating blend. The old magazine intentionally leaves view.
+				if (Since >= 0.94f && Since < 1.2f && *EmptyDropSampled && Moves.IsMagazineInHand())
 				{
 					const UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
 					const USkeletalMeshComponent* Arms = Animator->GetFirstPersonArms();
 					if (Magazine && Arms)
 					{
 						const FVector Palm = (Arms->GetBoneLocation(TEXT("hand_l")) + Arms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
+						if (!*FreshGripSampled)
+						{
+							Check(TEXT("A fresh magazine is carried after the old one releases"), Moves.IsMagazineInHand() && Magazine->IsVisible(), TEXT("fresh grasp"));
+							*ReloadGrip = Magazine->GetComponentTransform().GetRelativeTransform(FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm));
+							*FreshGripSampled = true;
+						}
 						const FTransform Expected = *ReloadGrip * FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm);
 						*ReloadGripDrift = FMath::Max(*ReloadGripDrift, static_cast<float>(FVector::Distance(Expected.GetLocation(), Magazine->GetComponentLocation())));
-						if (Since >= 0.9f && Value1 == 0.f)
+						if (Since >= 1.08f && Value1 == 0.f)
 						{
+							const FQuat Wrist = Weapon->GetWeaponMesh()->GetComponentQuat().Inverse() * Arms->GetBoneQuaternion(TEXT("hand_l"));
+							const FQuat Finger = Arms->GetBoneQuaternion(TEXT("middle_01_l")).Inverse() * Arms->GetBoneQuaternion(TEXT("middle_02_l"));
+							const float WristTurn = FMath::RadiansToDegrees(IdleReloadWrist->AngularDistance(Wrist));
+							const float FingerBend = FMath::RadiansToDegrees(IdleReloadFinger->AngularDistance(Finger));
+							Check(TEXT("The reload wrist turns into a side grasp"), WristTurn > 35.f, FString::Printf(TEXT("%.1f degrees relative to idle in gun space"), WristTurn));
+							Check(TEXT("The fresh magazine is held with a curled middle finger"), FingerBend > 20.f, FString::Printf(TEXT("%.1f degrees at the evaluated middle joint"), FingerBend));
 							FVector2D HandScreen = FVector2D::ZeroVector, MagScreen = FVector2D::ZeroVector;
 							int32 Width = 0, Height = 0;
 							PC->GetViewportSize(Width, Height);
@@ -807,6 +838,8 @@ void AShieldbreakSelfTest::BuildSteps()
 					}
 				}
 				if (Since < 1.33f) { return false; }
+				if (!*EmptyDropSampled) { Check(TEXT("The extracted magazine releases before a fresh one is brought up"), false, TEXT("release pose not sampled")); }
+				if (!*FreshGripSampled) { Check(TEXT("A fresh magazine is carried after the old one releases"), false, TEXT("fresh grasp not sampled")); }
 				if (Value1 == 0.f) { Check(TEXT("The reload keeps the carried magazine and palm in frame"), false, TEXT("carry pose was not sampled")); }
 				Check(TEXT("The carried magazine stays fixed in the evaluated palm"), *ReloadGripDrift < 0.5f,
 					FString::Printf(TEXT("maximum grip drift %.3f cm"), *ReloadGripDrift));

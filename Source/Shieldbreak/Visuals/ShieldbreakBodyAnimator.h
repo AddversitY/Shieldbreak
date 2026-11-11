@@ -255,6 +255,9 @@ private:
 	FVector SupportPalmWorld = FVector::ZeroVector;
 	/** Contact-solved grip curls (ShieldbreakGrip order, degrees): first-person arms and third-person body. */
 	float FPLeftGrip[15] = {};
+	float FPReloadGrip[15] = {};
+	float LastReloadGripTarget[15] = {};
+	bool bFPReloadGripInit = false;
 	float FPRightGrip[15] = {};
 	float TPLeftGrip[15] = {};
 	float TPRightGrip[15] = {};

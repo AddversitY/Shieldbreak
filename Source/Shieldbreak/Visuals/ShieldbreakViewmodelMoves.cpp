@@ -34,6 +34,7 @@ namespace ShieldbreakViewmodelPrivate
 
 	enum class EMagEvent : uint8 { Grab, Drop, Fresh, Seat };
 	struct FMagKey { float T; EMagEvent Event; };
+	struct FHandShapeKey { float T; float Weight; FVector Wrist; float Close; };
 
 	struct FMoveData
 	{
@@ -62,7 +63,7 @@ namespace ShieldbreakViewmodelPrivate
 
 	// Gun space: +Y down the barrel, +Z up, -X the gun's left side (where the left hand works).
 	const FStyleData Styles[] = {
-		/* Rifle */    { FVector(13.f, -5.f, 10.f), FVector(2.f, 2.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(-3.2f, 2.0f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
+		/* Rifle */    { FVector(11.f, -5.f, 9.f), FVector(2.f, 2.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(6.f, 1.5f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
 		/* Marksman */ { FVector(3.f, 1.5f, 5.5f), FVector(4.f, 3.f, 0.f), FVector(0.f, 14.5f, -3.6f), FVector(-3.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
 		/* Pistol */   { FVector(5.f, -1.f, 9.f), FVector(4.f, 4.f, -6.f), FVector(0.f, -2.2f, -2.4f), FVector(-3.0f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
 		/* Launcher */ { FVector(0.f, -2.f, 4.f), FVector(0.f, 0.f, 0.f), FVector(0.f, -22.f, 6.5f), FVector(-8.f, 0.f, -2.f), FVector(-2.f, 20.f, -7.f) },
@@ -70,23 +71,21 @@ namespace ShieldbreakViewmodelPrivate
 
 	// ---- Reloads ----
 
-	// Battle rifle, 2.0 s. Cant the gun right so the magazine well turns toward the left hand, strip the magazine
-	// (the gun dips with the pull and springs back), take it down out of view, bring it back up and seat it with a
-	// shove, palm the base, then roll the gun back to show its left side and rack the charging handle.
+	// Battle rifle, 2.0 s. Reach, close, strip and release; bring a fresh magazine
+	// from below, align, seat with a short impulse, release and regain the forend.
 	const FGunKey RifleReloadGun[] = {
 		{ 0.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
-		{ 0.10f, FVector(-1.5f, -2.0f, 1.0f), FVector(2.f, -4.f, 14.f) },
-		{ 0.20f, FVector(-2.0f, -2.5f, 1.6f), FVector(3.f, -5.f, 20.f) },
-		{ 0.25f, FVector(-2.0f, -2.4f, 0.6f), FVector(2.f, -5.f, 20.f) },
-		{ 0.31f, FVector(-1.8f, -2.4f, 2.3f), FVector(4.f, -5.f, 21.f) },
-		{ 0.46f, FVector(-2.2f, -2.6f, 1.7f), FVector(3.f, -4.f, 20.f) },
-		{ 0.60f, FVector(-2.2f, -2.8f, 1.4f), FVector(3.f, -5.f, 20.f) },
-		{ 0.665f, FVector(-2.0f, -2.8f, 2.8f), FVector(5.f, -5.f, 21.f) },
-		{ 0.71f, FVector(-2.0f, -2.8f, 1.7f), FVector(3.f, -5.f, 20.f) },
-		{ 0.75f, FVector(-2.0f, -2.8f, 2.4f), FVector(4.f, -5.f, 20.f) },
-		{ 0.81f, FVector(-2.2f, -1.6f, 1.2f), FVector(2.f, 1.f, 10.f) },
-		{ 0.87f, FVector(-3.6f, -1.6f, 0.9f), FVector(3.f, 1.f, 12.f) },
-		{ 0.93f, FVector(-0.8f, -0.4f, 0.5f), FVector(1.5f, 0.f, 5.f) },
+		{ 0.10f, FVector(-0.8f, -1.5f, 0.8f), FVector(1.f, -3.f, 12.f) },
+		{ 0.205f, FVector(-1.4f, -2.f, 1.2f), FVector(2.f, -4.f, 17.f) },
+		{ 0.28f, FVector(-1.4f, -2.f, 0.3f), FVector(0.f, -4.f, 18.f) },
+		{ 0.36f, FVector(-1.2f, -2.f, 1.2f), FVector(2.f, -4.f, 17.f) },
+		{ 0.50f, FVector(-1.2f, -2.f, 1.1f), FVector(2.f, -4.f, 17.f) },
+		{ 0.63f, FVector(-1.2f, -2.f, 1.2f), FVector(2.f, -4.f, 17.f) },
+		{ 0.665f, FVector(-1.2f, -2.f, 2.2f), FVector(4.5f, -4.f, 18.f) },
+		{ 0.69f, FVector(-1.2f, -2.f, 1.1f), FVector(2.f, -4.f, 17.f) },
+		{ 0.74f, FVector(-1.2f, -2.f, 1.2f), FVector(2.f, -4.f, 17.f) },
+		{ 0.82f, FVector(-0.8f, -1.f, 0.9f), FVector(1.f, -2.f, 10.f) },
+		{ 0.94f, FVector(-0.2f, -0.2f, 0.2f), FVector(0.f, 0.f, 2.f) },
 		{ 1.00f, FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f) },
 	};
 	const FHandKey RifleReloadHand[] = {
@@ -94,23 +93,37 @@ namespace ShieldbreakViewmodelPrivate
 		{ 0.08f, EAnchor::Support, FVector(-0.5f, -3.f, -2.f) },
 		{ 0.18f, EAnchor::Magazine, FVector(0.f, 0.f, -0.8f) },
 		{ 0.21f, EAnchor::Magazine, FVector(0.f, 0.f, 0.f) },
-		{ 0.27f, EAnchor::Magazine, FVector(0.f, 0.5f, -6.f) },
-		// Clear the well before moving left; keep the magazine beside the stock
-		// rather than hidden behind it or below the camera.
-		{ 0.33f, EAnchor::Magazine, FVector(0.f, 0.5f, -17.f) },
-		{ 0.42f, EAnchor::Magazine, FVector(10.f, -1.f, -15.f) },
-		{ 0.48f, EAnchor::Magazine, FVector(10.f, -1.f, -15.f) },
-		{ 0.58f, EAnchor::Magazine, FVector(2.f, 0.5f, -9.f) },
+		{ 0.28f, EAnchor::Magazine, FVector(1.f, 0.f, -16.f) },
+		{ 0.32f, EAnchor::Magazine, FVector(5.f, -1.f, -18.f) },
+		{ 0.38f, EAnchor::Camera, FVector(30.f, -9.f, -30.f) },
+		{ 0.43f, EAnchor::Camera, FVector(30.f, -9.f, -30.f) },
+		{ 0.53f, EAnchor::Magazine, FVector(4.f, 0.f, -13.f) },
+		{ 0.61f, EAnchor::Magazine, FVector(0.f, 0.f, -5.f) },
 		{ 0.665f, EAnchor::Magazine, FVector(0.f, 0.f, 0.f) },
-		{ 0.70f, EAnchor::Magazine, FVector(-0.5f, 0.f, -5.f) },
-		{ 0.73f, EAnchor::Magazine, FVector(0.f, 0.f, -9.5f) },
-		{ 0.755f, EAnchor::Magazine, FVector(0.f, 0.f, -7.5f) },
-		{ 0.81f, EAnchor::Gun, FVector(-5.5f, 4.f, 3.5f) },
-		{ 0.87f, EAnchor::Gun, FVector(-5.5f, -3.f, 3.5f) },
+		{ 0.69f, EAnchor::Magazine, FVector(0.f, 0.f, 0.f) },
+		{ 0.74f, EAnchor::Magazine, FVector(7.f, 0.f, -3.f) },
+		{ 0.82f, EAnchor::Support, FVector(4.f, -5.f, -4.f) },
 		{ 0.94f, EAnchor::Support, FVector(-0.5f, -1.f, -1.f) },
 		{ 1.00f, EAnchor::Support, FVector(0.f, 0.f, 0.f) },
 	};
-	const FMagKey RifleReloadMag[] = { { 0.21f, EMagEvent::Grab }, { 0.665f, EMagEvent::Seat } };
+	const FMagKey RifleReloadMag[] = { { 0.21f, EMagEvent::Grab }, { 0.32f, EMagEvent::Drop },
+		{ 0.43f, EMagEvent::Fresh }, { 0.665f, EMagEvent::Seat } };
+
+	// Weight blends from the idle wrist into a side grasp, with the thumb above
+	// the magazine. Closed fingers persist through the pull and seat, opening at release.
+	const FHandShapeKey RifleHandShape[] = {
+		{ 0.f, 0.f, FVector::ZeroVector, 0.f }, { 0.10f, 0.f, FVector::ZeroVector, 0.f },
+		{ 0.17f, 1.f, FVector::ZeroVector, 0.15f }, { 0.205f, 1.f, FVector::ZeroVector, 1.f },
+		{ 0.28f, 1.f, FVector(-3.f, 2.f, -7.f), 1.f },
+		{ 0.32f, 1.f, FVector(-5.f, 3.f, -12.f), 1.f },
+		{ 0.36f, 1.f, FVector(-5.f, 3.f, -12.f), 0.f },
+		{ 0.40f, 1.f, FVector(0.f, 0.f, 8.f), 0.f },
+		{ 0.43f, 1.f, FVector(0.f, 0.f, 8.f), 1.f },
+		{ 0.53f, 1.f, FVector(-3.f, 0.f, 5.f), 1.f },
+		{ 0.61f, 1.f, FVector::ZeroVector, 1.f }, { 0.685f, 1.f, FVector::ZeroVector, 1.f },
+		{ 0.73f, 1.f, FVector::ZeroVector, 0.f }, { 0.82f, 0.65f, FVector::ZeroVector, 0.1f },
+		{ 0.94f, 0.f, FVector::ZeroVector, 0.f }, { 1.f, 0.f, FVector::ZeroVector, 0.f }
+	};
 
 	// Sniper, 2.6 s: a heavier gun, so a smaller cant and slower settles, and no charging handle (the hand returns
 	// to the forend after palming the magazine).
@@ -311,6 +324,10 @@ namespace ShieldbreakViewmodelPrivate
 		Out.Offset = FMath::Lerp(A.Offset, B.Offset, Alpha);
 		Out.Rotation = FMath::Lerp(A.Rotation, B.Rotation, Alpha);
 		Out.HandWeight = FMath::Lerp(A.HandWeight, B.HandWeight, Alpha);
+		Out.HandPoseWeight = FMath::Lerp(A.HandPoseWeight, B.HandPoseWeight, Alpha);
+		Out.HandOrientation = FQuat::Slerp(A.HandPoseWeight > 0.f ? A.HandOrientation : B.HandOrientation,
+			B.HandPoseWeight > 0.f ? B.HandOrientation : A.HandOrientation, Alpha).GetNormalized();
+		for (int32 I = 0; I < 15; ++I) { Out.HandCurls[I] = FMath::Lerp(A.HandCurls[I], B.HandCurls[I], Alpha); }
 		// A hand that wasn't overridden on one side starts or ends wherever the other side has it.
 		const FVector HandA = A.HandWeight > 0.f ? A.HandWorld : B.HandWorld;
 		const FVector HandB = B.HandWeight > 0.f ? B.HandWorld : A.HandWorld;
@@ -374,6 +391,7 @@ void FShieldbreakViewmodelMoves::Start(EShieldbreakViewmodelMove InMove, EShield
 	MagazineState = EMagazineState::Seated;
 	bHasHandToMagazine = false;
 	bCaptureGripAfterPose = false;
+	NextMagazineEvent = 0;
 	FromPose = LastPose;
 	BlendStart = Now;
 	// A draw starts below the screen on purpose: it must not ease in from the old gun's pose.
@@ -392,6 +410,7 @@ void FShieldbreakViewmodelMoves::Stop(double Now, UStaticMeshComponent* Magazine
 	MagazineState = EMagazineState::Seated;
 	bHasHandToMagazine = false;
 	bCaptureGripAfterPose = false;
+	NextMagazineEvent = 0;
 	if (Move != EShieldbreakViewmodelMove::None || !LastPose.IsIdentity())
 	{
 		FromPose = LastPose;
@@ -456,10 +475,12 @@ void FShieldbreakViewmodelMoves::Update(double Now, const FShieldbreakViewmodelC
 		}
 		Target.bWantsLeftArm = Data.bShowsLeftArm;
 
-		// Magazine events (in order; a frame may pass several).
-		for (const FMagKey& Key : Data.Magazine)
+		// Consume events once. A carry -> drop -> fresh sequence must not replay
+		// the old drop on every subsequent frame after a new magazine is grasped.
+		while (NextMagazineEvent < Data.Magazine.Num() && T >= Data.Magazine[NextMagazineEvent].T)
 		{
-			if (T < Key.T || !Context.Magazine || !Context.Gun)
+			const FMagKey& Key = Data.Magazine[NextMagazineEvent++];
+			if (!Context.Magazine || !Context.Gun)
 			{
 				continue;
 			}
@@ -475,7 +496,7 @@ void FShieldbreakViewmodelMoves::Update(double Now, const FShieldbreakViewmodelC
 				}
 				break;
 			case EMagEvent::Drop:
-				if (MagazineState == EMagazineState::Seated)
+				if (MagazineState == EMagazineState::Seated || MagazineState == EMagazineState::InHand)
 				{
 					FallStart = Context.Magazine->GetComponentTransform().GetRelativeTransform(Context.Camera);
 					FallTime = Now;
@@ -485,6 +506,8 @@ void FShieldbreakViewmodelMoves::Update(double Now, const FShieldbreakViewmodelC
 			case EMagEvent::Fresh:
 				if (MagazineState == EMagazineState::Falling || MagazineState == EMagazineState::Hidden)
 				{
+					// A fresh magazine starts at the authored grasp, not an offset
+					// captured while the hand was still reaching for the old one.
 					HandToMagazine = PredictHandToMagazine(Style, Context);
 					bHasHandToMagazine = true;
 					MagazineState = EMagazineState::InHand;
@@ -538,7 +561,7 @@ void FShieldbreakViewmodelMoves::Update(double Now, const FShieldbreakViewmodelC
 }
 
 void FShieldbreakViewmodelMoves::RefreshHandTarget(double Now, const FShieldbreakViewmodelContext& Context,
-	FShieldbreakViewmodelPose& OutPose) const
+	FShieldbreakViewmodelPose& OutPose)
 {
 	using namespace ShieldbreakViewmodelPrivate;
 	if (Move == EShieldbreakViewmodelMove::None) { return; }
@@ -550,6 +573,21 @@ void FShieldbreakViewmodelMoves::RefreshHandTarget(double Now, const FShieldbrea
 	const float Blend = BlendTime > 0.f ? FMath::SmoothStep(0.f, 1.f,
 		FMath::Clamp(static_cast<float>((Now - BlendStart) / BlendTime), 0.f, 1.f)) : 1.f;
 	OutPose.HandWorld = FromPose.HandWeight > 0.f ? FMath::Lerp(FromPose.HandWorld, Target, Blend) : Target;
+	if (Move == EShieldbreakViewmodelMove::Reload && Style == EShieldbreakViewmodelStyle::Rifle && Context.Gun)
+	{
+		const int32 Count = UE_ARRAY_COUNT(RifleHandShape);
+		auto Time = [](int32 I) { return RifleHandShape[I].T; };
+		const float Weight = FMath::Clamp(Hermite<float>(Count, T, Time, [](int32 I) { return RifleHandShape[I].Weight; }), 0.f, 1.f);
+		const float Close = FMath::Clamp(Hermite<float>(Count, T, Time, [](int32 I) { return RifleHandShape[I].Close; }), 0.f, 1.f);
+		const FVector Wrist = Hermite<FVector>(Count, T, Time, [](int32 I) { return RifleHandShape[I].Wrist; });
+		const FQuat SideGrip = FRotationMatrix::MakeFromXZ(FVector::YAxisVector, -FVector::XAxisVector).ToQuat();
+		OutPose.HandOrientation = (Context.Gun->GetComponentQuat() * SideGrip * FRotator(Wrist.X, Wrist.Y, Wrist.Z).Quaternion()).GetNormalized();
+		OutPose.HandPoseWeight = Weight * Blend;
+		static constexpr float Open[15] = { 0.f, 8.f, 5.f, 4.f, 10.f, 6.f, 6.f, 12.f, 8.f, 10.f, 15.f, 10.f, 0.f, 6.f, 6.f };
+		static constexpr float Closed[15] = { 28.f, 65.f, 38.f, 40.f, 78.f, 48.f, 45.f, 82.f, 50.f, 50.f, 85.f, 50.f, 8.f, 20.f, 12.f };
+		for (int32 I = 0; I < 15; ++I) { OutPose.HandCurls[I] = FMath::Lerp(Open[I], Closed[I], Close); }
+	}
+	LastPose = OutPose; // cancellation/replacement starts from the refreshed wrist and hand target too
 }
 
 void FShieldbreakViewmodelMoves::UpdateMagazineAfterPose(double Now, const FShieldbreakViewmodelContext& Context)

@@ -1218,13 +1218,45 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 			const float MoveWeight = FMath::Clamp(MovePose.HandWeight, 0.f, 1.f);
 			Palm = FMath::Lerp(Palm, MovePose.HandWorld, MoveWeight);
 			Curl = FMath::Lerp(Curl, FMath::Min(Curl, 0.5f), MoveWeight);
+			if (MovePose.HandPoseWeight > 0.f)
+			{
+				const FQuat IdleFrame = FRotationMatrix::MakeFromXZ(Fingers, PalmNormal).ToQuat();
+				const FQuat Frame = FQuat::Slerp(IdleFrame, MovePose.HandOrientation, MoveWeight * MovePose.HandPoseWeight).GetNormalized();
+				Fingers = Frame.GetAxisX();
+				PalmNormal = Frame.GetAxisZ();
+			}
 		}
 		const FTransform& ToArms = FirstPersonArms->GetComponentTransform();
 		Instance->SetSupportHand(SupportHandWeight, ToArms.InverseTransformPosition(Palm),
 			ToArms.InverseTransformVectorNoScale(Fingers), ToArms.InverseTransformVectorNoScale(PalmNormal), Curl);
 		// Fingers settle on the gun's real surface (see CVarGripContact), unless a move has taken the hand away.
 		const AShieldbreakCharacter* OwnerCharacter = Cast<AShieldbreakCharacter>(GetOwner());
-		if (Gun && CVarGripContact.GetValueOnGameThread() != 0 && MovePose.HandWeight <= 0.5f && OwnerCharacter)
+		if (bMoveHand && MovePose.HandPoseWeight > 0.f)
+		{
+			// Preserve surface corrections while authored finger shapes close/release.
+			for (int32 I = 0; I < 15; ++I)
+			{
+				const float Target = FMath::Lerp(ShieldbreakGrip::LeftNominal[I] * Curl,
+					MovePose.HandCurls[I], MovePose.HandPoseWeight);
+				FPReloadGrip[I] = bFPReloadGripInit ? FPReloadGrip[I] + Target - LastReloadGripTarget[I] : Target;
+				FPReloadGrip[I] = FMath::Clamp(FPReloadGrip[I], -15.f, Target);
+				LastReloadGripTarget[I] = Target;
+			}
+			bFPReloadGripInit = true;
+			if (UStaticMeshComponent* Magazine = GetHeldMagazine(); Magazine && Magazine->IsVisible() && !Moves.IsMagazineFalling())
+			{
+				TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
+				if (const AShieldbreakWeapon* HeldWeapon = OwnerCharacter ? OwnerCharacter->GetCurrentWeapon() : nullptr)
+				{
+					Parts.Add(HeldWeapon->GetWeaponMesh());
+				}
+				Parts.Add(Magazine);
+				SolveGripContact(FirstPersonArms, Parts, true, FPReloadGrip, -15.f, LastReloadGripTarget, DeltaSeconds);
+			}
+			Instance->SetLeftFingerCurls(FPReloadGrip);
+			bFPLeftGripInit = false;
+		}
+		else if (Gun && CVarGripContact.GetValueOnGameThread() != 0 && MovePose.HandWeight <= 0.5f && OwnerCharacter)
 		{
 			if (!bFPLeftGripInit)
 			{
@@ -1241,6 +1273,7 @@ void UShieldbreakBodyAnimator::UpdateSupportHand(UShieldbreakBodyAnimInstance* I
 			Instance->SetLeftFingerCurls(nullptr);
 			bFPLeftGripInit = false;
 		}
+		if (!bMoveHand || MovePose.HandPoseWeight <= 0.f) { bFPReloadGripInit = false; }
 	}
 	else
 	{

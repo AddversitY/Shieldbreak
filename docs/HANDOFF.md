@@ -1,4 +1,16 @@
-# Handoff: reload corrected; Codex paused (2026-11-11)
+# Handoff: rifle reload reference pass; visual review pending (2026-11-11)
+
+Branch `handoff-2026-11-10`, starting at `ee4c366`. Vincent rejected that clip and asked to mimic the realism of [this reference](https://www.youtube.com/watch?v=XI90HrSe3pc). New authored keys add a side-grip wrist, per-joint finger closure/release, old-magazine release and fresh pickup, a seating impulse and forend recovery. The former cross-receiver sweep is gone. Receiver and magazine contact fitting protects the thumb. Magazine events consume once; cancellation blending preserves the refreshed hand frame. Gameplay duration/ammunition and imported art are unchanged.
+
+**Technical validation complete; visual acceptance pending.** Build PASS. Final fixed-30-fps moves **15/15**, wrist turn **65.4 degrees**, middle bend **50.4 degrees**, new-grasp drift **0.000 cm**. Full gameplay **176/177**: the reload and final five-weapon / BR reload / TP BR clipping check pass. The sole failure is the documented camera-step fixture: eye **5.35 cm**, curb **29.99 cm**, trail **8.80 cm**, below its existing `>10 cm` trail requirement. No camera/threshold changes. Cross-weapon FP captures **9/9**. An earlier receiver-aware candidate separately passed clipping **3/3**; the final full suite repeated that check after the final fresh-grasp correction.
+
+Configured matching Keel fixed-view fixture, 1280x720 rendered offscreen, no bots: **108.8 FPS before / 174.3 after**. Background desktop load was uncontrolled; do not attribute the increase to this animation work. Final bot fixture **165.8 FPS**, broader FP capture **177.3** (after only). Earlier failed thumb/hitch observations are retained in the review reports.
+
+[Review videos, comparison and reports](playtests/2026-11-11_reload_realism/README.md). Final clip: actual game frames, 1280x720, 30 fps, 3.33 s, silent. Audio bank/timing was not revised; finer finger contact, other-weapon animation and audio timing remain open. Passing state/bone tests is not Vincent's visual approval. No network/internet/eight-human validation claimed.
+
+No files reserved or engine/build jobs running. Await Vincent's feedback; no automatic pickup or automation setting changes. Local Android settings and `fx1run/` preserved.
+
+# Previous reload handoff (2026-11-11)
 
 Branch `handoff-2026-11-10`, starting at `5548bb6`. Vincent reviewed the reload video and authorized this follow-up. **Completed; no files reserved or build/game jobs running. Wait for his next instruction.** Local Android settings and `fx1run/` are preserved; automation settings were not changed.
 

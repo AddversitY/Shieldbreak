@@ -46,6 +46,11 @@ struct FShieldbreakViewmodelPose
 	/** 0-1: how much the left hand follows HandWorld instead of the gun's SupportHand socket. */
 	float HandWeight = 0.f;
 	FVector HandWorld = FVector::ZeroVector;
+	/** Authored reload wrist frame (X fingers, Z palm normal), in world space. */
+	FQuat HandOrientation = FQuat::Identity;
+	float HandPoseWeight = 0.f;
+	/** Per-joint finger shape, index/middle/ring/pinky/thumb, three joints each. */
+	float HandCurls[15] = {};
 	/** The left arm should be drawn (the sidearm hides it outside its reload). */
 	bool bWantsLeftArm = false;
 
@@ -84,7 +89,7 @@ public:
 	/** Steps the move and writes this frame's pose; also moves the magazine. */
 	void Update(double Now, const FShieldbreakViewmodelContext& Context, FShieldbreakViewmodelPose& OutPose);
 	/** Re-evaluate world anchors after the current gun pose has been applied. */
-	void RefreshHandTarget(double Now, const FShieldbreakViewmodelContext& Context, FShieldbreakViewmodelPose& OutPose) const;
+	void RefreshHandTarget(double Now, const FShieldbreakViewmodelContext& Context, FShieldbreakViewmodelPose& OutPose);
 	/** Carry from the evaluated palm, after this frame's arm IK and attached gun have updated. */
 	void UpdateMagazineAfterPose(double Now, const FShieldbreakViewmodelContext& Context);
 
@@ -94,6 +99,8 @@ public:
 	float GetProgress(double Now) const;
 	/** True while the magazine is out of the gun (in the hand, falling, or out of view). */
 	bool IsMagazineOut() const { return MagazineState != EMagazineState::Seated; }
+	bool IsMagazineInHand() const { return MagazineState == EMagazineState::InHand; }
+	bool IsMagazineFalling() const { return MagazineState == EMagazineState::Falling; }
 
 	/** Self-test: the current move's gun pose at normalized time T, without stepping anything. */
 	FShieldbreakViewmodelPose SampleGunPose(EShieldbreakViewmodelMove InMove, EShieldbreakViewmodelStyle InStyle, float T) const;
@@ -124,4 +131,5 @@ private:
 	FTransform HandToMagazine = FTransform::Identity;
 	bool bHasHandToMagazine = false;
 	bool bCaptureGripAfterPose = false;
+	int32 NextMagazineEvent = 0;
 };
