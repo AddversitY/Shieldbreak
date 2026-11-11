@@ -475,7 +475,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarTossStart(TEXT("sb.TPThrowStart"), 0.1f, TEXT("Third-person toss: seconds of Lyra's clip skipped at the start."));
 	TAutoConsoleVariable<float> CVarTossRelease(TEXT("sb.TPThrowRelease"), 0.45f, TEXT("Third-person toss: seconds into Lyra's clip where the hand lets go (the play rate puts it at sb.GrenadeReleaseDelay)."));
 	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 14.f, TEXT("First-person gun hand: cm right of the eye."));
-	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 13.5f, TEXT("First-person gun hand: cm below the eye."));
+	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 9.5f, TEXT("First-person gun hand: cm below the eye (9.5: the sidearm's grip and the glove on it stay in frame; 13.5 left the glove below it)."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
 
