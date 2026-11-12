@@ -4080,8 +4080,8 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				// (S10-S12 added 90 to the yaw left by the rot turns, which ended up showing the back.)
 				const float Facing = (S->GetActorLocation() - ChaseCamera->GetActorLocation()).Rotation().Yaw + 90.f;
 				S->SetActorRotation(FRotator(0.f, Facing + 35.f, 0.f));
-				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 45.f);
-				const FVector Eye = ChaseCamera->GetActorLocation() + (Chest - ChaseCamera->GetActorLocation()).GetSafeNormal() * 170.f;
+				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 25.f);
+				const FVector Eye = Chest + (ChaseCamera->GetActorLocation() - Chest).GetSafeNormal2D() * 230.f + FVector(0.f, 0.f, 20.f); // 2.3 m out (S13 framed only the helmet)
 				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
 			},
 			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
@@ -4092,7 +4092,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				AShieldbreakCharacter* S = B.Get();
 				if (!S || !ChaseCamera) { return; }
 				const FVector Head = S->GetActorLocation() + FVector(0.f, 0.f, 80.f);
-				const FVector Eye = ChaseCamera->GetActorLocation() + (Head - ChaseCamera->GetActorLocation()).GetSafeNormal() * 90.f;
+				const FVector Eye = Head + (ChaseCamera->GetActorLocation() - Head).GetSafeNormal2D() * 110.f;
 				ChaseCamera->SetActorLocationAndRotation(Eye, (Head - Eye).Rotation());
 			},
 			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_helmet"), false); return true; }, 4.f });

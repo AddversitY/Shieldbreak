@@ -630,7 +630,7 @@ TEAM_MAX_SAT = 0.24
 TEAM_CLOSE = 2           # face rings of closing
 VISOR_Z = (160.0, 186.0)  # cm: the head's height range, mapped to 0..1 for the visor shading
 TEAM_BELT = (88.0, 110.0)  # cm: light regions centred in this band stay as painted
-TEAM_SMOOTH = 60         # area-weighted diffusion steps over the surface before the 0.5 cut: rounds off the jagged,
+TEAM_SMOOTH = 120        # area-weighted diffusion steps over the surface before the 0.5 cut: rounds off the jagged,
                          # blotchy plate borders the 2.1 paint gives (S10: ragged red on the chest and forearms)
 
 
@@ -645,16 +645,13 @@ def base_image(mat):
     return node.image if node is not None and node.type == "TEX_IMAGE" else None
 
 
-def face_team(high):
-    """Team mask by plate, not by texel. Faces get their painted colour from the source texture, faces of similar
-    colour grow into regions over the welded surface, and each large, light, neutral region becomes team colour as a
-    whole. A per-texel colour test left speckles of team colour on dark cloth and holes in the plates."""
-    me = high.data
+def face_colours(me):
+    """Per-face painted colour (HSV, sRGB) sampled from each material's base texture; None without UVs."""
     nf = len(me.polygons)
     col = np.full((nf, 3), 0.3)
     uv_layer = me.uv_layers.active
     if uv_layer is None:
-        return
+        return None
     uv = np.empty(len(me.loops) * 2)
     uv_layer.data.foreach_get("uv", uv)
     uv = uv.reshape(-1, 2)
@@ -687,6 +684,158 @@ def face_team(high):
         col[faces] = acc / 4
     # (pixels of byte sRGB images come back in sRGB, which is what the HSV test wants)
     hsv = np.stack(rgb_to_hsv(np.clip(col, 0, 1)), -1)
+    return hsv
+
+
+
+VISOR_UV = {"glass": [], "bezel": []}   # UV polygons of the LOW's visor faces, rasterised into the masks
+VISOR_INSET = 0.35   # cm: width of the bezel lip round the glass
+VISOR_DEPTH = 0.7    # cm: how far the glass sits back into the helmet
+_VISOR_CENTRES = {"glass": [], "bezel": []}
+
+
+def recess_visor(high_head, low_head):
+    """Gives the visor real geometry (S13: a painted visor on the AI's egg-shaped shell had a ragged outline, no
+    recess and no bezel). The visor faces found on the textured HIGH (face_visor) are carried to the LOW head, the
+    region is cleaned up (largest piece, holes filled, outline straightened), then inset: a narrow bezel lip, and the
+    glass pushed back into the helmet. The faces are remembered so the textures can be cut on the same lines."""
+    me = high_head.data
+    hsv = face_colours(me)
+    if hsv is None:
+        return
+    area = np.empty(len(me.polygons))
+    me.polygons.foreach_get("area", area)
+    flags = face_visor(me, hsv, face_neighbours(me), area)
+    if not flags.any():
+        return
+    # Nearest HIGH faces by centre (a BVH's indices did not line up with the polygons here: S14 debug).
+    kd = KDTree(len(me.polygons))
+    for p in me.polygons:
+        kd.insert(p.center, p.index)
+    kd.balance()
+    bm = bmesh.new()
+    bm.from_mesh(low_head.data)
+    # Weld the UV-seam splits (UVs live on the loops, so the seams stay in the atlas): the inset must not see the
+    # seams inside the visor as edges of the region.
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.02)
+    bm.faces.ensure_lookup_table()
+    sel = set()
+    for f in bm.faces:
+        near = kd.find_n(f.calc_center_median(), 5)
+        if sum(flags[i] for _, i, _ in near) >= 3:
+            sel.add(f)
+    # The LOW is split at its UV seams, so face adjacency goes by welded vertex positions (as face_neighbours).
+    key = lambda v: tuple(np.round(np.array(v.co) * 50).astype(int))
+    by_edge = {}
+    for f in bm.faces:
+        for e in f.edges:
+            by_edge.setdefault(frozenset(key(v) for v in e.verts), []).append(f)
+    nbr = {f: set() for f in bm.faces}
+    for fs in by_edge.values():
+        for f in fs:
+            nbr[f].update(g for g in fs if g is not f)
+    for _ in range(2):
+        nxt = set()
+        for f in bm.faces:
+            nb = nbr[f]
+            if nb and (sum(g in sel for g in nb) + (f in sel)) * 2 > len(nb) + 1:
+                nxt.add(f)
+        sel = nxt
+
+    def comps(faces):
+        faces, out = set(faces), []
+        while faces:
+            stack, comp = [faces.pop()], set()
+            while stack:
+                f = stack.pop()
+                comp.add(f)
+                for g in nbr[f]:
+                    if g in faces:
+                        faces.discard(g)
+                        stack.append(g)
+            out.append(comp)
+        return out
+    if not sel:
+        bm.free()
+        return
+    sel = max(comps(sel), key=lambda c: sum(f.calc_area() for f in c))
+    head_area = sum(f.calc_area() for f in bm.faces)
+    for c in comps(set(bm.faces) - sel):
+        if sum(f.calc_area() for f in c) < 0.05 * head_area:
+            sel |= c
+    # Straighten the outline: boundary vertices slide toward the middle of their two boundary neighbours.
+    for _ in range(4):
+        boundary = [e for e in bm.edges if sum(g in sel for g in e.link_faces) == 1]
+        nb = {}
+        for e in boundary:
+            a, b = e.verts
+            nb.setdefault(a, []).append(b)
+            nb.setdefault(b, []).append(a)
+        new = {v: (v.co + sum((w.co for w in ws), Vector()) / len(ws)) / 2 for v, ws in nb.items() if len(ws) == 2}
+        for v, co in new.items():
+            v.co = co
+    glass = list(sel)
+    if os.environ.get("SB_VISOR_DEBUG"):
+        import json
+        dbg = {"low": [[*f.calc_center_median(), f in sel] for f in bm.faces],
+               "high": [[*p.center, bool(flags[p.index])] for p in me.polygons]}
+        with open(os.environ["SB_VISOR_DEBUG"], "w") as fh:
+            json.dump(dbg, fh)
+        sys.exit("visor debug written")
+    res = bmesh.ops.inset_region(bm, faces=glass, thickness=VISOR_INSET, depth=-VISOR_DEPTH, use_even_offset=True)
+    bezel = res["faces"]
+    for key, fs in (("glass", glass), ("bezel", bezel)):
+        _VISOR_CENTRES[key] = [tuple(f.calc_center_median()) for f in fs]
+    bm.to_mesh(low_head.data)
+    bm.free()
+    low_head.data.update()
+    log("visor: %d glass faces recessed %.1f cm, %d bezel faces" % (len(glass), VISOR_DEPTH, len(bezel)))
+
+
+def collect_visor_uv(low):
+    """After the join: the LOW faces recess_visor made, by their centres, as UV polygons."""
+    from mathutils.kdtree import KDTree
+    me = low.data
+    n = len(me.polygons)
+    kd = KDTree(n)
+    for p in me.polygons:
+        kd.insert(p.center, p.index)
+    kd.balance()
+    uv = me.uv_layers.active.data
+    for key, centres in _VISOR_CENTRES.items():
+        polys = []
+        for c in centres:
+            _, idx, dist = kd.find(c)
+            if dist is not None and dist < 0.05:
+                p = me.polygons[idx]
+                polys.append([tuple(uv[li].uv) for li in p.loop_indices])
+        VISOR_UV[key] = polys
+    log("visor UV: %d glass, %d bezel polygons" % (len(VISOR_UV["glass"]), len(VISOR_UV["bezel"])))
+
+
+def raster_uv(polys, res, grow=2):
+    """A res x res mask (rows from the bottom, like Blender's pixels) of UV polygons, grown into the gutters."""
+    from PIL import Image, ImageDraw, ImageFilter
+    img = Image.new("L", (res, res), 0)
+    draw = ImageDraw.Draw(img)
+    for poly in polys:
+        draw.polygon([(u * res, v * res) for u, v in poly], fill=255)
+    if grow:
+        img = img.filter(ImageFilter.MaxFilter(2 * grow + 1))
+    return np.asarray(img, dtype=np.float32) / 255.0
+
+
+def face_team(high):
+    """Team mask by plate, not by texel. Faces get their painted colour from the source texture, faces of similar
+    colour grow into regions over the welded surface, and each large, light, neutral region becomes team colour as a
+    whole. A per-texel colour test left speckles of team colour on dark cloth and holes in the plates."""
+    me = high.data
+    nf = len(me.polygons)
+    hsv = face_colours(me)
+    if hsv is None:
+        return
+    lt = np.empty(nf, dtype=np.int64)
+    me.polygons.foreach_get("loop_total", lt)
     area = np.empty(nf)
     me.polygons.foreach_get("area", area)
     nbrs = face_neighbours(me)
@@ -934,6 +1083,7 @@ def masks(bc_lin, team_mode, baked_team=None):
 
 TEAM_BLUR = 4.0           # px at 2048; scaled with the atlas size
 VISOR_AMBER = np.array([1.0, 0.42, 0.06])   # linear; the concept's amber visor
+BEZEL_COLOUR = np.array([0.035, 0.036, 0.04])  # linear; the visor's metal lip
 GLASS_TINT = np.array([0.05, 0.025, 0.006])  # linear; the visor's dark amber glass where it does not glow
 
 
@@ -1040,11 +1190,22 @@ def write_textures(surf, res):
     n[:, :, 1] = 1.0 - n[:, :, 1]
     n = bw.fix_normal_misses(n)
     n = add_albedo_detail(n, surf["basecolor"][:, :, :3])
+    if VISOR_UV["glass"]:
+        # Smooth glass and a clean bezel: the HIGH has no such walls, so their baked normals are noise.
+        flat = np.maximum(raster_uv(VISOR_UV["glass"], res), raster_uv(VISOR_UV["bezel"], res))[..., None]
+        n = n * (1 - flat) + np.array([0.5, 0.5, 1.0]) * flat
     bw.save_png(n, os.path.join(TEX_OUT, "T_SB_Soldier_N.png"), "RGB")
     bc = exposure_fix(surf["basecolor"][:, :, :3])
     team, glow = masks(bc, TEAM_MODE, surf["team"][:, :, 0] if "team" in surf else None)
     visor = np.zeros_like(glow)
-    if "team" in surf:
+    bezel = np.zeros_like(glow)
+    if VISOR_UV["glass"]:
+        # Cut on the LOW's own visor faces (recess_visor): crisp lines that match the geometry.
+        visor = raster_uv(VISOR_UV["glass"], res)
+        bezel = raster_uv(VISOR_UV["bezel"], res) * (1 - visor)
+        glow = np.maximum(glow * (1 - bezel), visor)
+        team = team * (1 - visor) * (1 - bezel)
+    elif "team" in surf:
         visor = smooth(blur(surf["team"][:, :, 2], 1.0), 0.3, 0.6)
         glow = np.maximum(glow, visor)
         team = team * (1 - visor)
@@ -1070,6 +1231,7 @@ def write_textures(surf, res):
         amber = amber * (1 - glass[..., None]) + GLASS_TINT * glass[..., None]
         emit = glow * (1 - glass)
     bc_out = bc_out * (1 - glow[..., None]) + amber * glow[..., None]
+    bc_out = bc_out * (1 - bezel[..., None]) + BEZEL_COLOUR * bezel[..., None]
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), emit[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
     rough, metal = surf["rough"][:, :, 0], surf["metal"][:, :, 0]
     # Base colour only (no roughness/metal textures): derive painted plate / cloth values from it. The test used to be
@@ -1079,8 +1241,11 @@ def write_textures(surf, res):
         rough, metal = derived_rough_metal(bc, team, glow)
     # Soft, low-frequency AO only: a game AO map darkens creases, it should never carry texel noise.
     if "team" in surf:
-        rough = rough * (1 - visor) + 0.05 * visor
-        metal = metal * (1 - glass) + 0.6 * glass
+        # Glass is a dielectric (S13: dark metal showed no reflections); the bezel is worn dark metal.
+        rough = rough * (1 - visor) + 0.03 * visor
+        metal = metal * (1 - visor)
+        rough = rough * (1 - bezel) + 0.35 * bezel
+        metal = metal * (1 - bezel) + 0.8 * bezel
     ao = 1.0 - AO_STRENGTH * (1.0 - np.clip(blur(surf["ao"][:, :, 0], 2.0), 0, 1))
     orm = np.stack([ao, np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")
@@ -1267,6 +1432,8 @@ def main():
         bpy.context.scene.collection.objects.link(low)
         decimate(low, int(budget * shares[piece] / total))
         lows[piece] = low
+    if "head" in lows and TEAM_MODE != "none" and "--no-visor-recess" not in args:
+        recess_visor(pieces["head"], lows["head"])
     high, _ = join_ordered(pieces, "HIGH")
     low, ranges = join_ordered(lows, "LOW")
     dense = None
@@ -1287,6 +1454,8 @@ def main():
         # seam on every few centimetres, which read in game as black-and-grey speckle all over the suit (S6 close-up).
         log("keeping the source UV atlas (%s)" % low.data.uv_layers.active.name)
         repack_graft(low)
+    if _VISOR_CENTRES["glass"]:
+        collect_visor_uv(low)
     if TEAM_MODE != "none":
         face_team(high)
     surf = bake_all(low, high, res, dense=dense)
