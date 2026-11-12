@@ -2,7 +2,7 @@
 
     python import_meshy.py <model.glb|.fbx|.obj> [--bones Art/Reference/manny_bones.json] [--skin Art/Reference/SKM_Manny.obj]
                            [--tris 45000] [--res 4096] [--yaw auto|0|180] [--keep-hands] [--team auto|none]
-                           [--detail dense_untextured_copy.glb]
+                           [--detail dense_untextured_copy.glb] [--graft donor_with_pack.glb [--graft-detail donor_shape.glb]]
                            [--preview DIR] [--no-export]
 
 The game wears the suit as rigid per-bone pieces (UShieldbreakBodyAnimator::AttachArmor: SM_SB_Armor_<bone>, modeled in
@@ -191,6 +191,59 @@ def normalise(obj, yaw, also=()):
         set_coords(other, w)
     log("normalised: scale x%.3f, %.1f cm tall" % (scale, v[:, 2].max()))
     return obj
+
+
+
+GRAFT_MATS = set()         # material names that came with a grafted part (their UV islands overlap the host's atlas)
+GRAFT_CUT_Y = -21.0       # the donor's back pack: everything behind this plane ...
+GRAFT_Z = (94.0, 156.0)   # ... between the hips and the neck
+GRAFT_RIM = 5.0           # the cut rim is pulled this far into the body so no gap shows at the seam
+
+
+def graft_pack(host, donor_path, yaw, host_detail=None, donor_detail_path=None):
+    """Hunyuan3D-2.1 (v4) models a crisper body but leaves out the concept's back power pack, which the v3 generation
+    has. Cut the pack off the donor (same normalisation), slide it onto the host's back and join it in, keeping its
+    own material (the bake reads every source material). The same cut from the donor's dense shape goes into the
+    host's detail mesh, so the normal and AO bakes cover the pack too."""
+    def cut(obj):
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        drop = []
+        for f in bm.faces:
+            c = f.calc_center_median()
+            if not (c.y < GRAFT_CUT_Y and GRAFT_Z[0] < c.z < GRAFT_Z[1]):
+                drop.append(f)
+        bmesh.ops.delete(bm, geom=drop, context="FACES")
+        bm.to_mesh(obj.data)
+        bm.free()
+        obj.data.update()
+
+    def back_y(obj):
+        v = coords(obj)
+        s = v[(v[:, 2] > 100) & (v[:, 2] < 150) & (np.abs(v[:, 0]) < 15)]
+        return np.percentile(s[:, 1], 1)
+
+    donor = import_model(donor_path)
+    GRAFT_MATS.update(m.name for m in donor.data.materials if m)
+    ddet = import_model(donor_detail_path) if (host_detail is not None and donor_detail_path) else None
+    normalise(donor, yaw, [ddet] if ddet else [])
+    host_back = back_y(host)
+    for obj in [donor] + ([ddet] if ddet else []):
+        cut(obj)
+    # The host's back sits a little behind the cut plane: slide the pack forward so its rim meets the host's surface.
+    shift = max(0.0, (host_back + 2.0) - GRAFT_CUT_Y)
+    for obj in [donor] + ([ddet] if ddet else []):
+        v = coords(obj)
+        v[:, 1] += shift
+        # Pull the open rim (the vertices on the cut plane) forward into the body.
+        rim = v[:, 1] > GRAFT_CUT_Y + shift - 1.5
+        v[rim, 1] += GRAFT_RIM
+        set_coords(obj, v)
+    log("graft: pack %d tris from %s, host back y %.1f, shifted %+.1f cm" % (
+        k.triangle_count(donor), os.path.basename(donor_path), host_back, shift))
+    out = k.join("HIGH", [host, donor])
+    out_detail = k.join("DETAIL", [host_detail, ddet]) if ddet else host_detail
+    return out, out_detail
 
 
 def label_like(detail, high, labels, bones):
@@ -933,6 +986,89 @@ def write_textures(surf, res):
     bw.save_png(np.stack([team, glow, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
 
 
+
+def repack_graft(obj, margin=0.004):
+    """The host's and the donor's generator atlases both fill 0..1, so after a graft their islands overlap in the
+    target texture. Shrink the host's atlas into the lower-left corner and shelf-pack the donor's islands, at the same
+    texel density where they fit, into the free L-shaped strip beside and above it."""
+    me = obj.data
+    graft = {i for i, m in enumerate(me.materials) if m and m.name in GRAFT_MATS}
+    if not graft:
+        return
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    uv = bm.loops.layers.uv.active
+    faces = [f for f in bm.faces if f.material_index in graft]
+    host = [f for f in bm.faces if f.material_index not in graft]
+    # Islands: graft faces joined across edges whose two ends carry the same UVs on both sides.
+    parent = {f.index: f.index for f in faces}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    key = lambda l: (round(l[uv].uv.x, 5), round(l[uv].uv.y, 5))
+    for f in faces:
+        for l in f.loops:
+            o = l.link_loop_radial_next
+            if o is l or o.face.material_index not in graft:
+                continue
+            if key(l) == key(o.link_loop_next) and key(l.link_loop_next) == key(o):
+                parent[find(f.index)] = find(o.face.index)
+    islands = {}
+    for f in faces:
+        islands.setdefault(find(f.index), []).append(f)
+    boxes = []
+    for fs in islands.values():
+        pts = np.array([[l[uv].uv.x, l[uv].uv.y] for f in fs for l in f.loops])
+        lo, hi = pts.min(0), pts.max(0)
+        boxes.append((fs, lo, hi - lo))
+    boxes.sort(key=lambda b: -b[2][1])
+    host_scale = 0.78
+    gap = margin * 2
+
+    def place(scale):
+        """Shelf packing: first the column right of the host block, then the row above it. None if it overflows."""
+        regions = [(host_scale + gap, 0.0, 1.0, 1.0), (0.0, host_scale + gap, host_scale + gap, 1.0)]
+        spots, r = [], 0
+        x0, y0, x1, y1 = regions[0]
+        x, y, shelf = x0, y0, 0.0
+        for fs, lo, size in boxes:
+            w, h = size * scale
+            while True:
+                if x + w > x1 + 1e-9:
+                    x, y, shelf = x0, y + shelf + gap, 0.0
+                if w <= x1 - x0 and y + h <= y1 + 1e-9:
+                    break
+                r += 1
+                if r >= len(regions):
+                    return None
+                x0, y0, x1, y1 = regions[r]
+                x, y, shelf = x0, y0, 0.0
+            spots.append((x, y))
+            x += w + gap
+            shelf = max(shelf, h)
+        return spots
+    scale = host_scale
+    spots = place(scale)
+    while spots is None:
+        scale *= 0.92
+        spots = place(scale)
+    for f in host:
+        for l in f.loops:
+            l[uv].uv = l[uv].uv * host_scale
+    for (fs, lo, _), (x, y) in zip(boxes, spots):
+        for f in fs:
+            for l in f.loops:
+                u = (np.array(l[uv].uv) - lo) * scale + (x, y)
+                l[uv].uv = (float(u[0]), float(u[1]))
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    log("graft atlas: host x%.2f, %d grafted islands packed at x%.2f" % (host_scale, len(boxes), scale))
+
+
 def unwrap_organic(obj):
     """Generated meshes are organic: a wider angle limit gives fewer, larger islands than the weapons' unwrap, and a
     wider margin keeps the islands from bleeding into each other in the lower mips (S4: dark and white flecks along
@@ -994,6 +1130,8 @@ def main():
     high = import_model(model)
     detail = import_model(opt("--detail", None)) if "--detail" in args else None
     normalise(high, opt("--yaw", "auto"), [detail] if detail else [])
+    if "--graft" in args:
+        high, detail = graft_pack(high, opt("--graft", None), opt("--yaw", "auto"), detail, opt("--graft-detail", None))
     # Very dense scans/generations: thin to ~600k triangles first so the fit and bakes stay quick.
     decimate(high, 600000)
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -1047,6 +1185,7 @@ def main():
         # triangles with smart_project cut it into thousands of two-triangle islands: texels wasted on gutters and a
         # seam on every few centimetres, which read in game as black-and-grey speckle all over the suit (S6 close-up).
         log("keeping the source UV atlas (%s)" % low.data.uv_layers.active.name)
+        repack_graft(low)
     if TEAM_MODE != "none":
         face_team(high)
     surf = bake_all(low, high, res, dense=dense)

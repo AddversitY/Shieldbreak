@@ -1,3 +1,5 @@
+**S10 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit moves to v4: the Hunyuan3D-2.1 body (crisper helmet with respirator, chest plate, knee pads), with v3's back power pack grafted on (cut off v3, slid onto v4's back, own UV islands packed beside v4's atlas). Same 14 pieces + `SM_SB_SoldierSuit`, same texture names, 4096. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the rigid-pack vertex count is still ~1–3k), self-test, FPS (four-bot + fixed FP Keel, compare with S8 110.1 / 111.3), `-SBSoldierShots` (tag s10), including the ragdoll. Report anything that looks worse than S9: seams where the pack meets the back, team plates, visor, gloves.
+
 **S9 done (2026-11-12, Claude, desktop; source `d373073`).**
 - Import PASS, 0 "Failed to compile".
 - MakeSoldierSuit `RESULT OK`, rigid pack 1852 vertices.
