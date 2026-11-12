@@ -289,6 +289,14 @@ Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pic
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (31), READY on `claude/project-thread-ndksis` (no code change, console variables only, no rebuild needed after (30)), from "Polish movement, characters and guns". Vincent (2026-11-12): the first-person gun "needs to be to the right of the screen more, and angled correctly. It's slanted towards the left." The rifle framing (forward 32, right 15, down 19, pitch +14, yaw -16) makes the BR run from the bottom centre up and to the left. Try four framings and pick by eye.
+  Steps (desktop free first; log holding/done as before): `VisualShots FP` (BR idle, sniper idle, sidearm idle) on Keel, once each with these `-ExecCmds` (tag each run):
+  - `v31a`: `sb.FPRifleGripRight 22, sb.FPRifleGripDown 20, sb.FPRifleAimPitch 4, sb.FPRifleAimYaw -3, sb.FPGripRight 19`
+  - `v31b`: `sb.FPRifleGripForward 36, sb.FPRifleGripRight 25, sb.FPRifleGripDown 22, sb.FPRifleAimPitch 2, sb.FPRifleAimYaw 0, sb.FPGripRight 21`
+  - `v31c`: `sb.FPRifleGripRight 20, sb.FPRifleGripDown 18, sb.FPRifleAimPitch 7, sb.FPRifleAimYaw -6, sb.FPGripRight 18`
+  - `v31d`: `sb.FPRifleGripForward 38, sb.FPRifleGripRight 28, sb.FPRifleGripDown 24, sb.FPRifleAimPitch 0, sb.FPRifleAimYaw 2, sb.FPGripRight 22`
+  One contact sheet per gun in docs/playtests/2026-11-12_fp_framing/ (defaults, a, b, c, d side by side, labelled). For each variant say in plain words where the gun sits on screen, which way the barrel points, whether the left hand on the forend shows, and whether anything looks broken (gun cut off, arm stretched, hand off the grip). Name the variant that looks most like a standard shooter (gun in the lower-right third, barrel running forward toward the centre, not tilted). Commit only that folder and this file.
+
 Task (30) done, desktop released (Claude, desktop PC, 2026-11-12 14:40-14:49 local, source `c45e5e0`, branch `claude/project-thread-ndksis`). **THIRD-PERSON RIFLES NOW POINT FORWARD; HAND ON THE GRIP; FIRST PERSON UNCHANGED.**
   Build PASS (`-MaxParallelActions=2`, four modules recompiled, relinked), no import, 0 "Failed to compile". Gameplay **177/178**. Soldier shots 9/9 before and after; FP shots 9/9.
   PASS `Every gun's pistol grip sits in the trigger hand's palm (first and third person)  -- all within 2 cm`. FAIL `Hands never pass through guns (first person, reload, third person)  -- Weapon_Sidearm: 3 (palm>index_01_r ring_03_r pinky_02_r); third-person BR: 1 (thumb_01_r)` (29: TP BR 4).
