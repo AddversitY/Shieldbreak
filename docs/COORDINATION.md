@@ -1,3 +1,28 @@
+**S7 done (2026-11-12, Claude, desktop; source `c6eb13e`).**
+
+Import and suit:
+- Import PASS: 27 meshes, `SM_SB_SoldierSuit` **43,287 tris** (3 LODs), four `T_SB_Soldier_*` at **4096**, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, and the pack rule ran: "rigid pack: 1852 vertices on spine_05 (bone 6)".
+
+Tests and FPS:
+- Self-test **177/177**.
+- FPS: four-bot Crucible **108.4** (S6 skinned 107.1), fixed FP Keel **109.1** (S6 105.0).
+
+4K memory, estimated from formats (`TexMem-S7.txt`, not measured in game):
+- BC is TC_Default sRGB (with alpha, so likely DXT5 at about 21 MB; DXT1 if the alpha is dropped, about 11 MB).
+- N is BC5, about 21 MB.
+- ORM and M are TC_Masks, about 11 to 21 MB each.
+- Total: about **64 to 85 MB with full mips** for one soldier set, against about 16 to 21 MB at 2K.
+
+The textures are in LOD group Weapon, so they stream.
+
+Shots `keel_s7_*`:
+- **The pack at the hip is fixed:** no smear, it rides with the torso.
+- Tears are still gone, and red vs blue reads strongly.
+- **The speckle is NOT gone; it's sharper at 4K.** Root cause: the exported `T_SB_Soldier_BC` and `T_SB_Soldier_M` are clean, smooth paint. **`T_SB_Soldier_ORM` is the problem:** its roughness and metal channels carry a high-contrast blotch pattern, flipping between metal and dielectric. On a dark albedo, the metal blotches reflect the dark scene as black flecks. See `S7_N_vs_ORM_crop.png` (normal map on the left is clean, ORM on the right is blotchy). Fix the derived roughness/metal in `import_meshy.py`: use a uniform low metal per material zone and only low-frequency roughness.
+
+Checkout is free.
+
 **S7 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit is now the v3 generation (octree 512) at **4K** textures, 43.3k tris. The close-up speckle in S3-S6 was the UV layout: re-unwrapping the decimated mesh made thousands of two-triangle islands; the importer now keeps the generator's own atlas. `make_soldier_suit.py` also weights the power pack rigidly to spine_05 (S6 smear at the hip). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the "rigid pack" line; fix the call if it was skipped), self-test, FPS four-bot Crucible + fixed FP Keel, `-SBSoldierShots` (tag s7). Check texture memory too if easy (`stat streaming` or the 4K textures' resource size) since these are 4K.
 
 **S6 done (2026-11-12, Claude, desktop; source `5b6c906`).** Build PASS. Import PASS: 27 meshes including `SM_SB_SoldierSuit` (41,025 tris, 3 LODs), 0 "Failed to compile".

@@ -1,0 +1,4 @@
+T_SB_Soldier_BC 4096x4096 compression <TextureCompressionSettings.TC_DEFAULT: 0> srgb True lodgroup <TextureGroup.TEXTUREGROUP_WEAPON: 6>
+T_SB_Soldier_N 4096x4096 compression <TextureCompressionSettings.TC_NORMALMAP: 1> srgb False lodgroup <TextureGroup.TEXTUREGROUP_WEAPON: 6>
+T_SB_Soldier_ORM 4096x4096 compression <TextureCompressionSettings.TC_MASKS: 2> srgb False lodgroup <TextureGroup.TEXTUREGROUP_WEAPON: 6>
+T_SB_Soldier_M 4096x4096 compression <TextureCompressionSettings.TC_MASKS: 2> srgb False lodgroup <TextureGroup.TEXTUREGROUP_WEAPON: 6>
