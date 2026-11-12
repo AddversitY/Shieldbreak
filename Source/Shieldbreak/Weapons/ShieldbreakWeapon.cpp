@@ -228,11 +228,31 @@ float AShieldbreakWeapon::GetFirstPersonLift() const
 
 FVector AShieldbreakWeapon::GetHandGripOffset() const
 {
+	if (bHasFittedHandOffset)
+	{
+		return FittedHandOffset + GetHandGripExtras();
+	}
 	// Leave older fallback art at its authored socket. Our socket-bearing guns
 	// need the palm beside the grip rather than the receiver on the knuckles.
 	const bool bFitted = WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("Trigger"));
 	return FVector((bFitted ? 6.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunRight.GetValueOnGameThread(),
 		(bFitted ? 2.f : 0.f) + ShieldbreakWeaponPrivate::CVarHandGunForward.GetValueOnGameThread(), GetFirstPersonLift());
+}
+
+FVector AShieldbreakWeapon::GetHandGripExtras() const
+{
+	return FVector(ShieldbreakWeaponPrivate::CVarHandGunRight.GetValueOnGameThread(),
+		ShieldbreakWeaponPrivate::CVarHandGunForward.GetValueOnGameThread(), ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread());
+}
+
+void AShieldbreakWeapon::SetFittedHandOffset(const FVector& Offset)
+{
+	FittedHandOffset = Offset;
+	bHasFittedHandOffset = true;
+	if (EquippedLayout == EEquippedLayout::Hand || EquippedLayout == EEquippedLayout::FirstPersonHand)
+	{
+		SetActorRelativeLocation(GetHandGripOffset());
+	}
 }
 
 bool AShieldbreakWeapon::NeedsReattach() const
@@ -251,7 +271,12 @@ void AShieldbreakWeapon::OnEquipped()
 		}
 	}
 	AShieldbreakCharacter* OwnerCharacter = GetOwningCharacter();
+	const EEquippedLayout PreviousLayout = EquippedLayout;
 	EquippedLayout = GetDesiredLayout();
+	if (EquippedLayout != PreviousLayout)
+	{
+		bHasFittedHandOffset = false; // a different hand (arms or body): the animator fits it again
+	}
 	if (EquippedLayout == EEquippedLayout::None)
 	{
 		return;

@@ -132,8 +132,16 @@ public:
 	/** Vertical component of the shared hand fit, so the fingers close on the grip under the
 	 *  receiver and the index finger reaches the trigger (from the art's Trigger socket; plus sb.FPGunLift). */
 	float GetFirstPersonLift() const;
-	/** Socket-space fitting offset shared by the first- and third-person hands. */
+	/** Socket-space offset of the gun in the hand (weapon_r): the measured trigger-hand fit once the animator has
+	 *  made it (SetFittedHandOffset), else the older fixed clearance. */
 	FVector GetHandGripOffset() const;
+	/** The animator's measured fit (UShieldbreakBodyAnimator::FitTriggerHand): socket-space offset that puts the
+	 *  gun's pistol grip in the palm. Applied at once while the gun is in a hand. */
+	void SetFittedHandOffset(const FVector& Offset);
+	bool HasFittedHandOffset() const { return bHasFittedHandOffset; }
+	const FVector& GetFittedHandOffset() const { return FittedHandOffset; }
+	/** The console's extra hand-fit offset (sb.HandGunRight / sb.HandGunForward / sb.FPGunLift), added on top of a fit. */
+	FVector GetHandGripExtras() const;
 	/** The gun's mesh (sockets Muzzle, Trigger, SupportHand, Magazine). */
 	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	UStaticMeshComponent* GetMagazineMesh() const { return MagazineMesh; }
@@ -235,6 +243,8 @@ private:
 	EEquippedLayout GetDesiredLayout() const;
 	/** What OnEquipped last attached as. */
 	EEquippedLayout EquippedLayout = EEquippedLayout::None;
+	FVector FittedHandOffset = FVector::ZeroVector;
+	bool bHasFittedHandOffset = false;
 
 	// Imported art layout, derived from the mesh in ApplyArt().
 	bool bHasArt = false;

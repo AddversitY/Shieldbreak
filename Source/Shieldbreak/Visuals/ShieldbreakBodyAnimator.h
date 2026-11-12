@@ -84,6 +84,14 @@ public:
 	/** Hand-through-gun check: how many finger and palm segments of the visible hands cross the held gun's surface
 	 *  (first-person arms or the third-person body). -1 when no gun is held or its surface can't be tested. */
 	int32 MeasureHandClipping(bool bFirstPerson, FString* OutDetail = nullptr, bool bIncludeMagazine = true) const;
+	/** Trigger-hand hold check: cm between the held gun's pistol-grip centre and where the right palm holds it (palm
+	 *  centre + palm normal x (grip half width + palm gap)). -1 when it can't be measured; 100 when the grip is on the
+	 *  back of the hand. */
+	float MeasureTriggerHandHold(bool bFirstPerson, FString* OutDetail = nullptr) const;
+	/** Socket-based trigger-hand fit: measures the gun's pistol grip (traced below its Trigger socket) and the
+	 *  hand's palm (hand_r and the knuckles), and moves the gun in weapon_r so the grip sits in the palm with the
+	 *  knuckles clear of the receiver. Measured once per hand mesh and gun mesh, then cached. */
+	void FitTriggerHand(USkeletalMeshComponent* Mesh);
 	/** First person: the hand-keyed reload / draw / melee (ShieldbreakViewmodelMoves) and this frame's pose. */
 	const FShieldbreakViewmodelMoves& GetViewmodelMoves() const { return Moves; }
 	const FShieldbreakViewmodelPose& GetViewmodelPose() const { return MovePose; }

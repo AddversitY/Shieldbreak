@@ -924,16 +924,18 @@ void AShieldbreakSelfTest::BuildSteps()
 	// gun's real surface, for each weapon in first person, during a reload, and on a third-person body up close. ----
 	{
 		TSharedRef<FString> Bad = MakeShared<FString>();
+		TSharedRef<FString> Hold = MakeShared<FString>(); // grips not in the trigger hand's palm
 		TSharedRef<int32> Index = MakeShared<int32>(0);
 		Steps.Add({ TEXT("Hands never pass through guns"),
-			[this, Bad, Index]()
+			[this, Bad, Hold, Index]()
 			{
 				ClearDummies();
 				Bad->Reset();
+				Hold->Reset();
 				*Index = 0;
 				A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
 			},
-			[this, Bad, Index](float Elapsed)
+			[this, Bad, Hold, Index](float Elapsed)
 			{
 				APlayerController* PC = GetWorld()->GetFirstPlayerController();
 				AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
@@ -967,6 +969,15 @@ void AShieldbreakSelfTest::BuildSteps()
 							Count < 0 ? *Detail : *FString::Printf(TEXT("%d (%s)"), Count, *Detail));
 					}
 				};
+				// The gun's pistol grip must sit in the trigger hand's palm (2 cm: the grip centre from where the palm holds it).
+				auto RecordHold = [this, Hold](const FString& What, float Error, const FString& Detail)
+				{
+					Lines.Add(FString::Printf(TEXT("INFO  trigger hand %s: %.2f cm (%s)"), *What, Error, *Detail));
+					if (Error < 0.f || Error > 2.f)
+					{
+						*Hold += FString::Printf(TEXT("%s%s: %s"), Hold->IsEmpty() ? TEXT("") : TEXT("; "), *What, *Detail);
+					}
+				};
 				const float Since = Now() - Mark;
 				if (Phase == 0) // equip the next weapon
 				{
@@ -982,6 +993,11 @@ void AShieldbreakSelfTest::BuildSteps()
 					Lines.Add(FString::Printf(TEXT("INFO  grip %s: %d (%s); support error %.2f cm; %s"),
 						*GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, *Detail, Animator->GetSupportHandError(), *Animator->DescribeTriggerFinger()));
 					Record(GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, Detail);
+					{
+						FString HoldDetail;
+						const float HoldError = Animator->MeasureTriggerHandHold(true, &HoldDetail);
+						RecordHold(FString::Printf(TEXT("FP %s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), HoldError, HoldDetail);
+					}
 					TakeShot(FString::Printf(TEXT("grip_%s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), true);
 					if (++*Index < UE_ARRAY_COUNT(Weapons)) { Phase = 0; Mark = Now(); return false; }
 					Equip(Player, AWeapon_BattleRifle::StaticClass());
@@ -1020,6 +1036,9 @@ void AShieldbreakSelfTest::BuildSteps()
 						FString Detail = TEXT("no third-person dummy");
 						const int32 Count = Other ? Other->MeasureHandClipping(false, &Detail) : -1;
 						Record(TEXT("third-person BR"), Count, Detail);
+						FString HoldDetail = TEXT("no third-person dummy");
+						const float HoldError = Other ? Other->MeasureTriggerHandHold(false, &HoldDetail) : -1.f;
+						RecordHold(TEXT("third-person BR"), HoldError, HoldDetail);
 					}
 					TakeShot(TEXT("tp_grip_br"), true);
 					Mark = Now(); Phase = 9; return false;
@@ -1027,6 +1046,8 @@ void AShieldbreakSelfTest::BuildSteps()
 					if (Since < 0.3f) { return false; }
 					Check(TEXT("Hands never pass through guns (first person, reload, third person)"), Bad->IsEmpty(),
 						Bad->IsEmpty() ? TEXT("no finger or palm segment crosses the gun") : *Bad);
+					Check(TEXT("Every gun's pistol grip sits in the trigger hand's palm (first and third person)"), Hold->IsEmpty(),
+						Hold->IsEmpty() ? TEXT("all within 2 cm") : *Hold);
 					ClearDummies();
 					return true;
 				}
