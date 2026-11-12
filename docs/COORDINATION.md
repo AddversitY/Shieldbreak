@@ -289,6 +289,17 @@ Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pic
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+FP framing trial and task (31) done, desktop released (Claude, desktop PC, 2026-11-12 18:19-18:40 local, binary built at `c45e5e0`; `3f9ac78` and `d6902d5` add docs only, no build). **PICK `v31b`: GUN IN THE LOWER-RIGHT THIRD, LEVEL, BARREL RUNNING FORWARD; HUD AMMO PANEL COVERS ITS EYEPIECE.**
+  Vincent (2026-11-12): "It needs to be to the right of the screen more in first person mode, and needs to be angled correctly. It's slanted towards the left." Cause: rifles use `sb.FPRifleGripRight 15` with `sb.FPRifleAimYaw -16` and `sb.FPRifleAimPitch 14`, so the BR runs from the bottom centre up and to the left across the crosshair.
+  Six framings, VisualShots FP on Keel, FP shots **9/9** in every run (`sheet_BR.jpg`, `sheet_sniper.jpg`, `sheet_sidearm.jpg`):
+  - `a` current (right 15, yaw -16, pitch 14): rifle diagonal up-left, scope near the centre. This is the slant.
+  - `b` right 20, yaw -8, pitch 6: gun in the right half, still angled left.
+  - `c` right 22, yaw -4, pitch 3: lower right, nearly level, scope at the right edge clear of the HUD. Good second choice.
+  - `d` right 24, yaw -2, pitch 2, down 17: like `c` but larger and higher.
+  - `v31b` (task 31) fwd 36, right 25, down 22, pitch 2, yaw 0, sidearm right 21: **most like a standard shooter.** The rifle sits in the lower-right third, level, the barrel running forward toward the centre, left glove under the forend, crosshair clear. Catch: the HUD ammo box (bottom right) covers the scope eyepiece and rear of the receiver.
+  - `v31d` (task 31) fwd 38, right 28, down 24, pitch 0, yaw 2, sidearm right 22: pushed further into the corner; more of the gun hidden under the HUD box.
+  Sniper follows the same pattern (v31b best). Sidearm: unchanged in `a`-`d` (only rifle settings changed); in `v31b`/`v31d` it moves right and lower with the glove still on the grip, which reads well.
+  Fixed-view FPS 114.0-123.7 across the six runs (framing-only change). 21 JPGs and `reports/` in `docs/playtests/2026-11-12_fp_framing/`. Only console settings were used; defaults unchanged in code.
 Task (31), READY on `claude/project-thread-ndksis` (no code change, console variables only, no rebuild needed after (30)), from "Polish movement, characters and guns". Vincent (2026-11-12): the first-person gun "needs to be to the right of the screen more, and angled correctly. It's slanted towards the left." The rifle framing (forward 32, right 15, down 19, pitch +14, yaw -16) makes the BR run from the bottom centre up and to the left. Try four framings and pick by eye.
   Steps (desktop free first; log holding/done as before): `VisualShots FP` (BR idle, sniper idle, sidearm idle) on Keel, once each with these `-ExecCmds` (tag each run):
   - `v31a`: `sb.FPRifleGripRight 22, sb.FPRifleGripDown 20, sb.FPRifleAimPitch 4, sb.FPRifleAimYaw -3, sb.FPGripRight 19`
