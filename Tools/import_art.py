@@ -485,28 +485,30 @@ WEAPON_TEXTURES = os.path.join(EXPORT, "Textures", "Weapons")
 WEAPON_TEXTURE_FOLDER = TEXTURES + "/Weapons"
 
 
-def import_weapon_textures():
-    """Imports the baked weapon maps with the right colour space and compression. Returns {gun: {suffix: texture}}."""
+def import_weapon_textures(source=None, folder=None, suffixes=("BC", "ORM", "N")):
+    """Imports baked maps with the right colour space and compression. Returns {gun: {suffix: texture}}."""
+    source = source or WEAPON_TEXTURES
+    folder = folder or WEAPON_TEXTURE_FOLDER
     sets = {}
-    for png in sorted(glob.glob(os.path.join(WEAPON_TEXTURES, "T_SB_*_*.png"))):
+    for png in sorted(glob.glob(os.path.join(source, "T_SB_*_*.png"))):
         name = os.path.splitext(os.path.basename(png))[0]
         gun, suffix = name[len("T_SB_"):].rsplit("_", 1)
         task = unreal.AssetImportTask()
         task.filename = png
-        task.destination_path = WEAPON_TEXTURE_FOLDER
+        task.destination_path = folder
         task.destination_name = name
         task.automated = True
         task.replace_existing = True
         task.save = False
         tools.import_asset_tasks([task])
-        texture = unreal.load_asset("%s/%s" % (WEAPON_TEXTURE_FOLDER, name))
+        texture = unreal.load_asset("%s/%s" % (folder, name))
         if not texture:
             log("FAILED " + png)
             continue
         if suffix == "N":
             texture.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_NORMALMAP)
             texture.set_editor_property("srgb", False)
-        elif suffix == "ORM":
+        elif suffix in ("ORM", "M"):
             texture.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
             texture.set_editor_property("srgb", False)
         else:
@@ -517,7 +519,7 @@ def import_weapon_textures():
         eal.save_asset(texture.get_path_name())
         sets.setdefault(gun, {})[suffix] = texture
         log("%s: %dx%d %s" % (name, texture.blueprint_get_size_x(), texture.blueprint_get_size_y(), suffix))
-    return {gun: maps for gun, maps in sets.items() if all(s in maps for s in ("BC", "ORM", "N"))}
+    return {gun: maps for gun, maps in sets.items() if all(s in maps for s in suffixes)}
 
 
 def weapon_pbr_material(defaults):
@@ -609,6 +611,105 @@ def weapon_pbr_instances():
         instances["M_SBW_" + gun] = mi
         log("%s on M_SB_WeaponPBR" % path)
     return instances
+
+
+ARMOR_TEXTURES = os.path.join(EXPORT, "Textures", "Armor")
+ARMOR_TEXTURE_FOLDER = TEXTURES + "/Armor"
+
+
+def armor_pbr_instances():
+    """The v3 soldier (Art/blender/build_soldier.py): one baked texture set for the whole suit. M_SB_ArmorPBR is the
+    weapon PBR material plus a team tint: where T_SB_Soldier_M's red channel is set (team plates and lights), base
+    colour and glow are multiplied by BaseColor * TeamGain. BaseColor is the vector the game already sets on every
+    slot named M_Team* (UShieldbreakBodyAnimator::SetArmorColor), so the slot is M_Team_Soldier and no code changes."""
+    sets = import_weapon_textures(ARMOR_TEXTURES, ARMOR_TEXTURE_FOLDER, ("BC", "ORM", "N", "M"))
+    maps = sets.get("Soldier")
+    if not maps:
+        return {}
+    path = MATERIALS + "/M_SB_ArmorPBR"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+        mel.delete_all_material_expressions(mat)
+    else:
+        mat = tools.create_asset("M_SB_ArmorPBR", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    # SK_SB_Soldier (Tools/make_soldier_suit.py) wears this material; without the SkeletalMesh permutation the
+    # runtime silently draws Default Material on the skinned suit (desktop S6: plain grey, no team colour).
+    mel.set_base_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, True)
+
+    def node(cls, x, y, **props):
+        n = mel.create_material_expression(mat, cls, x, y)
+        for key, value in props.items():
+            n.set_editor_property(key, value)
+        return n
+
+    def link(a, a_out, b, b_in):
+        if not mel.connect_material_expressions(a, a_out, b, b_in):
+            log("M_SB_ArmorPBR: could not connect %s.%s -> %s.%s" % (a.get_name(), a_out, b.get_name(), b_in))
+
+    def scalar(name, default, x, y):
+        return node(unreal.MaterialExpressionScalarParameter, x, y, parameter_name=name, default_value=default)
+
+    def sample(name, y, sampler):
+        return node(unreal.MaterialExpressionTextureSampleParameter2D, -1100, y, parameter_name=name, texture=maps[name],
+                    sampler_type=sampler)
+
+    bc = sample("BC", -400, unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
+    orm = sample("ORM", 100, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    nrm = sample("N", 500, unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+    mask = sample("M", -700, unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    # Neutral default (x TeamGain = 1) so an untinted suit shows the baked grey.
+    team = node(unreal.MaterialExpressionVectorParameter, -800, -650, parameter_name="BaseColor",
+                default_value=unreal.LinearColor(0.3125, 0.3125, 0.3125, 1))
+    gain = scalar("TeamGain", 3.2, -800, -500)
+    team_gain = node(unreal.MaterialExpressionMultiply, -600, -600)
+    link(team, "", team_gain, "A")
+    link(gain, "", team_gain, "B")
+    tinted = node(unreal.MaterialExpressionMultiply, -450, -500)
+    link(bc, "RGB", tinted, "A")
+    link(team_gain, "", tinted, "B")
+    colour = node(unreal.MaterialExpressionLinearInterpolate, -250, -400)
+    link(bc, "RGB", colour, "A")
+    link(tinted, "", colour, "B")
+    link(mask, "R", colour, "Alpha")
+    rough_scale = scalar("RoughnessScale", 1.0, -800, 150)
+    rough_mul = node(unreal.MaterialExpressionMultiply, -500, 120)
+    link(orm, "G", rough_mul, "A")
+    link(rough_scale, "", rough_mul, "B")
+    rough = node(unreal.MaterialExpressionClamp, -300, 150)
+    link(rough_mul, "", rough, "")
+    ao_strength = scalar("AOStrength", 1.0, -800, 350)
+    one = node(unreal.MaterialExpressionConstant, -800, 30, r=1.0)
+    ao = node(unreal.MaterialExpressionLinearInterpolate, -300, 330)
+    link(one, "", ao, "A")
+    link(orm, "R", ao, "B")
+    link(ao_strength, "", ao, "Alpha")
+    em_strength = scalar("EmissiveStrength", 1.5, -800, -150)  # S3: 4.0 blew the visor and trims out
+    em_mask = node(unreal.MaterialExpressionMultiply, -500, -150)
+    link(bc, "A", em_mask, "A")
+    link(em_strength, "", em_mask, "B")
+    emissive = node(unreal.MaterialExpressionMultiply, -100, -250)
+    link(colour, "", emissive, "A")
+    link(em_mask, "", emissive, "B")
+    mel.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(orm, "B", unreal.MaterialProperty.MP_METALLIC)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(ao, "", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    mel.connect_material_property(nrm, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    eal.save_asset(path)
+    log("built %s (%d expressions)" % (path, mel.get_num_material_expressions(mat)))
+    mi_path = MATERIALS + "/MI_SB_Soldier"
+    if eal.does_asset_exist(mi_path):
+        mi = unreal.load_asset(mi_path)
+    else:
+        mi = tools.create_asset("MI_SB_Soldier", MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+    mel.set_material_instance_parent(mi, mat)
+    for suffix in ("BC", "ORM", "N", "M"):
+        mel.set_material_instance_texture_parameter_value(mi, suffix, maps[suffix])
+    eal.save_asset(mi_path)
+    log("%s on M_SB_ArmorPBR" % mi_path)
+    return {"M_Team_Soldier": mi}
 
 
 def import_texture(name):
@@ -741,6 +842,7 @@ def main():
             character = character_instances(character_material(wear))
         character = dict(character)
         character.update(weapon_pbr_instances())
+        character.update(armor_pbr_instances())
     for fbx in sorted(glob.glob(os.path.join(EXPORT, "*", "*.fbx"))):
         folder = os.path.basename(os.path.dirname(fbx))
         if only and folder not in only:
@@ -766,7 +868,8 @@ def main():
         for index, slot in enumerate(materials):
             name = str(slot.material_slot_name)
             # The FBX importer can suffix slot names (M_Gunmetal_001, M_Gunmetal_Skin); match on the palette prefix.
-            key = next((k for k in bound if name == k or name.startswith(k + "_")), None)
+            # An exact name wins: M_Team_Soldier must not fall to the palette's M_Team.
+            key = name if name in bound else next((k for k in bound if name.startswith(k + "_")), None)
             if key:
                 mesh.set_material(index, bound[key])
             else:

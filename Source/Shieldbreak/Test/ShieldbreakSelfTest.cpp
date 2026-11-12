@@ -438,7 +438,8 @@ void AShieldbreakSelfTest::BuildSteps()
 		BuildImpactShotSteps();
 		return;
 	}
-	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
 	{
 		BuildShotSteps();
 		return;
@@ -470,7 +471,9 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
 			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
-			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
+			const bool bSkinned = Animator && Animator->HasSkinnedSuit();
+			Check(TEXT("Soldiers wear the armor set"), bSkinned || Pieces >= 14,
+				bSkinned ? FString(TEXT("skinned suit SK_SB_Soldier")) : FString::Printf(TEXT("%d armor pieces"), Pieces));
 			// Under the armor the mannequin wears our matte polymer (its own material kept white gloves).
 			const UMaterialInterface* Suit = A && A->GetMesh() ? A->GetMesh()->GetMaterial(0) : nullptr;
 			Check(TEXT("...over a matte suit (MI_SBC_Polymer, not the mannequin's material)"), Suit && Suit->GetName().EndsWith(TEXT("_Polymer")),
@@ -3556,6 +3559,8 @@ AShieldbreakCharacter* AShieldbreakSelfTest::SpawnTeamDummy(const FVector& Locat
 		if (AShieldbreakPlayerState* State = DummyController->GetPlayerState<AShieldbreakPlayerState>())
 		{
 			State->SetTeamId(Team);
+			// AssignTeam sets the colour with the team in a real match; SetTeamId alone left dummies grey (S3 shots).
+			State->SetPlayerColor(ShieldbreakTeams::GetTeamColor(Team));
 		}
 	}
 	return Dummy;
@@ -4001,6 +4006,123 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				}
 			},
 			[](float Elapsed) { return Elapsed > 2.f; }, 5.f });
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
+	{
+		// Third person through a free camera (the first-person rifle hid one soldier in S1/S2): a red and a blue soldier
+		// side by side, four turns of 90 degrees (rot0 faces the camera), then a close-up of the red one's upper body.
+		Steps.Add({ TEXT("Soldier pair"),
+			[this]()
+			{
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+				const FTransform Where = Arena && !Arena->GetSpawnTransforms().IsEmpty() ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
+				A = PossessLocalDummy(Where);
+			},
+			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // let the possessed pawn settle (as the FP shots do)
+		Steps.Add({ TEXT("Soldier pair rot0"),
+			[this]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const APawn* P = PC ? PC->GetPawn() : nullptr;
+				if (!P) { return; }
+				const FVector Forward = P->GetActorForwardVector();
+				const FVector Ahead = P->GetActorLocation() + Forward * 450.f;
+				const FVector Right = P->GetActorRightVector() * 70.f;
+				const float Facing = Forward.Rotation().Yaw + 90.f; // empirically (S4-S7) this is the yaw that faces the camera
+				B = SpawnTeamDummy(Ahead - Right, Facing, ShieldbreakTeams::Red);
+				C = SpawnTeamDummy(Ahead + Right, Facing, ShieldbreakTeams::Blue);
+				// Camera 3.2 m from the pair at chest-to-head height, looking slightly down at their middle.
+				const FVector Target = Ahead + FVector(0.f, 0.f, 10.f);
+				const FVector Eye = Ahead - Forward * 320.f + FVector(0.f, 0.f, 40.f);
+				FActorSpawnParameters CameraParams;
+				CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (!ChaseCamera)
+				{
+					ChaseCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+				}
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
+				if (PC)
+				{
+					PC->SetViewTarget(ChaseCamera);
+					if (AHUD* Overlay = PC->GetHUD()) { Overlay->bShowHUD = false; }
+				}
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 3.f) return false;
+				// Log what the armor actually received, so a missing team tint can be told apart from a weak one.
+				for (AShieldbreakCharacter* S : { B.Get(), C.Get() })
+				{
+					if (!S) { continue; }
+					const UShieldbreakBodyAnimator* Anim = S->FindComponentByClass<UShieldbreakBodyAnimator>();
+					Lines.Add(FString::Printf(TEXT("INFO  soldier %s colour %s armor %d team MIDs %d"), *S->GetName(),
+						*S->GetPlayerColor().ToString(), Anim && Anim->HasArmor(), Anim ? Anim->GetArmorTeamMaterialCount() : -1));
+				}
+				TakeShot(TEXT("tp_soldiers_rot0"), false);
+				return true;
+			}, 6.f });
+		for (int32 Turn = 1; Turn < 4; ++Turn)
+		{
+			const FString Name = FString::Printf(TEXT("tp_soldiers_rot%d"), Turn * 90);
+			Steps.Add({ Name,
+				[this]()
+				{
+					for (AShieldbreakCharacter* S : { B.Get(), C.Get() }) { if (S) { S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + 90.f, 0.f)); } }
+				},
+				[this, Name](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(Name, false); return true; }, 4.f });
+		}
+		Steps.Add({ TEXT("tp_soldier_closeup"),
+			[this]()
+			{
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				// Three-quarter front: the yaw that faces the camera (camera-to-soldier yaw + 90, as for rot0), turned 35.
+				// (S10-S12 added 90 to the yaw left by the rot turns, which ended up showing the back.)
+				const float Facing = (S->GetActorLocation() - ChaseCamera->GetActorLocation()).Rotation().Yaw + 90.f;
+				S->SetActorRotation(FRotator(0.f, Facing + 35.f, 0.f));
+				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 25.f);
+				const FVector Eye = Chest + (ChaseCamera->GetActorLocation() - Chest).GetSafeNormal2D() * 230.f + FVector(0.f, 0.f, 20.f); // 2.3 m out (S13 framed only the helmet)
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
+		Steps.Add({ TEXT("tp_soldier_helmet"),
+			[this]()
+			{
+				// The visor and helmet up close, a little off the soldier's front.
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				const FVector Head = S->GetActorLocation() + FVector(0.f, 0.f, 80.f);
+				const FVector Eye = Head + (ChaseCamera->GetActorLocation() - Head).GetSafeNormal2D() * 110.f;
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Head - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_helmet"), false); return true; }, 4.f });
+		// Ragdoll: kill the blue soldier (just lethal, as the death-camera test does) and look at the body 1.5 s later,
+		// to see whether the skinned suit follows the physics body.
+		Steps.Add({ TEXT("tp_soldier_ragdoll"),
+			[this]()
+			{
+				if (!C) { return; }
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(C, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 1.5f) return false;
+				AShieldbreakCharacter* S = C.Get();
+				const USkeletalMeshComponent* Body = S ? S->GetMesh() : nullptr;
+				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (S ? S->GetActorLocation() : FVector::ZeroVector);
+				if (ChaseCamera)
+				{
+					const FVector Eye = Pelvis + FVector(-160.f, 160.f, 140.f);
+					ChaseCamera->SetActorLocationAndRotation(Eye, (Pelvis - Eye).Rotation());
+				}
+				if (Elapsed < 1.7f) return false; // one frame for the camera move
+				Lines.Add(FString::Printf(TEXT("INFO  ragdoll alive %d, pelvis %s"), S && S->IsAlive() ? 1 : 0, *Pelvis.ToString()));
+				TakeShot(TEXT("tp_soldier_ragdoll"), false);
+				return true;
+			}, 5.f });
+		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
