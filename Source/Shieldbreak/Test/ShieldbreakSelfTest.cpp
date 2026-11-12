@@ -1000,11 +1000,16 @@ void AShieldbreakSelfTest::BuildSteps()
 					}
 					TakeShot(FString::Printf(TEXT("grip_%s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), true);
 					if (++*Index < UE_ARRAY_COUNT(Weapons)) { Phase = 0; Mark = Now(); return false; }
-					Equip(Player, AWeapon_BattleRifle::StaticClass());
-					Mark = Now(); Phase = 2; return false;
+					// The screenshot is taken at the end of a later frame: switching guns now captured the next gun's
+					// draw instead (task 33: the rocket launcher's shot showed the Battle Rifle below the frame).
+					Mark = Now(); Phase = 20; return false;
 				}
 				switch (Phase)
 				{
+				case 20: // the last gun's screenshot is out: back to the Battle Rifle
+					if (Since < 0.5f) { return false; }
+					Equip(Player, AWeapon_BattleRifle::StaticClass());
+					Mark = Now(); Phase = 2; return false;
 				case 2: // a burst, then reload the Battle Rifle
 					if (Since < 2.2f) { return false; }
 					Player->StartFire(); Mark = Now(); Phase = 3; return false;

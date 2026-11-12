@@ -950,7 +950,10 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 
 	// Place the arms once the idle has settled (its cross-fade done) and no action is moving the hands.
 	const bool bRifle = WantsFirstPersonSupportArm();
-	const bool bLauncher = bRifle && GetViewmodelStyle() == EShieldbreakViewmodelStyle::Launcher;
+	// Unscoped long guns (Rail Lance, rocket): the Rail Lance has a Magazine socket, so its style reads as Rifle (task 33).
+	const AShieldbreakWeapon* FramedWeapon = OwnerCharacter->GetCurrentWeapon();
+	const bool bLauncher = bRifle && FramedWeapon && !FramedWeapon->GetStats().bPistolAnimations
+		&& FramedWeapon->GetStats().Scope == EShieldbreakScope::None;
 	const FVector3f Grip = bLauncher
 		? FVector3f(CVarRifleGripForward.GetValueOnGameThread(), CVarLauncherGripRight.GetValueOnGameThread(), CVarLauncherGripDown.GetValueOnGameThread())
 		: bRifle
