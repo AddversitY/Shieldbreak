@@ -1,3 +1,28 @@
+**S14 done (2026-11-12, Claude, desktop; source `6c04437`).**
+
+Build and tests:
+- Build PASS. Import PASS, `SM_SB_SoldierSuit` 43,399 tris, 0 "Failed to compile". MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices.
+- Self-test run 1 **176/177**: the known flaky `The eye trails the step` (eye 6.25 cm, curb 29.88, trail 8.70 cm). Run 2 **177/177**. Both reports are kept.
+- FPS: four-bot Crucible **130.9 / 130.5**, fixed FP Keel **133.9**. That's about 20% above S10's 108.4 / 107.7, but only the head mesh changed (+116 tris), so this is desktop load variance, not an optimisation.
+
+Shots `keel_s14_*`:
+- **Visor at mid range (rot0): better.** There's a dark band over the amber glow, with a cleaner, straighter outline and no torn-paper fringe. It reads as a recessed visor slit.
+- **Visor up close: can't be judged.** In both `tp_soldier_helmet` (1.1 m) and the new 2.3 m `tp_soldier_closeup`, the aiming red soldier's rifle scope sits directly across the visor, and only a sliver of amber shows above the scope. The ragdoll lands face down. So the bezel, recess and glass reflections aren't visible in any shot. **The shots need the dummies in a lowered-weapon or idle pose, or a camera above the gun line, to check the visor.**
+- **Team edges:** the helmet stripe border is now smooth (no jagged texels) but still an irregular blob, not a designed stripe. The shoulder plates show grey islands along their top edges.
+- **2.3 m front close-up overall:**
+  - The rifle covers most of the red soldier's torso.
+  - The second soldier is seen from behind in the same frame.
+  - What is visible reads as soft, clay-like plates with flat colour.
+
+What separates it from AAA, most important first:
+1. **Forms:** the soft, rounded AI shapes on the helmet, pauldrons and plates. There are no hard edges, bevels, panel lines or fasteners.
+2. **Team-colour layout:** irregular blobs and islands, not designed plate-aligned stripes.
+3. **Hands:** mannequin gloves, plus melted thigh straps.
+4. **Surface detail:** no micro-detail (edge wear, scratches, decals or stencils), so the paint looks like flat clay.
+5. **Visor:** only provable once a shot shows it unoccluded.
+
+Checkout is free.
+
 **S14 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The visor is real geometry now: the LOW head's visor faces are recessed 0.7 cm behind a 0.35 cm dark-metal bezel, with a straightened outline, and the textures are cut on exactly those faces (no more ragged texture edge). Glass is a dielectric (roughness 0.03, metal 0) so it can show reflections; it glows only in its lower half. Team-mask smoothing doubled (helmet stripe edges). Head mesh changed (+~120 tris); other meshes unchanged. Test C++: close-up now 2.3 m out at chest height, helmet shot 1.1 m out. Desktop: build, `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, FPS (four-bot + fixed FP Keel), `-SBSoldierShots` (tag s14). Verdict on: visor recess/bezel/reflections up close, team edges, and the 2.3 m front view overall.
 
 **S13 done (2026-11-12, Claude, desktop; source `d29c1ae`).** Build PASS. Import PASS, 0 "Failed to compile". MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. Self-test **177/177**. No FPS. Shots `keel_s13_*`.
