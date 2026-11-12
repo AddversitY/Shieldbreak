@@ -4076,12 +4076,26 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			{
 				AShieldbreakCharacter* S = B.Get();
 				if (!S || !ChaseCamera) { return; }
-				S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + 90.f + 35.f, 0.f)); // three-quarter front
+				// Three-quarter front: the yaw that faces the camera (camera-to-soldier yaw + 90, as for rot0), turned 35.
+				// (S10-S12 added 90 to the yaw left by the rot turns, which ended up showing the back.)
+				const float Facing = (S->GetActorLocation() - ChaseCamera->GetActorLocation()).Rotation().Yaw + 90.f;
+				S->SetActorRotation(FRotator(0.f, Facing + 35.f, 0.f));
 				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 45.f);
 				const FVector Eye = ChaseCamera->GetActorLocation() + (Chest - ChaseCamera->GetActorLocation()).GetSafeNormal() * 170.f;
 				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
 			},
 			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
+		Steps.Add({ TEXT("tp_soldier_helmet"),
+			[this]()
+			{
+				// The visor and helmet up close, a little off the soldier's front.
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				const FVector Head = S->GetActorLocation() + FVector(0.f, 0.f, 80.f);
+				const FVector Eye = ChaseCamera->GetActorLocation() + (Head - ChaseCamera->GetActorLocation()).GetSafeNormal() * 90.f;
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Head - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_helmet"), false); return true; }, 4.f });
 		// Ragdoll: kill the blue soldier (just lethal, as the death-camera test does) and look at the body 1.5 s later,
 		// to see whether the skinned suit follows the physics body.
 		Steps.Add({ TEXT("tp_soldier_ragdoll"),

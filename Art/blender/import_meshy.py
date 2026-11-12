@@ -934,6 +934,7 @@ def masks(bc_lin, team_mode, baked_team=None):
 
 TEAM_BLUR = 4.0           # px at 2048; scaled with the atlas size
 VISOR_AMBER = np.array([1.0, 0.42, 0.06])   # linear; the concept's amber visor
+GLASS_TINT = np.array([0.05, 0.025, 0.006])  # linear; the visor's dark amber glass where it does not glow
 
 
 def blur(x, radius):
@@ -988,18 +989,18 @@ def textured_rough_metal():
 
 
 
-def visor_glass(glow, height, side):
+def visor_glass(glow, height):
     """A flat amber visor read as a sticker (S9-S11). Glass reads through its gradient: the inner light pools at the
     bottom, the top falls dark under the brow, a thin bright streak runs across the upper third, and the sides
     darken as the glass curves away. Works in the visor's own height range, measured from the glow texels."""
     on = glow > 0.5
     if on.sum() < 50:
-        return np.ones_like(glow)
+        return np.ones_like(glow), np.zeros_like(glow)
     lo, hi = np.percentile(height[on], 3), np.percentile(height[on], 97)
     t = np.clip((height - lo) / max(hi - lo, 1e-3), 0, 1)
     shade = 0.3 + 0.9 * (1 - t) ** 1.6
     shade += 0.55 * np.exp(-((t - 0.72) / 0.07) ** 2)
-    return blur(shade, 1.0)
+    return blur(shade, 1.0), blur(t, 1.0)
 
 
 def derived_rough_metal(bc, team, glow):
@@ -1042,6 +1043,7 @@ def write_textures(surf, res):
     bw.save_png(n, os.path.join(TEX_OUT, "T_SB_Soldier_N.png"), "RGB")
     bc = exposure_fix(surf["basecolor"][:, :, :3])
     team, glow = masks(bc, TEAM_MODE, surf["team"][:, :, 0] if "team" in surf else None)
+    visor = np.zeros_like(glow)
     if "team" in surf:
         visor = smooth(blur(surf["team"][:, :, 2], 1.0), 0.3, 0.6)
         glow = np.maximum(glow, visor)
@@ -1057,10 +1059,18 @@ def write_textures(surf, res):
     # Visor and lamps take the concept's amber whatever hue the generator painted them.
     # One clean amber (the generator's own visor paint is blotchy: green and orange patches), shaded as glass below.
     amber = 0.34 * VISOR_AMBER * np.ones_like(lum)
+    emit = glow
+    glass = np.zeros_like(glow)
     if "team" in surf:
-        amber = amber * visor_glass(glow, surf["team"][:, :, 1], surf["team"][:, :, 2])[..., None]
+        shade, t = visor_glass(glow, surf["team"][:, :, 1])
+        amber = amber * shade[..., None]
+        # S12: a fully glowing visor read as a lit panel. Only the lower part glows (the light inside the helmet);
+        # the upper part is dark, glossy, slightly metallic glass that shows the scene's reflections and speculars.
+        glass = visor * smooth(t, 0.3, 0.7)
+        amber = amber * (1 - glass[..., None]) + GLASS_TINT * glass[..., None]
+        emit = glow * (1 - glass)
     bc_out = bc_out * (1 - glow[..., None]) + amber * glow[..., None]
-    bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
+    bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), emit[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
     rough, metal = surf["rough"][:, :, 0], surf["metal"][:, :, 0]
     # Base colour only (no roughness/metal textures): derive painted plate / cloth values from it. The test used to be
     # rough.std() < 0.01, but the empty gutters between UV charts made the constant bake look varied, so a glTF without
@@ -1068,10 +1078,13 @@ def write_textures(surf, res):
     if not textured_rough_metal():
         rough, metal = derived_rough_metal(bc, team, glow)
     # Soft, low-frequency AO only: a game AO map darkens creases, it should never carry texel noise.
+    if "team" in surf:
+        rough = rough * (1 - visor) + 0.05 * visor
+        metal = metal * (1 - glass) + 0.6 * glass
     ao = 1.0 - AO_STRENGTH * (1.0 - np.clip(blur(surf["ao"][:, :, 0], 2.0), 0, 1))
     orm = np.stack([ao, np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")
-    bw.save_png(np.stack([team, glow, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
+    bw.save_png(np.stack([team, emit, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
 
 
 

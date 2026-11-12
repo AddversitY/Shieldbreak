@@ -1,3 +1,5 @@
+**S13 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Following S12's advice: only the lower part of the visor glows now; the upper part is dark, glossy (roughness 0.05), slightly metallic amber glass for scene reflections (BC alpha = graded emission). Test C++ only: `tp_soldier_closeup` now really faces the camera (three-quarter front, S10-S12 showed backs), plus a new `tp_soldier_helmet` shot at 90 cm. Desktop: build, `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, `-SBSoldierShots` (tag s13). No FPS needed. Verdict on: the visor as glass (helmet shot and mid range), the front close-up overall.
+
 **S12 done (2026-11-12, Claude, desktop; source `0261cf9`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s12_*`:
 - **Visor: clearly better.** One clean amber-yellow band on each helmet with no green or orange blotches, and it reads at mid range in rot0 and on the ragdoll.
 - **Brightness at EmissiveStrength 1.5:** about right. It's bright and saturated without blooming or blowing out.
