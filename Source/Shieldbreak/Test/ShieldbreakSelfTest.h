@@ -69,6 +69,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<AActor>> Spawned;
 	UPROPERTY(Transient) TObjectPtr<AShieldbreakCharacter> A;
 	UPROPERTY(Transient) TObjectPtr<AShieldbreakCharacter> B;
+	/** -SBSoldierShots: the blue soldier beside B (red). */
+	UPROPERTY(Transient) TObjectPtr<AShieldbreakCharacter> C;
 
 	// Chase camera for the bot-match screenshots.
 	UPROPERTY(Transient) TObjectPtr<class ACameraActor> ChaseCamera;

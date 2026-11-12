@@ -1,3 +1,193 @@
+**S14 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The visor is real geometry now: the LOW head's visor faces are recessed 0.7 cm behind a 0.35 cm dark-metal bezel, with a straightened outline, and the textures are cut on exactly those faces (no more ragged texture edge). Glass is a dielectric (roughness 0.03, metal 0) so it can show reflections; it glows only in its lower half. Team-mask smoothing doubled (helmet stripe edges). Head mesh changed (+~120 tris); other meshes unchanged. Test C++: close-up now 2.3 m out at chest height, helmet shot 1.1 m out. Desktop: build, `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, FPS (four-bot + fixed FP Keel), `-SBSoldierShots` (tag s14). Verdict on: visor recess/bezel/reflections up close, team edges, and the 2.3 m front view overall.
+
+**S13 done (2026-11-12, Claude, desktop; source `d29c1ae`).** Build PASS. Import PASS, 0 "Failed to compile". MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. Self-test **177/177**. No FPS. Shots `keel_s13_*`.
+- **Visor at mid range: better.** The dark upper band over the glowing lower half gives it some depth, and it reads as a visor, not a flat yellow panel.
+- **Visor up close (`tp_soldier_helmet`, 90 cm): not glass yet.**
+  - The dark upper part shows no visible reflections (no lights or environment, just dark brown), and the glow is a flat yellow gradient.
+  - The visor outline is a ragged, torn-paper cut with a thin white fringe.
+  - The visor is paint on the convex helmet shell, so there's no recess, bezel or parallax.
+- **Front close-up:** `tp_soldier_closeup` is framed almost identically to the helmet shot (an extreme close-up of the red soldier's helmet), so it doesn't show the torso. It would need to sit about 2 m out to judge the whole front.
+- **What it shows of the helmet:**
+  - The red/grey team-mask border is jagged at this distance.
+  - There's smeared, stretched texture and grey streaks on the helmet's left side (a UV seam or projection stretch).
+  - The shell itself is a soft egg.
+- **What still separates it from AAA:**
+  1. Material borders (visor, team plates) are texture-space cuts, which are ragged up close. They need geometry-based material IDs or a separate visor mesh with a bezel.
+  2. Soft generator forms on the helmet and plates, with no hard edges.
+  3. Texture smear at seams.
+  4. Mannequin gloves and melted thigh straps.
+
+Checkout is free.
+
+**S13 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Following S12's advice: only the lower part of the visor glows now; the upper part is dark, glossy (roughness 0.05), slightly metallic amber glass for scene reflections (BC alpha = graded emission). Test C++ only: `tp_soldier_closeup` now really faces the camera (three-quarter front, S10-S12 showed backs), plus a new `tp_soldier_helmet` shot at 90 cm. Desktop: build, `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, `-SBSoldierShots` (tag s13). No FPS needed. Verdict on: the visor as glass (helmet shot and mid range), the front close-up overall.
+
+**S12 done (2026-11-12, Claude, desktop; source `0261cf9`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s12_*`:
+- **Visor: clearly better.** One clean amber-yellow band on each helmet with no green or orange blotches, and it reads at mid range in rot0 and on the ragdoll.
+- **Brightness at EmissiveStrength 1.5:** about right. It's bright and saturated without blooming or blowing out.
+- **But it reads as a lit amber panel more than glass.** At mid range, the gradient (dark under the brow) and the reflection streak aren't visible, so it comes across as flat glowing yellow.
+- The close-up frames the helmets from behind, so it doesn't show the visor; it needs a front close-up to judge glass up close.
+- **Glass ideas:** less emission at the top, or a real specular/roughness difference (low roughness, slight metal) so scene reflections show.
+- **Nothing else changed visibly** from S11: team plates, belt and pack are the same. The thigh straps are still stringy, and the gloves are still the mannequin's.
+
+Checkout is free.
+
+**S12 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Textures only (same meshes as S10/S11): the visor is now found by geometry and colour on the helmet face, and painted as one clean amber glass with a gradient (dark under the brow, bright at the bottom) and a thin reflection streak across the upper third, instead of the generator's green and orange blotches. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s12). No build, self-test or FPS needed. Verdict on: the visor at mid range and in the close-up (does it read as glass, too bright or too dim with EmissiveStrength 1.5?), and anything that changed elsewhere.
+
+**S11 done (2026-11-12, Claude, desktop; source `829a148`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s11_*`:
+- **Chest and forearm team plates: fixed compared with S10.** The red now covers the chest, upper arms and forearms as smooth, continuous areas with clean borders, with no jagged grey islands or blotches. The grey bands crossing the red forearm are the arm straps and read as intended. The blue pauldrons are unchanged and clean.
+- **Belt: fixed.** It's all painted grey pouches, and the red pouch on the lower belt from S10 is gone.
+- **Still open:**
+  - The thigh drop-leg straps look melted and stringy up close.
+  - The gloves are the mannequin's.
+  - The visor is flat.
+
+Checkout is free.
+
+**S11 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Textures only (same meshes as S10): the team mask is now smoothed over the surface before the cut (clean plate borders, not ragged blotches on the chest and forearms), and light regions on the belt line stay as painted (no red pouch). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s11). No build, self-test or FPS needed. Verdict on: chest and forearm team plates vs S10, the belt.
+
+**S10 done (2026-11-12, Claude, desktop; source `4fbfa84`).**
+
+Import and tests:
+- Import PASS: `SM_SB_SoldierSuit` **43,283 tris** (3 LODs), 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`; rigid pack **1848 vertices** on spine_05.
+- Self-test **177/177**.
+- FPS: four-bot Crucible **108.4** (S8 110.1); fixed FP Keel **107.7** (S8 111.3). Single runs, within the usual noise on this desktop.
+
+Visual verdict (`keel_s10_*`):
+- **Better than S9:**
+  - Crisper body: separated chest-rig and belt pouches, segmented arm and shin plates, knee pads, and the respirator helmet from the 2.1 shape.
+  - The value range is lighter mid grey.
+  - The amber visor reads in rot0 and on the ragdoll.
+- **Pack-to-back seam:** no visible gap or stretch; the grafted pack sits on the back and stays attached in the ragdoll.
+- **Ragdoll:** works (`INFO  ragdoll alive 0`); the suit follows the body.
+- **Worse than S9: the team mask on the red soldier's chest is ragged.** Red bleeds across the chest plate in irregular blotches with jagged grey islands, not clean plate shapes. The blue pauldrons are clean, so it's mostly the chest and stomach area.
+- The thigh drop-leg straps look melted (stringy grey) in the close-up.
+- The gloves are still the mannequin's.
+
+Shots, `soldier-colours-S10.txt`, logs and reports are in `docs/playtests/2026-11-12_ai_soldier/`. Checkout is free.
+
+**S10 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit moves to v4: the Hunyuan3D-2.1 body (crisper helmet with respirator, chest plate, knee pads), with v3's back power pack grafted on (cut off v3, slid onto v4's back, own UV islands packed beside v4's atlas). Same 14 pieces + `SM_SB_SoldierSuit`, same texture names, 4096. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the rigid-pack vertex count is still ~1–3k), self-test, FPS (four-bot + fixed FP Keel, compare with S8 110.1 / 111.3), `-SBSoldierShots` (tag s10), including the ragdoll. Report anything that looks worse than S9: seams where the pack meets the back, team plates, visor, gloves.
+
+**S9 done (2026-11-12, Claude, desktop; source `d373073`).**
+- Import PASS, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, rigid pack 1852 vertices.
+- Shots `keel_s9_*`: **the AO crackle is gone.** The suit is clean, even gunmetal paint in the close-up, with no speckle or flecks.
+- Red and blue team plates read at every angle.
+- The ragdoll still works.
+- What still separates it from AAA is form (soft, AI-melted plate edges), the mannequin gloves and the flat visor.
+
+No self-test or FPS (textures only). Checkout is free.
+
+**S9 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** AO crackle fixed: the selected-to-active AO bake let the LOW occlude half of the source's AO rays; AO is now baked on the LOW alone, blurred, strength 0.6 (crop: smooth, mean 0.83). Same meshes/UVs. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s9). No build or FPS needed (textures only), self-test optional.
+
+**S8 done (2026-11-12, Claude, desktop; source `49b7903`).**
+
+Build and test:
+- Build PASS. I added a `tp_soldier_ragdoll` step to `-SBSoldierShots`: it kills the blue dummy, then moves the chase camera to the pelvis 1.5 s later and logs `INFO  ragdoll`.
+- Import PASS, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, rigid pack 1852 vertices.
+- Self-test **177/177**.
+- FPS: four-bot Crucible **110.1**, fixed FP Keel **111.3**.
+
+Shots `keel_s8_*`:
+- **Value range is fixed.** The suit now reads mid gunmetal grey, close to the concept, not near black.
+- **rot0 now faces the camera.**
+- **Team readability:** good. Helmet, pauldrons, chest and shins carry red or blue.
+- **Ragdoll works:** the skinned suit follows the physics body (`INFO  ragdoll alive 0`, body on the floor, suit intact, pack attached).
+- **The speckle remains, now as a black crackle** over the whole suit in the close-up. Root cause: `T_SB_Soldier_ORM` red channel (AO) is a **binary blotch pattern** (crop R mean 0.51, std 0.46; values are 0 or 1). G (roughness ~0.6, smooth) and B (metal ~0) are now correct. See `S8_ORM_R_G_B_crop.png`. The AO bake from the dense mesh is broken (likely self-hits without a cage or offset). Fix that bake, or write AO = 1 until it's fixed.
+
+Checkout is free.
+
+**S8 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** S7's ORM finding was right, and the cause was worse than noise: the generator's glTF has no metallic factor (glTF default 1.0), so the whole suit baked as bare metal (ORM blue mean 0.78); the "constant source" test was fooled by the UV gutters. Now roughness/metal are derived unless the source has textures: metal mean 0.008, roughness ~0.69. This should also fix most of the "too dark" read. Soldier shots now use yaw +90 so rot0 faces the camera. Desktop: build (test C++ only), `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, FPS, `-SBSoldierShots` (tag s8). Also, if easy, one ragdoll shot: kill a soldier dummy and capture ~1.5 s later (does the skinned suit follow the ragdoll?).
+
+**S7 done (2026-11-12, Claude, desktop; source `c6eb13e`).**
+
+Import and suit:
+- Import PASS: 27 meshes, `SM_SB_SoldierSuit` **43,287 tris** (3 LODs), four `T_SB_Soldier_*` at **4096**, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, and the pack rule ran: "rigid pack: 1852 vertices on spine_05 (bone 6)".
+
+Tests and FPS:
+- Self-test **177/177**.
+- FPS: four-bot Crucible **108.4** (S6 skinned 107.1), fixed FP Keel **109.1** (S6 105.0).
+
+4K memory, estimated from formats (`TexMem-S7.txt`, not measured in game):
+- BC is TC_Default sRGB (with alpha, so likely DXT5 at about 21 MB; DXT1 if the alpha is dropped, about 11 MB).
+- N is BC5, about 21 MB.
+- ORM and M are TC_Masks, about 11 to 21 MB each.
+- Total: about **64 to 85 MB with full mips** for one soldier set, against about 16 to 21 MB at 2K.
+
+The textures are in LOD group Weapon, so they stream.
+
+Shots `keel_s7_*`:
+- **The pack at the hip is fixed:** no smear, it rides with the torso.
+- Tears are still gone, and red vs blue reads strongly.
+- **The speckle is NOT gone; it's sharper at 4K.** Root cause: the exported `T_SB_Soldier_BC` and `T_SB_Soldier_M` are clean, smooth paint. **`T_SB_Soldier_ORM` is the problem:** its roughness and metal channels carry a high-contrast blotch pattern, flipping between metal and dielectric. On a dark albedo, the metal blotches reflect the dark scene as black flecks. See `S7_N_vs_ORM_crop.png` (normal map on the left is clean, ORM on the right is blotchy). Fix the derived roughness/metal in `import_meshy.py`: use a uniform low metal per material zone and only low-frequency roughness.
+
+Checkout is free.
+
+**S7 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit is now the v3 generation (octree 512) at **4K** textures, 43.3k tris. The close-up speckle in S3-S6 was the UV layout: re-unwrapping the decimated mesh made thousands of two-triangle islands; the importer now keeps the generator's own atlas. `make_soldier_suit.py` also weights the power pack rigidly to spine_05 (S6 smear at the hip). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the "rigid pack" line; fix the call if it was skipped), self-test, FPS four-bot Crucible + fixed FP Keel, `-SBSoldierShots` (tag s7). Check texture memory too if easy (`stat streaming` or the 4K textures' resource size) since these are 4K.
+
+**S6 done (2026-11-12, Claude, desktop; source `5b6c906`).** Build PASS. Import PASS: 27 meshes including `SM_SB_SoldierSuit` (41,025 tris, 3 LODs), 0 "Failed to compile".
+
+**MakeSoldierSuit: `RESULT OK`, with no script changes.** All the 5.8 Geometry Script names resolved:
+- `copy_bones_from_mesh`
+- `transfer_bone_weights_from_mesh` with `GeometryScriptTransferBoneWeightsOptions`
+- `mesh_has_bone_weights` -> True
+- `create_new_skeletal_mesh_asset_from_mesh` -> SUCCESS
+- `regenerate_lod` with 3 LODs
+
+`SK_SB_Soldier` has 41,025 tris, UVs intact and slot `M_Team_Soldier` -> `MI_SB_Soldier`.
+
+**Fix needed in `Tools/import_art.py`:** the first skinned shots rendered Default Material (plain grey, no team colour) because `M_SB_ArmorPBR` lacked SkeletalMesh usage. It now calls `set_base_material_usage(MATUSAGE_SKELETAL_MESH)`, the same as `M_SB_Character`. I reimported, rebuilt the suit and retook the shots.
+
+Results:
+- Self-test **177/177** skinned, and **177/177** rigid (`-ExecCmds="sb.SkinnedSuit 0"`).
+- Four-bot Crucible FPS: skinned **107.1** after the fix (110.3 before it, with the default material), rigid **110.3**.
+- Fixed FP Keel: **105.0**. That run is unaffected by the suit, so treat it as noise.
+- Team MIDs: **1** skinned, 14 rigid.
+
+Shots (`keel_s6_*` vs `keel_s6rigid_*`):
+- **The tears are gone.** It's one continuous surface, and the pack and belt join cleanly.
+- **Red vs blue is the strongest yet:** the helmet, pauldrons, chest, knees and shins all carry the team colour.
+- **Remaining problems:**
+  - The pack's lower side panel near the hip shows stretched, smeared texels while aiming (weights are probably pulled toward the arm or spine).
+  - The plates and undersuit still have the mottled black and grey speckle from the S5 texture, so they don't look clean painted.
+  - The suit is still dark overall.
+- Ragdoll on death wasn't checked in these shots.
+
+Checkout is free.
+
+**S6 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Skinned suit. S4/S5 showed the rigid AI pieces tearing at the waist/shoulders when the body bends, so: `import_meshy.py` also exports the whole suit as `Art/Export/Armor/SM_SB_SoldierSuit.fbx` (41k tris, reference pose); new `Tools\MakeSoldierSuit.bat` (`make_soldier_suit.py`, Geometry Script) copies SKM_Manny's skin weights onto it (TransferBoneWeightsFromMesh) and creates `/Game/Shieldbreak/Art/Armor/SK_SB_Soldier` on the mannequin skeleton with slot `M_Team_Soldier` -> `MI_SB_Soldier`; C++ (`sb.SkinnedSuit 1`, default) wears it in third person via leader pose instead of the rigid pieces (first-person arm plates stay rigid). Desktop: (1) build; (2) `Tools\ImportCharacterArt.bat`; (3) `Tools\MakeSoldierSuit.bat` and read `Saved\Logs\MakeSoldierSuit.txt`: the Geometry Script names were written without a 5.8 editor at hand, so fix the script on the desktop if a call is missing (keep the same steps) and note what changed; (4) self-test; (5) FPS four-bot Crucible + fixed FP Keel; (6) `-SBSoldierShots` (tag s6), plus the same with `-ExecCmds="sb.SkinnedSuit 0"` (tag s6rigid) for comparison. Check: no tears at waist/shoulders while aiming, team tint on the suit, the suit follows the ragdoll on death.
+
+**S5 done (2026-11-12, Claude, desktop; source `fa09b4c`).** Import PASS: 14 armor meshes on `MI_SB_Soldier`, 0 "Failed to compile". CheckWinding **all outward**. Self-test **177/177**. FPS (single observations): four-bot Crucible **111.2** (S4 110.9), fixed FP Keel **115.6** (S2 after 112.4 / 114.9). Colours are unchanged (red and blue, 14 MIDs each). Shots `keel_s5_*`:
+- **Fixed:** the bare chest is gone while aiming; the torso now shows dark grey plate.
+- **Still there:** ragged, torn fringes at the pack and belt seam and the pauldron edges. The lower legs and back of the red soldier (`rot270`) are covered in brown-red speckle noise, so the team mask still bleeds onto the cloth.
+- **Still dark:** the helmet and pack read near black, and the torso and legs are a dark grey.
+
+Red vs blue still reads at mid range. Checkout is free.
+
+**S5 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Pass 5 of the AI soldier (new FBX + textures, 41.0k tris): torso labelling keeps the chest/side armor on spine_05 instead of riding with the upper arms (S4 close-up showed the mannequin's bare chest while aiming), push-out 1.2 cm, fewer/larger UV islands with wider margins (flecks at plate borders), blacks lifted to ~0.045 linear (S4: helmet/legs/pack crushed black). Desktop: `Tools\ImportCharacterArt.bat` (14 meshes, 0 "Failed to compile"), `Tools\CheckWinding.bat`, FPS four-bot Crucible + fixed FP Keel after, `-SBSoldierShots` on Keel (tag s5); shots into `docs/playtests/2026-11-12_ai_soldier/`. No C++ change, no build needed.
+
+**S4 done (2026-11-12, Claude, desktop; source `2213a4a`).** Build PASS (-MaxParallelActions=2). Import PASS: 14 armor meshes on `MI_SB_Soldier`, 0 "Failed to compile". Self-test **177/177** (four-bot Crucible 110.9 FPS). Colours: red dummy `(0.85, 0.12, 0.08)`, blue dummy `(0.10, 0.35, 0.95)`, each with 14 team MIDs (`soldier-colours-S4.txt`). In the shots (`keel_s4_*`), **red vs blue reads** on the shoulder and chest plates at mid range; the clearest is `rot90`, which is the camera-facing shot (`rot0` still shows a three-quarter back, so the labels are still off). Amber emissive is fixed: visor only, no glowing helmet. **Still cheap next to AAA, from the close-up:**
+- The team plates are mottled, with jagged black flecks rather than clean paint.
+- Ragged, spiky fringes where the AI mesh was cut into pieces (belt, pack and plate edges).
+- The torso reads as a pale bare sculpted body, because the chest rig doesn't come through.
+- The helmet, legs and power pack are crushed to near black, with no readable detail apart from the pack's blue ribs.
+
+Checkout is free.
+
+**S4 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Fixes from S3: (a) `SpawnTeamDummy` now sets the team colour too (S3 log showed both dummies at 0.6 grey: `SetTeamId` alone doesn't colour; real matches go through `AssignTeam`, which does); (b) soldier shots face the camera at rot0; (c) new 2K soldier textures: clean painted team plates, no speckle "chips", emissive only on amber visors/lamps (no gold helmet), `M_SB_ArmorPBR` EmissiveStrength 4.0 -> 1.5. Same meshes. Desktop: build, `Tools\ImportCharacterArt.bat` (14 meshes, 0 "Failed to compile"), self-test, `-SBSoldierShots` on Keel; shots + `INFO  soldier` lines into `docs/playtests/2026-11-12_ai_soldier/` (prefix s4). Expect red and blue plates in the shots.
+
+**S3 done (2026-11-12, Claude, desktop; source `ea48e6b`).** Build PASS (-MaxParallelActions=2). CheckWinding **all outward**; pelvis and spine_03 are now OK as open shells. `-SBSoldierShots` on Keel: five shots plus `soldier-colours-S3.txt` and `CheckWinding-S3.txt` in `docs/playtests/2026-11-12_ai_soldier/`. **Both soldiers log the same colour, `(0.6, 0.6, 0.6)`, with armor 1 and team MIDs 14**, so there's no red or blue in the shots: the two soldiers look identical. Rotation labels look off by about 180 degrees: `rot180` faces the camera, `rot0` is a three-quarter front view and `rot90` is the back. Look: the suit is no longer near black, and the power pack reads from every side. In the close-up, the plates are a blotchy, speckled white and black (it looks like texture or mask noise, not wear), the undersuit is near black, and the amber emissive is very strong: the chest band and visor glow, and in `rot270` the helmet top glows gold. No camera clipping is visible in these free-camera shots. Checkout is free.
+
+**S3 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** No art change. `-SBSoldierShots` now uses a free camera (HUD off): `tp_soldiers_rot0/90/180/270` (rot0 = facing the camera) and `tp_soldier_closeup`, and logs each soldier's colour and team material count (`INFO  soldier ...` in the self-test report). `Tools/check_winding.py` now judges open shells by the outward share of triangle area (S2's pelvis/spine_03 FLIP was the signed volume of open rings; a Blender re-import shows their winding matches the other pieces). Desktop: build (-MaxParallelActions=2), `Tools\CheckWinding.bat` (expect all outward), `-SBSoldierShots` on Keel, copy the five shots, the `INFO  soldier` lines and CheckWinding.txt into `docs/playtests/2026-11-12_ai_soldier/`. No FPS or full self-test needed (test-only C++).
+
+**S2 done (2026-11-12, Claude, desktop; source `7dc38d6`).** Deleted `SM_SB_Armor_hand_l/_r.uasset`. Import PASS: 14 armor meshes on `MI_SB_Soldier`, 3 LODs each, 0 "Failed to compile". CheckWinding: 12 OK, **2 flagged inside out: `SM_SB_Armor_pelvis` (+7384) and `SM_SB_Armor_spine_03` (+3509)**. These may be open shell cuts where signed volume isn't meaningful; not confirmed either way in the shots. Build up to date (no C++ change), self-test **177/177 before and 177/177 after**. FPS (1280x720, single observations, desktop not otherwise loaded): four-bot Crucible **110.9 before / 107.4 after**; fixed FP Keel **115.6 / 115.8 before, 112.4 / 114.9 after**. Fixed FP on Crucible was also measured by mistake (77.5 / 117.1 before, 111.6 / 112.8 after; noisy). S1's 167-174 figures are not comparable to these. Shots (Keel, `-SBSoldierShots`): the suit is lighter than S1 (grey plates on the shoulders, arms and chest read), and the power pack and its blue-grey ribs are visible. **Red vs blue does not read**: no team tint is visible on the near soldier, and the second soldier sits behind the first-person rifle in all three shots. The shot names don't match the poses (the "front" shot shows the soldiers from behind), so `-SBSoldierShots` needs a framing fix before it can judge team colour. Camera clipping: these shots can't show it; the self-test check "camera never sits inside a character or draws the viewer's own body" passes. Reports and shots: `docs/playtests/2026-11-12_ai_soldier/`. Checkout is free.
+
+**S2 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The armor exports are now the AI-generated soldier v2 (Hunyuan3D-2 run locally on the desktop; `Art/Source/AIGen/`, prototype licence: non-commercial, see its README) processed by `Art/blender/import_meshy.py`: 14 pieces, 40.6k tris, one 2K `T_SB_Soldier_*` set, plate-level team mask, brighter albedo. `hand_l/hand_r` FBX are deleted (the generated gloves don't follow finger animation). Desktop steps: (1) FPS before (four-bot Crucible, fixed FP Keel); (2) delete `Content/Shieldbreak/Art/Armor/SM_SB_Armor_hand_l.uasset` and `_hand_r.uasset`; (3) `Tools\ImportCharacterArt.bat`, expect 14 meshes on `MI_SB_Soldier`, 0 "Failed to compile"; (4) `Tools\CheckWinding.bat`; (5) build + self-test; (6) FPS after; (7) `-SBSoldierShots` red/blue third person into `docs/playtests/2026-11-12_ai_soldier/`. Check: the suit is not near black and red vs blue reads at a distance; the back power pack does not clip the camera.
+
+**S1 done (2026-11-12 07:19 UTC, Claude, desktop).** Soldier v3 on `claude/project-thread-sdxhnx` (exports from `01f05d2`; `e144fc4` scripts not rebaked): import 16/16 armor meshes on `MI_SB_Soldier`, 3 LODs each, 0 "Failed to compile"; winding all outward; self-test 177/177 before, after 176/177 twice (run 1 `Hands never pass through guns` BR index_03_l, run 2 the known `eye trails the step`); FPS fixed FP 169.1 -> 173.5, 4 bots 167.1 -> 166.2 / 168.5. Red/blue team tint not visible in third person. New `-SBSoldierShots`. Shots: `docs/playtests/2026-11-11_soldier/`. Checkout is free.
+
 # Shieldbreak development handoff
 
 Claude and Codex share this handoff. **main** is the integration branch. This branch unifies
@@ -32,6 +222,8 @@ Vincent splits the work between Claude (cloud) and Codex (his desktop) to stretc
 ## Automatic desktop pickup (enabled 2026-11-04)
 
 Storage cleanup at Vincent's request (2026-11-04 local): freed **6.44 GiB**, about **74 GiB free** immediately afterward. Removed only verified untracked `Intermediate/`, project `DerivedDataCache/`, **1,976 generated screenshot files older than 2026-11-04** under `Saved/Screenshots/`, and the redundant Blender 4.5.15 ZIP after confirming the extracted executable remains. Some historical raw `Saved/Screenshots` references below are now obsolete; committed review images and all current character verification evidence remain. Source, all 2,760 Content files including ignored scans, Git history/stashes, local config/backups, binaries, Unreal and extracted Blender retained. Git LFS fsck PASS; no tracked deletions. Next build regenerates its cache/PCH and may take longer. No build/game test run after cleanup; overnight automation remains PAUSED. Itemized local deletion manifest: `Saved/StorageCleanup-20261104.json`. External ElectricDreams sample (~56 GiB logical) and Windows.old (~47 GiB logical, includes old Users) were measured only and left untouched pending user direction.
+
+**SOLDIER v3 READY FOR DESKTOP IMPORT (Claude cloud, 2026-11-11, branch `claude/project-thread-sdxhnx`).** Vincent asked for an AAA character from his concept sheet. `Art/blender/build_soldier.py` + `bake_soldier.py` replace the 14 `Art/Export/Armor/SM_SB_Armor_<bone>.fbx` pieces (same names and bones, so no C++ change) with a heavy-trooper suit: 32,662 tris (v2 was 20.3k; now 16 pieces with hand_l/hand_r knuckle guards, third person only, added to ArmorBones in ShieldbreakBodyAnimator.cpp, so this needs a build), ONE material slot `M_Team_Soldier` and one 2K texture set `Art/Export/Textures/Armor/T_SB_Soldier_{BC,ORM,N,M}.png`. `Tools/import_art.py` now builds `M_SB_ArmorPBR` / `MI_SB_Soldier` (team tint through the mask; the game's existing `BaseColor` parameter). Not imported, compiled or measured yet. Desktop task when the checkout is free: (1) note FPS on the four-bot Crucible and fixed-view Keel fixtures before; (2) `Tools\ImportCharacterArt.bat`, check `Saved\Logs\ImportArt.txt` shows 16 armor meshes bound to `MI_SB_Soldier` with 3 LODs and grep the game log for "Failed to compile"; (3) `Tools\CheckWinding.bat`; (4) self-test; (5) same FPS fixtures after, plus third-person and first-person shots (red and blue) into `docs/playtests/2026-11-11_soldier/`. Watch the first-person right forearm plate (bounds grew about 2 cm) against the reload hand poses.
 
 **CODEX REALISM PASS READY FOR VISUAL REVIEW (Vincent, 2026-11-11).** Implemented the manually requested reference-inspired rifle reload pass, starting at `ee4c366`, whose visual quality Vincent rejected. Technical checks are complete; Vincent has not accepted the new look. No files reserved or engine/build jobs running. Await further direction; no automatic pickup or automation changes. Local Android settings and `fx1run/` remain untouched.
 

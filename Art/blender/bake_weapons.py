@@ -70,6 +70,9 @@ DUST = (0.16, 0.15, 0.13)
 # Unreal shows these meshes as the mirror image of Blender's view (export_fbx keeps the numbers, Unreal is
 # left-handed), so markings are projected mirrored here and read correctly in game. Desktop run 2026-11-07 (guntex):
 # unmirrored "VANGUARD" and "MKS-4X" read reversed in the first-person shots. Blender previews show them mirrored.
+# Extra wear for the soldier's armor (bake_soldier.py raises these); the guns keep 0 / 1.
+CHIP_BIAS = 0.0
+GRIME_GAIN = 1.0
 DECAL_MIRROR = True
 DARK_INK = (0.025, 0.026, 0.028)
 LIGHT_INK = (0.55, 0.55, 0.53)
@@ -433,6 +436,13 @@ def high_material(kind_name):
         scratch = g.remap(g.noise(g.vscale(co, (1.0, 0.08, 1.0)), 7.0, 2.0, 0.5), 0.62, 0.66, 0.0, 1.0)
         height = g.math("SUBTRACT", g.mul(peel, 0.35), g.mul(scratch, 0.6))
         strength = 0.05
+    elif kind == "fabric":
+        # Woven webbing: a crossed thread pattern with a little fuzz.
+        s3 = g.sep(co)
+        warp = g.math("SINE", g.mul(g.addf(s3[0], s3[1]), 26.0))
+        weft = g.math("SINE", g.mul(s3[2], 26.0))
+        height = g.addf(g.mul(g.mul(warp, weft), 0.5), g.mul(g.noise(co, 18.0, 3.0, 0.6), 0.6))
+        strength = 0.22
     if height is not None:
         bump = g.add("ShaderNodeBump")
         bump.inputs["Strength"].default_value = strength
@@ -466,6 +476,15 @@ def decal_layer(g, decals, slot):
                 facing = g.remap(nrm[0], 0.45, 0.65, smooth=False)
             v = g.mul(g.math("SUBTRACT", co[2], a0), 1.0 / (a1 - a0))
             depth = co[0]
+        elif d["axis"] in ("Y+", "Y-"):  # rect = (x0, x1, z0, z1), slab along Y (the soldier's chest and back)
+            if d["axis"] == "Y+":
+                u = g.mul(g.math("SUBTRACT", y1, co[0]), 1.0 / (y1 - y0))
+                facing = g.remap(nrm[1], 0.45, 0.65, smooth=False)
+            else:
+                u = g.mul(g.math("SUBTRACT", co[0], y0), 1.0 / (y1 - y0))
+                facing = g.remap(g.mul(nrm[1], -1.0), 0.45, 0.65, smooth=False)
+            v = g.mul(g.math("SUBTRACT", co[2], a0), 1.0 / (a1 - a0))
+            depth = co[1]
         else:  # Z+: u along +Y, v toward -X (letters lean toward the camera's side)
             u = g.mul(g.math("SUBTRACT", co[1], y0), 1.0 / (y1 - y0))
             v = g.mul(g.math("SUBTRACT", a1, co[0]), 1.0 / (a1 - a0))
@@ -533,6 +552,8 @@ def bake_material(slot, ao_image, decals, target):
     em = 0.0
     if kind == "paint":
         chip_src = g.addf(g.mul(edge, g.addf(0.35, g.mul(n_mid, 1.1))), g.mul(g.math("SUBTRACT", n_fine, 0.5), 0.35))
+        if CHIP_BIAS:
+            chip_src = g.addf(chip_src, g.mul(n_mid, CHIP_BIAS))
         chip = g.remap(chip_src, 0.66, 0.72)
         rim = g.math("SUBTRACT", g.remap(chip_src, 0.5, 0.62), chip, clamp=True)  # darker primer ring round each chip
         scratches = g.remap(g.noise(g.vscale(co, (1.0, 0.07, 1.0)), 6.0, 2.0, 0.5), 0.665, 0.68)
@@ -541,7 +562,7 @@ def bake_material(slot, ao_image, decals, target):
         light = sum(base) / 3.0 > 0.25
         if not light:
             col = g.mix(g.mul(edge, 0.25), col, tuple(min(1.0, c * 1.35 + 0.02) for c in base))  # worn-bright edges
-        col = g.mix(g.mul(grime, 0.5 if light else 0.4), col, GRIME)
+        col = g.mix(g.mul(grime, min(1.0, (0.5 if light else 0.4) * GRIME_GAIN), clamp=True), col, GRIME)
         dl = decal_layer(g, decals, slot)
         if dl:
             col = g.mix(g.mul(dl[1], g.math("SUBTRACT", 1.0, g.mul(chip, 1.0))), col, dl[0])
@@ -563,6 +584,15 @@ def bake_material(slot, ao_image, decals, target):
             col = g.mix(g.mul(dl[1], 0.85), col, dl[0])
         rough = g.addf(rough0, g.addf(g.mul(g.math("SUBTRACT", n_mid, 0.5), 0.1), g.mul(grime, 0.15)))
         rough = g.math("SUBTRACT", rough, g.mul(scuff, 0.15))
+        metal = 0.0
+    elif kind == "fabric":
+        # Cloth: no chips; sun-faded folds, frayed pale edges, dirt worked into the creases.
+        fray = g.mul(edge, g.remap(n_mid, 0.3, 0.7))
+        col = g.scale_color(base + (1.0,), g.addf(tone, g.mul(g.math("SUBTRACT", n_fine, 0.5), 0.25)))
+        col = g.mix(g.mul(fray, 0.55), col, tuple(min(1.0, c * 2.2 + 0.03) for c in base))
+        col = g.mix(g.mul(grime, 0.6), col, GRIME)
+        col = g.mix(g.mul(g.remap(n_big, 0.55, 0.8), 0.3), col, DUST)
+        rough = g.addf(max(rough0, 0.8), g.mul(g.math("SUBTRACT", n_mid, 0.5), 0.1))
         metal = 0.0
     elif kind == "steel":
         brushed = g.noise(g.vscale(co, (6.0, 0.15, 6.0)), 8.0, 6.0, 0.6)
