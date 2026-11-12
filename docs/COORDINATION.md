@@ -1,3 +1,5 @@
+**S1 done (2026-11-12 07:19 UTC, Claude, desktop).** Soldier v3 on `claude/project-thread-sdxhnx` (exports from `01f05d2`; `e144fc4` scripts not rebaked): import 16/16 armor meshes on `MI_SB_Soldier`, 3 LODs each, 0 "Failed to compile"; winding all outward; self-test 177/177 before, after 176/177 twice (run 1 `Hands never pass through guns` BR index_03_l, run 2 the known `eye trails the step`); FPS fixed FP 169.1 -> 173.5, 4 bots 167.1 -> 166.2 / 168.5. Red/blue team tint not visible in third person. New `-SBSoldierShots`. Shots: `docs/playtests/2026-11-11_soldier/`. Checkout is free.
+
 # Shieldbreak development handoff
 
 Claude and Codex share this handoff. **main** is the integration branch. This branch unifies

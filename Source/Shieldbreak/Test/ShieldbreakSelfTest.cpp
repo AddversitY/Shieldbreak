@@ -438,7 +438,8 @@ void AShieldbreakSelfTest::BuildSteps()
 		BuildImpactShotSteps();
 		return;
 	}
-	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
 	{
 		BuildShotSteps();
 		return;
@@ -4001,6 +4002,45 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				}
 			},
 			[](float Elapsed) { return Elapsed > 2.f; }, 5.f });
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
+	{
+		// Third person: a red and a blue soldier 3.5 m in front of the first spawn, front, side and back.
+		Steps.Add({ TEXT("Soldier pair"),
+			[this]()
+			{
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+				const FTransform Where = Arena && !Arena->GetSpawnTransforms().IsEmpty() ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
+				A = PossessLocalDummy(Where);
+			},
+			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // let the possessed pawn settle (as the FP shots do)
+		Steps.Add({ TEXT("Soldier pair front"),
+			[this]()
+			{
+				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const APawn* P = PC ? PC->GetPawn() : nullptr;
+				if (!P) { return; }
+				const FVector Forward = P->GetActorForwardVector();
+				const FVector Ahead = P->GetActorLocation() + Forward * 500.f;
+				const FVector Right = P->GetActorRightVector() * 110.f;
+				// Facing the camera: towards the viewer's eye.
+				const float Facing = (P->GetActorLocation() - Ahead).Rotation().Yaw;
+				B = SpawnTeamDummy(Ahead - Right, Facing, ShieldbreakTeams::Red);
+				C = SpawnTeamDummy(Ahead + Right, Facing, ShieldbreakTeams::Blue);
+			},
+			[this](float Elapsed) { if (Elapsed < 3.f) return false; TakeShot(TEXT("tp_soldiers_front"), true); return true; }, 6.f });
+		auto Turn = [this](const TCHAR* Name, float Yaw)
+		{
+			Steps.Add({ Name,
+				[this, Yaw]()
+				{
+					for (AShieldbreakCharacter* S : { B.Get(), C.Get() }) { if (S) { S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + Yaw, 0.f)); } }
+				},
+				[this, Name](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(Name, true); return true; }, 4.f });
+		};
+		Turn(TEXT("tp_soldiers_side"), 90.f);
+		Turn(TEXT("tp_soldiers_back"), 90.f);
+		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
