@@ -1040,11 +1040,17 @@ def main():
         exported = {o.name for o in out}
         for f in os.listdir(arm):
             # A piece the model doesn't have (e.g. hands) must not keep the previous suit's mesh.
-            if f.startswith("SM_SB_Armor_") and f.endswith(".fbx") and f[:-4] not in exported:
+            if f.startswith("SM_SB_Armor_") and f.endswith(".fbx") and f[:-4] not in exported:  # (the suit is rewritten below)
                 os.remove(os.path.join(arm, f))
                 log("removed stale " + f)
         for o in out:
             k.export_fbx(os.path.join(arm, o.name + ".fbx"), [o])
+        # The whole suit as one mesh, same space and UVs: Tools/make_soldier_suit.py skins it to the mannequin skeleton
+        # in Unreal (weights transferred from SKM_Manny), so it bends with the body instead of tearing at the joints.
+        suit, _ = join_ordered({o.name[len("SM_SB_Armor_"):]: o for o in out}, "SM_SB_SoldierSuit", copy=True)
+        bw.single_slot(suit, SLOT)
+        k.export_fbx(os.path.join(arm, "SM_SB_SoldierSuit.fbx"), [suit])
+        bpy.data.objects.remove(suit, do_unlink=True)
         with open(os.path.join(arm, "armor_report.txt"), "w") as f:
             f.write("\n".join(report) + "\n")
     if preview:

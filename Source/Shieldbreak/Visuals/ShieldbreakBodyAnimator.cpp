@@ -294,6 +294,10 @@ void UShieldbreakBodyAnimator::StartRagdoll(const FVector& Impulse)
 	{
 		Piece->SetOwnerNoSee(false);
 	}
+	if (SkinnedSuit)
+	{
+		SkinnedSuit->SetOwnerNoSee(false);
+	}
 	Body->SetCollisionProfileName(TEXT("Ragdoll"));
 	Body->SetCollisionResponseToChannel(ECC_Weapon, ECR_Ignore);
 	Body->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -315,6 +319,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** For performance A/B runs: sb.Armor 0 spawns soldiers without armor, sb.ArmorShadows 0 keeps it from casting. */
 	TAutoConsoleVariable<int32> CVarArmor(TEXT("sb.Armor"), 1, TEXT("1: soldiers wear the armor set (applies to new spawns)."));
 	TAutoConsoleVariable<int32> CVarArmorShadows(TEXT("sb.ArmorShadows"), 1, TEXT("1: armor pieces cast shadows (new spawns)."));
+	/** The AI-generated suit tore open at the joints as rigid pieces (S4/S5); skinned, it bends with the body. */
+	TAutoConsoleVariable<int32> CVarSkinnedSuit(TEXT("sb.SkinnedSuit"), 1, TEXT("1: third-person soldiers wear the skinned suit SK_SB_Soldier when it exists; 0: rigid pieces (new spawns)."));
 
 	/** Plates are a little darker than the HUD's team color so they don't wash out in sunlight. */
 	constexpr float PlateBrightness = 0.55f;
@@ -342,6 +348,36 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 		|| (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
 	{
 		return;
+	}
+
+	if (!bFirstPerson && !SkinnedSuit && CVarSkinnedSuit.GetValueOnGameThread() != 0)
+	{
+		if (USkeletalMesh* SuitMesh = ShieldbreakArt::Load<USkeletalMesh>(TEXT("/Game/Shieldbreak/Art/Armor/SK_SB_Soldier.SK_SB_Soldier")))
+		{
+			SkinnedSuit = NewObject<USkeletalMeshComponent>(GetOwner(), TEXT("ArmorSuit"));
+			SkinnedSuit->SetSkeletalMesh(SuitMesh);
+			SkinnedSuit->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SkinnedSuit->SetGenerateOverlapEvents(false);
+			SkinnedSuit->SetCanEverAffectNavigation(false);
+			SkinnedSuit->bAffectDistanceFieldLighting = false; // as the rigid pieces (2026-11-04 near-black suit)
+			SkinnedSuit->SetOwnerNoSee(true);
+			SkinnedSuit->bCastHiddenShadow = true;
+			SkinnedSuit->SetCastShadow(CVarArmorShadows.GetValueOnGameThread() != 0);
+			SkinnedSuit->SetupAttachment(Body);
+			SkinnedSuit->RegisterComponent();
+			// Same skeleton and reference pose as the body: it copies the body's animated (and ragdoll) bone transforms.
+			SkinnedSuit->SetLeaderPoseComponent(Body);
+			// One slot (M_Team_Soldier): the team tint goes through the BaseColor vector like the rigid pieces'.
+			for (int32 Slot = 0; Slot < SkinnedSuit->GetNumMaterials(); ++Slot)
+			{
+				if (UMaterialInstanceDynamic* MID = SkinnedSuit->CreateDynamicMaterialInstance(Slot))
+				{
+					ArmorTeamMIDs.Add(MID);
+				}
+			}
+			UE_LOG(LogShieldbreak, Log, TEXT("%s: skinned armor suit"), *GetOwner()->GetName());
+			return;
+		}
 	}
 
 	const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
@@ -439,6 +475,10 @@ void UShieldbreakBodyAnimator::SetArmorHidden(bool bHidden)
 	for (UStaticMeshComponent* Piece : ArmorPieces)
 	{
 		Piece->SetHiddenInGame(bHidden);
+	}
+	if (SkinnedSuit)
+	{
+		SkinnedSuit->SetHiddenInGame(bHidden);
 	}
 }
 
@@ -862,6 +902,11 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 			{
 				Piece->bCastHiddenShadow = false;
 				Piece->MarkRenderStateDirty();
+			}
+			if (SkinnedSuit)
+			{
+				SkinnedSuit->bCastHiddenShadow = false;
+				SkinnedSuit->MarkRenderStateDirty();
 			}
 		}
 		// Hidden (the gun stays a camera viewmodel) until the arms have been placed.

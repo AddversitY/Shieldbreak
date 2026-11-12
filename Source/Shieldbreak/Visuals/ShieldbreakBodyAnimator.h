@@ -103,8 +103,10 @@ public:
 	void StartRagdoll(const FVector& Impulse);
 
 	/** True when at least one armor piece is on the body (the mannequin then wears a dark undersuit). */
-	bool HasArmor() const { return ArmorPieces.Num() > 0; }
+	bool HasArmor() const { return ArmorPieces.Num() > 0 || SkinnedSuit != nullptr; }
 	int32 GetArmorPieceCount() const { return ArmorPieces.Num(); }
+	/** True when the third-person armor is the skinned suit (SK_SB_Soldier) rather than rigid pieces. */
+	bool HasSkinnedSuit() const { return SkinnedSuit != nullptr; }
 	/** Paints the armor's team plates and glow strips. */
 	void SetArmorColor(const FLinearColor& TeamColor);
 	/** Team-tinted armor material instances (slots named M_Team*), for the soldier shots' log. */
@@ -156,6 +158,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> ArmorPieces;
+	/** Third-person suit skinned to the mannequin skeleton, following the body by leader pose (sb.SkinnedSuit). */
+	UPROPERTY(Transient)
+	TObjectPtr<USkeletalMeshComponent> SkinnedSuit;
 	UPROPERTY(Transient)
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
 	UPROPERTY(Transient)
