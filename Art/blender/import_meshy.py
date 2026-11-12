@@ -335,7 +335,7 @@ def label_faces(obj, j_posed, keep_hands):
     return names, [segs[i][0] for i in lab]
 
 
-SEG_RADIUS = {"pelvis": 13, "spine": 14, "neck": 6, "head": 10, "clavicle": 7, "upperarm": 6, "lowerarm": 4.5, "hand": 3.5,
+SEG_RADIUS = {"pelvis": 16, "spine": 19, "neck": 11, "head": 14, "clavicle": 9, "upperarm": 6, "lowerarm": 4.5, "hand": 3.5,
               "middle": 2, "thigh": 8, "calf": 6, "foot": 4.5, "ball": 3.5}
 
 
@@ -444,7 +444,7 @@ def skin_bvh(path):
     return BVHTree.FromPolygons(verts, faces)
 
 
-def push_out(piece, body, margin=0.6, reach=6.0):
+def push_out(piece, body, margin=1.2, reach=6.0):
     """Moves vertices that are inside the mannequin (or within margin of it) to margin outside it."""
     # The skin comes out of Unreal with its winding mirrored, so its normals may point inward: check on the crown.
     hit, nrm, _, _ = body.find_nearest(Vector((0, 0, 260)), 200.0)
@@ -833,6 +833,7 @@ def _blur_cols(a, kern, r):
 
 
 TARGET_MEDIAN = 0.16   # linear median albedo of the armor (~0.44 sRGB): mid grey, like the concept sheet
+BLACK_LIFT = 0.045     # linear albedo of the darkest cloth after the lift
 TEAM_FLOOR = 0.32      # linear albedo floor under the team mask so the team tint stays readable
 
 
@@ -845,7 +846,8 @@ def exposure_fix(bc):
         return bc
     gain = float(np.clip(TARGET_MEDIAN / max(np.median(lum[used]), 1e-4), 0.6, 2.0))
     print(f"albedo exposure: median {np.median(lum[used]):.3f} -> gain {gain:.2f}")
-    out = np.clip(bc * gain, 0.02, 0.9)
+    # Lift the blacks: S4's helmet, legs and pack were crushed to black in game. AAA undersuits sit around 0.04-0.06.
+    out = BLACK_LIFT + np.clip(bc * gain, 0.0, 0.9) * (1 - BLACK_LIFT / 0.9)
     out[~used] = bc[~used]
     return out
 
@@ -906,6 +908,20 @@ def write_textures(surf, res):
     orm = np.stack([surf["ao"][:, :, 0], np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")
     bw.save_png(np.stack([team, glow, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
+
+
+def unwrap_organic(obj):
+    """Generated meshes are organic: a wider angle limit gives fewer, larger islands than the weapons' unwrap, and a
+    wider margin keeps the islands from bleeding into each other in the lower mips (S4: dark and white flecks along
+    plate borders at mid range)."""
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(70), island_margin=0.006, area_weight=0.0, scale_to_bounds=False)
+    bpy.ops.uv.pack_islands(rotate=True, margin=0.006)
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def extract(low, name, a, b):
@@ -1001,7 +1017,7 @@ def main():
     for p in low.data.polygons:
         p.use_smooth = True
     log("HIGH %d tris, LOW %d tris (%.0fs)" % (k.triangle_count(high), k.triangle_count(low), time.time() - t0))
-    bw.unwrap(low)
+    unwrap_organic(low)
     if TEAM_MODE != "none":
         face_team(high)
     surf = bake_all(low, high, res, dense=dense)
