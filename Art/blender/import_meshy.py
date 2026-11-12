@@ -292,10 +292,13 @@ def label_faces(obj, j_posed, keep_hands):
     lab = np.zeros(len(c), dtype=np.int32)
     for i in range(len(segs)):
         t = np.clip(((c - a[i]) * ab[i]).sum(1) / ab2[i], 0, 1)
-        d = np.linalg.norm(c - (a[i] + ab[i] * t[:, None]), axis=1)
+        # Distance to the bone minus that body part's rough radius, so a vest hem next to a hanging forearm still goes
+        # to the torso rather than riding along with the arm.
+        d = np.linalg.norm(c - (a[i] + ab[i] * t[:, None]), axis=1) - seg_radius(segs[i][0])
         closer = d < best
         best[closer] = d[closer]
         lab[closer] = i
+    lab = clean_islands(obj, lab, [PIECE.get(s[0]) for s in segs])
     names = []
     for i in lab:
         piece = PIECE.get(segs[i][0])
@@ -303,6 +306,71 @@ def label_faces(obj, j_posed, keep_hands):
             piece = None
         names.append(piece)
     return names, [segs[i][0] for i in lab]
+
+
+SEG_RADIUS = {"pelvis": 13, "spine": 14, "neck": 6, "head": 10, "clavicle": 7, "upperarm": 6, "lowerarm": 4.5, "hand": 3.5,
+              "middle": 2, "thigh": 8, "calf": 6, "foot": 4.5, "ball": 3.5}
+
+
+def seg_radius(bone):
+    return SEG_RADIUS.get(bone.split("_")[0], 5.0)
+
+
+def clean_islands(obj, lab, seg_piece, passes=4):
+    """Each piece should be one connected patch of surface. Any stray island of faces (a vest flap labelled forearm,
+    a boot sliver labelled calf) smaller than the piece's main island joins whichever piece borders it most."""
+    me = obj.data
+    nf = len(me.polygons)
+    nbrs = face_neighbours(me)
+    piece = np.array([hash(seg_piece[i]) for i in lab])
+    moved_total = 0
+    for _ in range(passes):
+        comp = np.full(nf, -1, dtype=np.int64)
+        sizes, comp_piece = [], []
+        for f0 in range(nf):
+            if comp[f0] >= 0:
+                continue
+            cid = len(sizes)
+            stack = [f0]
+            comp[f0] = cid
+            n = 0
+            while stack:
+                f = stack.pop()
+                n += 1
+                for g in nbrs[f]:
+                    if comp[g] < 0 and piece[g] == piece[f0]:
+                        comp[g] = cid
+                        stack.append(g)
+            sizes.append(n)
+            comp_piece.append(piece[f0])
+        sizes = np.array(sizes)
+        main = {}
+        for cid, pc in enumerate(comp_piece):
+            if pc not in main or sizes[cid] > sizes[main[pc]]:
+                main[pc] = cid
+        keep = set(main.values())
+        moved = 0
+        for cid in np.argsort(sizes):
+            if cid in keep or sizes[cid] > 0.35 * sizes[main[comp_piece[cid]]]:
+                continue
+            faces = np.nonzero(comp == cid)[0]
+            votes = {}
+            for f in faces:
+                for g in nbrs[f]:
+                    if comp[g] != cid:
+                        votes[lab[g]] = votes.get(lab[g], 0) + 1
+            if not votes:
+                continue  # a floating part on its own: leave it with the nearest bone
+            new = max(votes, key=votes.get)
+            lab[faces] = new
+            piece[faces] = hash(seg_piece[new])
+            comp[faces] = comp[np.nonzero(lab == new)[0][0]]
+            moved += len(faces)
+        moved_total += moved
+        if not moved:
+            break
+    log("label cleanup: %d faces moved off stray islands" % moved_total)
+    return lab
 
 
 def split_pieces(obj, labels, bones, pose):
@@ -447,6 +515,13 @@ def route_high(high, key):
             tree.links.new(em.outputs[0], out.inputs["Surface"])
         for link in list(em.inputs["Color"].links):
             tree.links.remove(link)
+        if key == "Team":
+            attr = tree.nodes.get("SB_Team") or tree.nodes.new("ShaderNodeAttribute")
+            attr.name = "SB_Team"
+            attr.attribute_name = "SBTeam"
+            tree.links.new(attr.outputs["Color"], em.inputs["Color"])
+            em.inputs["Strength"].default_value = 1.0
+            continue
         sources = SOURCES[mat.name]
         sock, default = sources[key]
         if sock is not None:
@@ -467,6 +542,140 @@ def restore_high(high):
         for n in mat.node_tree.nodes:
             if n.type == "OUTPUT_MATERIAL":
                 n.is_active_output = n.name != "SB_Out"
+
+
+TEAM_MIN_AREA = 60.0   # cm^2: a light neutral region smaller than this (a buckle, a scuff) stays as painted
+TEAM_MIN_VALUE = 0.34   # sRGB value of a light plate (after the generator's baked shading)
+TEAM_MAX_SAT = 0.24
+TEAM_CLOSE = 2           # face rings of closing
+
+
+def base_image(mat):
+    sock, _ = principled_sources(mat)["Base Color"]
+    node = sock.node if sock is not None else None
+    seen = 0
+    while node is not None and node.type != "TEX_IMAGE" and seen < 8:
+        ins = [i for i in node.inputs if i.links]
+        node = ins[0].links[0].from_node if ins else None
+        seen += 1
+    return node.image if node is not None and node.type == "TEX_IMAGE" else None
+
+
+def face_team(high):
+    """Team mask by plate, not by texel. Faces get their painted colour from the source texture, faces of similar
+    colour grow into regions over the welded surface, and each large, light, neutral region becomes team colour as a
+    whole. A per-texel colour test left speckles of team colour on dark cloth and holes in the plates."""
+    me = high.data
+    nf = len(me.polygons)
+    col = np.full((nf, 3), 0.3)
+    uv_layer = me.uv_layers.active
+    if uv_layer is None:
+        return
+    uv = np.empty(len(me.loops) * 2)
+    uv_layer.data.foreach_get("uv", uv)
+    uv = uv.reshape(-1, 2)
+    ls = np.empty(nf, dtype=np.int64)
+    lt = np.empty(nf, dtype=np.int64)
+    mi = np.empty(nf, dtype=np.int64)
+    me.polygons.foreach_get("loop_start", ls)
+    me.polygons.foreach_get("loop_total", lt)
+    me.polygons.foreach_get("material_index", mi)
+    for m_i, mat in enumerate(me.materials):
+        img = base_image(mat) if mat else None
+        if img is None:
+            continue
+        w, h = img.size
+        px = np.empty(w * h * 4, dtype=np.float32)
+        img.pixels.foreach_get(px)
+        px = px.reshape(h, w, 4)[:, :, :3]
+        faces = np.nonzero(mi == m_i)[0]
+        acc = np.zeros((len(faces), 3))
+        # three corners pulled 1/3 toward the centre, plus the centre: robust against seams
+        cen = np.zeros((len(faces), 2))
+        for c in range(3):
+            cen += uv[ls[faces] + np.minimum(c, lt[faces] - 1)]
+        cen /= 3
+        for c in range(4):
+            q = cen if c == 3 else uv[ls[faces] + np.minimum(c, lt[faces] - 1)] * 0.66 + cen * 0.34
+            xi = np.clip((q[:, 0] % 1.0) * w, 0, w - 1).astype(int)
+            yi = np.clip((q[:, 1] % 1.0) * h, 0, h - 1).astype(int)
+            acc += px[yi, xi]
+        col[faces] = acc / 4
+    # (pixels of byte sRGB images come back in sRGB, which is what the HSV test wants)
+    hsv = np.stack(rgb_to_hsv(np.clip(col, 0, 1)), -1)
+    area = np.empty(nf)
+    me.polygons.foreach_get("area", area)
+    nbrs = face_neighbours(me)
+    # Candidate faces: light and neutral (baked-in shading moves value a lot, chroma little).
+    cand = (hsv[:, 2] > TEAM_MIN_VALUE) & (hsv[:, 1] < TEAM_MAX_SAT)
+    comps = components(nbrs, cand)
+    team = np.zeros(nf, dtype=bool)
+    n_team = 0
+    for members in comps:
+        if area[members].sum() >= TEAM_MIN_AREA:
+            team[members] = True
+            n_team += 1
+    # Morphological closing over the surface: scratches, decals and shading dips inside a plate join the plate.
+    for _ in range(TEAM_CLOSE):
+        team = team | np.array([any(team[g] for g in nbrs[f]) for f in range(nf)])
+    for _ in range(TEAM_CLOSE):
+        team = team & np.array([all(team[g] for g in nbrs[f]) for f in range(nf)])
+    # Holes: small non-team islands fully enclosed by team faces join it.
+    for members in components(nbrs, ~team):
+        if area[members].sum() < TEAM_MIN_AREA * 0.6:
+            team[members] = True
+    team = team.astype(np.float64)
+    attr = me.color_attributes.new("SBTeam", "FLOAT_COLOR", "CORNER")
+    corner = np.repeat(team, lt)
+    attr.data.foreach_set("color", np.stack([corner, corner, corner, np.ones_like(corner)], -1).ravel())
+    log("team mask: %d plates, %.0f%% of the surface" % (n_team, 100 * (area * team).sum() / area.sum()))
+
+
+def components(nbrs, mask):
+    seen = np.zeros(len(nbrs), dtype=bool)
+    out = []
+    for f0 in np.nonzero(mask)[0]:
+        if seen[f0]:
+            continue
+        seen[f0] = True
+        stack, members = [f0], []
+        while stack:
+            f = stack.pop()
+            members.append(f)
+            for g in nbrs[f]:
+                if mask[g] and not seen[g]:
+                    seen[g] = True
+                    stack.append(g)
+        out.append(np.array(members))
+    return out
+
+
+def face_neighbours(me):
+    nf = len(me.polygons)
+    loop_start = np.empty(nf, dtype=np.int64)
+    loop_total = np.empty(nf, dtype=np.int64)
+    me.polygons.foreach_get("loop_start", loop_start)
+    me.polygons.foreach_get("loop_total", loop_total)
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", co)
+    _, weld = np.unique(np.round(co.reshape(-1, 3) * 50).astype(np.int64), axis=0, return_inverse=True)
+    weld = weld.ravel()
+    lv = np.empty(len(me.loops), dtype=np.int64)
+    me.loops.foreach_get("vertex_index", lv)
+    lv = weld[lv]
+    nxt = np.arange(len(lv)) + 1
+    nxt[loop_start + loop_total - 1] = loop_start
+    lo, hi = np.minimum(lv, lv[nxt]), np.maximum(lv, lv[nxt])
+    key = lo * (weld.max() + 1) + hi
+    face_of_loop = np.repeat(np.arange(nf), loop_total)
+    order = np.argsort(key, kind="stable")
+    k_sorted, f_sorted = key[order], face_of_loop[order]
+    same = k_sorted[1:] == k_sorted[:-1]
+    nbrs = [[] for _ in range(nf)]
+    for x, y in zip(f_sorted[:-1][same].tolist(), f_sorted[1:][same].tolist()):
+        nbrs[x].append(y)
+        nbrs[y].append(x)
+    return nbrs
 
 
 def bake_all(low, high, res, samples=16):
@@ -503,6 +712,11 @@ def bake_all(low, high, res, samples=16):
         bpy.ops.object.bake(type="EMIT")
         out[name] = bw.pixels(target).copy()
         log("  %s (%.0fs)" % (name, time.time() - t0))
+    if "SBTeam" in high.data.attributes:
+        route_high(high, "Team")
+        bpy.ops.object.bake(type="EMIT")
+        out["team"] = bw.pixels(target).copy()
+        log("  team (%.0fs)" % (time.time() - t0))
     restore_high(high)
     if scene.world is None:
         scene.world = bpy.data.worlds.new("World")
@@ -529,7 +743,7 @@ def smooth(x, a, b):
     return t * t * (3 - 2 * t)
 
 
-def masks(bc_lin, team_mode):
+def masks(bc_lin, team_mode, baked_team=None):
     """Team mask: the light, neutral armor plates (the parts a Halo-style team colour would paint); glow: bright warm
     or strongly saturated light areas (visor, lamps)."""
     h, sat, val = rgb_to_hsv(np.clip(bc_lin, 0, 1) ** (1 / 2.2))
@@ -537,9 +751,43 @@ def masks(bc_lin, team_mode):
         team = np.zeros_like(val)
     else:
         team = smooth(val, 0.28, 0.42) * (1 - smooth(sat, 0.12, 0.25))
-    warm = ((h < 0.14) | (h > 0.95)).astype(np.float64)
-    glow = smooth(val, 0.72, 0.9) * smooth(sat, 0.45, 0.65) * np.maximum(warm, smooth(sat, 0.8, 0.9))
+        if baked_team is not None:
+            team = baked_team
+        # Painted texels are noisy: blur, then re-threshold, so whole plates flip to team colour instead of speckles.
+        team = smooth(blur(team, TEAM_BLUR if baked_team is None else 1.0), 0.35, 0.6)
+    warm = ((h < 0.25) | (h > 0.95)).astype(np.float64)   # amber through yellow-green (generated visors drift)
+    glow = smooth(val, 0.6, 0.85) * smooth(sat, 0.45, 0.65) * np.maximum(warm, smooth(sat, 0.8, 0.9))
+    team = team * (1 - glow)
     return team, glow
+
+
+TEAM_BLUR = 4.0           # px at 2048; scaled with the atlas size
+VISOR_AMBER = np.array([1.0, 0.42, 0.06])   # linear; the concept's amber visor
+
+
+def blur(x, radius):
+    """Separable gaussian blur of a 2D float array (numpy only)."""
+    r = max(1, int(radius * x.shape[0] / 2048))
+    t = np.arange(-3 * r, 3 * r + 1)
+    kern = np.exp(-0.5 * (t / r) ** 2)
+    kern /= kern.sum()
+    pad = np.pad(x, 3 * r, mode="edge")
+    out = _blur_cols(_blur_rows(pad, kern, r), kern, r)
+    return out[3 * r:3 * r + x.shape[0], 3 * r:3 * r + x.shape[1]]
+
+
+def _blur_rows(a, kern, r):
+    out = np.zeros_like(a)
+    for i, w in enumerate(kern):
+        out += w * np.roll(a, i - 3 * r, axis=0)
+    return out
+
+
+def _blur_cols(a, kern, r):
+    out = np.zeros_like(a)
+    for i, w in enumerate(kern):
+        out += w * np.roll(a, i - 3 * r, axis=1)
+    return out
 
 
 TARGET_MEDIAN = 0.16   # linear median albedo of the armor (~0.44 sRGB): mid grey, like the concept sheet
@@ -560,21 +808,55 @@ def exposure_fix(bc):
     return out
 
 
+def derived_rough_metal(bc, team, glow):
+    """Painted plates semi-gloss, dark cloth and webbing rough, worn light spots (chips) on dark parts read as bare
+    metal, grime (local darkening) rougher. Values follow the scripted soldier's material table."""
+    h, sat, val = rgb_to_hsv(np.clip(bc, 0, 1) ** (1 / 2.2))
+    local = blur(val, 6.0)
+    grime = np.clip((local - val) * 4, 0, 1)
+    chips = np.clip((val - local) * 5, 0, 1) * (1 - team)
+    rough = 0.82 - 0.34 * smooth(val, 0.2, 0.5) - 0.12 * team + 0.18 * grime - 0.25 * chips
+    rough = rough * (1 - glow) + 0.08 * glow
+    metal = smooth(chips, 0.35, 0.8) * 0.9
+    return rough, metal
+
+
+DETAIL_STRENGTH = 2.2   # albedo high-pass -> micro normal: panel seams, scratches and stitching the mesh doesn't carry
+
+
+def add_albedo_detail(n, bc):
+    lum = (np.clip(bc, 0, 1) * np.array([0.2126, 0.7152, 0.0722])).sum(-1) ** (1 / 2.2)
+    height = lum - blur(lum, 3.0)
+    gx = (np.roll(height, -1, 1) - np.roll(height, 1, 1)) * 0.5 * DETAIL_STRENGTH
+    gy = (np.roll(height, -1, 0) - np.roll(height, 1, 0)) * 0.5 * DETAIL_STRENGTH
+    v = n * 2 - 1
+    # whiteout blend of the baked normal with the detail normal (-gx, +gy after the green flip above)
+    out = np.stack([v[..., 0] - gx, v[..., 1] + gy, v[..., 2]], -1)
+    out /= np.linalg.norm(out, axis=-1, keepdims=True) + 1e-8
+    return out * 0.5 + 0.5
+
+
 def write_textures(surf, res):
     os.makedirs(TEX_OUT, exist_ok=True)
     n = surf["normal"][:, :, :3].copy()
     n[:, :, 1] = 1.0 - n[:, :, 1]
     n = bw.fix_normal_misses(n)
+    n = add_albedo_detail(n, surf["basecolor"][:, :, :3])
     bw.save_png(n, os.path.join(TEX_OUT, "T_SB_Soldier_N.png"), "RGB")
     bc = exposure_fix(surf["basecolor"][:, :, :3])
-    team, glow = masks(bc, TEAM_MODE)
+    team, glow = masks(bc, TEAM_MODE, surf["team"][:, :, 0] if "team" in surf else None)
     # Plates under the team mask bake toward a light neutral so the team colour reads (the material multiplies it in).
     lum = (bc * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
     # Desktop S1: a dark suit read near black in game and red vs blue was indistinguishable, so team plates get a floor.
     neutral = np.repeat(np.maximum(lum * 1.15, TEAM_FLOOR), 3, axis=2)
     bc_out = bc * (1 - team[..., None] * 0.85) + neutral * (team[..., None] * 0.85)
+    # Visor and lamps take the concept's amber whatever hue the generator painted them.
+    bc_out = bc_out * (1 - glow[..., None]) + np.clip(lum * 0.8 + 0.12, 0, 0.6) * VISOR_AMBER * glow[..., None]
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
-    orm = np.stack([surf["ao"][:, :, 0], np.clip(surf["rough"][:, :, 0], 0.08, 1), np.clip(surf["metal"][:, :, 0], 0, 1)], axis=2)
+    rough, metal = surf["rough"][:, :, 0], surf["metal"][:, :, 0]
+    if rough.std() < 0.01:   # the generator gave base colour only: derive painted plate / cloth roughness from it
+        rough, metal = derived_rough_metal(bc, team, glow)
+    orm = np.stack([surf["ao"][:, :, 0], np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")
     bw.save_png(np.stack([team, glow, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
 
@@ -658,6 +940,8 @@ def main():
         p.use_smooth = True
     log("HIGH %d tris, LOW %d tris (%.0fs)" % (k.triangle_count(high), k.triangle_count(low), time.time() - t0))
     bw.unwrap(low)
+    if TEAM_MODE != "none":
+        face_team(high)
     surf = bake_all(low, high, res)
     write_textures(surf, res)
     bpy.data.objects.remove(high, do_unlink=True)
