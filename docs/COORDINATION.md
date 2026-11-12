@@ -1,4 +1,4 @@
-﻿**K2 done (2026-11-12 06:53 UTC, Claude, desktop).** Keel Cradle on `claude/project-thread-e45jnz`: MapArt import RESULT OK (Cra 3 meshes, Trench 1), 0 "Failed to compile"; SelfTest 136/136; tours Slayer 25/25, CTF 35/35; fixed FP 147.6 before / 148.7 after, 4 bots 127.0. Shots: `docs/playtests/2026-11-11_keel_cradle/` (`-SBShots -SBCradleShots`). Checkout is free.
+**K2 done (2026-11-12 06:53 UTC, Claude, desktop).** Keel Cradle on `claude/project-thread-e45jnz`: MapArt import RESULT OK (Cra 3 meshes, Trench 1), 0 "Failed to compile"; SelfTest 136/136; tours Slayer 25/25, CTF 35/35; fixed FP 147.6 before / 148.7 after, 4 bots 127.0. Shots: `docs/playtests/2026-11-11_keel_cradle/` (`-SBShots -SBCradleShots`). Checkout is free.
 
 # Shieldbreak development handoff
 
@@ -30,14 +30,14 @@ note; this file is the log.
 6. **Commits carry the session link** in their trailer, so either side can tell who did what.
 
 ## Launch roadmap (decided by Vincent, 2026-10-21; details in docs/DESIGN.md)
-Target: 5 maps Ã— 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sandbox, strafing that matters.
+Target: 5 maps × 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive sandbox, strafing that matters.
 
 | # | Work | Owner |
 |---|---|---|
 | 1 | Mechanics: remove Shield Shaping; walk 660 + snappier acceleration; spawn BR + **Sidearm**; SMG/Plasma out of play; **Rail Lance** (charge weapon); **Aegis Shield** (frontal barrier item); **Active Camo** power-up | Code |
 | 2 | Mode framework + **CTF**, **King of the Hill**, **Oddball** (+ HUD, bots play objectives) | Code |
 | 3 | Map framework (code-built layouts, per-map weapon/power-up/objective placement) + 5 greybox maps: **Keel, Bastion, Sanctum, Creekbed, Spire** | Code |
-| 4 | Self-test coverage for 1â€“3; screenshots of every map/mode; FPS per map | PC |
+| 4 | Self-test coverage for 1–3; screenshots of every map/mode; FPS per map | PC |
 | 5 | Find free, properly licensed art for the art pass: a modular sci-fi/ruins environment kit (Fab), a sidearm/rail weapon/rocket model, shield/barrier, flag and hill VFX. Record licenses in ASSET_CREDITS.md. Import only after Vincent approves the pick. | PC |
 | 6 | First real **2-client listen-server test** (two game windows on one PC: `-game -server` + `-game 127.0.0.1`) to catch replication bugs | PC |
 
@@ -57,7 +57,7 @@ Target: 5 maps Ã— 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive s
   animation/movement-presentation/shield-hit pass are complete. See desktop
   verification records below. No files reserved; main is the shared handoff.
 
-## Needs verification (code session â†’ PC)
+## Needs verification (code session → PC)
 - 2026-11-04 Codex desktop baseline: main `abfe0fa` gameplay **136/136 PASS**, four-bot fixture **127.8 FPS** at actual 1280x720. The requested FP script initially passed 7/7 but had no FPS measurement. Added a 20-second stationary first-person observation to this opt-in test; build PASS, baseline FP **7/7 PASS**, **144.0 FPS over 20.3 s**, actual 1280x720, no bots. The identical harness will be used on Claude's branch. Reports and pre-import captures retained in `Saved/CharacterVerification-20261104/Baseline`.
 - 2026-11-03 Codex, induction condenser V2: Blender authoring, narrow one-mesh import and editor builds PASS. New mesh **17,456 triangles**, five material slots, imported bounds match the report. Existing palette entries verified unchanged; two new Spire entries added. Shared material master save side effects from the first import were restored, and the importer now skips existing usage flags; those masters remain unchanged. Original condenser retained under `-SBLegacySpireCondenser`.
   Final Spire tour **29/29 PASS**, six lifts and no stuck bots, **76.3 average FPS** with four bots at verified **1920x1080 / 100%**. Empty-view new/retained observations **101.7 / 102.8 FPS**, one sample each, not a benchmark. New hero minimum 1925 cm leaves **65 cm** against the conservative ordinary-jump/lift head estimate; arbitrary knockback/grenade stacks remain unverified. Bridge/floor close views and the retained model were inspected; the obstructed first floor camera was corrected. Reports: `SpireHeroBuild.log`, `MapArtImport.txt`, `SpireHeroFinalBuild.log`, `SpireHero-herofinal.txt`, `SpireHero-herolegacy.txt`, `SpireHeroGeometryQA.txt`, `SpireHeroTour.txt` under `Saved/Logs`. Proof: `docs/playtests/2026-11-03_spire-condenser-{bridge,floor,legacy}.png`. Full-roster frame pacing, real-team readability and human movement review remain next.
@@ -446,7 +446,7 @@ Target: 5 maps Ã— 4 modes (Slayer, CTF, KOTH, Oddball), a small competitive s
   Lyra-type errors. Content here is Git LFS pointers, so inbound asset references could not
   be read. `docs/ASSET_CREDITS.md` and the packaging notes say anim modifiers and layers
   are still referenced by animations that the game loads. They were not deleted.
-- **Performance:** the Iris Xe laptop history is about 15â€“35 FPS. The desktop (RTX 2080 Ti)
+- **Performance:** the Iris Xe laptop history is about 15–35 FPS. The desktop (RTX 2080 Ti)
   reported about 116 FPS on main's last self-test. That number is not a result for this branch.
 - **Bots:** locomotion is single-node sequence swapping. PR #2 added `UShieldbreakBodyAnimInstance`
   as a step toward a real anim blueprint; blend spaces and aim offsets are still open.
