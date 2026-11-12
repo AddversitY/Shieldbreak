@@ -45,6 +45,20 @@ How v2 was made:
 Known v2 gaps: the respirator jaw is flatter in the geometry than in v1 (the texture still paints
 it), the power pack is boxy, and there's still only base colour and no skeleton.
 
+## v3: higher-resolution multi-view pass
+
+| File | What it is |
+|---|---|
+| `soldier_1_v3_mv.glb` | Textured, 120,000 triangles, **4096** base colour (12.5 MB) |
+| `soldier_1_v3_mv_shape.glb` | Untextured, 882,512 triangles (15.9 MB) |
+| `soldier_1_v3_preview.png` | Front, three-quarter, side and back renders |
+
+The inputs are the same four views as v2 (`soldier_1_v2_views/` plus the front concept). Hunyuan3D-2mv ran at
+**octree resolution 512** and **60 steps** (num_chunks 20000, seed 1234, 299 s, 6.6 GB peak VRAM on the
+2080 Ti). The mesh was reduced to 120k faces, then painted with `hunyuan3d-paint-v2-0-turbo` from the front concept at a
+4096 texture size (297 s). Compared with v2, plate borders and pouch edges are a little crisper and the
+pack ribs are cleaner, but it's still one fused surface with the same overall forms.
+
 ## Licence: prototype only
 
 Hunyuan3D-2 is under the Tencent Hunyuan 3D 2.0 Community License: **non-commercial**, and it
