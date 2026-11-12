@@ -4082,6 +4082,32 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
 			},
 			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
+		// Ragdoll: kill the blue soldier (just lethal, as the death-camera test does) and look at the body 1.5 s later,
+		// to see whether the skinned suit follows the physics body.
+		Steps.Add({ TEXT("tp_soldier_ragdoll"),
+			[this]()
+			{
+				if (!C) { return; }
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(C, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 1.5f) return false;
+				AShieldbreakCharacter* S = C.Get();
+				const USkeletalMeshComponent* Body = S ? S->GetMesh() : nullptr;
+				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (S ? S->GetActorLocation() : FVector::ZeroVector);
+				if (ChaseCamera)
+				{
+					const FVector Eye = Pelvis + FVector(-160.f, 160.f, 140.f);
+					ChaseCamera->SetActorLocationAndRotation(Eye, (Pelvis - Eye).Rotation());
+				}
+				if (Elapsed < 1.7f) return false; // one frame for the camera move
+				Lines.Add(FString::Printf(TEXT("INFO  ragdoll alive %d, pelvis %s"), S && S->IsAlive() ? 1 : 0, *Pelvis.ToString()));
+				TakeShot(TEXT("tp_soldier_ragdoll"), false);
+				return true;
+			}, 5.f });
 		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))

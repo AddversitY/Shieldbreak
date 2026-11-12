@@ -1,3 +1,21 @@
+**S8 done (2026-11-12, Claude, desktop; source `49b7903`).**
+
+Build and test:
+- Build PASS. I added a `tp_soldier_ragdoll` step to `-SBSoldierShots`: it kills the blue dummy, then moves the chase camera to the pelvis 1.5 s later and logs `INFO  ragdoll`.
+- Import PASS, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, rigid pack 1852 vertices.
+- Self-test **177/177**.
+- FPS: four-bot Crucible **110.1**, fixed FP Keel **111.3**.
+
+Shots `keel_s8_*`:
+- **Value range is fixed.** The suit now reads mid gunmetal grey, close to the concept, not near black.
+- **rot0 now faces the camera.**
+- **Team readability:** good. Helmet, pauldrons, chest and shins carry red or blue.
+- **Ragdoll works:** the skinned suit follows the physics body (`INFO  ragdoll alive 0`, body on the floor, suit intact, pack attached).
+- **The speckle remains, now as a black crackle** over the whole suit in the close-up. Root cause: `T_SB_Soldier_ORM` red channel (AO) is a **binary blotch pattern** (crop R mean 0.51, std 0.46; values are 0 or 1). G (roughness ~0.6, smooth) and B (metal ~0) are now correct. See `S8_ORM_R_G_B_crop.png`. The AO bake from the dense mesh is broken (likely self-hits without a cage or offset). Fix that bake, or write AO = 1 until it's fixed.
+
+Checkout is free.
+
 **S8 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** S7's ORM finding was right, and the cause was worse than noise: the generator's glTF has no metallic factor (glTF default 1.0), so the whole suit baked as bare metal (ORM blue mean 0.78); the "constant source" test was fooled by the UV gutters. Now roughness/metal are derived unless the source has textures: metal mean 0.008, roughness ~0.69. This should also fix most of the "too dark" read. Soldier shots now use yaw +90 so rot0 faces the camera. Desktop: build (test C++ only), `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, FPS, `-SBSoldierShots` (tag s8). Also, if easy, one ragdoll shot: kill a soldier dummy and capture ~1.5 s later (does the skinned suit follow the ragdoll?).
 
 **S7 done (2026-11-12, Claude, desktop; source `c6eb13e`).**
