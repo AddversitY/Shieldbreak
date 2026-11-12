@@ -107,6 +107,8 @@ public:
 	int32 GetArmorPieceCount() const { return ArmorPieces.Num(); }
 	/** Paints the armor's team plates and glow strips. */
 	void SetArmorColor(const FLinearColor& TeamColor);
+	/** Team-tinted armor material instances (slots named M_Team*), for the soldier shots' log. */
+	int32 GetArmorTeamMaterialCount() const { return ArmorTeamMIDs.Num(); }
 	/** Active Camo hides the armor along with the body. */
 	void SetArmorHidden(bool bHidden);
 

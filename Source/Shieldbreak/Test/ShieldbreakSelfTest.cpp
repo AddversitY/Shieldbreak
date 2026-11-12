@@ -4005,7 +4005,8 @@ void AShieldbreakSelfTest::BuildShotSteps()
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
 	{
-		// Third person: a red and a blue soldier 3.5 m in front of the first spawn, front, side and back.
+		// Third person through a free camera (the first-person rifle hid one soldier in S1/S2): a red and a blue soldier
+		// side by side, four turns of 90 degrees (rot0 faces the camera), then a close-up of the red one's upper body.
 		Steps.Add({ TEXT("Soldier pair"),
 			[this]()
 			{
@@ -4014,32 +4015,69 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				A = PossessLocalDummy(Where);
 			},
 			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // let the possessed pawn settle (as the FP shots do)
-		Steps.Add({ TEXT("Soldier pair front"),
+		Steps.Add({ TEXT("Soldier pair rot0"),
 			[this]()
 			{
-				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
 				const APawn* P = PC ? PC->GetPawn() : nullptr;
 				if (!P) { return; }
 				const FVector Forward = P->GetActorForwardVector();
-				const FVector Ahead = P->GetActorLocation() + Forward * 500.f;
-				const FVector Right = P->GetActorRightVector() * 110.f;
-				// Facing the camera: towards the viewer's eye.
-				const float Facing = (P->GetActorLocation() - Ahead).Rotation().Yaw;
+				const FVector Ahead = P->GetActorLocation() + Forward * 450.f;
+				const FVector Right = P->GetActorRightVector() * 70.f;
+				const float Facing = (-Forward).Rotation().Yaw;
 				B = SpawnTeamDummy(Ahead - Right, Facing, ShieldbreakTeams::Red);
 				C = SpawnTeamDummy(Ahead + Right, Facing, ShieldbreakTeams::Blue);
-			},
-			[this](float Elapsed) { if (Elapsed < 3.f) return false; TakeShot(TEXT("tp_soldiers_front"), true); return true; }, 6.f });
-		auto Turn = [this](const TCHAR* Name, float Yaw)
-		{
-			Steps.Add({ Name,
-				[this, Yaw]()
+				// Camera 3.2 m from the pair at chest-to-head height, looking slightly down at their middle.
+				const FVector Target = Ahead + FVector(0.f, 0.f, 10.f);
+				const FVector Eye = Ahead - Forward * 320.f + FVector(0.f, 0.f, 40.f);
+				FActorSpawnParameters CameraParams;
+				CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (!ChaseCamera)
 				{
-					for (AShieldbreakCharacter* S : { B.Get(), C.Get() }) { if (S) { S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + Yaw, 0.f)); } }
+					ChaseCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+				}
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
+				if (PC)
+				{
+					PC->SetViewTarget(ChaseCamera);
+					if (AHUD* Overlay = PC->GetHUD()) { Overlay->bShowHUD = false; }
+				}
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 3.f) return false;
+				// Log what the armor actually received, so a missing team tint can be told apart from a weak one.
+				for (AShieldbreakCharacter* S : { B.Get(), C.Get() })
+				{
+					if (!S) { continue; }
+					const UShieldbreakBodyAnimator* Anim = S->FindComponentByClass<UShieldbreakBodyAnimator>();
+					Lines.Add(FString::Printf(TEXT("INFO  soldier %s colour %s armor %d team MIDs %d"), *S->GetName(),
+						*S->GetPlayerColor().ToString(), Anim && Anim->HasArmor(), Anim ? Anim->GetArmorTeamMaterialCount() : -1));
+				}
+				TakeShot(TEXT("tp_soldiers_rot0"), false);
+				return true;
+			}, 6.f });
+		for (int32 Turn = 1; Turn < 4; ++Turn)
+		{
+			const FString Name = FString::Printf(TEXT("tp_soldiers_rot%d"), Turn * 90);
+			Steps.Add({ Name,
+				[this]()
+				{
+					for (AShieldbreakCharacter* S : { B.Get(), C.Get() }) { if (S) { S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + 90.f, 0.f)); } }
 				},
-				[this, Name](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(Name, true); return true; }, 4.f });
-		};
-		Turn(TEXT("tp_soldiers_side"), 90.f);
-		Turn(TEXT("tp_soldiers_back"), 90.f);
+				[this, Name](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(Name, false); return true; }, 4.f });
+		}
+		Steps.Add({ TEXT("tp_soldier_closeup"),
+			[this]()
+			{
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + 90.f + 35.f, 0.f)); // three-quarter front
+				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 45.f);
+				const FVector Eye = ChaseCamera->GetActorLocation() + (Chest - ChaseCamera->GetActorLocation()).GetSafeNormal() * 170.f;
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
 		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
