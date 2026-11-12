@@ -852,6 +852,12 @@ def exposure_fix(bc):
     return out
 
 
+def textured_rough_metal():
+    """True when any source material feeds Roughness or Metallic from a node (a texture), not a constant."""
+    return any(src.get("Roughness", (None,))[0] is not None or src.get("Metallic", (None,))[0] is not None
+               for src in SOURCES.values())
+
+
 def derived_rough_metal(bc, team, glow):
     """Painted plates semi-gloss, dark cloth and webbing rough, worn light spots (chips) on dark parts read as bare
     metal, grime (local darkening) rougher. Values follow the scripted soldier's material table."""
@@ -863,7 +869,7 @@ def derived_rough_metal(bc, team, glow):
     chips = smooth(np.clip((val - local) * 3, 0, 1), 0.45, 0.8) * (1 - team)
     rough = 0.8 - 0.3 * smooth(val, 0.2, 0.5) - 0.12 * team + 0.12 * blur(grime, 2.0) - 0.2 * chips
     rough = blur(rough, 1.5) * (1 - glow) + 0.1 * glow
-    metal = chips * 0.8
+    metal = blur(chips, 1.5) * 0.6
     return rough, metal
 
 
@@ -903,7 +909,10 @@ def write_textures(surf, res):
     bc_out = bc_out * (1 - glow[..., None]) + np.clip(lum * 0.8 + 0.12, 0, 0.6) * VISOR_AMBER * glow[..., None]
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
     rough, metal = surf["rough"][:, :, 0], surf["metal"][:, :, 0]
-    if rough.std() < 0.01:   # the generator gave base colour only: derive painted plate / cloth roughness from it
+    # Base colour only (no roughness/metal textures): derive painted plate / cloth values from it. The test used to be
+    # rough.std() < 0.01, but the empty gutters between UV charts made the constant bake look varied, so a glTF without
+    # a metal factor (default 1.0) shipped as solid metal: the black "speckle" of S3-S7 on the dark albedo.
+    if not textured_rough_metal():
         rough, metal = derived_rough_metal(bc, team, glow)
     orm = np.stack([surf["ao"][:, :, 0], np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")

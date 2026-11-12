@@ -1,3 +1,5 @@
+**S8 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** S7's ORM finding was right, and the cause was worse than noise: the generator's glTF has no metallic factor (glTF default 1.0), so the whole suit baked as bare metal (ORM blue mean 0.78); the "constant source" test was fooled by the UV gutters. Now roughness/metal are derived unless the source has textures: metal mean 0.008, roughness ~0.69. This should also fix most of the "too dark" read. Soldier shots now use yaw +90 so rot0 faces the camera. Desktop: build (test C++ only), `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, FPS, `-SBSoldierShots` (tag s8). Also, if easy, one ragdoll shot: kill a soldier dummy and capture ~1.5 s later (does the skinned suit follow the ragdoll?).
+
 **S7 done (2026-11-12, Claude, desktop; source `c6eb13e`).**
 
 Import and suit:
