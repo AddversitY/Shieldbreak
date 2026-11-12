@@ -137,7 +137,9 @@ public:
 	FVector GetHandGripOffset() const;
 	/** The animator's measured fit (UShieldbreakBodyAnimator::FitTriggerHand): socket-space offset that puts the
 	 *  gun's pistol grip in the palm. Applied at once while the gun is in a hand. */
-	void SetFittedHandOffset(const FVector& Offset);
+	void SetFittedHandOffset(const FVector& Offset, const FQuat& Rotation = FQuat::Identity);
+	/** Rotation of the gun in weapon_r from the fit (identity until fitted, and in first person). */
+	const FQuat& GetHandGripRotation() const { return FittedHandRotation; }
 	bool HasFittedHandOffset() const { return bHasFittedHandOffset; }
 	const FVector& GetFittedHandOffset() const { return FittedHandOffset; }
 	/** The console's extra hand-fit offset (sb.HandGunRight / sb.HandGunForward / sb.FPGunLift), added on top of a fit. */
@@ -244,6 +246,7 @@ private:
 	/** What OnEquipped last attached as. */
 	EEquippedLayout EquippedLayout = EEquippedLayout::None;
 	FVector FittedHandOffset = FVector::ZeroVector;
+	FQuat FittedHandRotation = FQuat::Identity;
 	bool bHasFittedHandOffset = false;
 
 	// Imported art layout, derived from the mesh in ApplyArt().

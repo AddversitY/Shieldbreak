@@ -245,13 +245,14 @@ FVector AShieldbreakWeapon::GetHandGripExtras() const
 		ShieldbreakWeaponPrivate::CVarHandGunForward.GetValueOnGameThread(), ShieldbreakWeaponPrivate::CVarFPGunLift.GetValueOnGameThread());
 }
 
-void AShieldbreakWeapon::SetFittedHandOffset(const FVector& Offset)
+void AShieldbreakWeapon::SetFittedHandOffset(const FVector& Offset, const FQuat& Rotation)
 {
 	FittedHandOffset = Offset;
+	FittedHandRotation = Rotation;
 	bHasFittedHandOffset = true;
 	if (EquippedLayout == EEquippedLayout::Hand || EquippedLayout == EEquippedLayout::FirstPersonHand)
 	{
-		SetActorRelativeLocation(GetHandGripOffset());
+		SetActorRelativeTransform(FTransform(FittedHandRotation, GetHandGripOffset()));
 	}
 }
 
@@ -276,6 +277,7 @@ void AShieldbreakWeapon::OnEquipped()
 	if (EquippedLayout != PreviousLayout)
 	{
 		bHasFittedHandOffset = false; // a different hand (arms or body): the animator fits it again
+		FittedHandRotation = FQuat::Identity;
 	}
 	if (EquippedLayout == EEquippedLayout::None)
 	{
@@ -290,7 +292,7 @@ void AShieldbreakWeapon::OnEquipped()
 		AttachToComponent(Body, FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandSocket);
 		// Both views use the same weapon_r socket and hand pose. The receiver needs
 		// the same trigger-derived clearance on the body as on the first-person arms.
-		SetActorRelativeTransform(FTransform(GetHandGripOffset()));
+		SetActorRelativeTransform(FTransform(FittedHandRotation, GetHandGripOffset()));
 		// The body's shadow already carries a gun; the first-person one would add a second.
 		WeaponMesh->SetCastShadow(!bFirstPerson);
 	}
