@@ -1630,6 +1630,36 @@ namespace ShieldbreakBodyAnimatorPrivate
 		return Cache.Add(Asset, Grip);
 	}
 
+	/** Where the right hand's curled fingers expect the grip: the centre of the arc through the middle and ring fingers'
+	 *  knuckle, last joint and tip (averaged), world space. Orientation-free: it reads the hand's own pose, whichever
+	 *  way the animation holds it. False when the fingers are too straight to define one (radius over 7 cm). */
+	bool RightGripCavity(const USkeletalMeshComponent* Mesh, FVector& OutCentre, float& OutRadius)
+	{
+		FVector Sum = FVector::ZeroVector;
+		float RadiusSum = 0.f;
+		int32 Count = 0;
+		for (const int32 Finger : { 1, 2 })
+		{
+			FVector P[4];
+			if (!FingerPoints(Mesh, ShieldbreakGrip::RightBones, Finger, P)) { continue; }
+			// Circumcentre of knuckle, last joint and tip.
+			const FVector A = P[0] - P[3], B = P[2] - P[3];
+			const FVector AxB = FVector::CrossProduct(A, B);
+			const double Den = 2.0 * AxB.SizeSquared();
+			if (Den < 1e-4) { continue; }
+			const FVector Centre = P[3] + FVector::CrossProduct(A.SizeSquared() * B - B.SizeSquared() * A, AxB) / Den;
+			const float Radius = static_cast<float>(FVector::Dist(Centre, P[3]));
+			if (Radius > 7.f) { continue; }
+			Sum += Centre;
+			RadiusSum += Radius;
+			++Count;
+		}
+		if (Count == 0) { return false; }
+		OutCentre = Sum / Count;
+		OutRadius = RadiusSum / Count;
+		return true;
+	}
+
 	/** The right palm's centre (between the wrist and the knuckles) and normal (toward what it holds), world space. */
 	bool RightPalm(const USkeletalMeshComponent* Mesh, FVector& OutCentre, FVector& OutNormal)
 	{
@@ -1680,48 +1710,74 @@ void UShieldbreakBodyAnimator::FitTriggerHand(USkeletalMeshComponent* Mesh)
 		return;
 	}
 	const FPistolGrip& Grip = MeasurePistolGrip(Gun);
-	FVector Palm, Normal;
+	FVector Palm, Normal, Cavity;
+	float CavityRadius = 0.f;
 	if (!Grip.bValid || !RightPalm(Mesh, Palm, Normal))
 	{
 		return;
 	}
+	const bool bCavity = RightGripCavity(Mesh, Cavity, CavityRadius);
 	const FTransform GunXf = Gun->GetComponentTransform();
 	const FTransform SocketXf = Weapon->GetRootComponent()->GetAttachParent()->GetSocketTransform(Weapon->GetRootComponent()->GetAttachSocketName());
-	const float Gap = FMath::Max(0.f, CVarPalmGap.GetValueOnGameThread());
-	// Move the gun so its grip centre sits on the palm normal, one grip half width plus the palm's thickness out.
-	const FVector Want = Palm + Normal * (Grip.HalfWidth + Gap);
+	// Target: the grip centre where the curled fingers wrap (the hand's own pose says where the grip goes), else one
+	// grip half width plus the palm's thickness out along the palm normal.
+	const FVector Want = bCavity ? Cavity : Palm + Normal * (Grip.HalfWidth + FMath::Max(0.f, CVarPalmGap.GetValueOnGameThread()));
 	const FVector Move = Want - GunXf.TransformPosition(Grip.Centre);
-	// Then along the grip (gun Z) to the nearest place where the knuckles and the palm's edge clear the receiver and
-	// guard. The hand is tested against the gun as it would sit: the hand moved back by the gun's move instead.
+	// Then the nearest placement (up to 3 cm in any direction, gun axes) where the palm (wrist to each knuckle) and the
+	// fingers' first bones clear the gun: the hand is tested against the gun as it would sit (the hand moved back by
+	// the gun's move instead).
 	TArray<UPrimitiveComponent*, TInlineAllocator<2>> Parts;
 	GripParts(Weapon, Parts);
-	const FVector GunUp = GunXf.GetUnitAxis(EAxis::Z);
-	TArray<FVector, TInlineAllocator<6>> Bases;
-	for (const TCHAR* Bone : { TEXT("index_01_r"), TEXT("middle_01_r"), TEXT("ring_01_r"), TEXT("pinky_01_r"), TEXT("thumb_01_r") })
+	TArray<TPair<FVector, FVector>, TInlineAllocator<12>> Segments;
+	for (const int32 Finger : { 0, 1, 2, 3, 4 })
 	{
-		if (Mesh->GetBoneIndex(Bone) != INDEX_NONE) { Bases.Add(Mesh->GetBoneLocation(Bone)); }
+		FVector P[4];
+		if (!FingerPoints(Mesh, ShieldbreakGrip::RightBones, Finger, P)) { continue; }
+		Segments.Add({ Wrist, P[0] });
+		if (Finger != 0) { Segments.Add({ P[0], P[1] }); } // the index finger is the trigger IK's
 	}
-	float Best = 0.f;
-	int32 BestBlocked = MAX_int32;
-	for (const float Shift : { 0.f, -1.f, 1.f, -2.f, 2.f, -3.f, 3.f, -4.f, 4.f })
+	auto CountBlocked = [&](const FVector& Offset)
 	{
-		const FVector Offset = Move + GunUp * Shift;
 		int32 Blocked = 0;
-		for (const FVector& Base : Bases)
+		for (const TPair<FVector, FVector>& Seg : Segments)
 		{
-			Blocked += SegmentHits(Parts, Wrist - Offset, Base - Offset, 0.4f) ? 1 : 0;
+			Blocked += SegmentHits(Parts, Seg.Key - Offset, Seg.Value - Offset, 0.4f) ? 1 : 0;
 		}
-		if (Blocked < BestBlocked) { BestBlocked = Blocked; Best = Shift; }
-		if (Blocked == 0) { break; }
+		return Blocked;
+	};
+	const FVector AxisX = GunXf.GetUnitAxis(EAxis::X), AxisY = GunXf.GetUnitAxis(EAxis::Y), AxisZ = GunXf.GetUnitAxis(EAxis::Z);
+	FVector BestNudge = FVector::ZeroVector;
+	int32 BestBlocked = CountBlocked(Move);
+	float BestCost = BestBlocked * 100.f;
+	// Shell by shell outward (0.75 cm steps), stopping at the first shell with a clear placement: a one-off cost per
+	// hand and gun mesh.
+	for (int32 Ring = 1; Ring <= 4 && BestBlocked > 0; ++Ring)
+	{
+		for (int32 Ix = -Ring; Ix <= Ring; ++Ix)
+		{
+			for (int32 Iy = -Ring; Iy <= Ring; ++Iy)
+			{
+				for (int32 Iz = -Ring; Iz <= Ring; ++Iz)
+				{
+					if (FMath::Max3(FMath::Abs(Ix), FMath::Abs(Iy), FMath::Abs(Iz)) != Ring) { continue; }
+					const FVector Nudge = (AxisX * Ix + AxisY * Iy + AxisZ * Iz) * 0.75f;
+					const int32 Blocked = CountBlocked(Move + Nudge);
+					const float Cost = Blocked * 100.f + static_cast<float>(Nudge.Size());
+					if (Cost < BestCost) { BestCost = Cost; BestBlocked = Blocked; BestNudge = Nudge; }
+				}
+			}
+		}
 	}
-	const FVector MoveWorld = Move + GunUp * Best;
+	const FVector MoveWorld = Move + BestNudge;
+	const float Best = static_cast<float>(BestNudge.Size());
 	// In weapon_r's space (with its scale), without the console extras that GetHandGripOffset adds back.
 	const FVector Fit = (Weapon->GetRootComponent()->GetRelativeLocation() + SocketXf.InverseTransformVector(MoveWorld)
 		- Weapon->GetHandGripExtras()).GetClampedToMaxSize(20.f);
 	Fits.Add(Key, Fit);
 	Weapon->SetFittedHandOffset(Fit);
-	UE_LOG(LogShieldbreak, Log, TEXT("Trigger hand fit for %s in %s: gun offset %s (moved %.1f cm, shift %.0f along the grip, %d knuckle(s) still touching)"),
-		*GunAsset->GetName(), *GetNameSafe(Mesh->GetSkeletalMeshAsset()), *Fit.ToCompactString(), MoveWorld.Size(), Best, BestBlocked);
+	UE_LOG(LogShieldbreak, Log, TEXT("Trigger hand fit for %s in %s: gun offset %s (moved %.1f cm, %s radius %.1f, nudged %.1f cm, %d palm/finger segment(s) still touching)"),
+		*GunAsset->GetName(), *GetNameSafe(Mesh->GetSkeletalMeshAsset()), *Fit.ToCompactString(), MoveWorld.Size(),
+		bCavity ? TEXT("finger cavity") : TEXT("palm normal"), CavityRadius, Best, BestBlocked);
 }
 
 float UShieldbreakBodyAnimator::MeasureTriggerHandHold(bool bFirstPerson, FString* OutDetail) const
@@ -1746,17 +1802,20 @@ float UShieldbreakBodyAnimator::MeasureTriggerHandHold(bool bFirstPerson, FStrin
 	const FVector Centre = Gun->GetComponentTransform().TransformPosition(Grip.Centre);
 	const float Along = static_cast<float>(FVector::DotProduct(Centre - Palm, Normal));
 	// Off the hold across the grip (what reads as the gun beside or through the hand); the grip may sit a few cm up or
-	// down its own length (FitTriggerHand's knuckle clearance) and still fill the palm.
-	const FVector Off = Centre - (Palm + Normal * (Grip.HalfWidth + CVarPalmGap.GetValueOnGameThread()));
+	// down its own length (FitTriggerHand's clearance nudge) and still fill the hand.
+	FVector Cavity;
+	float CavityRadius = 0.f;
+	const FVector Hold = RightGripCavity(Mesh, Cavity, CavityRadius) ? Cavity : Palm + Normal * (Grip.HalfWidth + CVarPalmGap.GetValueOnGameThread());
+	const FVector Off = Centre - Hold;
 	const FVector GripAxis = Gun->GetComponentTransform().GetUnitAxis(EAxis::Z);
 	const float Axial = static_cast<float>(FVector::DotProduct(Off, GripAxis));
 	const float Error = static_cast<float>((Off - GripAxis * Axial).Size());
 	if (OutDetail)
 	{
-		*OutDetail = FString::Printf(TEXT("%s: grip centre %.1f cm off the palm hold across the grip, %.1f cm along it, %.1f cm out along the palm normal (half width %.1f), gun offset %s"),
-			*GetNameSafe(Gun->GetStaticMesh()), Error, Axial, Along, Grip.HalfWidth, *Weapon->GetHandGripOffset().ToCompactString());
+		*OutDetail = FString::Printf(TEXT("%s: grip centre %.1f cm off the fingers' wrap across the grip, %.1f cm along it, %.1f cm out along the palm normal (half width %.1f, finger arc radius %.1f), gun offset %s"),
+			*GetNameSafe(Gun->GetStaticMesh()), Error, Axial, Along, Grip.HalfWidth, CavityRadius, *Weapon->GetHandGripOffset().ToCompactString());
 	}
-	return Along <= 0.f ? 100.f : FMath::Abs(Axial) > 4.5f ? 50.f : Error;
+	return FMath::Abs(Axial) > 4.5f ? 50.f : Error;
 }
 
 int32 UShieldbreakBodyAnimator::MeasureHandClipping(bool bFirstPerson, FString* OutDetail, bool bIncludeMagazine) const
