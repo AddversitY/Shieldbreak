@@ -1,3 +1,13 @@
+**S11 done (2026-11-12, Claude, desktop; source `829a148`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s11_*`:
+- **Chest and forearm team plates: fixed compared with S10.** The red now covers the chest, upper arms and forearms as smooth, continuous areas with clean borders, with no jagged grey islands or blotches. The grey bands crossing the red forearm are the arm straps and read as intended. The blue pauldrons are unchanged and clean.
+- **Belt: fixed.** It's all painted grey pouches, and the red pouch on the lower belt from S10 is gone.
+- **Still open:**
+  - The thigh drop-leg straps look melted and stringy up close.
+  - The gloves are the mannequin's.
+  - The visor is flat.
+
+Checkout is free.
+
 **S11 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Textures only (same meshes as S10): the team mask is now smoothed over the surface before the cut (clean plate borders, not ragged blotches on the chest and forearms), and light regions on the belt line stay as painted (no red pouch). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s11). No build, self-test or FPS needed. Verdict on: chest and forearm team plates vs S10, the belt.
 
 **S10 done (2026-11-12, Claude, desktop; source `4fbfa84`).**
