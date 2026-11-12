@@ -50,7 +50,8 @@ namespace ShieldbreakViewmodelPrivate
 	struct FStyleData
 	{
 		/** Reloads: the gun comes up and in toward the centre for the whole reload (on top of the keys), so the
-		 *  magazine well is on screen; desktop task (M1) showed every reload happening below the frame. */
+		 *  magazine well is on screen; desktop task (M1) showed every reload happening below the frame. Task (32): the
+		 *  level framing (pitch 2, right 24) dropped the rifle palm below the frame, so the rifle lifts higher and further in. */
 		FVector ReloadLift;
 		FVector ReloadLiftRotation;
 		/** Magazine socket in gun space when the mesh has none (art not reimported yet). */
@@ -63,7 +64,7 @@ namespace ShieldbreakViewmodelPrivate
 
 	// Gun space: +Y down the barrel, +Z up, -X the gun's left side (where the left hand works).
 	const FStyleData Styles[] = {
-		/* Rifle */    { FVector(11.f, -5.f, 9.f), FVector(2.f, 2.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(6.f, 1.5f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
+		/* Rifle */    { FVector(11.f, -9.f, 13.f), FVector(2.f, 2.f, 0.f), FVector(0.f, 13.3f, -3.6f), FVector(6.f, 1.5f, -8.0f), FVector(-2.5f, 24.f, -7.5f) },
 		/* Marksman */ { FVector(3.f, 1.5f, 5.5f), FVector(4.f, 3.f, 0.f), FVector(0.f, 14.5f, -3.6f), FVector(-3.2f, 2.0f, -6.5f), FVector(-2.5f, 30.f, -6.6f) },
 		/* Pistol */   { FVector(5.f, -1.f, 9.f), FVector(4.f, 4.f, -6.f), FVector(0.f, -2.2f, -2.4f), FVector(-3.0f, -1.8f, -10.f), FVector(-3.f, -2.f, -12.f) },
 		/* Launcher */ { FVector(0.f, -2.f, 4.f), FVector(0.f, 0.f, 0.f), FVector(0.f, -22.f, 6.5f), FVector(-8.f, 0.f, -2.f), FVector(-2.f, 20.f, -7.f) },
