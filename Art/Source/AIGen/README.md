@@ -59,6 +59,29 @@ The inputs are the same four views as v2 (`soldier_1_v2_views/` plus the front c
 4096 texture size (297 s). Compared with v2, plate borders and pouch edges are a little crisper and the
 pack ribs are cleaner, but it's still one fused surface with the same overall forms.
 
+## v4: Hunyuan3D-2.1 shape (crisper hard surface)
+
+| File | What it is |
+|---|---|
+| `soldier_1_v4_21.glb` | Textured, 120,000 triangles, 4096 base colour (12.1 MB) |
+| `soldier_1_v4_21_shape.glb` | Untextured 2.1 shape, 839,342 triangles (15.1 MB) |
+| `soldier_1_v4_21_preview.png` | Front, three-quarter, side and back renders, textured |
+| `soldier_1_v3_vs_v4_shapes.png` | Untextured comparison: v3 (2mv) on top, v4 (2.1) below |
+
+- **Shape:** `github.com/Tencent-Hunyuan/Hunyuan3D-2.1` hy3dshape, weights `tencent/Hunyuan3D-2.1`
+  (`hunyuan3d-dit-v2-1`). Input: background-removed `concept_1.png` (single view). Settings: octree 512, 50 steps,
+  guidance 5.0, num_chunks 20000, seed 1234, no CPU offload. Took **377 s** at **8.6 GB peak VRAM** on the 2080 Ti
+  (load 84 s). Same venv as 2.0: torch 2.5.1+cu124, transformers 4.46.3, diffusers 0.31.0, plus timm,
+  scikit-image and pytorch-lightning 1.9.5.
+- **Texture:** 2.0 `hunyuan3d-paint-v2-0-turbo` from the front concept, 4096, 120k faces, 209 s. 2.1's PBR paint wasn't
+  run: its README states 21 GB VRAM for texture generation (and it needs bpy 4.0 and its own rasterizer build), which
+  doesn't fit the 11 GB card.
+- **Compared with v3:** crisper. There are distinct helmet ear cups and a respirator jaw, separated chest-rig pouches with
+  flap edges, segmented forearm and shin plates, knee-pad straps, thigh holsters and laced boots. Plate edges are
+  tighter but still rounded, so it isn't CAD-sharp. **The back power pack is missing**, because 2.1 takes one image;
+  the back is a plain plate carrier. The v3 front render wasn't used as input: it only shows the front, so it can't
+  imply the pack, and it would hand 2.1 v3's softness.
+
 ## Licence: prototype only
 
 Hunyuan3D-2 is under the Tencent Hunyuan 3D 2.0 Community License: **non-commercial**, and it
