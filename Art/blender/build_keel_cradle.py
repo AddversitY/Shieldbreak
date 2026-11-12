@@ -109,7 +109,8 @@ def cradle_gantry():
             parts.append(sb_kit.box("winch_cheek", (sx * 420, sy * 300, -225), (190, 40, 110), "Steel", bevel=4.0))
     parts.append(sb_kit.box("deck", (0, 0, -175), (760, 500, 60), "Gunmetal", bevel=6.0))
     parts.append(kit.frustum("motor", (0, 0, -300), (300, 240), (420, 340), 95, "Steel", bevel=6.0, rotate=0.0))
-    parts.append(sb_kit.box("spot", (0, 0, -303), (220, 160, 6), "HullAmber", bevel=0.0))
+    for sx in (-1, 1):   # two small work lamps (one big amber panel bloomed out in game, K2)
+        parts.append(sb_kit.box("spot", (sx * 90, 0, -302), (60, 110, 4), "HullAmber", bevel=0.0))
     for sx in (-1, 1):
         parts.append(sb_kit.box("cabinet", (sx * 250, 0, -230), (120, 380, 70), "Steel", bevel=5.0))
     return sb_kit.join("SM_SB_Kit_CradleGantry", parts)
