@@ -1,3 +1,7 @@
+﻿# Handoff: rifle reload continuous-motion pass (2026-11-11)
+
+Branch `claude/project-thread-cj978d` from `ace8b62` (Claude took over from Codex). This pass re-keys only the rifle reload: continuous gun motion with strip and seat reactions, a post-seat heel push and slide to the forend instead of a splayed open hand, relaxed fingers, and a 20% lift ease at each end. Build PASS. Moves **15/15**. Clipping **3/3**. Full gameplay **177/177**. FP **9/9**. Back-to-back FPS: old keys **119.6**, new **125.0** (no regression; evening background load lowered both). [Review media and reports](playtests/2026-11-11_reload_polish/README.md). Awaiting Vincent's visual review. Open items: the hand is off-frame about 0.3 s during the fresh pickup, the return to idle is still quick, and audio timing and other weapon styles remain. No jobs running; the desktop is released.
+
 # Handoff: rifle reload reference pass; visual review pending (2026-11-11)
 
 Branch `handoff-2026-11-10`, starting at `ee4c366`. Vincent rejected that clip and asked to mimic the realism of [this reference](https://www.youtube.com/watch?v=XI90HrSe3pc). New authored keys add a side-grip wrist, per-joint finger closure/release, old-magazine release and fresh pickup, a seating impulse and forend recovery. The former cross-receiver sweep is gone. Receiver and magazine contact fitting protects the thumb. Magazine events consume once; cancellation blending preserves the refreshed hand frame. Gameplay duration/ammunition and imported art are unchanged.
@@ -191,7 +195,7 @@ and a shadowed wall.
 
 - Cover pass on the five enlarged maps: low cover, lane-splitting walls and base-top cover, placed by
   `fill_<map>()` in `Design/maps/shieldbreak_maps.py` and checked by its validator (exposed floor now 10-18%,
-  down from 31-48% after the 2× stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
+  down from 31-48% after the 2Ã— stretch). Needs a desktop build, self-test and map tours. See `MAPS.md`.
 
 ## Latest cloud pass (2026-11-02): competitive map redesign
 
