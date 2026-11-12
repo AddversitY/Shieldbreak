@@ -867,7 +867,7 @@ def derived_rough_metal(bc, team, glow):
     return rough, metal
 
 
-DETAIL_STRENGTH = 2.2   # albedo high-pass -> micro normal: panel seams, scratches and stitching the mesh doesn't carry
+DETAIL_STRENGTH = 1.0   # albedo high-pass -> micro normal: panel seams, scratches and stitching the mesh doesn't carry
 
 
 def add_albedo_detail(n, bc):
@@ -1017,7 +1017,13 @@ def main():
     for p in low.data.polygons:
         p.use_smooth = True
     log("HIGH %d tris, LOW %d tris (%.0fs)" % (k.triangle_count(high), k.triangle_count(low), time.time() - t0))
-    unwrap_organic(low)
+    if "--reunwrap" in args or not low.data.uv_layers:
+        unwrap_organic(low)
+    else:
+        # Keep the generator's own atlas (xatlas charts, carried through the decimation). Re-unwrapping the decimated
+        # triangles with smart_project cut it into thousands of two-triangle islands: texels wasted on gutters and a
+        # seam on every few centimetres, which read in game as black-and-grey speckle all over the suit (S6 close-up).
+        log("keeping the source UV atlas (%s)" % low.data.uv_layers.active.name)
     if TEAM_MODE != "none":
         face_team(high)
     surf = bake_all(low, high, res, dense=dense)

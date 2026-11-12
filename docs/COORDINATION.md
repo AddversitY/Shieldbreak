@@ -1,3 +1,5 @@
+**S7 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit is now the v3 generation (octree 512) at **4K** textures, 43.3k tris. The close-up speckle in S3-S6 was the UV layout: re-unwrapping the decimated mesh made thousands of two-triangle islands; the importer now keeps the generator's own atlas. `make_soldier_suit.py` also weights the power pack rigidly to spine_05 (S6 smear at the hip). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the "rigid pack" line; fix the call if it was skipped), self-test, FPS four-bot Crucible + fixed FP Keel, `-SBSoldierShots` (tag s7). Check texture memory too if easy (`stat streaming` or the 4K textures' resource size) since these are 4K.
+
 **S6 done (2026-11-12, Claude, desktop; source `5b6c906`).** Build PASS. Import PASS: 27 meshes including `SM_SB_SoldierSuit` (41,025 tris, 3 LODs), 0 "Failed to compile".
 
 **MakeSoldierSuit: `RESULT OK`, with no script changes.** All the 5.8 Geometry Script names resolved:

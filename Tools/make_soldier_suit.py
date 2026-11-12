@@ -53,6 +53,54 @@ def mesh_out(result, fallback):
     return fallback
 
 
+PACK_MAX_Y = -24.0     # cm: behind the mannequin's back (mesh space, +Y is forward)
+PACK_MIN_Z = 95.0      # above the belt
+PACK_BONE = "spine_05"
+
+
+def rigid_pack(bones, mesh):
+    """The power pack is one rigid box: closest-point weights gave its lower side some arm and pelvis influence, which
+    smeared it while aiming (S6). Every vertex behind the back and above the belt follows spine_05 alone. Optional:
+    a missing API is logged and the transferred weights are kept."""
+    try:
+        positions = unreal.GeometryScript_MeshQueries.get_all_vertex_positions(mesh, False)
+        items = positions if isinstance(positions, tuple) else (positions,)
+        pts = None
+        for x in items:
+            if isinstance(x, (list, unreal.Array)):
+                pts = list(x)
+            elif type(x).__name__ == "GeometryScriptVectorList":
+                lists = getattr(unreal, "GeometryScript_List", None) or unreal.GeometryScript_ListUtils
+                out = lists.convert_vector_list_to_array(x)
+                for o in out if isinstance(out, tuple) else (out,):
+                    if isinstance(o, (list, unreal.Array)):
+                        pts = list(o)
+        if pts is None:
+            raise RuntimeError("no vertex positions")
+        index = None
+        for name in ("get_bone_index", "find_bone_index"):
+            fn = getattr(bones, name, None)
+            if fn:
+                r = fn(mesh, unreal.Name(PACK_BONE))
+                for x in r if isinstance(r, tuple) else (r,):
+                    if isinstance(x, int) and not isinstance(x, bool):
+                        index = x
+        if index is None or index < 0:
+            raise RuntimeError("no bone index for %s (bone weight API: %s)" % (PACK_BONE, [n for n in dir(bones) if "bone" in n.lower()]))
+        setter = first(bones, "set_vertex_bone_weights")
+        weight = unreal.GeometryScriptBoneWeight()
+        weight.set_editor_property("bone_index", index)
+        weight.set_editor_property("weight", 1.0)
+        n = 0
+        for vid, p in enumerate(pts):
+            if p.y < PACK_MAX_Y and p.z > PACK_MIN_Z:
+                setter(mesh, vid, [weight])
+                n += 1
+        report("rigid pack: %d vertices on %s (bone %d)" % (n, PACK_BONE, index))
+    except Exception as e:  # noqa: BLE001
+        report("rigid pack skipped: %s" % e)
+
+
 def main():
     asset_utils = unreal.GeometryScript_AssetUtils
     lod = unreal.GeometryScriptMeshReadLOD()
@@ -100,6 +148,7 @@ def main():
     has = getattr(bones, "mesh_has_bone_weights", None)
     if has:
         report("target has bone weights: %s" % (has(target),))
+    rigid_pack(bones, target)
 
     create = find_lib("GeometryScript_NewAssetUtils", "GeometryScript_CreateNewAssetUtils", "GeometryScriptLibrary_CreateNewAssetFunctions")
     make = first(create, "create_new_skeletal_mesh_asset_from_mesh")
