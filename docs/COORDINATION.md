@@ -1,3 +1,33 @@
+**S6 done (2026-11-12, Claude, desktop; source `5b6c906`).** Build PASS. Import PASS: 27 meshes including `SM_SB_SoldierSuit` (41,025 tris, 3 LODs), 0 "Failed to compile".
+
+**MakeSoldierSuit: `RESULT OK`, with no script changes.** All the 5.8 Geometry Script names resolved:
+- `copy_bones_from_mesh`
+- `transfer_bone_weights_from_mesh` with `GeometryScriptTransferBoneWeightsOptions`
+- `mesh_has_bone_weights` -> True
+- `create_new_skeletal_mesh_asset_from_mesh` -> SUCCESS
+- `regenerate_lod` with 3 LODs
+
+`SK_SB_Soldier` has 41,025 tris, UVs intact and slot `M_Team_Soldier` -> `MI_SB_Soldier`.
+
+**Fix needed in `Tools/import_art.py`:** the first skinned shots rendered Default Material (plain grey, no team colour) because `M_SB_ArmorPBR` lacked SkeletalMesh usage. It now calls `set_base_material_usage(MATUSAGE_SKELETAL_MESH)`, the same as `M_SB_Character`. I reimported, rebuilt the suit and retook the shots.
+
+Results:
+- Self-test **177/177** skinned, and **177/177** rigid (`-ExecCmds="sb.SkinnedSuit 0"`).
+- Four-bot Crucible FPS: skinned **107.1** after the fix (110.3 before it, with the default material), rigid **110.3**.
+- Fixed FP Keel: **105.0**. That run is unaffected by the suit, so treat it as noise.
+- Team MIDs: **1** skinned, 14 rigid.
+
+Shots (`keel_s6_*` vs `keel_s6rigid_*`):
+- **The tears are gone.** It's one continuous surface, and the pack and belt join cleanly.
+- **Red vs blue is the strongest yet:** the helmet, pauldrons, chest, knees and shins all carry the team colour.
+- **Remaining problems:**
+  - The pack's lower side panel near the hip shows stretched, smeared texels while aiming (weights are probably pulled toward the arm or spine).
+  - The plates and undersuit still have the mottled black and grey speckle from the S5 texture, so they don't look clean painted.
+  - The suit is still dark overall.
+- Ragdoll on death wasn't checked in these shots.
+
+Checkout is free.
+
 **S6 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Skinned suit. S4/S5 showed the rigid AI pieces tearing at the waist/shoulders when the body bends, so: `import_meshy.py` also exports the whole suit as `Art/Export/Armor/SM_SB_SoldierSuit.fbx` (41k tris, reference pose); new `Tools\MakeSoldierSuit.bat` (`make_soldier_suit.py`, Geometry Script) copies SKM_Manny's skin weights onto it (TransferBoneWeightsFromMesh) and creates `/Game/Shieldbreak/Art/Armor/SK_SB_Soldier` on the mannequin skeleton with slot `M_Team_Soldier` -> `MI_SB_Soldier`; C++ (`sb.SkinnedSuit 1`, default) wears it in third person via leader pose instead of the rigid pieces (first-person arm plates stay rigid). Desktop: (1) build; (2) `Tools\ImportCharacterArt.bat`; (3) `Tools\MakeSoldierSuit.bat` and read `Saved\Logs\MakeSoldierSuit.txt`: the Geometry Script names were written without a 5.8 editor at hand, so fix the script on the desktop if a call is missing (keep the same steps) and note what changed; (4) self-test; (5) FPS four-bot Crucible + fixed FP Keel; (6) `-SBSoldierShots` (tag s6), plus the same with `-ExecCmds="sb.SkinnedSuit 0"` (tag s6rigid) for comparison. Check: no tears at waist/shoulders while aiming, team tint on the suit, the suit follows the ragdoll on death.
 
 **S5 done (2026-11-12, Claude, desktop; source `fa09b4c`).** Import PASS: 14 armor meshes on `MI_SB_Soldier`, 0 "Failed to compile". CheckWinding **all outward**. Self-test **177/177**. FPS (single observations): four-bot Crucible **111.2** (S4 110.9), fixed FP Keel **115.6** (S2 after 112.4 / 114.9). Colours are unchanged (red and blue, 14 MIDs each). Shots `keel_s5_*`:

@@ -632,6 +632,9 @@ def armor_pbr_instances():
         mel.delete_all_material_expressions(mat)
     else:
         mat = tools.create_asset("M_SB_ArmorPBR", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    # SK_SB_Soldier (Tools/make_soldier_suit.py) wears this material; without the SkeletalMesh permutation the
+    # runtime silently draws Default Material on the skinned suit (desktop S6: plain grey, no team colour).
+    mel.set_base_material_usage(mat, unreal.MaterialUsage.MATUSAGE_SKELETAL_MESH, True)
 
     def node(cls, x, y, **props):
         n = mel.create_material_expression(mat, cls, x, y)
