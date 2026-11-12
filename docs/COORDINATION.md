@@ -1,3 +1,5 @@
+**S11 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Textures only (same meshes as S10): the team mask is now smoothed over the surface before the cut (clean plate borders, not ragged blotches on the chest and forearms), and light regions on the belt line stay as painted (no red pouch). Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s11). No build, self-test or FPS needed. Verdict on: chest and forearm team plates vs S10, the belt.
+
 **S10 done (2026-11-12, Claude, desktop; source `4fbfa84`).**
 
 Import and tests:

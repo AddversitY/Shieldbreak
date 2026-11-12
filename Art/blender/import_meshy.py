@@ -628,6 +628,9 @@ TEAM_MIN_AREA = 60.0   # cm^2: a light neutral region smaller than this (a buckl
 TEAM_MIN_VALUE = 0.34   # sRGB value of a light plate (after the generator's baked shading)
 TEAM_MAX_SAT = 0.24
 TEAM_CLOSE = 2           # face rings of closing
+TEAM_BELT = (88.0, 110.0)  # cm: light regions centred in this band stay as painted
+TEAM_SMOOTH = 60         # area-weighted diffusion steps over the surface before the 0.5 cut: rounds off the jagged,
+                         # blotchy plate borders the 2.1 paint gives (S10: ragged red on the chest and forearms)
 
 
 def base_image(mat):
@@ -691,7 +694,13 @@ def face_team(high):
     comps = components(nbrs, cand)
     team = np.zeros(nf, dtype=bool)
     n_team = 0
+    cz = np.empty(nf * 3)
+    me.polygons.foreach_get("center", cz)
+    cz = cz.reshape(-1, 3)[:, 2]
     for members in comps:
+        # The belt line carries pouches and buckles, never armor plates (S10: a red pouch on the belt).
+        if TEAM_BELT[0] < np.median(cz[members]) < TEAM_BELT[1]:
+            continue
         if area[members].sum() >= TEAM_MIN_AREA:
             team[members] = True
             n_team += 1
@@ -704,11 +713,29 @@ def face_team(high):
     for members in components(nbrs, ~team):
         if area[members].sum() < TEAM_MIN_AREA * 0.6:
             team[members] = True
+    team = smooth_on_surface(team.astype(np.float64), nbrs, area, TEAM_SMOOTH) > 0.5
+    # Smoothing can open small holes again; close them as before.
+    for members in components(nbrs, ~team):
+        if area[members].sum() < TEAM_MIN_AREA * 0.6:
+            team[members] = True
     team = team.astype(np.float64)
     attr = me.color_attributes.new("SBTeam", "FLOAT_COLOR", "CORNER")
     corner = np.repeat(team, lt)
     attr.data.foreach_set("color", np.stack([corner, corner, corner, np.ones_like(corner)], -1).ravel())
     log("team mask: %d plates, %.0f%% of the surface" % (n_team, 100 * (area * team).sum() / area.sum()))
+
+
+
+def smooth_on_surface(values, nbrs, area, steps):
+    """Area-weighted averaging of a per-face value with its edge neighbours, `steps` times (a diffusion over the
+    welded surface, so it crosses UV seams)."""
+    a = np.array([f for f, ns in enumerate(nbrs) for _ in ns], dtype=np.int64)
+    b = np.array([g for ns in nbrs for g in ns], dtype=np.int64)
+    wsum = area + np.bincount(a, weights=area[b], minlength=len(area))
+    v = values.copy()
+    for _ in range(steps):
+        v = (v * area + np.bincount(a, weights=(v * area)[b], minlength=len(area))) / wsum
+    return v
 
 
 def components(nbrs, mask):
