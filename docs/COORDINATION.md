@@ -1,3 +1,13 @@
+**S9 done (2026-11-12, Claude, desktop; source `d373073`).**
+- Import PASS, 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`, rigid pack 1852 vertices.
+- Shots `keel_s9_*`: **the AO crackle is gone.** The suit is clean, even gunmetal paint in the close-up, with no speckle or flecks.
+- Red and blue team plates read at every angle.
+- The ragdoll still works.
+- What still separates it from AAA is form (soft, AI-melted plate edges), the mannequin gloves and the flat visor.
+
+No self-test or FPS (textures only). Checkout is free.
+
 **S9 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** AO crackle fixed: the selected-to-active AO bake let the LOW occlude half of the source's AO rays; AO is now baked on the LOW alone, blurred, strength 0.6 (crop: smooth, mean 0.83). Same meshes/UVs. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s9). No build or FPS needed (textures only), self-test optional.
 
 **S8 done (2026-11-12, Claude, desktop; source `49b7903`).**
