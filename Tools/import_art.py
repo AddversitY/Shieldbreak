@@ -680,7 +680,7 @@ def armor_pbr_instances():
     link(one, "", ao, "A")
     link(orm, "R", ao, "B")
     link(ao_strength, "", ao, "Alpha")
-    em_strength = scalar("EmissiveStrength", 4.0, -800, -150)
+    em_strength = scalar("EmissiveStrength", 1.5, -800, -150)  # S3: 4.0 blew the visor and trims out
     em_mask = node(unreal.MaterialExpressionMultiply, -500, -150)
     link(bc, "A", em_mask, "A")
     link(em_strength, "", em_mask, "B")

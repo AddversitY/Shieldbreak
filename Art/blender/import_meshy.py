@@ -794,8 +794,11 @@ def masks(bc_lin, team_mode, baked_team=None):
             team = baked_team
         # Painted texels are noisy: blur, then re-threshold, so whole plates flip to team colour instead of speckles.
         team = smooth(blur(team, TEAM_BLUR if baked_team is None else 1.0), 0.35, 0.6)
-    warm = ((h < 0.25) | (h > 0.95)).astype(np.float64)   # amber through yellow-green (generated visors drift)
-    glow = smooth(val, 0.6, 0.85) * smooth(sat, 0.45, 0.65) * np.maximum(warm, smooth(sat, 0.8, 0.9))
+    # Amber through yellow-green only (generated visors drift toward green). Red is left out: S3 lit a red helmet
+    # stripe as a gold lamp. Then an opening pass so only coherent lamps/visors glow, not bright specks of paint.
+    warm = ((h > 0.05) & (h < 0.25)).astype(np.float64)
+    glow = smooth(val, 0.72, 0.9) * smooth(sat, 0.55, 0.75) * warm
+    glow = smooth(blur(glow, 2.0), 0.45, 0.7)
     team = team * (1 - glow)
     return team, glow
 
@@ -840,7 +843,7 @@ def exposure_fix(bc):
     used = lum > 1e-3
     if used.sum() < 100:
         return bc
-    gain = float(np.clip(TARGET_MEDIAN / max(np.median(lum[used]), 1e-4), 0.6, 3.0))
+    gain = float(np.clip(TARGET_MEDIAN / max(np.median(lum[used]), 1e-4), 0.6, 2.0))
     print(f"albedo exposure: median {np.median(lum[used]):.3f} -> gain {gain:.2f}")
     out = np.clip(bc * gain, 0.02, 0.9)
     out[~used] = bc[~used]
@@ -853,10 +856,12 @@ def derived_rough_metal(bc, team, glow):
     h, sat, val = rgb_to_hsv(np.clip(bc, 0, 1) ** (1 / 2.2))
     local = blur(val, 6.0)
     grime = np.clip((local - val) * 4, 0, 1)
-    chips = np.clip((val - local) * 5, 0, 1) * (1 - team)
-    rough = 0.82 - 0.34 * smooth(val, 0.2, 0.5) - 0.12 * team + 0.18 * grime - 0.25 * chips
-    rough = rough * (1 - glow) + 0.08 * glow
-    metal = smooth(chips, 0.35, 0.8) * 0.9
+    # Only strong, isolated bright marks count as chipped metal; S3's close-up read the generator's noise as
+    # speckle when every small contrast became metal.
+    chips = smooth(np.clip((val - local) * 3, 0, 1), 0.45, 0.8) * (1 - team)
+    rough = 0.8 - 0.3 * smooth(val, 0.2, 0.5) - 0.12 * team + 0.12 * blur(grime, 2.0) - 0.2 * chips
+    rough = blur(rough, 1.5) * (1 - glow) + 0.1 * glow
+    metal = chips * 0.8
     return rough, metal
 
 
@@ -887,8 +892,11 @@ def write_textures(surf, res):
     # Plates under the team mask bake toward a light neutral so the team colour reads (the material multiplies it in).
     lum = (bc * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
     # Desktop S1: a dark suit read near black in game and red vs blue was indistinguishable, so team plates get a floor.
-    neutral = np.repeat(np.maximum(lum * 1.15, TEAM_FLOOR), 3, axis=2)
-    bc_out = bc * (1 - team[..., None] * 0.85) + neutral * (team[..., None] * 0.85)
+    # Painted plates: the generator's texel noise (S3 close-up: "blotchy, speckled") is smoothed away and only the
+    # broad light/dark variation kept, so the team colour reads as one paint job.
+    plate = 0.6 * blur(lum[..., 0], 6.0) + 0.4 * blur(lum[..., 0], 1.5)
+    neutral = np.repeat(np.maximum(plate * 1.15, TEAM_FLOOR)[..., None], 3, axis=2)
+    bc_out = bc * (1 - team[..., None] * 0.92) + neutral * (team[..., None] * 0.92)
     # Visor and lamps take the concept's amber whatever hue the generator painted them.
     bc_out = bc_out * (1 - glow[..., None]) + np.clip(lum * 0.8 + 0.12, 0, 0.6) * VISOR_AMBER * glow[..., None]
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")

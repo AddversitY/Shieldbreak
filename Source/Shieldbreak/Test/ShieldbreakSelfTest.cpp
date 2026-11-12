@@ -3557,6 +3557,8 @@ AShieldbreakCharacter* AShieldbreakSelfTest::SpawnTeamDummy(const FVector& Locat
 		if (AShieldbreakPlayerState* State = DummyController->GetPlayerState<AShieldbreakPlayerState>())
 		{
 			State->SetTeamId(Team);
+			// AssignTeam sets the colour with the team in a real match; SetTeamId alone left dummies grey (S3 shots).
+			State->SetPlayerColor(ShieldbreakTeams::GetTeamColor(Team));
 		}
 	}
 	return Dummy;
@@ -4024,7 +4026,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				const FVector Forward = P->GetActorForwardVector();
 				const FVector Ahead = P->GetActorLocation() + Forward * 450.f;
 				const FVector Right = P->GetActorRightVector() * 70.f;
-				const float Facing = (-Forward).Rotation().Yaw;
+				const float Facing = Forward.Rotation().Yaw; // S3: the meshes face the actor's back, so this faces the camera
 				B = SpawnTeamDummy(Ahead - Right, Facing, ShieldbreakTeams::Red);
 				C = SpawnTeamDummy(Ahead + Right, Facing, ShieldbreakTeams::Blue);
 				// Camera 3.2 m from the pair at chest-to-head height, looking slightly down at their middle.
