@@ -1,3 +1,22 @@
+**S13 done (2026-11-12, Claude, desktop; source `d29c1ae`).** Build PASS. Import PASS, 0 "Failed to compile". MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. Self-test **177/177**. No FPS. Shots `keel_s13_*`.
+- **Visor at mid range: better.** The dark upper band over the glowing lower half gives it some depth, and it reads as a visor, not a flat yellow panel.
+- **Visor up close (`tp_soldier_helmet`, 90 cm): not glass yet.**
+  - The dark upper part shows no visible reflections (no lights or environment, just dark brown), and the glow is a flat yellow gradient.
+  - The visor outline is a ragged, torn-paper cut with a thin white fringe.
+  - The visor is paint on the convex helmet shell, so there's no recess, bezel or parallax.
+- **Front close-up:** `tp_soldier_closeup` is framed almost identically to the helmet shot (an extreme close-up of the red soldier's helmet), so it doesn't show the torso. It would need to sit about 2 m out to judge the whole front.
+- **What it shows of the helmet:**
+  - The red/grey team-mask border is jagged at this distance.
+  - There's smeared, stretched texture and grey streaks on the helmet's left side (a UV seam or projection stretch).
+  - The shell itself is a soft egg.
+- **What still separates it from AAA:**
+  1. Material borders (visor, team plates) are texture-space cuts, which are ragged up close. They need geometry-based material IDs or a separate visor mesh with a bezel.
+  2. Soft generator forms on the helmet and plates, with no hard edges.
+  3. Texture smear at seams.
+  4. Mannequin gloves and melted thigh straps.
+
+Checkout is free.
+
 **S13 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Following S12's advice: only the lower part of the visor glows now; the upper part is dark, glossy (roughness 0.05), slightly metallic amber glass for scene reflections (BC alpha = graded emission). Test C++ only: `tp_soldier_closeup` now really faces the camera (three-quarter front, S10-S12 showed backs), plus a new `tp_soldier_helmet` shot at 90 cm. Desktop: build, `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, self-test, `-SBSoldierShots` (tag s13). No FPS needed. Verdict on: the visor as glass (helmet shot and mid range), the front close-up overall.
 
 **S12 done (2026-11-12, Claude, desktop; source `0261cf9`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s12_*`:
