@@ -716,8 +716,18 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		}
 		if (Id == TEXT("Keel"))
 		{
-			// The warship's reactor crown over the core (hangs 2.6 m; the core top is at 6.5 m, the ceiling at 15 m).
-			Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			// The Cradle (Art/blender/build_keel_cradle.py, docs/KEEL_MIDSHIP_STUDY.md): the cargo pod's shell and its
+			// cables, the overhead crane it hangs from, and each side's crane arm and trench wall. The pieces are
+			// authored in map coordinates round the blockout's pod (z 400..650), ramps and trench, so they sit at the
+			// origin; blue's are red's turned half round. Visual only: each hugs a block or hangs clear of players.
+			const FVector Floor(0.0, 0.0, Layout.FloorZ);
+			Group(Groups, TEXT("CradleGantry")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			Group(Groups, TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, Floor, FVector(1.f)));
+			for (const float Yaw : { 0.f, 180.f })
+			{
+				Group(Groups, TEXT("CraneArm")).Add(FTransform(FRotator(0.f, Yaw, 0.f), Floor, FVector(1.f)));
+				Group(Groups, TEXT("TrenchWall")).Add(FTransform(FRotator(0.f, Yaw, 0.f), Floor, FVector(1.f)));
+			}
 		}
 		else if (Id == TEXT("Spire"))
 		{

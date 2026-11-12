@@ -1,3 +1,5 @@
+**K2 done (2026-11-12 06:53 UTC, Claude, desktop).** Keel Cradle on `claude/project-thread-e45jnz`: MapArt import RESULT OK (Cra 3 meshes, Trench 1), 0 "Failed to compile"; SelfTest 136/136; tours Slayer 25/25, CTF 35/35; fixed FP 147.6 before / 148.7 after, 4 bots 127.0. Shots: `docs/playtests/2026-11-11_keel_cradle/` (`-SBShots -SBCradleShots`). Checkout is free.
+
 # Shieldbreak development handoff
 
 Claude and Codex share this handoff. **main** is the integration branch. This branch unifies
