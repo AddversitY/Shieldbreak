@@ -2,6 +2,7 @@
 
     python import_meshy.py <model.glb|.fbx|.obj> [--bones Art/Reference/manny_bones.json] [--skin Art/Reference/SKM_Manny.obj]
                            [--tris 45000] [--res 4096] [--yaw auto|0|180] [--keep-hands] [--team auto|none]
+                           [--detail dense_untextured_copy.glb]
                            [--preview DIR] [--no-export]
 
 The game wears the suit as rigid per-bone pieces (UShieldbreakBodyAnimator::AttachArmor: SM_SB_Armor_<bone>, modeled in
@@ -157,31 +158,57 @@ def set_coords(obj, arr):
     obj.data.update()
 
 
-def normalise(obj, yaw):
-    """Z up, feet on the floor, centred on X, the toes toward +Y, TARGET_HEIGHT tall."""
+def normalise(obj, yaw, also=()):
+    """Z up, feet on the floor, centred on X, the toes toward +Y, TARGET_HEIGHT tall. Objects in `also` (a denser
+    copy of the same generation) get exactly the same transform."""
     v = coords(obj)
     ext = v.max(0) - v.min(0)
-    if ext[1] > ext[2] * 1.5:          # lying along Y: a Y-up file that arrived unconverted
-        v = v[:, [0, 2, 1]] * np.array([1, -1, 1])
-        ext = v.max(0) - v.min(0)
+    swap = ext[1] > ext[2] * 1.5          # lying along Y: a Y-up file that arrived unconverted
+
+    def stage1(a):
+        return a[:, [0, 2, 1]] * np.array([1, -1, 1]) if swap else a
+    v = stage1(v)
+    ext = v.max(0) - v.min(0)
     scale = TARGET_HEIGHT / ext[2]
-    v = (v - np.array([(v[:, 0].max() + v[:, 0].min()) / 2, 0, v[:, 2].min()])) * scale
+    origin = np.array([(v[:, 0].max() + v[:, 0].min()) / 2, 0, v[:, 2].min()])
+    v = (v - origin) * scale
     if yaw == "auto":
         # Toes stick out forward from the ankles: the lowest 6 cm of the model sits ahead of the shin above it.
         feet = v[v[:, 2] < 6.0]
         shins = v[(v[:, 2] > 25.0) & (v[:, 2] < 45.0)]
         yaw = 0 if feet[:, 1].mean() >= shins[:, 1].mean() else 180
         log("facing: toes %+.1f cm ahead of the shins -> yaw %d" % (feet[:, 1].mean() - shins[:, 1].mean(), yaw))
-    if int(yaw) == 180:
-        v = v * np.array([-1, -1, 1])
+    flip = np.array([-1, -1, 1]) if int(yaw) == 180 else np.ones(3)
+    v = v * flip
     # Line the hips up with the mannequin's (Y), using the middle of the model's depth at hip height.
     hips = v[(v[:, 2] > 85) & (v[:, 2] < 100)]
-    v[:, 1] += 2.3 - (np.percentile(hips[:, 1], 10) + np.percentile(hips[:, 1], 90)) / 2
+    shift = 2.3 - (np.percentile(hips[:, 1], 10) + np.percentile(hips[:, 1], 90)) / 2
+    v[:, 1] += shift
     set_coords(obj, v)
+    for other in also:
+        w = (stage1(coords(other)) - origin) * scale * flip
+        w[:, 1] += shift
+        set_coords(other, w)
     log("normalised: scale x%.3f, %.1f cm tall" % (scale, v[:, 2].max()))
-    if obj.data.has_custom_normals:
-        pass
     return obj
+
+
+def label_like(detail, high, labels, bones):
+    """Labels for a denser copy of the model: each face takes the label of the nearest face of the textured mesh."""
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    tree = BVHTree.FromObject(high, depsgraph)
+    centres = np.empty(len(detail.data.polygons) * 3)
+    detail.data.polygons.foreach_get("center", centres)
+    dl, db = [], []
+    for c in centres.reshape(-1, 3):
+        hit, _, idx, _ = tree.find_nearest(Vector(c), 5.0)
+        if hit is None:
+            dl.append(None)
+            db.append("pelvis")
+        else:
+            dl.append(labels[idx])
+            db.append(bones[idx])
+    return dl, db
 
 
 # =====================================================================================================================
@@ -678,7 +705,14 @@ def face_neighbours(me):
     return nbrs
 
 
-def bake_all(low, high, res, samples=16):
+def select_source(src, low):
+    bpy.ops.object.select_all(action="DESELECT")
+    src.select_set(True)
+    low.select_set(True)
+    bpy.context.view_layer.objects.active = low
+
+
+def bake_all(low, high, res, samples=16, dense=None):
     scene = bw.setup_cycles(samples)
     for mat in high.data.materials:
         if mat is not None:
@@ -703,7 +737,10 @@ def bake_all(low, high, res, samples=16):
     restore_high(high)
     b.normal_space = "TANGENT"
     scene.cycles.samples = 4
+    if dense:
+        select_source(dense, low)
     bpy.ops.object.bake(type="NORMAL")
+    select_source(high, low)
     out["normal"] = bw.pixels(target).copy()
     log("  normal (%.0fs)" % (time.time() - t0))
     scene.cycles.samples = 1
@@ -722,6 +759,8 @@ def bake_all(low, high, res, samples=16):
         scene.world = bpy.data.worlds.new("World")
     scene.world.light_settings.distance = 6.0
     scene.cycles.samples = max(samples * 2, 32)
+    if dense:
+        select_source(dense, low)
     bpy.ops.object.bake(type="AO")
     out["ao"] = bw.pixels(target).copy()
     log("  ao (%.0fs)" % (time.time() - t0))
@@ -906,7 +945,8 @@ def main():
     j = ba.load_bones(bones_path)
     skin = ba.load_skin(skin_path, j)
     high = import_model(model)
-    normalise(high, opt("--yaw", "auto"))
+    detail = import_model(opt("--detail", None)) if "--detail" in args else None
+    normalise(high, opt("--yaw", "auto"), [detail] if detail else [])
     # Very dense scans/generations: thin to ~600k triangles first so the fit and bakes stay quick.
     decimate(high, 600000)
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -916,6 +956,13 @@ def main():
     labels, bones = label_faces(high, j_posed, keep_hands)
     dropped = sum(1 for p in labels if p is None)
     pieces = split_pieces(high, labels, bones, pose)
+    detail_pieces = {}
+    if detail:
+        # The untextured, denser mesh of the same generation: only used as the source of the normal and AO bakes.
+        decimate(detail, 900000)
+        dl, db = label_like(detail, high, labels, bones)
+        detail_pieces = split_pieces(detail, dl, db, pose)
+        bpy.data.objects.remove(detail, do_unlink=True)
     bpy.data.objects.remove(high, do_unlink=True)
     log("cut into %d pieces (%d faces dropped: hands/fingers) (%.0fs)" % (len(pieces), dropped, time.time() - t0))
     body = skin_bvh(skin_path)
@@ -923,6 +970,8 @@ def main():
         moved = push_out(obj, body)
         if moved:
             log("  %s: %d vertices pushed out of the body" % (piece, moved))
+    for obj in detail_pieces.values():
+        push_out(obj, body)
     # LOW: each piece reduced to its share of the budget.
     shares = {p: BUDGET[p.rsplit("_", 1)[0] if p.endswith(("_l", "_r")) else p] for p in pieces}
     total = sum(shares.values())
@@ -934,6 +983,11 @@ def main():
         lows[piece] = low
     high, _ = join_ordered(pieces, "HIGH")
     low, ranges = join_ordered(lows, "LOW")
+    dense = None
+    if detail_pieces:
+        dense, _ = join_ordered(detail_pieces, "DETAIL")
+        for p in dense.data.polygons:
+            p.use_smooth = True
     for p in high.data.polygons:
         p.use_smooth = True
     for p in low.data.polygons:
@@ -942,9 +996,11 @@ def main():
     bw.unwrap(low)
     if TEAM_MODE != "none":
         face_team(high)
-    surf = bake_all(low, high, res)
+    surf = bake_all(low, high, res, dense=dense)
     write_textures(surf, res)
     bpy.data.objects.remove(high, do_unlink=True)
+    if dense:
+        bpy.data.objects.remove(dense, do_unlink=True)
     log("textures written (%.0fs)" % (time.time() - t0))
     out = []
     report = ["source: %s (import_meshy.py, %d px atlas, 1 material)" % (os.path.basename(model), res)]
