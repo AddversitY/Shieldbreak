@@ -23,6 +23,28 @@ Known gaps: there's no back power pack (the concept is front only), only base co
 included (no normal, roughness or metal maps), the mesh is an unstructured triangle soup, and
 there's no skeleton.
 
+## v2: multi-view pass, adds the back power pack
+
+| File | What it is |
+|---|---|
+| `soldier_1_v2_mv.glb` | **Current best.** Textured, 80,000 triangles, 2048 base colour. Has the back power pack (ribbed cylinders, hoses). |
+| `soldier_1_v2_mv_shape.glb` | Untextured multi-view shape, 494,380 triangles |
+| `soldier_1_v2_preview.png` | Front, three-quarter, side and back renders of v2 |
+| `soldier_1_v2_views/{left,back,right}.png` | Guide views the shape was built from |
+
+How v2 was made:
+1. Rendered orthographic left, back and right views (768x1344) of the v1 textured mesh, with a
+   blocked-in power pack built from primitives (a housing, two ribbed vertical cylinders and hoses to the shoulders).
+2. Refined those renders with SDXL base 1.0 img2img (fp16-fix VAE): strength 0.45, 40 steps,
+   guidance 6.5, seed 7. The prompt describes the same soldier per view, adding the power pack.
+3. Hunyuan3D-2mv (`hunyuan3d-dit-v2-mv`, fp16): front = background-removed `concept_1.png`,
+   plus the left, back and right views. 50 steps, octree resolution 384, num_chunks 20000, seed 1234 (488 s).
+4. FaceReducer to 80k, then `hunyuan3d-paint-v2-0-turbo` conditioned on the **front concept only** (123 s).
+   Conditioning on all four views was also tried, but it washed out the colours and dropped the respirator detail.
+
+Known v2 gaps: the respirator jaw is flatter in the geometry than in v1 (the texture still paints
+it), the power pack is boxy, and there's still only base colour and no skeleton.
+
 ## Licence: prototype only
 
 Hunyuan3D-2 is under the Tencent Hunyuan 3D 2.0 Community License: **non-commercial**, and it
