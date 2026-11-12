@@ -1,0 +1,41 @@
+Shieldbreak self-test, 2026.11.12-01.46.32
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 152 pieces
+-- Original art is in place
+PASS  Weapon_BattleRifle uses its own model  -- SM_SB_BattleRifle
+PASS  Weapon_Sidearm uses its own model  -- SM_SB_Sidearm
+PASS  Weapon_SniperRifle uses its own model  -- SM_SB_Sniper
+PASS  Weapon_RocketLauncher uses its own model  -- SM_SB_RocketLauncher
+PASS  Weapon_RailLance uses its own model  -- SM_SB_RailLance
+PASS  Soldiers wear the armor set  -- 14 armor pieces
+PASS  Soldier bodies blend their animation (native anim instance)  -- aim pitch 0.0
+-- First-person arms hold the gun
+PASS  The local player has first-person arms
+PASS  ...and the gun is in their hand  -- FirstPersonArms
+-- Controller aim assist tracks a nearby enemy
+PASS  Controller aim assist tracks a nearby enemy  -- yaw error 2.29 -> 0.00 deg, strength 1.00
+-- Soldier bodies bend to the aim pitch
+PASS  Aim pitch raises the gun hand  -- aim pitch 45.0, hand 45.7 -> 55.7
+-- Keel: spawns and pickups
+PASS  Keel: all 10 spawns stand on floor, inside the map, with headroom
+PASS  Keel: every weapon pickup and power-up spawns  -- weapons 2/2, power-ups 4/4
+INFO  Keel waypoint graph: 842 nodes
+-- Keel: gravity lifts
+PASS  Keel: lift 1 lands you on its target  -- pad (0, 1700, 0) -> target (0, 250, 650), landed (0, 225, 652): 25 uu off, dz 2
+PASS  Keel: lift 2 lands you on its target  -- pad (0, -1700, 0) -> target (0, -250, 650), landed (0, -224, 652): 26 uu off, dz 2
+-- Bot match sanity (75 s)
+INFO  3 third-person screenshots in Saved/Screenshots/SelfTest
+INFO  Keel team score after the bot match: red 7, blue 5
+PASS  No bot stays stuck in one spot for 20 s  -- 0 stuck: 
+INFO  average 152.3 FPS over 78 real seconds with 4 bots
+PASS  4 bots joined  -- 4 bots
+PASS  Bots find and fight each other  -- 24 kills+deaths in 75 s
+RESULT 25 passed, 0 failed

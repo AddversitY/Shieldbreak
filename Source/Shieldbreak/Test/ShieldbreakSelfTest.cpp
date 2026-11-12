@@ -2962,6 +2962,14 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			AddView(TEXT("6_hero_bridge"), FVector(-1800.f, 0.f, 870.f), FVector(0.f, 0.f, 2060.f));
 			AddView(TEXT("7_hero_floor"), FVector(-1200.f, -3000.f, 170.f), FVector(0.f, 0.f, 2060.f));
 		}
+		if (Arena && Arena->GetMapId() == FName(TEXT("Keel")) && FParse::Param(FCommandLine::Get(), TEXT("SBCradleShots")))
+		{
+			// Player-height views of the Cradle centrepiece (before the spawn view, like the Spire hero views).
+			AddView(TEXT("6_cradle_a"), FVector(-2600.f, 300.f, 520.f), FVector(0.f, 0.f, 600.f));
+			AddView(TEXT("7_cradle_b"), FVector(-900.f, -700.f, 170.f), FVector(0.f, 0.f, 450.f));
+			AddView(TEXT("8_cradle_c"), FVector(-500.f, 0.f, 820.f), FVector(600.f, 0.f, 1300.f));
+			AddView(TEXT("9_cradle_d"), FVector(-3800.f, 0.f, 520.f), FVector(0.f, 0.f, 650.f));
+		}
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{
 			const FTransform& Spawn = Arena->GetSpawnTransforms()[0];
