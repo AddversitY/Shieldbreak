@@ -1041,6 +1041,46 @@ void AShieldbreakSelfTest::BuildSteps()
 						RecordHold(TEXT("third-person BR"), HoldError, HoldDetail);
 					}
 					TakeShot(TEXT("tp_grip_br"), true);
+					Mark = Now(); Phase = 10; return false;
+				case 10: // close side views of the third-person trigger hand: its right (back of the hand), then its left (fingers)
+				case 12:
+				{
+					if (Since < 0.3f) { return false; }
+					if (!B || !B->GetMesh()) { Mark = Now(); Phase = 14; return false; }
+					const FVector Hand = B->GetMesh()->GetBoneLocation(TEXT("hand_r"));
+					const FVector Eye = Hand + B->GetActorRightVector() * (Phase == 12 ? -65.f : 65.f) + B->GetActorForwardVector() * 15.f
+						+ FVector(0.f, 0.f, 12.f);
+					ACameraActor* Cam = nullptr;
+					for (TActorIterator<ACameraActor> It(GetWorld()); It; ++It)
+					{
+						if (It->Tags.Contains(TEXT("SBGripCam"))) { Cam = *It; }
+					}
+					if (!Cam)
+					{
+						FActorSpawnParameters CameraParams;
+						CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						Cam = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+						if (Cam) { Cam->Tags.Add(TEXT("SBGripCam")); }
+					}
+					if (Cam)
+					{
+						Cam->SetActorLocationAndRotation(Eye, (Hand - Eye).Rotation());
+						if (PC) { PC->SetViewTarget(Cam); }
+					}
+					Mark = Now(); ++Phase; return false;
+				}
+				case 11:
+				case 13:
+					if (Since < 0.5f) { return false; }
+					TakeShot(Phase == 11 ? TEXT("tp_grip_br_right") : TEXT("tp_grip_br_left"), true);
+					Mark = Now(); ++Phase; return false;
+				case 14:
+					if (Since < 0.3f) { return false; }
+					for (TActorIterator<ACameraActor> It(GetWorld()); It; ++It)
+					{
+						if (It->Tags.Contains(TEXT("SBGripCam"))) { It->Destroy(); }
+					}
+					if (PC && PC->GetPawn()) { PC->SetViewTarget(PC->GetPawn()); }
 					Mark = Now(); Phase = 9; return false;
 				case 9:
 					if (Since < 0.3f) { return false; }
@@ -1052,7 +1092,7 @@ void AShieldbreakSelfTest::BuildSteps()
 					return true;
 				}
 				return true;
-			}, 40.f });
+			}, 45.f });
 	}
 
 	// ---- Death camera: killed from the front, the ragdoll is thrown back toward where the camera used to sit. ----

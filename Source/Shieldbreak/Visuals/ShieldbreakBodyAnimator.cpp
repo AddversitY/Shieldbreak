@@ -1743,23 +1743,17 @@ void UShieldbreakBodyAnimator::FitTriggerHand(USkeletalMeshComponent* Mesh)
 		return Blocked;
 	};
 	const FVector GripAxis = GunXf.GetUnitAxis(EAxis::Z);
-	// Across: perpendicular to both (toward the thumb or the fingers), small, so the hold keeps task (27)'s look.
-	const FVector Across = FVector::CrossProduct(Normal, GripAxis).GetSafeNormal();
+	// Out along the palm normal first, a little up or down the grip second: task (28)'s sideways nudges read worse.
 	FVector BestNudge = FVector::ZeroVector;
 	int32 BestBlocked = MAX_int32;
-	float BestCost = MAX_flt;
-	for (float Out = 0.f; Out <= 3.01f; Out += 0.25f)
+	for (float Out = 0.f; Out <= 4.01f && BestBlocked > 0; Out += 0.25f)
 	{
 		for (const float Axial : { 0.f, -0.75f, 0.75f, -1.5f, 1.5f })
 		{
-			for (const float Side : { 0.f, -0.5f, 0.5f, -1.f, 1.f })
-			{
-				const FVector Nudge = Normal * Out + GripAxis * Axial + Across * Side;
-				const int32 Blocked = CountBlocked(Move0 + Nudge);
-				// Each segment still in the gun costs as much as 3 cm of nudge: prefer the closest hold that clears.
-				const float Cost = Blocked * 3.f + static_cast<float>(Nudge.Size());
-				if (Cost < BestCost) { BestCost = Cost; BestBlocked = Blocked; BestNudge = Nudge; }
-			}
+			const FVector Nudge = Normal * Out + GripAxis * Axial;
+			const int32 Blocked = CountBlocked(Move0 + Nudge);
+			if (Blocked < BestBlocked) { BestBlocked = Blocked; BestNudge = Nudge; }
+			if (Blocked == 0) { break; }
 		}
 	}
 	const FVector MoveWorld = Move0 + BestNudge;
