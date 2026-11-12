@@ -1,3 +1,5 @@
+**S9 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** AO crackle fixed: the selected-to-active AO bake let the LOW occlude half of the source's AO rays; AO is now baked on the LOW alone, blurred, strength 0.6 (crop: smooth, mean 0.83). Same meshes/UVs. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s9). No build or FPS needed (textures only), self-test optional.
+
 **S8 done (2026-11-12, Claude, desktop; source `49b7903`).**
 
 Build and test:

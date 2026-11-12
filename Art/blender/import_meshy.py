@@ -759,9 +759,20 @@ def bake_all(low, high, res, samples=16, dense=None):
         scene.world = bpy.data.worlds.new("World")
     scene.world.light_settings.distance = 6.0
     scene.cycles.samples = max(samples * 2, 32)
-    if dense:
-        select_source(dense, low)
+    # AO of the LOW itself. Selected-to-active, the LOW sat on top of the source surface and occluded half of its AO
+    # rays at random, which baked a 0/1 crackle over the whole suit (S8: ORM red mean 0.51, std 0.46). The source
+    # meshes are hidden from rendering for this pass.
+    for src in (high, dense):
+        if src:
+            src.hide_render = True
+    bpy.ops.object.select_all(action="DESELECT")
+    low.select_set(True)
+    bpy.context.view_layer.objects.active = low
+    b.use_selected_to_active = False
     bpy.ops.object.bake(type="AO")
+    for src in (high, dense):
+        if src:
+            src.hide_render = False
     out["ao"] = bw.pixels(target).copy()
     log("  ao (%.0fs)" % (time.time() - t0))
     b.use_selected_to_active = False
@@ -873,6 +884,7 @@ def derived_rough_metal(bc, team, glow):
     return rough, metal
 
 
+AO_STRENGTH = 0.6
 DETAIL_STRENGTH = 1.0   # albedo high-pass -> micro normal: panel seams, scratches and stitching the mesh doesn't carry
 
 
@@ -914,7 +926,9 @@ def write_textures(surf, res):
     # a metal factor (default 1.0) shipped as solid metal: the black "speckle" of S3-S7 on the dark albedo.
     if not textured_rough_metal():
         rough, metal = derived_rough_metal(bc, team, glow)
-    orm = np.stack([surf["ao"][:, :, 0], np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
+    # Soft, low-frequency AO only: a game AO map darkens creases, it should never carry texel noise.
+    ao = 1.0 - AO_STRENGTH * (1.0 - np.clip(blur(surf["ao"][:, :, 0], 2.0), 0, 1))
+    orm = np.stack([ao, np.clip(rough, 0.08, 1), np.clip(metal, 0, 1)], axis=2)
     bw.save_png(orm, os.path.join(TEX_OUT, "T_SB_Soldier_ORM.png"), "RGB")
     bw.save_png(np.stack([team, glow, np.zeros_like(team)], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_M.png"), "RGB")
 
