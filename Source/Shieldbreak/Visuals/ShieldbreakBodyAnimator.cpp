@@ -518,7 +518,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarHeldGrenadePalm(TEXT("sb.HeldGrenadePalm"), 3.5f, TEXT("cm the held grenade sits off the palm (negative puts it on the back of the hand)."));
 	TAutoConsoleVariable<float> CVarTossStart(TEXT("sb.TPThrowStart"), 0.1f, TEXT("Third-person toss: seconds of Lyra's clip skipped at the start."));
 	TAutoConsoleVariable<float> CVarTossRelease(TEXT("sb.TPThrowRelease"), 0.45f, TEXT("Third-person toss: seconds into Lyra's clip where the hand lets go (the play rate puts it at sb.GrenadeReleaseDelay)."));
-	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 14.f, TEXT("First-person gun hand: cm right of the eye."));
+	TAutoConsoleVariable<float> CVarGripRight(TEXT("sb.FPGripRight"), 20.f, TEXT("First-person gun hand: cm right of the eye."));
 	TAutoConsoleVariable<float> CVarGripDown(TEXT("sb.FPGripDown"), 9.5f, TEXT("First-person gun hand: cm below the eye (9.5: the sidearm's grip and the glove on it stay in frame; 13.5 left the glove below it)."));
 	TAutoConsoleVariable<float> CVarAimPitch(TEXT("sb.FPAimPitch"), 1.5f, TEXT("First-person barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarAimYaw(TEXT("sb.FPAimYaw"), -3.f, TEXT("First-person barrel yaw (degrees, negative toward the crosshair)."));
@@ -541,10 +541,10 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
 	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 32.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 15.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 19.f, TEXT("First-person rifles: gun origin cm below the eye."));
-	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 14.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -16.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 24.f, TEXT("First-person rifles: gun origin cm right of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 2.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -2.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
