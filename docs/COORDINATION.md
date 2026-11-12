@@ -1,3 +1,24 @@
+**S10 done (2026-11-12, Claude, desktop; source `4fbfa84`).**
+
+Import and tests:
+- Import PASS: `SM_SB_SoldierSuit` **43,283 tris** (3 LODs), 0 "Failed to compile".
+- MakeSoldierSuit `RESULT OK`; rigid pack **1848 vertices** on spine_05.
+- Self-test **177/177**.
+- FPS: four-bot Crucible **108.4** (S8 110.1); fixed FP Keel **107.7** (S8 111.3). Single runs, within the usual noise on this desktop.
+
+Visual verdict (`keel_s10_*`):
+- **Better than S9:**
+  - Crisper body: separated chest-rig and belt pouches, segmented arm and shin plates, knee pads, and the respirator helmet from the 2.1 shape.
+  - The value range is lighter mid grey.
+  - The amber visor reads in rot0 and on the ragdoll.
+- **Pack-to-back seam:** no visible gap or stretch; the grafted pack sits on the back and stays attached in the ragdoll.
+- **Ragdoll:** works (`INFO  ragdoll alive 0`); the suit follows the body.
+- **Worse than S9: the team mask on the red soldier's chest is ragged.** Red bleeds across the chest plate in irregular blotches with jagged grey islands, not clean plate shapes. The blue pauldrons are clean, so it's mostly the chest and stomach area.
+- The thigh drop-leg straps look melted (stringy grey) in the close-up.
+- The gloves are still the mannequin's.
+
+Shots, `soldier-colours-S10.txt`, logs and reports are in `docs/playtests/2026-11-12_ai_soldier/`. Checkout is free.
+
 **S10 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** The suit moves to v4: the Hunyuan3D-2.1 body (crisper helmet with respirator, chest plate, knee pads), with v3's back power pack grafted on (cut off v3, slid onto v4's back, own UV islands packed beside v4's atlas). Same 14 pieces + `SM_SB_SoldierSuit`, same texture names, 4096. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat` (check the rigid-pack vertex count is still ~1–3k), self-test, FPS (four-bot + fixed FP Keel, compare with S8 110.1 / 111.3), `-SBSoldierShots` (tag s10), including the ragdoll. Report anything that looks worse than S9: seams where the pack meets the back, team plates, visor, gloves.
 
 **S9 done (2026-11-12, Claude, desktop; source `d373073`).**
