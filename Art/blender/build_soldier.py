@@ -476,6 +476,25 @@ def build(verts, j, high=False):
     helm.append(obox("comm", hc + Vector((-R[0] - 0.2, -5.0, 3.2)), (1.6, 4.4, 3.4), "ArmorDark", bev=0.35))
     helm.append(ocyl("antenna", hc + Vector((-R[0] - 0.4, -6.2, 8.5)), 0.28, 8.0, "Rubber", UP, verts=6, bev=0))
     helm.append(obox("helm_light", hc + Vector((R[0] + 0.55, 4.6, 3.2)), (0.5, 2.4, 0.7), "TeamGlow", bev=0))
+    # Second read: a visor peak, temple plates, jaw guards sweeping back to the ears, a top keel and a rear housing,
+    # so the head reads as built-up armor rather than a ball.
+    helm.append(obox("peak", hc + Vector((0, 12.4, 2.5)), (18.5, 6.0, 2.4), "ArmorPlate", Vector((0, 1, -0.22)), UP, bev=0.6, segments=2,
+                     taper=(0.74, 0.45)))
+    helm.append(obox("keel", hc + Vector((0, -1.5, R[2] + 0.75)), (2.6, 16.0, 1.7), "ArmorDark", Vector((0, 1, -0.1)), UP, bev=0.5, segments=2,
+                     taper=(0.7, 0.6)))
+    helm.append(obox("bustle", hc + Vector((0, -11.6, -4.0)), (13.5, 5.0, 7.5), "ArmorDark", Vector((0, -1, -0.15)), UP, bev=1.0, segments=2,
+                     taper=(0.78, 0.8)))
+    helm.append(obox("bustle_vent", hc + Vector((0, -14.25, -3.6)), (7.0, 0.5, 2.6), "Rubber", Vector((0, -1, -0.15)), UP, bev=0.1))
+    for sx in (1, -1):
+        helm.append(obox("temple", hc + Vector((sx * (R[0] + 0.5), 4.2, 3.4)), (9.5, 1.5, 5.0), "ArmorPlate", Vector((sx, 0.12, 0.18)), UP,
+                         bev=0.5, segments=2, taper=(0.82, 0.82)))
+        helm.append(obox("jaw_guard", hc + Vector((sx * 8.9, 5.4, -7.0)), (10.5, 1.5, 4.6), "ArmorPlate", Vector((sx, 0.42, -0.1)), UP,
+                         bev=0.5, segments=2, taper=(0.85, 0.8)))
+        helm += bolt("b_temple", hc + Vector((sx * (R[0] + 1.35), 7.4, 4.6)), (sx, 0.12, 0.18), r=0.36)
+        helm += bolt("b_temple", hc + Vector((sx * (R[0] + 1.35), 1.0, 4.6)), (sx, 0.12, 0.18), r=0.36)
+        helm += bolt("b_jaw", hc + Vector((sx * 9.6, 2.4, -6.6)), (sx, 0.42, -0.1), r=0.36)
+    helm.append(ocyl("lamp", hc + Vector((-R[0] - 1.6, 8.2, 3.6)), 1.25, 3.6, "ArmorDark", FWD, verts=10, bev=0.2))
+    helm.append(ocyl("lamp_lens", hc + Vector((-R[0] - 1.6, 10.1, 3.6)), 0.95, 0.3, "Steel", FWD, verts=10, bev=0.05))
     helm += bolt("b_brow", hc + Vector((7.4, 9.3, 4.6)), (0.5, 0.7, 0.4)) + bolt("b_brow", hc + Vector((-7.4, 9.3, 4.6)), (-0.5, 0.7, 0.4))
     P["head"] = helm
 
@@ -538,6 +557,17 @@ def build(verts, j, high=False):
     torso.append(obox("radio_face", rc + T.out(30) * 1.45 + UP * 1.2, (3.6, 0.3, 2.6), "Rubber", T.out(30), bev=0.1))
     torso.append(ocyl("radio_knob", rc + UP * 4.1 + T.out(30).cross(UP) * 1.4, 0.6, 1.0, "Steel", UP, verts=8, bev=0.1))
     torso.append(ocyl("radio_aerial", rc + UP * 6.2 - T.out(30).cross(UP) * 1.5, 0.3, 5.0, "Rubber", UP, verts=6, bev=0))
+    # Clavicle plates bridging the pectorals and the gorget, and a trim band under the rig.
+    for sgn in (1, -1):
+        torso.append(T.panel("clavicle", 0.8, 0.95, sgn * 34 - 20, sgn * 34 + 20, "ArmorPlate", pad=3.4, thick=1.2, design=plate_d(2.6),
+                             res=(2, 4), chamfer=0.35, bev=0.3))
+        torso.append(T.panel("oblique", 0.02, 0.2, sgn * 62, sgn * 104, "ArmorDark", pad=3.0, thick=1.1, design=plate_d(1.9), res=(2, 4),
+                             chamfer=0.4, bev=0.3))
+        torso.append(T.panel("scapula", 0.62, 0.9, 180 + sgn * 30, 180 + sgn * 78, "ArmorPlate", pad=3.9, thick=1.2, design=plate_d(2.7),
+                             res=(3, 4), chamfer=0.4, bev=0.35))
+    torso.append(T.panel("rig_trim", 0.0, 0.07, -64, 64, "ArmorDark", pad=3.2, thick=1.0, design=plate_d(2.1), res=(1, 10), bev=0.25))
+    torso.append(obox("nape_guard", s5 + Vector((0, -12.5, 13.0)), (13.0, 4.5, 6.0), "ArmorPlate", Vector((0, -1, 0.5)), UP, bev=0.9, segments=2,
+                      taper=(0.75, 0.7)))
     # Collar: a raised gorget, taller at the back.
     neck = j["neck_01"] + Vector((0, 1.2, -1.0))
     torso.append(cap("gorget", neck, (11.5, 12.0, 8.0), "ArmorPlate",
@@ -594,6 +624,9 @@ def build(verts, j, high=False):
     for sgn in (1, -1):
         abd.append(Bl.panel("kidney", 0.1, 0.9, sgn * 62, sgn * 128, "Webbing", pad=1.8, thick=0.9, design=lambda t, a: wd(a) + 0.8,
                             res=(3, 5), chamfer=0.25, bev=0.2))
+    for sgn in (1, -1):
+        abd.append(Bl.panel("ab_side", 0.2, 0.8, sgn * 54, sgn * 64, "ArmorDark", pad=2.4, thick=0.9, design=lambda t, a: wd(a) + 1.3,
+                            res=(3, 1), bev=0.2))
     P["spine_03"] = abd
 
     # ---- Pelvis ---------------------------------------------------------------------------------------------------
@@ -619,6 +652,11 @@ def build(verts, j, high=False):
         for i, ang in enumerate((142, 166)):
             c = H.surface(0.74, sgn * ang, 1.6, lambda t, a: hd(a))
             pelvis += pouch("belt_pouch", c + H.out(sgn * ang) * 1.6, (5.2, 3.2, 6.4), H.out(sgn * ang))
+    for sgn in (1, -1):
+        pelvis.append(H.panel("fauld", -0.22, 0.5, sgn * 30, sgn * 56, "ArmorPlate", pad=3.0, thick=1.2, design=lambda t, a: hd(a) + 1.6,
+                              res=(3, 3), chamfer=0.4, bev=0.35))
+        pelvis.append(H.panel("tasset_lame", 0.3, 0.64, sgn * 62, sgn * 118, "ArmorDark", pad=4.3, thick=1.1, design=lambda t, a: hd(a) + 3.3,
+                              res=(2, 5), chamfer=0.4, bev=0.3))
     # Front of the belt: admin pouches either side of the buckle, and two grenades on the soldier's left hip.
     for sgn in (1, -1):
         c = H.surface(0.78, sgn * 30, 1.6, lambda t, a: hd(a))
@@ -641,6 +679,8 @@ def build(verts, j, high=False):
         parts = [A.panel("arm_sleeve", 0.3, 0.9, 0, 360, "Undersuit", pad=0.8, thick=1.0, res=(3, 14), bev=0.15)]
         parts.append(A.panel("bicep", 0.5, 0.9, 5, 175, "ArmorPlate", pad=1.9, thick=1.2, design=lambda t, a: ad(a) + 1.0, res=(3, 7),
                              chamfer=0.35, bev=0.35))
+        parts.append(A.panel("rerebrace", 0.46, 0.86, 200, 340, "ArmorDark", pad=1.2, thick=0.9, design=lambda t, a: ad(a) + 0.2, res=(3, 5),
+                             chamfer=0.35, bev=0.25))
         parts.append(A.panel("arm_band", 0.6, 0.72, 0, 360, "Webbing", pad=1.2, thick=0.6, design=lambda t, a: ad(a) + 0.1, res=(1, 14), bev=0.1))
         out = (A.s * 0.8 + UP * 0.6).normalized()
         base = sh + A.s * 1.0 + UP * 1.0
@@ -735,6 +775,12 @@ def build(verts, j, high=False):
                           chamfer=0.35, bev=0.4))
     thigh.append(Th.panel("ham", 0.3, 0.8, 158, 262, "ArmorDark", pad=1.6, thick=1.1, design=lambda t, a: td(t, a) + 0.3, res=(4, 6),
                           chamfer=0.35, bev=0.3))
+    thigh.append(Th.panel("cuisse_top", 0.15, 0.36, -50, 66, "ArmorPlate", pad=3.3, thick=1.3, design=lambda t, a: td(t, a) + 2.3, res=(2, 6),
+                          chamfer=0.35, bev=0.4))
+    thigh.append(Th.panel("cuisse_low", 0.7, 0.92, -44, 60, "ArmorDark", pad=3.2, thick=1.2, design=lambda t, a: td(t, a) + 2.2, res=(2, 6),
+                          chamfer=0.4, bev=0.35))
+    thigh.append(Th.panel("thigh_inner", 0.32, 0.8, -150, -70, "ArmorDark", pad=1.4, thick=0.9, design=lambda t, a: td(t, a) + 0.1, res=(3, 4),
+                          chamfer=0.35, bev=0.25))
     for t in (0.36, 0.6):
         thigh.append(Th.panel("thigh_strap", t, t + 0.07, 0, 360, "Webbing", pad=2.9, thick=0.6, design=lambda t, a: td(t, a) + 1.9,
                               res=(1, 18), bev=0.1))
@@ -759,6 +805,12 @@ def build(verts, j, high=False):
     shin.append(C.panel("calf_plate", 0.14, 0.8, 100, 260, "ArmorDark", pad=1.7, thick=1.2, design=lambda t, a: cd(t, a) + 0.6, res=(5, 8),
                         chamfer=0.3, bev=0.35))
     shin.append(C.panel("ankle_cuff", 0.84, 0.98, 0, 360, "ArmorDark", pad=1.8, thick=1.2, design=lambda t, a: 6.6, res=(1, 16), bev=0.3))
+    shin.append(C.panel("greave_top", 0.12, 0.34, -70, 70, "ArmorPlate", pad=3.1, thick=1.3, design=lambda t, a: cd(t, a) + 2.4, res=(2, 7),
+                        chamfer=0.35, bev=0.4))
+    shin.append(C.panel("greave_ridge", 0.36, 0.86, -9, 9, "ArmorDark", pad=3.0, thick=1.1, design=lambda t, a: cd(t, a) + 2.3, res=(4, 2),
+                        chamfer=0.5, bev=0.3))
+    shin.append(C.panel("ankle_plate", 0.8, 0.96, -60, 60, "ArmorPlate", pad=3.0, thick=1.2, design=lambda t, a: 7.9, res=(1, 6), chamfer=0.4,
+                        bev=0.35))
     kc = knee + Vector((0, 5.6, -1.0))
     shin.append(cap("knee", kc, (7.4, 6.2, 8.2), "ArmorTeam", lambda l: l.y > -0.1 and abs(l.z) < 0.82, thick=1.5, segs=(14, 10),
                     power=(0.72, 0.8, 0.75), bev=0.45, sharp=32))
