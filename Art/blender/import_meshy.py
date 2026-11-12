@@ -542,17 +542,36 @@ def masks(bc_lin, team_mode):
     return team, glow
 
 
+TARGET_MEDIAN = 0.16   # linear median albedo of the armor (~0.44 sRGB): mid grey, like the concept sheet
+TEAM_FLOOR = 0.32      # linear albedo floor under the team mask so the team tint stays readable
+
+
+def exposure_fix(bc):
+    """Generated textures often carry baked-in shading and come out dark. Scale albedo so the median of the covered
+    texels sits at TARGET_MEDIAN (gain clamped to 0.6..3), then keep everything inside PBR-safe 0.02..0.9."""
+    lum = (bc * np.array([0.2126, 0.7152, 0.0722])).sum(-1)
+    used = lum > 1e-3
+    if used.sum() < 100:
+        return bc
+    gain = float(np.clip(TARGET_MEDIAN / max(np.median(lum[used]), 1e-4), 0.6, 3.0))
+    print(f"albedo exposure: median {np.median(lum[used]):.3f} -> gain {gain:.2f}")
+    out = np.clip(bc * gain, 0.02, 0.9)
+    out[~used] = bc[~used]
+    return out
+
+
 def write_textures(surf, res):
     os.makedirs(TEX_OUT, exist_ok=True)
     n = surf["normal"][:, :, :3].copy()
     n[:, :, 1] = 1.0 - n[:, :, 1]
     n = bw.fix_normal_misses(n)
     bw.save_png(n, os.path.join(TEX_OUT, "T_SB_Soldier_N.png"), "RGB")
-    bc = surf["basecolor"][:, :, :3]
+    bc = exposure_fix(surf["basecolor"][:, :, :3])
     team, glow = masks(bc, TEAM_MODE)
     # Plates under the team mask bake toward a light neutral so the team colour reads (the material multiplies it in).
     lum = (bc * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
-    neutral = np.repeat(lum, 3, axis=2) * 1.15
+    # Desktop S1: a dark suit read near black in game and red vs blue was indistinguishable, so team plates get a floor.
+    neutral = np.repeat(np.maximum(lum * 1.15, TEAM_FLOOR), 3, axis=2)
     bc_out = bc * (1 - team[..., None] * 0.85) + neutral * (team[..., None] * 0.85)
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
     orm = np.stack([surf["ao"][:, :, 0], np.clip(surf["rough"][:, :, 0], 0.08, 1), np.clip(surf["metal"][:, :, 0], 0, 1)], axis=2)
