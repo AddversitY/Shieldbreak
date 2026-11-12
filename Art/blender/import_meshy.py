@@ -628,6 +628,7 @@ TEAM_MIN_AREA = 60.0   # cm^2: a light neutral region smaller than this (a buckl
 TEAM_MIN_VALUE = 0.34   # sRGB value of a light plate (after the generator's baked shading)
 TEAM_MAX_SAT = 0.24
 TEAM_CLOSE = 2           # face rings of closing
+VISOR_Z = (160.0, 186.0)  # cm: the head's height range, mapped to 0..1 for the visor shading
 TEAM_BELT = (88.0, 110.0)  # cm: light regions centred in this band stay as painted
 TEAM_SMOOTH = 60         # area-weighted diffusion steps over the surface before the 0.5 cut: rounds off the jagged,
                          # blotchy plate borders the 2.1 paint gives (S10: ragged red on the chest and forearms)
@@ -721,7 +722,15 @@ def face_team(high):
     team = team.astype(np.float64)
     attr = me.color_attributes.new("SBTeam", "FLOAT_COLOR", "CORNER")
     corner = np.repeat(team, lt)
-    attr.data.foreach_set("color", np.stack([corner, corner, corner, np.ones_like(corner)], -1).ravel())
+    # G and B carry the corner's height and side in the head's frame, for the visor's glass shading (write_textures).
+    lv = np.empty(len(me.loops), dtype=np.int64)
+    me.loops.foreach_get("vertex_index", lv)
+    vco = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", vco)
+    vco = vco.reshape(-1, 3)[lv]
+    height = np.clip((vco[:, 2] - VISOR_Z[0]) / (VISOR_Z[1] - VISOR_Z[0]), 0, 1)
+    visor = np.repeat(face_visor(me, hsv, nbrs, area).astype(np.float64), lt)
+    attr.data.foreach_set("color", np.stack([corner, height, visor, np.ones_like(corner)], -1).ravel())
     log("team mask: %d plates, %.0f%% of the surface" % (n_team, 100 * (area * team).sum() / area.sum()))
 
 
@@ -736,6 +745,35 @@ def smooth_on_surface(values, nbrs, area, steps):
     for _ in range(steps):
         v = (v * area + np.bincount(a, weights=(v * area)[b], minlength=len(area))) / wsum
     return v
+
+
+
+def face_visor(me, hsv, nbrs, area):
+    """The visor by geometry and colour together: on the face of the helmet (eye band, front), warm painted faces
+    (amber through yellow-green, any brightness) grown into regions; the biggest region is the visor. The texel glow
+    test alone caught only its brightest specks (S11: most of the visor stayed blotchy green and orange paint)."""
+    nf = len(me.polygons)
+    cen = np.empty(nf * 3)
+    me.polygons.foreach_get("center", cen)
+    cen = cen.reshape(-1, 3)
+    nrm = np.empty(nf * 3)
+    me.polygons.foreach_get("normal", nrm)
+    nrm = nrm.reshape(-1, 3)
+    head = (cen[:, 2] > 160) & (cen[:, 2] < 183) & (cen[:, 1] > 0) & (nrm[:, 1] > -0.1)
+    warm = ((hsv[:, 0] < 0.42) | (hsv[:, 0] > 0.9)) & (hsv[:, 1] > 0.3) & (hsv[:, 2] > 0.25)
+    comps = components(nbrs, head & warm)
+    visor = np.zeros(nf, dtype=bool)
+    if comps:
+        big = max(comps, key=lambda m: area[m].sum())
+        visor[big] = True
+        for _ in range(3):
+            visor = visor | (head & np.array([any(visor[g] for g in nbrs[f]) for f in range(nf)]))
+        for members in components(nbrs, head & ~visor):
+            if area[members].sum() < 12.0:
+                visor[members] = True
+        visor = head & (smooth_on_surface(visor.astype(np.float64), nbrs, area, 40) > 0.5)
+        log("visor: %.1f cm^2" % (area * visor).sum())
+    return visor
 
 
 def components(nbrs, mask):
@@ -949,6 +987,21 @@ def textured_rough_metal():
                for src in SOURCES.values())
 
 
+
+def visor_glass(glow, height, side):
+    """A flat amber visor read as a sticker (S9-S11). Glass reads through its gradient: the inner light pools at the
+    bottom, the top falls dark under the brow, a thin bright streak runs across the upper third, and the sides
+    darken as the glass curves away. Works in the visor's own height range, measured from the glow texels."""
+    on = glow > 0.5
+    if on.sum() < 50:
+        return np.ones_like(glow)
+    lo, hi = np.percentile(height[on], 3), np.percentile(height[on], 97)
+    t = np.clip((height - lo) / max(hi - lo, 1e-3), 0, 1)
+    shade = 0.3 + 0.9 * (1 - t) ** 1.6
+    shade += 0.55 * np.exp(-((t - 0.72) / 0.07) ** 2)
+    return blur(shade, 1.0)
+
+
 def derived_rough_metal(bc, team, glow):
     """Painted plates semi-gloss, dark cloth and webbing rough, worn light spots (chips) on dark parts read as bare
     metal, grime (local darkening) rougher. Values follow the scripted soldier's material table."""
@@ -989,6 +1042,10 @@ def write_textures(surf, res):
     bw.save_png(n, os.path.join(TEX_OUT, "T_SB_Soldier_N.png"), "RGB")
     bc = exposure_fix(surf["basecolor"][:, :, :3])
     team, glow = masks(bc, TEAM_MODE, surf["team"][:, :, 0] if "team" in surf else None)
+    if "team" in surf:
+        visor = smooth(blur(surf["team"][:, :, 2], 1.0), 0.3, 0.6)
+        glow = np.maximum(glow, visor)
+        team = team * (1 - visor)
     # Plates under the team mask bake toward a light neutral so the team colour reads (the material multiplies it in).
     lum = (bc * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
     # Desktop S1: a dark suit read near black in game and red vs blue was indistinguishable, so team plates get a floor.
@@ -998,7 +1055,11 @@ def write_textures(surf, res):
     neutral = np.repeat(np.maximum(plate * 1.15, TEAM_FLOOR)[..., None], 3, axis=2)
     bc_out = bc * (1 - team[..., None] * 0.92) + neutral * (team[..., None] * 0.92)
     # Visor and lamps take the concept's amber whatever hue the generator painted them.
-    bc_out = bc_out * (1 - glow[..., None]) + np.clip(lum * 0.8 + 0.12, 0, 0.6) * VISOR_AMBER * glow[..., None]
+    # One clean amber (the generator's own visor paint is blotchy: green and orange patches), shaded as glass below.
+    amber = 0.34 * VISOR_AMBER * np.ones_like(lum)
+    if "team" in surf:
+        amber = amber * visor_glass(glow, surf["team"][:, :, 1], surf["team"][:, :, 2])[..., None]
+    bc_out = bc_out * (1 - glow[..., None]) + amber * glow[..., None]
     bw.save_png(np.concatenate([bw.linear_to_srgb(bc_out), glow[..., None]], axis=2), os.path.join(TEX_OUT, "T_SB_Soldier_BC.png"), "RGBA")
     rough, metal = surf["rough"][:, :, 0], surf["metal"][:, :, 0]
     # Base colour only (no roughness/metal textures): derive painted plate / cloth values from it. The test used to be
