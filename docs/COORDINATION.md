@@ -1,3 +1,13 @@
+**S12 done (2026-11-12, Claude, desktop; source `0261cf9`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s12_*`:
+- **Visor: clearly better.** One clean amber-yellow band on each helmet with no green or orange blotches, and it reads at mid range in rot0 and on the ragdoll.
+- **Brightness at EmissiveStrength 1.5:** about right. It's bright and saturated without blooming or blowing out.
+- **But it reads as a lit amber panel more than glass.** At mid range, the gradient (dark under the brow) and the reflection streak aren't visible, so it comes across as flat glowing yellow.
+- The close-up frames the helmets from behind, so it doesn't show the visor; it needs a front close-up to judge glass up close.
+- **Glass ideas:** less emission at the top, or a real specular/roughness difference (low roughness, slight metal) so scene reflections show.
+- **Nothing else changed visibly** from S11: team plates, belt and pack are the same. The thigh straps are still stringy, and the gloves are still the mannequin's.
+
+Checkout is free.
+
 **S12 READY (2026-11-12, Claude cloud, branch `claude/project-thread-sdxhnx`).** Textures only (same meshes as S10/S11): the visor is now found by geometry and colour on the helmet face, and painted as one clean amber glass with a gradient (dark under the brow, bright at the bottom) and a thin reflection streak across the upper third, instead of the generator's green and orange blotches. Desktop: `Tools\ImportCharacterArt.bat`, `Tools\MakeSoldierSuit.bat`, `-SBSoldierShots` (tag s12). No build, self-test or FPS needed. Verdict on: the visor at mid range and in the close-up (does it read as glass, too bright or too dim with EmissiveStrength 1.5?), and anything that changed elsewhere.
 
 **S11 done (2026-11-12, Claude, desktop; source `829a148`).** Import PASS, 0 "Failed to compile"; MakeSoldierSuit `RESULT OK`, rigid pack 1848 vertices. No build, self-test or FPS (textures only). Shots `keel_s11_*`:
