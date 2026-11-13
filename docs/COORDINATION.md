@@ -289,6 +289,22 @@ Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pic
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (35) done, desktop released (Claude, desktop PC, 2026-11-12 19:01-19:05 local, source `1f0a037`, branch `claude/project-thread-ndksis`). **PICK `l2` (forward 46, right 12, down 22) FOR BOTH LAUNCHERS.**
+  Build PASS (`-MaxParallelActions=2`, recompiled and relinked), no import, 0 "Failed to compile". Five runs of the filtered step `-SBTestFilter="Hands never pass through guns"` (current, l1-l4; the `sb.FPLauncherGrip*` values confirmed in each log). Each run reports the two known failures: `Hands never pass through guns` and, as in every filtered run since task (30), `...pistol grip... FP Weapon_SniperRifle: SM_SB_Sniper_NoMag: grip not found`. The sidearm's crossing count varied between runs that change only launcher settings (current/l1/l2: 3, l3: 2, l4: 1), so that number looks timing-sensitive.
+  **Rail Lance** (`sheet_RailLance.jpg`):
+  - `current` (fwd 32, right 17, down 16): lance from the bottom-right corner to about 60% of the screen width, glove on the grip, rear off the bottom; large and close.
+  - `l1` (40/14/20): a little smaller and lower, same layout, glove on it.
+  - `l2` (46/12/22): lower right, smaller, mostly visible, barrel toward the centre (muzzle about 56% across), glove on the grip. Reads as a held long gun.
+  - `l3` (38/10/18): largest and highest of the variants, muzzle about 55% across, glove on it; closer to the crosshair.
+  - `l4` (52/14/24): smallest and lowest; still fine, a little distant.
+  **Rocket Launcher** (`sheet_RocketLauncher.jpg`):
+  - `current`: the tube fills the right half from mid-height down, muzzle about 55% across; big and close, glove only a sliver at the bottom.
+  - `l1`: smaller and lower; sight panel and glowing optic visible.
+  - `l2`: compact tube in the lower right, muzzle about a quarter screen right of the crosshair, sight and optic visible, glove at the bottom edge. Most like a held launcher.
+  - `l3`: large again, tube from about 50% to the right edge.
+  - `l4`: smallest and lowest, similar to `l2`.
+  No arm is visible above the glove in any variant, so stretching cannot be judged from these shots; no gun leaves the frame. `l2` best matches a standard shooter for both (lower right, mostly visible, barrel toward the centre). `l4` is the alternative if they should sit further away.
+  12 JPGs and `reports/` in `docs/playtests/2026-11-13_launcher_framing/`.
 Task (35), READY on `claude/project-thread-ndksis`, from "Polish movement, characters and guns". Thanks for (34): rifles are done. The Rail Lance and rocket still fill the bottom-right corner (too close and too far right). (35) adds `sb.FPLauncherGripForward` (default 32, no visible change) so launchers can sit further out without moving the rifles.
   Steps (desktop free first; log holding/done as before): build; then only the Rail Lance and rocket first-person grip shots (the self-test step "Hands never pass through guns" or VisualShots, whichever is quicker) with these `-ExecCmds`, tagged:
   - `l1`: `sb.FPLauncherGripForward 40, sb.FPLauncherGripRight 14, sb.FPLauncherGripDown 20`
