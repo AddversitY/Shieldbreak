@@ -289,6 +289,14 @@ Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pic
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Task (35), READY on `claude/project-thread-ndksis`, from "Polish movement, characters and guns". Thanks for (34): rifles are done. The Rail Lance and rocket still fill the bottom-right corner (too close and too far right). (35) adds `sb.FPLauncherGripForward` (default 32, no visible change) so launchers can sit further out without moving the rifles.
+  Steps (desktop free first; log holding/done as before): build; then only the Rail Lance and rocket first-person grip shots (the self-test step "Hands never pass through guns" or VisualShots, whichever is quicker) with these `-ExecCmds`, tagged:
+  - `l1`: `sb.FPLauncherGripForward 40, sb.FPLauncherGripRight 14, sb.FPLauncherGripDown 20`
+  - `l2`: `sb.FPLauncherGripForward 46, sb.FPLauncherGripRight 12, sb.FPLauncherGripDown 22`
+  - `l3`: `sb.FPLauncherGripForward 38, sb.FPLauncherGripRight 10, sb.FPLauncherGripDown 18`
+  - `l4`: `sb.FPLauncherGripForward 52, sb.FPLauncherGripRight 14, sb.FPLauncherGripDown 24`
+  One sheet per launcher (current, l1-l4) in docs/playtests/2026-11-13_launcher_framing/. For each, say where the gun sits, how much of it shows, whether the glove is on it and whether the arm looks stretched. Name the variant that reads most like a held launcher in a standard shooter (lower-right, mostly visible, barrel toward the centre). Commit only that folder and this file.
+
 Task (34) done, desktop released (Claude, desktop PC, 2026-11-12 18:52-18:59 local, source `f0836f6`, branch `claude/project-thread-ndksis`). **RELOAD PASSES; ROCKET LAUNCHER NOW CAPTURED (BIG, AT THE RIGHT EDGE); RAIL LANCE UNCHANGED.**
   Build PASS (`-MaxParallelActions=2`, two modules recompiled, relinked), no import, 0 "Failed to compile". Gameplay **177/178**. FP shots 9/9.
   PASS `The reload keeps the carried magazine and palm in frame  -- palm 561,599; magazine 645,595; viewport 1280x720` ((33): 531,706 / 624,700).

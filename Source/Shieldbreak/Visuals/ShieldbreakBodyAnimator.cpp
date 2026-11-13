@@ -545,6 +545,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
 	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 2.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -2.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarLauncherGripForward(TEXT("sb.FPLauncherGripForward"), 32.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarLauncherGripRight(TEXT("sb.FPLauncherGripRight"), 17.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm right of the eye (task 32: at the rifles' 24 the Rail Lance sat on the screen edge)."));
 	TAutoConsoleVariable<float> CVarLauncherGripDown(TEXT("sb.FPLauncherGripDown"), 16.f, TEXT("First-person launchers: gun origin cm below the eye."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
@@ -955,7 +956,7 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonArms()
 	const bool bLauncher = bRifle && FramedWeapon && !FramedWeapon->GetStats().bPistolAnimations
 		&& FramedWeapon->GetStats().Scope == EShieldbreakScope::None;
 	const FVector3f Grip = bLauncher
-		? FVector3f(CVarRifleGripForward.GetValueOnGameThread(), CVarLauncherGripRight.GetValueOnGameThread(), CVarLauncherGripDown.GetValueOnGameThread())
+		? FVector3f(CVarLauncherGripForward.GetValueOnGameThread(), CVarLauncherGripRight.GetValueOnGameThread(), CVarLauncherGripDown.GetValueOnGameThread())
 		: bRifle
 		? FVector3f(CVarRifleGripForward.GetValueOnGameThread(), CVarRifleGripRight.GetValueOnGameThread(), CVarRifleGripDown.GetValueOnGameThread())
 		: FVector3f(CVarGripForward.GetValueOnGameThread(), CVarGripRight.GetValueOnGameThread(), CVarGripDown.GetValueOnGameThread());
