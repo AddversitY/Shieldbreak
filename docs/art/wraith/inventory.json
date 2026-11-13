@@ -1,0 +1,415 @@
+{
+ "asset_count": 1598,
+ "by_class": {
+  "DialogueVoice": 1,
+  "SoundCue": 152,
+  "DialogueWave": 362,
+  "SoundWave": 362,
+  "Texture2D": 201,
+  "MaterialFunction": 71,
+  "MaterialParameterCollection": 3,
+  "MapBuildDataRegistry": 2,
+  "World": 2,
+  "Blueprint": 1,
+  "AnimBlueprint": 1,
+  "AnimSequence": 229,
+  "AnimMontage": 5,
+  "AimOffsetBlendSpace": 3,
+  "BlendSpace": 8,
+  "BlendSpace1D": 2,
+  "Material": 74,
+  "SkeletalMesh": 3,
+  "PreviewMeshCollection": 1,
+  "PhysicsAsset": 2,
+  "Skeleton": 1,
+  "ObjectRedirector": 11,
+  "StaticMesh": 37,
+  "TextureCube": 1,
+  "MaterialInstanceConstant": 16,
+  "PhysicalMaterial": 1,
+  "ParticleSystem": 44,
+  "SubsurfaceProfile": 1,
+  "VectorFieldStatic": 1
+ },
+ "folders": {
+  "/Game/ParagonWraith/Audio": 1,
+  "/Game/ParagonWraith/Audio/Cues": 152,
+  "/Game/ParagonWraith/Audio/DialogueWaves": 362,
+  "/Game/ParagonWraith/Audio/Wavs": 362,
+  "/Game/ParagonWraith/Characters/Global": 1,
+  "/Game/ParagonWraith/Characters/Global/MaterialFunctions": 8,
+  "/Game/ParagonWraith/Characters/Global/MaterialFunctions/MaterialLayerConstructors": 5,
+  "/Game/ParagonWraith/Characters/Global/MaterialFunctions/Textures": 3,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers": 2,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers/Fabric": 4,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers/Metal": 27,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers/Painted": 4,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers/Rubber": 2,
+  "/Game/ParagonWraith/Characters/Global/MaterialLayers/Synthetics": 9,
+  "/Game/ParagonWraith/Characters/Global/ParameterCollections": 1,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith": 4,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Animations": 139,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Animations/AimOffset": 34,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Animations/Blendspaces": 10,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat": 48,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Animations/Locomotion_Combat/AO": 16,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials": 4,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/MLayer": 6,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes": 5,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials": 10,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/ML": 4,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Meshes": 2,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures": 13,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials": 5,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/ML": 1,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Meshes": 1,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures": 10,
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Textures": 18,
+  "/Game/ParagonWraith/Characters/Maps": 2,
+  "/Game/ParagonWraith/Characters/Maps/BackGroundAssets": 4,
+  "/Game/ParagonWraith/FX/Materials": 2,
+  "/Game/ParagonWraith/FX/Materials/Debris": 1,
+  "/Game/ParagonWraith/FX/Materials/Environment/Water": 1,
+  "/Game/ParagonWraith/FX/Materials/Flares": 9,
+  "/Game/ParagonWraith/FX/Materials/Flares/AirGlows": 2,
+  "/Game/ParagonWraith/FX/Materials/Functions": 11,
+  "/Game/ParagonWraith/FX/Materials/Functions/LensFlare": 4,
+  "/Game/ParagonWraith/FX/Materials/HeatDistort": 1,
+  "/Game/ParagonWraith/FX/Materials/Heroes": 13,
+  "/Game/ParagonWraith/FX/Materials/Heroes/Wraith": 1,
+  "/Game/ParagonWraith/FX/Materials/Heroes/Wraith/FX": 4,
+  "/Game/ParagonWraith/FX/Materials/Heroes/Wraith/MLayer": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions": 9,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions/Camera/Effects": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions/MaterialLayerConstructors": 4,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions/ParameterCollections": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions/Textures": 1,
+  "/Game/ParagonWraith/FX/Materials/MaterialFunctions/Textures/Noise": 7,
+  "/Game/ParagonWraith/FX/Materials/MaterialLayers": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialLayers/Metal": 9,
+  "/Game/ParagonWraith/FX/Materials/MaterialLayers/Painted": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialLayers/Rubber": 2,
+  "/Game/ParagonWraith/FX/Materials/MaterialLayers/Synthetics": 1,
+  "/Game/ParagonWraith/FX/Materials/PhysMats": 1,
+  "/Game/ParagonWraith/FX/Materials/Shockwaves": 1,
+  "/Game/ParagonWraith/FX/Materials/Smoke": 3,
+  "/Game/ParagonWraith/FX/Materials/Smoke/DirectionalLit": 5,
+  "/Game/ParagonWraith/FX/Materials/Smoke/Hyperbreach": 1,
+  "/Game/ParagonWraith/FX/Materials/Smoke/Spline": 2,
+  "/Game/ParagonWraith/FX/Materials/Smoke/WispySmokeSoft": 1,
+  "/Game/ParagonWraith/FX/Materials/Sparks": 4,
+  "/Game/ParagonWraith/FX/Materials/Tech": 10,
+  "/Game/ParagonWraith/FX/Materials/Trails": 1,
+  "/Game/ParagonWraith/FX/Materials/VolumeFog": 2,
+  "/Game/ParagonWraith/FX/Materials/Water": 6,
+  "/Game/ParagonWraith/FX/Materials/Water/Hydro": 2,
+  "/Game/ParagonWraith/FX/Meshes/Heroes": 4,
+  "/Game/ParagonWraith/FX/Meshes/Heroes/Wraith": 2,
+  "/Game/ParagonWraith/FX/Meshes/Heroes/Wraith/FX": 9,
+  "/Game/ParagonWraith/FX/Meshes/MuzzleFlashes": 1,
+  "/Game/ParagonWraith/FX/Meshes/Reticles/HyperBreach": 1,
+  "/Game/ParagonWraith/FX/Meshes/Shapes": 5,
+  "/Game/ParagonWraith/FX/Meshes/Smoke": 3,
+  "/Game/ParagonWraith/FX/Meshes/Splines": 9,
+  "/Game/ParagonWraith/FX/Meshes/Water": 2,
+  "/Game/ParagonWraith/FX/Particles": 5,
+  "/Game/ParagonWraith/FX/Particles/Abilities/Drone/FX": 7,
+  "/Game/ParagonWraith/FX/Particles/Abilities/Primary/FX": 6,
+  "/Game/ParagonWraith/FX/Particles/Abilities/ScopedShot/FX": 11,
+  "/Game/ParagonWraith/FX/Particles/Abilities/TeleportTarget/FX": 9,
+  "/Game/ParagonWraith/FX/Particles/Abilities/Ultimate/FX": 6,
+  "/Game/ParagonWraith/FX/Textures/Coords": 2,
+  "/Game/ParagonWraith/FX/Textures/Debris": 2,
+  "/Game/ParagonWraith/FX/Textures/Energy": 2,
+  "/Game/ParagonWraith/FX/Textures/Energy/Electricity": 1,
+  "/Game/ParagonWraith/FX/Textures/Explosions": 3,
+  "/Game/ParagonWraith/FX/Textures/Explosions/HyperBreach": 2,
+  "/Game/ParagonWraith/FX/Textures/Flares": 3,
+  "/Game/ParagonWraith/FX/Textures/Flares/Org_A": 1,
+  "/Game/ParagonWraith/FX/Textures/FluidPatterns": 1,
+  "/Game/ParagonWraith/FX/Textures/Gradients/Color": 4,
+  "/Game/ParagonWraith/FX/Textures/Gradients/Masks": 1,
+  "/Game/ParagonWraith/FX/Textures/Heroes": 5,
+  "/Game/ParagonWraith/FX/Textures/Heroes/Wraith": 6,
+  "/Game/ParagonWraith/FX/Textures/Liquid": 3,
+  "/Game/ParagonWraith/FX/Textures/Masks": 16,
+  "/Game/ParagonWraith/FX/Textures/MuzzleFlashes": 1,
+  "/Game/ParagonWraith/FX/Textures/NormalShapes": 2,
+  "/Game/ParagonWraith/FX/Textures/Smoke": 17,
+  "/Game/ParagonWraith/FX/Textures/Sparks": 2,
+  "/Game/ParagonWraith/FX/Textures/Tech": 4,
+  "/Game/ParagonWraith/FX/Textures/Tile/Geometric": 1,
+  "/Game/ParagonWraith/FX/Textures/Tile/Heat": 1,
+  "/Game/ParagonWraith/FX/Textures/Tile/Noise": 8,
+  "/Game/ParagonWraith/FX/Textures/Tile/Organic": 1,
+  "/Game/ParagonWraith/FX/Textures/Tile/Tech": 2,
+  "/Game/ParagonWraith/FX/Textures/Tile/Water": 1,
+  "/Game/ParagonWraith/FX/Textures/Water": 10,
+  "/Game/ParagonWraith/FX/Textures/trails": 5,
+  "/Game/ParagonWraith/FX/VectorFields": 1
+ },
+ "skeletal_meshes": [
+  {
+   "path": "/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith",
+   "skeleton": "/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith_Skeleton.Wraith_Skeleton",
+   "lods": 5,
+   "lod0_tris": 83330,
+   "lod0_verts": 42330,
+   "materials": [
+    [
+     "M00_lowerbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/M_Wraith_Lowerbody.M_Wraith_Lowerbody"
+    ],
+    [
+     "M01_upperbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/M_Wraith_Upperbody.M_Wraith_Upperbody"
+    ],
+    [
+     "M02_backpackhead",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/M_Wraith_Backpack.M_Wraith_Backpack"
+    ],
+    [
+     "M03_weapon",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/M_Wraith_Gun.M_Wraith_Gun"
+    ]
+   ]
+  },
+  {
+   "path": "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Meshes/Wraith_LunarOps",
+   "skeleton": "/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith_Skeleton.Wraith_Skeleton",
+   "lods": 5,
+   "lod0_tris": 94253,
+   "lod0_verts": 47809,
+   "materials": [
+    [
+     "M00_Martian_Accessories",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/M_Wraith_Attachment_LunarOps.M_Wraith_Attachment_LunarOps"
+    ],
+    [
+     "M00_lowerbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/M_Wraith_Lowerbody_LunarOps.M_Wraith_Lowerbody_LunarOps"
+    ],
+    [
+     "M01_upperbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/M_Wraith_Upperbody_LunarOps.M_Wraith_Upperbody_LunarOps"
+    ],
+    [
+     "M02_backpackhead",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/M_Wraith_Backpack_LunarOps.M_Wraith_Backpack_LunarOps"
+    ],
+    [
+     "M03_weapon",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/M_Wraith_Gun_LunarOps.M_Wraith_Gun_LunarOps"
+    ]
+   ]
+  },
+  {
+   "path": "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Meshes/Wraith_ODGreen",
+   "skeleton": "/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith_Skeleton.Wraith_Skeleton",
+   "lods": 5,
+   "lod0_tris": 93602,
+   "lod0_verts": 47774,
+   "materials": [
+    [
+     "M00_Ghost_Scalloped_Attachments",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Attachment_ODGreen.M_Wraith_Attachment_ODGreen"
+    ],
+    [
+     "M00_lowerbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Lowerbody_ODGreen.M_Wraith_Lowerbody_ODGreen"
+    ],
+    [
+     "M00_lowerbody1",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Lowerbody_ODGreen.M_Wraith_Lowerbody_ODGreen"
+    ],
+    [
+     "M01_upperbody",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Upperbody_ODGreen.M_Wraith_Upperbody_ODGreen"
+    ],
+    [
+     "M02_backpackhead",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Backpack_ODGreen.M_Wraith_Backpack_ODGreen"
+    ],
+    [
+     "M03_weapon",
+     "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Materials/M_Wraith_Gun_ODGreen.M_Wraith_Gun_ODGreen"
+    ]
+   ]
+  }
+ ],
+ "texture_sizes": {
+  "32x32": 2,
+  "1024x1024": 35,
+  "2048x2048": 44,
+  "128x128": 7,
+  "512x512": 29,
+  "4096x4096": 52,
+  "16x16": 2,
+  "256x256": 10,
+  "32x1024": 2,
+  "32x512": 2,
+  "128x512": 2,
+  "64x2048": 1,
+  "64x512": 1,
+  "256x512": 1,
+  "1024x2048": 3,
+  "1024x128": 1,
+  "512x64": 1,
+  "2048x1024": 1,
+  "1024x512": 1,
+  "2048x256": 4
+ },
+ "largest_textures": [
+  [
+   "/Game/ParagonWraith/Characters/Global/MaterialLayers/Metal/T_AnodizedMetal_D",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Global/MaterialLayers/Metal/T_AnodizedMetal_N",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Global/MaterialLayers/Metal/T_Metal_Scratched_Circular_01_COLOR",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Global/MaterialLayers/Metal/T_Wraith_Body_Color_Overlay",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Materials/MLayer/T_TireRubber_R",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Materials/ML/T_Bump_N",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Accessories_ts_DEMO",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_attachment_LunarOps_Mask1",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_attachment_LunarOps_Mask2",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_attachment_LunarOps_RGB",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_Backpack_LunarOps_Mask",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_Gun_LunarOps_Mask2",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_lowerBody_LunarOps_Mask",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_lowerBody_LunarOps_Mask2",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_LunarOps_Gun_RGB",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_LunarOps_Lowerbody_RGBA",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_UpperBody_LunarOps_Mask",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_UpperBody_LunarOps_Mask2",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/LunarOps/Textures/T_Wraith_Upperbody_LunarOps_RGBA",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Accessories_ts_DEMO",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Wraith_Accessories_ODGreen_Mask",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Wraith_Accessories_ODGreen_Mask2",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Wraith_Accessories_ODGreen_RGB",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Wraith_Gun_ODGreen_Mask",
+   4096,
+   4096
+  ],
+  [
+   "/Game/ParagonWraith/Characters/Heroes/Wraith/Skins/ODGreen/Textures/T_Wraith_Gun_ODGreen_Mask2",
+   4096,
+   4096
+  ]
+ ],
+ "material_instances": [
+  "/Game/ParagonWraith/FX/Materials/Flares/AirGlows/M_Recall_GlowingDots_Inst",
+  "/Game/ParagonWraith/FX/Materials/Flares/M_LensFlare_Particle",
+  "/Game/ParagonWraith/FX/Materials/Flares/M_LensFlare_Particle_01",
+  "/Game/ParagonWraith/FX/Materials/Flares/M_LensFlare_Particle_PDirection_Inst",
+  "/Game/ParagonWraith/FX/Materials/Flares/M_Lensflare_TB_SoftGlow_LowDepth_Inst",
+  "/Game/ParagonWraith/FX/Materials/Heroes/M_Spark_VelocityLerp_Pellets_Inst",
+  "/Game/ParagonWraith/FX/Materials/Heroes/Wraith/FX/M_Wraith_Upperbody_Drone_Inst",
+  "/Game/ParagonWraith/FX/Materials/M_ShadowPlaneShimmer_Ward_Inst",
+  "/Game/ParagonWraith/FX/Materials/Smoke/DirectionalLit/M_Directional_Lit_Depth_SmokeElement_Inst",
+  "/Game/ParagonWraith/FX/Materials/Smoke/DirectionalLit/M_Directional_Lit_Depth_Smoke_Spikey_Inst",
+  "/Game/ParagonWraith/FX/Materials/Smoke/DirectionalLit/M_residualMuzzleSmoke_Inst",
+  "/Game/ParagonWraith/FX/Materials/Smoke/Spline/M_Smoke_SplineMesh_Trail_Wisp_Inst",
+  "/Game/ParagonWraith/FX/Materials/Sparks/M_Spark_VelocityLerp_Pellets_Inst",
+  "/Game/ParagonWraith/FX/Materials/VolumeFog/MI_Fog_SphericalDensity_Particle",
+  "/Game/ParagonWraith/FX/Materials/Water/Hydro/M_Hydro_Water_Particles_Body_Inst",
+  "/Game/ParagonWraith/FX/Materials/Water/M_WaterBubbles_Inst"
+ ],
+ "anim_blueprints": [
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/Wraith_AnimBlueprint"
+ ],
+ "anim_sequences": 229,
+ "maps": [
+  "/Game/ParagonWraith/Characters/Heroes/Wraith/AnimationTestMap",
+  "/Game/ParagonWraith/Characters/Maps/Wraith"
+ ]
+}
