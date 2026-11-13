@@ -1,0 +1,297 @@
+[
+ {
+  "id": "opt4",
+  "source": "sketchfab-baseline",
+  "name": "Female character sci-fi design. (NovaTech)",
+  "author": "V-Enterprises",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/e9aed3264ecd4d219ca86a0d6e26554a",
+  "triangles": 96052,
+  "vertices": 55054,
+  "meshes": 19,
+  "materials": 19,
+  "rig": false,
+  "textures": "19 materials, each its own 2048x2048 set (base colour, metal/roughness, normal, emissive on 13): 71 maps, no 4K",
+  "images": [
+   "opt4_front34.jpg",
+   "opt4_back.jpg",
+   "opt4_helmet.jpg"
+  ],
+  "notes": "Measured after downloading the full model (Saved/CharacterCandidates/opt4, untracked). Cycles renders, neutral studio. Clean hard-surface panels and a glossy black visor with three pink lamps; the purple paint reads as toy-like; female body shape; no skeleton (static mesh)."
+ },
+ {
+  "id": "paragon_Wraith",
+  "source": "fab-paragon",
+  "name": "Paragon: Wraith",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/17e0840f-8651-4933-bd6d-211a34b1dd17",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Wraith_0.jpg",
+   "paragon_Wraith_2.jpg"
+  ],
+  "notes": "Sleek black or white full-helmet armour with a sniper rifle. Closest Paragon match to a Halo-style trooper silhouette."
+ },
+ {
+  "id": "paragon_Murdock",
+  "source": "fab-paragon",
+  "name": "Paragon: Murdock",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/89ae5876-3350-432e-882b-7d617e8c7e6f",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Murdock_0.jpg",
+   "paragon_Murdock_3.jpg"
+  ],
+  "notes": "Heavy armoured cop with full helmet and big gun; skins include a black tactical full-helmet version."
+ },
+ {
+  "id": "paragon_Lt_Belica",
+  "source": "fab-paragon",
+  "name": "Paragon: Lt. Belica",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/6f3a45fb-b5fe-4866-9a60-de315301f75b",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Lt_Belica_6.jpg",
+   "paragon_Lt_Belica_0.jpg"
+  ],
+  "notes": "Image 6 shows a full-helmet armoured skin (bronze); the default skin is a white armoured suit with an exposed face."
+ },
+ {
+  "id": "paragon_Steel",
+  "source": "fab-paragon",
+  "name": "Paragon: Steel",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/5c0e13c1-8d00-4213-8a05-5c501c01548d",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Steel_4.jpg",
+   "paragon_Steel_3.jpg"
+  ],
+  "notes": "Hulking cyborg shield soldier in heavy armour; face partly exposed. Brute proportions."
+ },
+ {
+  "id": "paragon_Crunch",
+  "source": "fab-paragon",
+  "name": "Paragon: Crunch",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/c23ee3a7-4a73-4a83-9061-30b682d269f8",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Crunch_2.jpg"
+  ],
+  "notes": "Power-armour brute, fully enclosed. Too large and monstrous for a player soldier, possibly an enemy."
+ },
+ {
+  "id": "paragon_Howitzer",
+  "source": "fab-paragon",
+  "name": "Paragon: Howitzer",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/7397dd8d-2e47-4e68-9e9d-a10c6fa0a9c7",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Howitzer_1.jpg"
+  ],
+  "notes": "Mech suit with a small pilot. Not a soldier silhouette."
+ },
+ {
+  "id": "paragon_Riktor",
+  "source": "fab-paragon",
+  "name": "Paragon: Riktor",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/edaa6546-f31e-4894-9ee9-0600829e0fff",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Riktor_2.jpg"
+  ],
+  "notes": "Brute cyborg in heavy armour. Not a player silhouette."
+ },
+ {
+  "id": "paragon_Dekker",
+  "source": "fab-paragon",
+  "name": "Paragon: Dekker",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/6cc4f913-db56-44cc-9a42-6aeeeb147c79",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Dekker_3.jpg"
+  ],
+  "notes": "Female sci-fi armour suit, face exposed."
+ },
+ {
+  "id": "paragon_Greystone",
+  "source": "fab-paragon",
+  "name": "Paragon: Greystone",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/122fd7bf-6f12-4304-a930-cccbbacdaebc",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Greystone_2.jpg"
+  ],
+  "notes": "Full-helm plate-armour knight skin. Fantasy, not sci-fi."
+ },
+ {
+  "id": "paragon_Terra",
+  "source": "fab-paragon",
+  "name": "Paragon: Terra",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/5ea6bcb6-e43e-4bbe-813f-c19d8c907565",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Terra_2.jpg"
+  ],
+  "notes": "Ornate fantasy plate armour with face exposed."
+ },
+ {
+  "id": "paragon_Kwang",
+  "source": "fab-paragon",
+  "name": "Paragon: Kwang",
+  "author": "Epic Games",
+  "license": "Fab Standard (Personal/Professional tiers); listing says free to use in Unreal Engine projects; may not use the PARAGON trademark",
+  "link": "https://www.fab.com/listings/f4c67e92-b976-4b5b-ab9f-4c25b010f6f3",
+  "triangles": null,
+  "textures": "not stated on the listing (shipped-game hero; check after adding to a project)",
+  "rig": "UE skeleton with animations and AnimBP per listing",
+  "isAiGenerated": false,
+  "images": [
+   "paragon_Kwang_2.jpg"
+  ],
+  "notes": "Fantasy armoured swordsman, face exposed."
+ },
+ {
+  "id": "sf_d7698f6a",
+  "source": "sketchfab",
+  "uid": "d7698f6a7acf49c68ff0a50c5a1b1d52",
+  "name": "Rank 3 Police Unit",
+  "author": "nikvili",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/rank-3-police-unit-d7698f6a7acf49c68ff0a50c5a1b1d52",
+  "faces": 1464927,
+  "vertices": 745653,
+  "animationCount": 0,
+  "staffPicked": true,
+  "isGeneratedWithAI": null,
+  "textures": "not in API metadata",
+  "images": [
+   "sf_d7698f6a7acf49c68ff0a50c5a1b1d52.jpg"
+  ],
+  "notes": "Staff pick. 1.46M faces, very high detail sci-fi police helmet and gear. The thumbnail is a head-and-shoulders view; it needs heavy optimisation for a game."
+ },
+ {
+  "id": "sf_404837f3",
+  "source": "sketchfab",
+  "uid": "404837f3e5eb410dba9aab9483543234",
+  "name": "FREE Female light assault armor. Game-ready",
+  "author": "mornersul",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/free-female-light-assault-armor-game-ready-404837f3e5eb410dba9aab9483543234",
+  "faces": 168528,
+  "vertices": 91026,
+  "animationCount": 0,
+  "staffPicked": false,
+  "isGeneratedWithAI": null,
+  "textures": "not in API metadata",
+  "images": [
+   "sf_404837f3e5eb410dba9aab9483543234.jpg"
+  ],
+  "notes": "Female light assault armour; the author offers a blend with packed 4K textures and a rig (external Google Drive link); the helmet is a separate piece."
+ },
+ {
+  "id": "sf_09e0bd9c",
+  "source": "sketchfab",
+  "uid": "09e0bd9c9715463584cd847d9b30a140",
+  "name": "SCI-FI SuperSoldier - Game-ready [ANIMATED]",
+  "author": "sihagames",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/sci-fi-supersoldier-game-ready-animated-09e0bd9c9715463584cd847d9b30a140",
+  "faces": 66982,
+  "vertices": 34462,
+  "animationCount": 1,
+  "staffPicked": false,
+  "isGeneratedWithAI": null,
+  "textures": "not in API metadata",
+  "images": [
+   "sf_09e0bd9c9715463584cd847d9b30a140.jpg"
+  ],
+  "notes": "Full-helmet sleek supersoldier, 67k faces, one animation. The description says the helmet mesh came from another author (Udon-San), so check that licence."
+ },
+ {
+  "id": "sf_2707c5a2",
+  "source": "sketchfab",
+  "uid": "2707c5a2601244daa4226357e63c4f76",
+  "name": "Sci-Fi Armor Clothing",
+  "author": "kaanTezcan",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/sci-fi-armor-clothing-2707c5a2601244daa4226357e63c4f76",
+  "faces": 200776,
+  "vertices": 100857,
+  "animationCount": 0,
+  "staffPicked": false,
+  "isGeneratedWithAI": null,
+  "textures": "not in API metadata",
+  "images": [
+   "sf_2707c5a2601244daa4226357e63c4f76.jpg"
+  ],
+  "notes": "Torso armour only (chest rig with tubes and lights), 200k faces. A kitbash part, not a character."
+ },
+ {
+  "id": "sf_26ccafad",
+  "source": "sketchfab",
+  "uid": "26ccafaddb2745ceb56ae5cfc65bfed5",
+  "name": "Cyber Samurai",
+  "author": "duongminhkhoa231",
+  "license": "CC Attribution",
+  "link": "https://sketchfab.com/3d-models/cyber-samurai-26ccafaddb2745ceb56ae5cfc65bfed5",
+  "faces": 208944,
+  "vertices": 104919,
+  "animationCount": 0,
+  "staffPicked": true,
+  "isGeneratedWithAI": null,
+  "textures": "not in API metadata",
+  "images": [
+   "sf_26ccafaddb2745ceb56ae5cfc65bfed5.jpg"
+  ],
+  "notes": "Staff pick. Robotic samurai, hard-surface, 209k faces. Robot, not a soldier."
+ }
+]
