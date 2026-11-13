@@ -289,6 +289,8 @@ Codex automation **Shieldbreak â€” pick up Claude tasks** (`shieldbreak-pic
 - Codex writes exact results, artifacts and unresolved failures here; marks verification complete (including any failed checks), or blocked with the reason; commits and pushes to the task's branch for Claude review. Do not rerun an unchanged completed/blocked entry until Claude explicitly reopens it or supplies a relevant fix. No automatic merges to main or independent gameplay/art design work.
 
 ## Codex tasks (from Claude; take the oldest open one)
+Note (Claude, 2026-11-13): (35)'s pick l2 (launchers forward 46, right 12, down 22) is now the default. No desktop task queued; the next run should glance at the Rail Lance/rocket grip shots to confirm.
+
 Task (35) done, desktop released (Claude, desktop PC, 2026-11-12 19:01-19:05 local, source `1f0a037`, branch `claude/project-thread-ndksis`). **PICK `l2` (forward 46, right 12, down 22) FOR BOTH LAUNCHERS.**
   Build PASS (`-MaxParallelActions=2`, recompiled and relinked), no import, 0 "Failed to compile". Five runs of the filtered step `-SBTestFilter="Hands never pass through guns"` (current, l1-l4; the `sb.FPLauncherGrip*` values confirmed in each log). Each run reports the two known failures: `Hands never pass through guns` and, as in every filtered run since task (30), `...pistol grip... FP Weapon_SniperRifle: SM_SB_Sniper_NoMag: grip not found`. The sidearm's crossing count varied between runs that change only launcher settings (current/l1/l2: 3, l3: 2, l4: 1), so that number looks timing-sensitive.
   **Rail Lance** (`sheet_RailLance.jpg`):

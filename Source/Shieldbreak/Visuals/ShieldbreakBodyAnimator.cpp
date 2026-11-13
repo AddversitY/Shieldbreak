@@ -545,9 +545,9 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
 	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 2.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -2.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
-	TAutoConsoleVariable<float> CVarLauncherGripForward(TEXT("sb.FPLauncherGripForward"), 32.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarLauncherGripRight(TEXT("sb.FPLauncherGripRight"), 17.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm right of the eye (task 32: at the rifles' 24 the Rail Lance sat on the screen edge)."));
-	TAutoConsoleVariable<float> CVarLauncherGripDown(TEXT("sb.FPLauncherGripDown"), 16.f, TEXT("First-person launchers: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarLauncherGripForward(TEXT("sb.FPLauncherGripForward"), 46.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarLauncherGripRight(TEXT("sb.FPLauncherGripRight"), 12.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm right of the eye (task 32: at the rifles' 24 the Rail Lance sat on the screen edge)."));
+	TAutoConsoleVariable<float> CVarLauncherGripDown(TEXT("sb.FPLauncherGripDown"), 22.f, TEXT("First-person launchers: gun origin cm below the eye."));
 	// Where the left palm presses: offset from the gun's SupportHand socket (gun right / forward / up, cm). Task (15)
 	// showed the wrist on the socket with the hand's animated rotation: a loose hand hanging below and left of the
 	// forend. The hand is now turned palm-up under the forend, fingers wrapping across it, and its wrist placed so the
