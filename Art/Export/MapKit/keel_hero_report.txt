@@ -1,1 +1,2 @@
 SM_SB_Kit_CradlePod: 7752 tris, X -820.0..820.0 Y -461.5..461.5 Z -2.5..1100.0, slots M_HullFrame, M_HullDeck, M_HullPlate, M_HullLight, M_HullHazard
+SM_SB_Kit_ReactorPylon: 1440 tris, X -132.0..132.0 Y -132.0..132.0 Z 0.0..1500.0, slots M_HullFrame, M_HullLight, M_HullPlate, M_HullHazard

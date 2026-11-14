@@ -726,6 +726,13 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 			else
 			{
 				Group(Groups, TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
+				// The Galleries' second set piece: the six reactor pylon blocks round the Camo (x +-500 / +-250,
+				// y -2367..-3233) dressed as reactor pylons, each throwing a light column up to the ceiling.
+				for (const FVector2D& At : { FVector2D(500.0, -2800.0), FVector2D(250.0, -2367.0), FVector2D(-250.0, -2367.0),
+					FVector2D(-500.0, -2800.0), FVector2D(-250.0, -3233.0), FVector2D(250.0, -3233.0) })
+				{
+					Group(Groups, TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
+				}
 			}
 		}
 		else if (Id == TEXT("Spire"))

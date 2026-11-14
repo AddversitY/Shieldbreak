@@ -4011,6 +4011,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			AddView(TEXT("9_hero_window"), FVector(-3200.f, 300.f, 560.f), FVector(0.f, 0.f, 620.f));
 			AddView(TEXT("10_hero_landmark"), FVector(300.f, 500.f, 820.f), FVector(-3870.f, 0.f, 900.f));
 			AddView(TEXT("11_hero_breach"), FVector(-700.f, 2500.f, 820.f), FVector(1200.f, 3600.f, 1050.f));
+			AddView(TEXT("12_hero_galleries"), FVector(-1500.f, -2300.f, 170.f), FVector(0.f, -2800.f, 600.f));
 		}
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{

@@ -107,5 +107,37 @@ def build():
     print(line)
 
 
+def build_pylon():
+    """The Galleries' reactor pylon: dresses one 2 x 2 x 6 m pylon block of the ring round the Camo (visual only, 4-12 cm
+    outside the block), with cold light slots and a light column from its cap up to the 15 m ceiling."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('plinth', (0, 0, 20.0), (264.0, 264.0, 40.0), 'HullFrame', bevel=5, segments=2),
+             sb_kit.box('cap', (0, 0, 615.0), (250.0, 250.0, 30.0), 'HullFrame', bevel=5, segments=2),
+             sb_kit.cyl('emitter', (0, 0, 634.0), 70.0, 8.0, 'HullLight', axis='Z', verts=24, bevel=0),
+             sb_kit.cyl('light_column', (0, 0, 640.0 + 430.0), 16.0, 860.0, 'HullLight', axis='Z', verts=12, bevel=0)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            parts.append(sb_kit.box('post', (sx * 104.0, sy * 104.0, 320.0), (36.0, 36.0, 560.0), 'HullFrame', bevel=4, segments=2))
+    for axis in ('x', 'y'):
+        for sign in (-1, 1):
+            if axis == 'x':
+                parts.append(sb_kit.box('panel', (sign * 106.0, 0, 300.0), (12.0, 168.0, 470.0), 'HullPlate', bevel=2, segments=2))
+                parts.append(sb_kit.box('slot', (sign * 113.0, 0, 330.0), (3.0, 16.0, 360.0), 'HullLight', bevel=0))
+                parts.append(sb_kit.box('band', (sign * 110.0, 0, 90.0), (8.0, 180.0, 40.0), 'HullHazard', bevel=1))
+            else:
+                parts.append(sb_kit.box('panel', (0, sign * 106.0, 300.0), (168.0, 12.0, 470.0), 'HullPlate', bevel=2, segments=2))
+                parts.append(sb_kit.box('slot', (0, sign * 113.0, 330.0), (16.0, 3.0, 360.0), 'HullLight', bevel=0))
+                parts.append(sb_kit.box('band', (0, sign * 110.0, 90.0), (180.0, 8.0, 40.0), 'HullHazard', bevel=1))
+    name = 'SM_SB_Kit_ReactorPylon'
+    obj = sb_kit.join(name, parts)
+    triangles = sb_kit.triangle_count(obj)
+    line = f'{name}: {triangles} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
+    sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])
+    print(line)
+    return line
+
+
 if __name__ == '__main__':
     build()
+    report = OUT / 'keel_hero_report.txt'
+    report.write_text(report.read_text(encoding='utf-8') + build_pylon() + chr(10), encoding='utf-8')
