@@ -16,7 +16,7 @@ EAL = unreal.EditorAssetLibrary
 
 # name: (tint, metallic, roughness min, roughness max, tile size cm, relief depth, detail contrast)
 SURFACES = {
-    'Plate': ((.15, .16, .18), .50, .38, .80, 300.0, .0014, 0.7),
+    'Plate': ((.10, .108, .122), .55, .38, .80, 300.0, .0014, 0.8),
     'Deck': ((.075, .078, .085), .55, .45, .85, 160.0, .0022, 0.9),
     'Frame': ((.065, .07, .08), .55, .35, .75, 140.0, .0012, 0.8),
     # Worn hazard-orange paint on the bridges' wall plates (the brief's fourth hull material), on the plate scan.
