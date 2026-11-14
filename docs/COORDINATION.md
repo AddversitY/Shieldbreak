@@ -1,3 +1,5 @@
+DONE 2026-11-14 trooper (Wraith-based soldier) thread: desktop free; worktree C:\Users\addve\AIGen3D\sbt idle; Epic files local-only in Content/ParagonWraith
+
 **Trooper emblem: not shipped, sticker kept behind `sb.TrooperEmblem` (2026-11-14, Claude, desktop).**
 
 What I tried:
