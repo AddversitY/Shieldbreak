@@ -43,6 +43,17 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Gameplay self-test 177/178 (the known hands-through-guns check). Fixed-view Keel 168-185 FPS across pass 2 runs
   (final 177.4); baseline 156.5, so still no measurable regression. Contact sheet `keel_aaa_pass2.jpg`.
 
+## Done in pass 3 (same branch)
+
+- **Structure overhead:** `SM_SB_Kit_CeilingBeam` (72 m I-beam, 388 tris) eight times under the ceiling, clear of
+  the lamp rows and the pod yoke; `SM_SB_Kit_PipeRun` (8 m, 728 tris) at 12.5 m along the Galleries hull and both
+  faces of the band walls. Visual only, far above any jump.
+- **Darker gunmetal plates** (albedo 0.10 from 0.15).
+- **Tried and dropped:** 160 wall-base soot and pipe-leak decals cost about 5% FPS (168.7 with, 177.1 without) and
+  barely showed in the shots, so they are not in. A higher auto-exposure floor (`-SBExposureMin=3` / `4.5`) blacked
+  the map out; the default exposure stays.
+- Gameplay self-test 177/178 (known hands check). Fixed-view Keel 173.8 / 179.8 on the final build.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
