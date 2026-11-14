@@ -545,6 +545,8 @@ namespace ShieldbreakBodyAnimatorPrivate
 	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
 	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 2.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
 	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -2.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<int32> CVarFPLevelGun(TEXT("sb.FPLevelGun"), 1, TEXT("1: the first-person gun is turned about its barrel so it sits upright on screen (0: the idle's wrist roll leans it)."));
+	TAutoConsoleVariable<float> CVarFPGunCant(TEXT("sb.FPGunCant"), 0.f, TEXT("First-person gun cant about the barrel after levelling (degrees, about the barrel; 0 = upright)."));
 	TAutoConsoleVariable<float> CVarLauncherGripForward(TEXT("sb.FPLauncherGripForward"), 46.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm in front of the eye."));
 	TAutoConsoleVariable<float> CVarLauncherGripRight(TEXT("sb.FPLauncherGripRight"), 12.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm right of the eye (task 32: at the rifles' 24 the Rail Lance sat on the screen edge)."));
 	TAutoConsoleVariable<float> CVarLauncherGripDown(TEXT("sb.FPLauncherGripDown"), 22.f, TEXT("First-person launchers: gun origin cm below the eye."));
@@ -2286,7 +2288,24 @@ void UShieldbreakBodyAnimator::CalibrateFirstPersonArms()
 	// The mannequin faces +Y; turn it to face the camera's +X, then correct so the barrel points where we want.
 	const FQuat Facing = FRotator(0.f, -90.f, 0.f).Quaternion();
 	const FVector Desired = FRotator(CalibratedAim.X, CalibratedAim.Y, 0.f).Vector();
-	const FQuat Rotation = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
+	const FQuat Aimed = FQuat::FindBetweenNormals(Facing.RotateVector(Barrel), Desired) * Facing;
+	// Level the gun about its barrel: FindBetweenNormals only points the barrel, so the idle's own wrist roll carried
+	// straight into the view and the gun leaned (Vincent 2026-11-14: "leaned weird"). Turn it so the gun's up (+Z on
+	// the socket) is the camera's up as seen down the barrel, plus an optional cant.
+	FQuat Rotation = Aimed;
+	if (CVarFPLevelGun.GetValueOnGameThread() != 0)
+	{
+		const FVector GunUp = Aimed.RotateVector(SocketComponent.TransformVectorNoScale(FVector(0.0, 0.0, 1.0)));
+		const FVector Up0 = FVector::VectorPlaneProject(GunUp, Desired).GetSafeNormal();
+		const FVector Up1 = FVector::VectorPlaneProject(FVector::UpVector, Desired).GetSafeNormal();
+		if (!Up0.IsNearlyZero() && !Up1.IsNearlyZero())
+		{
+			const double Angle = FMath::Atan2(FVector::DotProduct(FVector::CrossProduct(Up0, Up1), Desired), FVector::DotProduct(Up0, Up1))
+				+ FMath::DegreesToRadians(CVarFPGunCant.GetValueOnGameThread());
+			Rotation = FQuat(Desired, Angle) * Aimed;
+			UE_LOG(LogShieldbreak, Log, TEXT("First-person gun levelled: the idle leaned it %.1f degrees."), FMath::RadiansToDegrees(-Angle));
+		}
+	}
 	const FVector GripCamera(CalibratedGrip.X, CalibratedGrip.Y, -CalibratedGrip.Z);
 	// Compensate for the whole fitting offset, keeping the gun's framing stable
 	// while the hand moves to a grip that clears the receiver.
