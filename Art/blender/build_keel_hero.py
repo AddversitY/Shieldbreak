@@ -137,7 +137,47 @@ def build_pylon():
     return line
 
 
+def export_piece(name, parts):
+    obj = sb_kit.join(name, parts)
+    line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
+    sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])
+    print(line)
+    return line
+
+
+def build_pipe_run():
+    """An 8 m run of hull pipework for the upper walls (visual only, hung well above any jump): a fat main, two
+    feeds, brackets every 2 m into the wall and a valve wheel. Pivot on the wall face at the run's centre, pipes
+    toward -Y (into the room), so a run is placed with its back to the hull."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.cyl('main', (0, -26.0, 0), 13.0, 800.0, 'HullFrame', axis='X', verts=14, bevel=0),
+             sb_kit.cyl('feed_a', (0, -22.0, 34.0), 6.0, 800.0, 'HullPlate', axis='X', verts=10, bevel=0),
+             sb_kit.cyl('feed_b', (0, -46.0, 30.0), 5.0, 800.0, 'HullHazard', axis='X', verts=10, bevel=0)]
+    for x in (-300.0, -100.0, 100.0, 300.0):
+        parts.append(sb_kit.box('bracket', (x, -24.0, 12.0), (14.0, 48.0, 64.0), 'HullFrame', bevel=2))
+        parts.append(sb_kit.cyl('collar', (x, -26.0, 0), 16.0, 10.0, 'HullFrame', axis='X', verts=14, bevel=0))
+    parts.append(sb_kit.ring('valve', (180.0, -50.0, 0), 14.0, 2.0, 'HullHazard', axis='Y', verts=16, tube_verts=6))
+    parts.append(sb_kit.cyl('valve_stem', (180.0, -40.0, 0), 2.5, 20.0, 'HullFrame', axis='Y', verts=8, bevel=0))
+    return export_piece('SM_SB_Kit_PipeRun', parts)
+
+
+def build_ceiling_beam():
+    """A structural I-beam across the ship's ceiling (visual only): 72 m long (y +-3600), 60 cm deep, hung flush under
+    the 15 m ceiling. Pivot at its top centre."""
+    sb_kit.reset_scene()
+    half = 3600.0
+    parts = [sb_kit.box('flange_top', (0, 0, -5.0), (44.0, 2 * half, 10.0), 'HullFrame', bevel=1),
+             sb_kit.box('flange_bottom', (0, 0, -55.0), (44.0, 2 * half, 10.0), 'HullFrame', bevel=1),
+             sb_kit.box('web', (0, 0, -30.0), (8.0, 2 * half, 40.0), 'HullFrame', bevel=0)]
+    for y in range(-3400, 3401, 400):
+        parts.append(sb_kit.box('stiffener', (0, float(y), -30.0), (40.0, 6.0, 40.0), 'HullFrame', bevel=0))
+    for y in range(-3000, 3001, 1200):
+        parts.append(sb_kit.box('stripe', (0, float(y), -60.5), (36.0, 120.0, 1.0), 'HullHazard', bevel=0))
+    return export_piece('SM_SB_Kit_CeilingBeam', parts)
+
+
 if __name__ == '__main__':
     build()
     report = OUT / 'keel_hero_report.txt'
-    report.write_text(report.read_text(encoding='utf-8') + build_pylon() + chr(10), encoding='utf-8')
+    report.write_text(report.read_text(encoding='utf-8') + build_pylon() + chr(10) + build_pipe_run() + chr(10)
+                      + build_ceiling_beam() + chr(10), encoding='utf-8')

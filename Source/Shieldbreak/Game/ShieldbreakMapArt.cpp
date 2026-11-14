@@ -733,6 +733,24 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				{
 					Group(Groups, TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
 				}
+				// Structure overhead: I-beams across the ship under the ceiling, clear of the lamp rows (x +-1300, +-3900) and
+				// the pod's yoke; hull pipework at 12.5 m along the Galleries' hull and both faces of the band walls (y +-2000).
+				// All of it far above any jump, so it never hides a player or a shot.
+				for (const double X : { -4550.0, -3250.0, -2600.0, -2000.0, 2000.0, 2600.0, 3250.0, 4550.0 })
+				{
+					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ), FVector(1.f)));
+				}
+				const double PipeZ = Layout.FloorZ + 1250.0;
+				for (double X = -4400.0; X <= 4400.0 + 1.0; X += 800.0)
+				{
+					Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, 180.f, 0.f), FVector(X, -Layout.HalfExtent.Y + 25.0, PipeZ), FVector(1.f)));
+					for (const double Side : { -1.0, 1.0 })
+					{
+						// Cradle face (toward y = 0) and flank face of each band wall.
+						Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f), FVector(X, Side * 1950.0, PipeZ), FVector(1.f)));
+						Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 180.f : 0.f, 0.f), FVector(X, Side * 2050.0, PipeZ), FVector(1.f)));
+					}
+				}
 			}
 		}
 		else if (Id == TEXT("Spire"))
