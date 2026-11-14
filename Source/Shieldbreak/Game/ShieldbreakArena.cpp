@@ -291,6 +291,33 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 		return MID;
 	}
 
+	// Keel: the bare block faces (team pillars, walls, ramps) take the same scanned hull materials as its kit, so no flat
+	// panel-pattern block shows between the plating. Team blocks keep a muted hue of their colour over the scanned
+	// steel; ramps get the hazard paint. -SBLegacyKeelHull keeps the world materials.
+	if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBLegacyKeelHull")))
+	{
+		const FString Name = Style.ToString();
+		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? TEXT("Hazard")
+			: (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("wall") || Name == TEXT("metal") || Name == TEXT("bridge")
+				|| Name == TEXT("dark") || Name == TEXT("cover")) ? TEXT("Plate") : nullptr;
+		if (UMaterialInterface* Hull = Kind ? ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
+			TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind)) : nullptr)
+		{
+			Mesh->SetMaterial(0, Hull);
+			if (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("dark") || Name == TEXT("wall"))
+			{
+				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
+				{
+					const FLinearColor Hue = Name == TEXT("red") ? FLinearColor(0.20f, 0.12f, 0.10f)
+						: Name == TEXT("blue") ? FLinearColor(0.10f, 0.13f, 0.19f) : FLinearColor(0.08f, 0.085f, 0.095f);
+					MID->SetVectorParameterValue(TEXT("BaseColor"), Hue);
+					return MID;
+				}
+			}
+			return nullptr;
+		}
+	}
+
 	const TObjectPtr<UMaterialInterface>* World = SurfaceMaterials.Find(ShieldbreakArenaPrivate::SurfaceKind(Style));
 	if (World && *World)
 	{
@@ -674,11 +701,14 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 					break;
 				}
 			}
-			// The wall plates' big amber panels read as glowing terracotta: worn hazard-orange paint instead. The thin
-			// amber accents on the bands keep their glow.
+			// The wall plates' big amber panels read as glowing terracotta, and as hazard paint they still turned whole
+			// pillars orange: they take the gunmetal plate, so orange stays an accent (pod bands, ramp edges).
+			// -SBKeelHazardPlates paints them hazard orange instead. The thin amber accents on the bands keep their glow.
 			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
 			{
-				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelHazard.MI_SB_KeelHazard"));
+				Scanned = FParse::Param(FCommandLine::Get(), TEXT("SBKeelHazardPlates"))
+					? ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelHazard.MI_SB_KeelHazard"))
+					: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPlate.MI_SB_KeelPlate"));
 			}
 			if (Scanned)
 			{

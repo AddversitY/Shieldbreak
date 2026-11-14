@@ -13,8 +13,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   `Tools/MakeKeelSurfaces.bat` builds `M_SB_KeelHull` (world-projected, three samples, surface-gradient relief, no
   normal maps) and `MI_SB_KeelPlate/Deck/Frame/Hazard`. The game puts them on Keel's hull kit slots;
   `-SBLegacyKeelHull` shows the old flat colours.
-- **Hazard paint:** the bridges' big amber wall panels read as glowing terracotta; they are now worn hazard-orange
-  paint. The thin amber band accents keep their glow.
+- **Bare block faces** (team pillars, walls, ceilings, cover) take the same scanned plate, floors the tread deck, and
+  ramps worn hazard-orange paint (`MI_SB_KeelHazard`), so no flat panel-pattern block shows between the plating.
+  The wall plates' big amber panels take the gunmetal plate (`-SBKeelHazardPlates` paints them orange instead).
 - **The Cradle hero set:** `Art/blender/build_keel_hero.py` (`Tools/BuildKeelHero.ps1`, `Tools/ImportKeelHero.bat`)
   makes `SM_SB_Kit_CradlePod`, 7.7k triangles: a ribbed cargo pod wrapped round the pod block, hazard bands on its
   ends, a cold under-glow into the trench, four cables and a two-beam yoke under the ceiling. Visual only; the block
@@ -26,7 +27,7 @@ shapes; professional free source material only, restyled; no paid tools; perform
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
-Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4. The spread between identical
+Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
 builds (153-185) is larger than any change, so the pass shows no measurable regression, not a gain.
 
 ## Still open
@@ -37,4 +38,6 @@ builds (153-185) is larger than any change, so the pass shows no measurable regr
   repo (like `WraithStaging`), check they load in 5.8, migrate only the pieces Keel uses, restyle them onto
   `M_SB_KeelHull`, and keep the raw files git-ignored.
 - Bridge windows, Breach view to space, landmark signs per zone, reactor pylon ring in the Galleries.
-- Team identity: both bridges carry the same hazard orange.
+- The bridges' pillars still read terracotta red on their front faces in every variant tried (kit, block and hazard
+  materials changed, the colour did not), so it is probably coloured light (team glow or its bounce), not a surface.
+  Next step: a `-SBNoCladding` / no-team-glow comparison to find the source.
