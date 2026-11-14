@@ -907,6 +907,39 @@ void AShieldbreakArena::BuildMapArt()
 			AddInstanceComponent(Component);
 			++DecalCount;
 		}
+		// The Breach's view out (30 cm proud of the wall, in front of the hull cladding): a long hull window over the catwalk (x +-3200, z 760..1380 on the north hull) showing
+		// the space panorama (Tools/create_keel_space.py: unlit, parallax), split by heavy frame mullions. Visual only.
+		UMaterialInterface* Space = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
+		if (Space && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindow")))
+		{
+			const double WindowY = Layout.HalfExtent.Y - 30.0, Bottom = 760.0, Top = 1380.0, HalfLength = 3200.0;
+			UStaticMeshComponent* Window = AddDecoration<UStaticMeshComponent>(TEXT("KeelWindow"), CubeMesh);
+			Window->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Window->SetCastShadow(false);
+			Window->SetRelativeLocation(FVector(0.0, WindowY, Layout.FloorZ + (Bottom + Top) * 0.5));
+			Window->SetRelativeScale3D(FVector(HalfLength / 50.0, 0.02, (Top - Bottom) / 100.0));
+			Window->SetMaterial(0, Space);
+			Window->RegisterComponent();
+			AddInstanceComponent(Window);
+			auto* Mullions = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), CubeMesh);
+			Mullions->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			if (UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame")))
+			{
+				Mullions->SetMaterial(0, Frame);
+			}
+			for (double X = -HalfLength; X <= HalfLength + 1.0; X += 800.0)
+			{
+				Mullions->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, WindowY - 15.0, Layout.FloorZ + (Bottom + Top) * 0.5),
+					FVector(0.5, 0.3, (Top - Bottom + 80.0) / 100.0)));
+			}
+			for (const double Z : { Bottom, Top })
+			{
+				Mullions->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, WindowY - 15.0, Layout.FloorZ + Z),
+					FVector(HalfLength / 50.0 + 0.5, 0.3, 0.4)));
+			}
+			Mullions->RegisterComponent();
+			AddInstanceComponent(Mullions);
+		}
 		UE_LOG(LogShieldbreak, Log, TEXT("Keel landmark decals: %d."), DecalCount);
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
