@@ -654,10 +654,32 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 	// off), to find how much of the hull's warm cast is their bounce light. Unset keeps the authored material.
 	float KitAmber = -1.f;
 	FParse::Value(FCommandLine::Get(), TEXT("SBKitAmber="), KitAmber);
+	// Keel's hull kit takes the scanned hull materials (Tools/create_keel_surfaces.py: CC0 scans, one world-projected
+	// master) on its plate, deck and frame slots. -SBLegacyKeelHull keeps the flat palette instances, for comparisons.
+	const bool bKeelScanHull = MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBLegacyKeelHull"));
 	const TArray<FStaticMaterial>& Slots = Asset->GetStaticMaterials();
 	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
 		const FString Slot = Slots[Index].MaterialSlotName.ToString();
+		if (bKeelScanHull)
+		{
+			const TCHAR* HullKinds[] = { TEXT("Plate"), TEXT("Deck"), TEXT("Frame") };
+			UMaterialInterface* Scanned = nullptr;
+			for (const TCHAR* Kind : HullKinds)
+			{
+				if (Slot.StartsWith(FString(TEXT("M_Hull")) + Kind))
+				{
+					Scanned = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
+						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind));
+					break;
+				}
+			}
+			if (Scanned)
+			{
+				Mesh->SetMaterial(Index, Scanned);
+				continue;
+			}
+		}
 		if (KitAmber >= 0.f && Slot.StartsWith(TEXT("M_HullAmber")) && GlowMaterial)
 		{
 			Mesh->SetMaterial(Index, GlowMaterial);
