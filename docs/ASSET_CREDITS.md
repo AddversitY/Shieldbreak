@@ -1,5 +1,22 @@
 # Asset Credits and Imported Content Paths
 
+## Trooper character (2026-11-13)
+
+Character based on Epic Games' Paragon assets, used under the Fab/Epic content licence. The listing allows use in
+Unreal Engine projects; the PARAGON trademark may not be used to name or advertise the game, so it appears nowhere
+in game UI or game-facing names.
+
+- Source: Fab listing 17e0840f-8651-4933-bd6d-211a34b1dd17, Epic Games, Default skin only.
+- Used unmodified at its original package paths under `/Game/ParagonWraith/...`: 72 packages
+  (skeletal mesh, skeleton, physics asset, materials, material layers/functions and textures). Not in Git: they stay
+  on the desktop PC (git-ignored); see `docs/HANDOFF.md` to restore them from Fab.
+- Not copied: animations, FX, sounds and the other skins.
+- Shieldbreak's own assets live in `/Game/Characters/Trooper`:
+  - `IK_Trooper`: IK rig for the source skeleton.
+  - `RTG_Trooper`: mannequin-to-trooper IK retargeter.
+- Team looks (white or black), the amber glow, and the hidden built-in rifle are set at runtime in
+  `UShieldbreakBodyAnimator`.
+
 ## Original Spire architectural surfaces (2026-11-03)
 
 `Art/textures/make_spire_surfaces.py` authors `T_SB_SpireSurfaceMasks.png` from seeded numerical noise,

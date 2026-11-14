@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
@@ -19,6 +20,7 @@
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Visuals/ShieldbreakArt.h"
 #include "Visuals/ShieldbreakBodyAnimInstance.h"
+#include "Visuals/ShieldbreakTrooperAnimInstance.h"
 #include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakWeapon.h"
 
@@ -322,6 +324,63 @@ namespace ShieldbreakBodyAnimatorPrivate
 	/** The AI-generated suit tore open at the joints as rigid pieces (S4/S5); skinned, it bends with the body. */
 	TAutoConsoleVariable<int32> CVarSkinnedSuit(TEXT("sb.SkinnedSuit"), 1, TEXT("1: third-person soldiers wear the skinned suit SK_SB_Soldier when it exists; 0: rigid pieces (new spawns)."));
 
+	/** 1: third-person soldiers are the trooper (full-body character, retargeted from the hidden mannequin) when it exists. */
+	TAutoConsoleVariable<int32> CVarTrooper(TEXT("sb.Trooper"), 1, TEXT("1: third-person soldiers use the trooper character when it exists; 0: the armor suit (new spawns)."));
+	/** Source asset (Fab, Epic Games; free for Unreal Engine projects). Kept at its original path for licence traceability. */
+	const TCHAR* const TrooperMeshPath = TEXT("/Game/ParagonWraith/Characters/Heroes/Wraith/Meshes/Wraith.Wraith");
+	/** Visor and trim strips share one HDR emissive (DeepEmissiveColor; the skin's own cyan is 8, 688, 800): amber, both teams. */
+	const FLinearColor TrooperGlow(600.f, 230.f, 12.f, 1.f);
+	/** No team hue on the armour (Vincent, 2026-11-13): one team is white with a black undersuit, the other black with
+	 *  light-grey accents. "Dark metal" is the plate tint (white in the source), MeatllicCCTint* its clear coat, Latex* the
+	 *  undersuit. sb.TrooperTeamLook -1 = by team, 0 = white, 1 = black (new spawns; for shots and A/B). */
+	TAutoConsoleVariable<int32> CVarTrooperTeamLook(TEXT("sb.TrooperTeamLook"), -1, TEXT("-1: white or black armour by team; 0: all white; 1: all black (new spawns)."));
+	/** The black team's material overrides (see ApplyTrooperLook). Tunable without a rebuild. */
+	TAutoConsoleVariable<FString> CVarTrooperBlackRecipe(TEXT("sb.TrooperBlackRecipe"),
+		// BrightnessAdjust scales the whole albedo; the plates' roughness/metal detail stays. The Latex* colours feed the
+		// plates too (raising them to 1.5 turned the armour gunmetal, 5.5 white), so they stay at the 0.42 set above.
+		// Chosen from desktop shots 2026-11-13: 0.08 reads black at mid range and dark gunmetal up close; 0.3 is grey.
+		TEXT("BrightnessAdjust=0.08"),
+		TEXT("Black-team trooper material overrides: Name=r,g,b or Name=scalar, separated by ';' (new spawns)."));
+	void ApplyTrooperLook(UMaterialInstanceDynamic* MID, bool bBlack)
+	{
+		const FLinearColor Suit = bBlack ? FLinearColor(0.42f, 0.42f, 0.43f) : FLinearColor(0.025f, 0.025f, 0.028f);
+		MID->SetVectorParameterValue(TEXT("LatexL"), Suit);
+		MID->SetVectorParameterValue(TEXT("LatexM"), Suit * 1.2f);
+		MID->SetVectorParameterValue(TEXT("LatexD"), Suit * 0.8f);
+		if (bBlack)
+		{
+			// "Name=r,g,b;Name=r,g,b" (vector) or "Name=s" (scalar), applied in order.
+			TArray<FString> Entries;
+			CVarTrooperBlackRecipe.GetValueOnGameThread().ParseIntoArray(Entries, TEXT(";"));
+			for (const FString& Entry : Entries)
+			{
+				FString Name, Value;
+				if (!Entry.Split(TEXT("="), &Name, &Value)) { continue; }
+				TArray<FString> Parts;
+				Value.ParseIntoArray(Parts, Value.Contains(TEXT("|")) ? TEXT("|") : TEXT(",")); // '|' survives -ExecCmds
+				if (Parts.Num() >= 3)
+				{
+					MID->SetVectorParameterValue(*Name.TrimStartAndEnd(), FLinearColor(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2])));
+				}
+				else if (Parts.Num() == 1)
+				{
+					MID->SetScalarParameterValue(*Name.TrimStartAndEnd(), FCString::Atof(*Parts[0]));
+				}
+			}
+		}
+		else
+		{
+			MID->ClearParameterValues();
+			MID->SetVectorParameterValue(TEXT("LatexL"), Suit);
+			MID->SetVectorParameterValue(TEXT("LatexM"), Suit * 1.2f);
+			MID->SetVectorParameterValue(TEXT("LatexD"), Suit * 0.8f);
+		}
+		MID->SetVectorParameterValue(TEXT("DeepEmissiveColor"), TrooperGlow);
+		float Brightness = -1.f;
+		MID->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("BrightnessAdjust")), Brightness);
+		UE_LOG(LogShieldbreak, Verbose, TEXT("trooper look %s on %s: BrightnessAdjust %.2f"), bBlack ? TEXT("black") : TEXT("white"), *GetNameSafe(MID), Brightness);
+	}
+
 	/** Plates are a little darker than the HUD's team color so they don't wash out in sunlight. */
 	constexpr float PlateBrightness = 0.55f;
 	constexpr float GlowBrightness = 1.6f;
@@ -348,6 +407,66 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 		|| (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
 	{
 		return;
+	}
+
+	// The trooper: a full-body character (Epic's free Fab asset, black panels plus team-coloured car paint) that follows the
+	// mannequin by leader pose (same bone names). The mannequin underneath is hidden but keeps animating and ragdolling.
+	if (!bFirstPerson && !SkinnedSuit && CVarTrooper.GetValueOnGameThread() != 0)
+	{
+		if (USkeletalMesh* TrooperMesh = ShieldbreakArt::Load<USkeletalMesh>(TrooperMeshPath))
+		{
+			SkinnedSuit = NewObject<USkeletalMeshComponent>(GetOwner(), TEXT("Trooper"));
+			SkinnedSuit->SetSkeletalMesh(TrooperMesh);
+			SkinnedSuit->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SkinnedSuit->SetGenerateOverlapEvents(false);
+			SkinnedSuit->SetCanEverAffectNavigation(false);
+			SkinnedSuit->bAffectDistanceFieldLighting = false;
+			SkinnedSuit->SetOwnerNoSee(true);
+			SkinnedSuit->bCastHiddenShadow = true;
+			SkinnedSuit->SetCastShadow(CVarArmorShadows.GetValueOnGameThread() != 0);
+			SkinnedSuit->SetupAttachment(Body);
+			// Its own skeleton and proportions: an IK retargeter copies the body's pose each frame (after the body ticks).
+			SkinnedSuit->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+			SkinnedSuit->SetAnimInstanceClass(UShieldbreakTrooperAnimInstance::StaticClass());
+			SkinnedSuit->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+			SkinnedSuit->RegisterComponent();
+			SkinnedSuit->AddTickPrerequisiteComponent(Body);
+			Body->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			Body->SetVisibility(false, false);
+			Body->SetCastShadow(false);
+			bTrooper = true;
+
+			const int32 WeaponSlot = TrooperMesh->GetMaterials().IndexOfByPredicate([](const FSkeletalMaterial& M) { return M.MaterialSlotName == TEXT("M03_weapon"); });
+			if (const FSkeletalMeshRenderData* RenderData = TrooperMesh->GetResourceForRendering())
+			{
+				// Its own rifle is part of the mesh: hide those sections on every LOD so only our weapons show.
+				for (int32 Lod = 0; Lod < RenderData->LODRenderData.Num(); ++Lod)
+				{
+					const TArray<FSkelMeshRenderSection>& Sections = RenderData->LODRenderData[Lod].RenderSections;
+					for (int32 Section = 0; Section < Sections.Num(); ++Section)
+					{
+						if (Sections[Section].MaterialIndex == WeaponSlot)
+						{
+							SkinnedSuit->ShowMaterialSection(WeaponSlot, Section, false, Lod);
+						}
+					}
+				}
+			}
+			for (int32 Slot = 0; Slot < SkinnedSuit->GetNumMaterials(); ++Slot)
+			{
+				if (Slot == WeaponSlot)
+				{
+					continue;
+				}
+				if (UMaterialInstanceDynamic* MID = SkinnedSuit->CreateDynamicMaterialInstance(Slot))
+				{
+					ApplyTrooperLook(MID, CVarTrooperTeamLook.GetValueOnGameThread() == 1);
+					ArmorTeamMIDs.Add(MID);
+				}
+			}
+			UE_LOG(LogShieldbreak, Log, TEXT("%s: trooper suit, %d team materials"), *GetOwner()->GetName(), ArmorTeamMIDs.Num());
+			return;
+		}
 	}
 
 	if (!bFirstPerson && !SkinnedSuit && CVarSkinnedSuit.GetValueOnGameThread() != 0)
@@ -461,7 +580,16 @@ void UShieldbreakBodyAnimator::SetArmorColor(const FLinearColor& TeamColor)
 	using namespace ShieldbreakBodyAnimatorPrivate;
 	for (UMaterialInstanceDynamic* MID : ArmorTeamMIDs)
 	{
-		MID->SetVectorParameterValue(TEXT("BaseColor"), TeamColor * PlateBrightness);
+		if (bTrooper)
+		{
+			// The HUD keeps red and blue; the armour shows the team as white (red team) or black (blue team).
+			const int32 Look = CVarTrooperTeamLook.GetValueOnGameThread();
+			ApplyTrooperLook(MID, Look >= 0 ? Look == 1 : TeamColor.B > TeamColor.R + 0.1f);
+		}
+		else
+		{
+			MID->SetVectorParameterValue(TEXT("BaseColor"), TeamColor * PlateBrightness);
+		}
 	}
 	for (UMaterialInstanceDynamic* MID : ArmorGlowMIDs)
 	{
@@ -1684,7 +1812,9 @@ void UShieldbreakBodyAnimator::UpdateThirdPersonGrip(UShieldbreakBodyAnimInstanc
 	}
 	const bool bNear = Viewer && FVector::DistSquared(ViewLocation, Body->GetComponentLocation()) < FMath::Square(CVarGripRange.GetValueOnGameThread());
 	const bool bHeld = Weapon && Weapon->GetRootComponent() && Weapon->GetRootComponent()->GetAttachParent() == Body;
-	const bool bActive = bHeld && bNear && Body->WasRecentlyRendered(0.25f) && !Instance->GetActionAnimation() && CVarGripContact.GetValueOnGameThread() != 0;
+	// With the trooper the mannequin is hidden (never rendered) but still holds the gun: the trooper copies its hands.
+	const USkeletalMeshComponent* Shown = bTrooper && SkinnedSuit ? SkinnedSuit.Get() : Body;
+	const bool bActive = bHeld && bNear && Shown->WasRecentlyRendered(0.25f) && !Instance->GetActionAnimation() && CVarGripContact.GetValueOnGameThread() != 0;
 	UStaticMeshComponent* Gun = bActive && Weapon->GetWeaponMesh()->DoesSocketExist(TEXT("SupportHand")) && CVarSupportHand.GetValueOnGameThread() != 0
 		? Weapon->GetWeaponMesh() : nullptr;
 

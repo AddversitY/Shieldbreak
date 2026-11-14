@@ -46,3 +46,6 @@ Content/Meshes/
 Art/blender/decals/
 Art/audio/.lyra_src/
 Art/audio/.preview/
+
+# Epic Fab character source files (Paragon: Wraith). Kept local only: add the asset from Fab to the project to restore.
+Content/ParagonWraith/

@@ -29,7 +29,8 @@ public class Shieldbreak : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
-			"NavigationSystem"
+			"NavigationSystem",
+			"IKRig"
 		});
 	}
 }

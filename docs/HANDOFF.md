@@ -1,3 +1,20 @@
+# Trooper character: Epic files are local only (2026-11-14)
+
+The third-person trooper (`sb.Trooper`, `UShieldbreakTrooperAnimInstance`, `/Game/Characters/Trooper/IK_Trooper` and
+`RTG_Trooper`) uses Epic's free Fab character **Paragon: Wraith**, Default skin. Vincent chose to keep Epic's files out
+of GitHub. `Content/ParagonWraith/` is in `.gitignore` and exists only on the desktop PC.
+
+**Without those files:** every soldier falls back to the previous skinned suit (`SK_SB_Soldier`). There's no crash and
+no broken reference in game; this was checked on the desktop by moving the folder out, 2026-11-14. `IK_Trooper` and
+`RTG_Trooper` load only when the trooper mesh exists. Opening them in the editor without the files shows a missing-mesh
+warning.
+
+**To restore on another machine:**
+1. Add **Paragon: Wraith** (Epic Games, free) from Fab to this project, using the Epic Games Launcher's Fab library >
+   Add to Project, or the editor's Fab plugin. It installs to `Content/ParagonWraith/` at the paths the code expects.
+2. Only the Default skin's mesh, skeleton, physics asset, materials and textures are used. The rest of the pack
+   (animations, FX, sounds, other skins) can be deleted locally.
+
 # Handoff: rifle reload reference pass; visual review pending (2026-11-11)
 
 Branch `handoff-2026-11-10`, starting at `ee4c366`. Vincent rejected that clip and asked to mimic the realism of [this reference](https://www.youtube.com/watch?v=XI90HrSe3pc). New authored keys add a side-grip wrist, per-joint finger closure/release, old-magazine release and fresh pickup, a seating impulse and forend recovery. The former cross-receiver sweep is gone. Receiver and magazine contact fitting protects the thumb. Magazine events consume once; cancellation blending preserves the refreshed hand frame. Gameplay duration/ammunition and imported art are unchanged.

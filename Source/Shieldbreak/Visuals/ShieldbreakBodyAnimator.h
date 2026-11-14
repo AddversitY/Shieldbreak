@@ -107,6 +107,8 @@ public:
 	int32 GetArmorPieceCount() const { return ArmorPieces.Num(); }
 	/** True when the third-person armor is the skinned suit (SK_SB_Soldier) rather than rigid pieces. */
 	bool HasSkinnedSuit() const { return SkinnedSuit != nullptr; }
+	/** True when the third-person soldier is the trooper character (sb.Trooper), the mannequin hidden under it. */
+	bool HasTrooper() const { return bTrooper; }
 	/** Paints the armor's team plates and glow strips. */
 	void SetArmorColor(const FLinearColor& TeamColor);
 	/** Team-tinted armor material instances (slots named M_Team*), for the soldier shots' log. */
@@ -155,6 +157,8 @@ private:
 	float LastPoseChangeTime = -100.f;
 	bool bHasBodyArt = false;
 	bool bRagdoll = false;
+	/** SkinnedSuit is the trooper: team colour goes to its CarPaint parameter. */
+	bool bTrooper = false;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> ArmorPieces;

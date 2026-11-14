@@ -473,7 +473,7 @@ void AShieldbreakSelfTest::BuildSteps()
 			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
 			const bool bSkinned = Animator && Animator->HasSkinnedSuit();
 			Check(TEXT("Soldiers wear the armor set"), bSkinned || Pieces >= 14,
-				bSkinned ? FString(TEXT("skinned suit SK_SB_Soldier")) : FString::Printf(TEXT("%d armor pieces"), Pieces));
+				bSkinned ? FString(Animator->HasTrooper() ? TEXT("trooper character") : TEXT("skinned suit SK_SB_Soldier")) : FString::Printf(TEXT("%d armor pieces"), Pieces));
 			// Under the armor the mannequin wears our matte polymer (its own material kept white gloves).
 			const UMaterialInterface* Suit = A && A->GetMesh() ? A->GetMesh()->GetMaterial(0) : nullptr;
 			Check(TEXT("...over a matte suit (MI_SBC_Polymer, not the mannequin's material)"), Suit && Suit->GetName().EndsWith(TEXT("_Polymer")),

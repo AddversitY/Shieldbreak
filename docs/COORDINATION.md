@@ -1,3 +1,47 @@
+**Trooper pushed, code only (2026-11-14, Claude, desktop).** Vincent chose to keep Epic's Fab files off GitHub.
+`Content/ParagonWraith/` is git-ignored and present only on the desktop; `docs/HANDOFF.md` says how to restore it.
+Without those files the game falls back to `SK_SB_Soldier` cleanly (checked on the desktop with the folder moved out:
+all three soldiers spawned the skinned suit, team colours applied, no crash). The cracked-shield emblem is next.
+
+**Trooper done (2026-11-13, Claude, desktop; worktree off `9f080ac`).** The third-person soldier is now a full-body
+trooper built from Epic's free Fab character, Default (white) skin; see `docs/ASSET_CREDITS.md`.
+
+What changed:
+- **Teams by armour, not hue:** the red team is white plates with a black undersuit, the blue team black plates.
+  - Both have amber trim and visor, the same on both teams; no red or blue on the armour. The HUD keeps red and blue.
+  - The black recipe is `BrightnessAdjust=0.08` (`sb.TrooperBlackRecipe`). Raising the `Latex*` colours lightens the
+    plates too, so lighter accents on the black team need a material edit.
+  - `sb.TrooperTeamLook` (-1 by team, 0 white, 1 black) is there for shots and A/B tests.
+- **Rig:** the mannequin body stays as the animated, ragdolling, gun-holding source but is hidden.
+  - The trooper keeps its own skeleton and proportions through `UShieldbreakTrooperAnimInstance`, a native proxy
+    running Retarget Pose From Mesh with `/Game/Characters/Trooper/RTG_Trooper`.
+  - The retargeter has a Blend To Source op on both arms, so the hands land on our guns.
+  - Leader pose was tried first: it squeezed the trooper onto the mannequin's bones and made the feet tiptoe.
+- **Built-in rifle:** its sections are hidden on every LOD.
+- **Toggle:** `sb.Trooper 0` restores the previous suit.
+- **Grip fix:** the third-person grip contact solve now checks whether the visible mesh rendered, not the hidden body.
+- **Not done: the cracked-shield emblem.** A deferred decal on the shoulder-pad bone did not render on these materials,
+  even at 30 cm, so it was removed. The likely fix is a texture/material edit.
+
+FPS on the same build, 1280x720, single runs (the desktop was slower tonight than this morning):
+
+| Fixture | Old suit (`sb.Trooper 0`) | Trooper |
+|---|---|---|
+| Four-bot Crucible | 121.0 | 120.2 |
+| Fixed FP Keel | 119.2 | 118.1 |
+
+The morning runs on the LunarOps build were 141.3 for the suit and 139.0–144.0 for the trooper. 4K textures were kept,
+because the measured cost is about 1%.
+
+Self-test:
+- Final: **177/177** for both suit and trooper.
+- Earlier trooper runs had one known-flaky failure each: FP BR `index_03_l` once, `eye trails the step` once.
+- Before the grip fix, third-person BR failed every time.
+
+Shots: `docs/playtests/2026-11-13_trooper/` (`keel_trooper_tp_*`, `trooper_sheet.jpg`). They cover both teams at mid
+range from three angles, plus close-up, helmet and ragdoll; reports are in the same folder. Checkout is free (worktree
+only; the shared checkout was not touched).
+
 **S14 done (2026-11-12, Claude, desktop; source `6c04437`).**
 
 Build and tests:
