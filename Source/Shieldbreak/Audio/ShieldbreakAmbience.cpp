@@ -332,18 +332,20 @@ void ShieldbreakAmbience::Start(AActor* Arena, FName MapId, bool bIndoor, const 
 		if (MapId == FName(TEXT("Keel")))
 		{
 			// Placed sources that match Keel's set pieces (ShieldbreakArena::BuildMapArt): the six Galleries hull fans
-			// and the reactor pylon ring round the Camo. Arena-local positions.
+			// and the reactor pylon ring round the Camo. Arena-local positions. Levels (offline replica of these loops):
+			// hum -28.8 dBFS RMS everywhere; a fan -27.0 and the drone -26.4 inside their inner radius, so each stands only
+			// 2-3 dB over the hum close up and never masks footsteps.
 			const FTransform& ToWorld = Arena->GetActorTransform();
 			USoundAttenuation* FanFalloff = Falloff(150.f, 1600.f);
 			const TSharedRef<FPCM> Fan = VentFan(static_cast<int32>(Seed) ^ 0xFA4);
 			for (const double X : { -3400.0, -2600.0, -1000.0, 1000.0, 2600.0, 3400.0 })
 			{
 				const FVector Location = ToWorld.TransformPosition(FVector(X, -3540.0, 850.0));
-				AddLoop(Arena, Fan, 0.35f, &Location, FanFalloff);
+				AddLoop(Arena, Fan, 0.28f, &Location, FanFalloff);
 				++Sources;
 			}
 			const FVector Reactor = ToWorld.TransformPosition(FVector(0.0, -2800.0, 300.0));
-			AddLoop(Arena, ReactorDrone(static_cast<int32>(Seed) ^ 0x2EAC), 0.45f, &Reactor, Falloff(400.f, 3200.f));
+			AddLoop(Arena, ReactorDrone(static_cast<int32>(Seed) ^ 0x2EAC), 0.2f, &Reactor, Falloff(400.f, 3200.f));
 			++Sources;
 		}
 	}

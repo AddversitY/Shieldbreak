@@ -74,6 +74,15 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - **Screenshot tour:** `keel_tour.jpg`, nine player-eye views with the HUD off (`-SBShots -SBHeroShots -SBCleanShots`).
 - Self-test 177/178 (known hands check). Fixed-view Keel 170.2 / 172.9 / 173.3.
 
+## Done in pass 6 (same branch)
+
+- **Spawn and trench mood:** a faint team hint in each bridge (warm on red, cool on blue) and low amber work lamps on
+  the trench walls against the pod's cold under-glow. Ten unshadowed zone lights in all.
+- **Sound levels checked numerically** (`Tools/check_keel_ambience_levels.py`, an offline replica of the loops): hum
+  -28.8 dBFS RMS everywhere; after rebalancing, a fan -27.1 and the reactor drone -26.4 inside their inner radius, so
+  each stands only 2-3 dB over the hum close up (the drone was 9 dB over before).
+- Tour refreshed (`keel_tour.jpg`). Self-test 177/178 (known hands check). Fixed-view Keel 167.3 / 171.3.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
