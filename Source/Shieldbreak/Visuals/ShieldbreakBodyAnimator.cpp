@@ -540,11 +540,11 @@ namespace ShieldbreakBodyAnimatorPrivate
 	// Rifle framing (guns with a SupportHand socket): the standard shooter layout. The gun enters from the lower right
 	// with its rear and the trigger hand below the screen edge, the optic sits just under the crosshair, and the left
 	// hand on the front of the gun shows at the lower centre-right. Gun origin (top of the grip) in camera space.
-	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 32.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 24.f, TEXT("First-person rifles: gun origin cm right of the eye."));
-	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 17.f, TEXT("First-person rifles: gun origin cm below the eye."));
-	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 2.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
-	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), -2.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
+	TAutoConsoleVariable<float> CVarRifleGripForward(TEXT("sb.FPRifleGripForward"), 28.f, TEXT("First-person rifles: gun origin cm in front of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripRight(TEXT("sb.FPRifleGripRight"), 13.f, TEXT("First-person rifles: gun origin cm right of the eye."));
+	TAutoConsoleVariable<float> CVarRifleGripDown(TEXT("sb.FPRifleGripDown"), 14.f, TEXT("First-person rifles: gun origin cm below the eye."));
+	TAutoConsoleVariable<float> CVarRifleAimPitch(TEXT("sb.FPRifleAimPitch"), 1.f, TEXT("First-person rifles: barrel pitch (degrees, up positive)."));
+	TAutoConsoleVariable<float> CVarRifleAimYaw(TEXT("sb.FPRifleAimYaw"), 0.f, TEXT("First-person rifles: barrel yaw (degrees, negative toward the crosshair)."));
 	TAutoConsoleVariable<int32> CVarFPLevelGun(TEXT("sb.FPLevelGun"), 1, TEXT("1: the first-person gun is turned about its barrel so it sits upright on screen (0: the idle's wrist roll leans it)."));
 	TAutoConsoleVariable<float> CVarFPGunCant(TEXT("sb.FPGunCant"), 0.f, TEXT("First-person gun cant about the barrel after levelling (degrees, about the barrel; 0 = upright)."));
 	TAutoConsoleVariable<float> CVarLauncherGripForward(TEXT("sb.FPLauncherGripForward"), 46.f, TEXT("First-person launchers (Rail Lance, rocket): gun origin cm in front of the eye."));
