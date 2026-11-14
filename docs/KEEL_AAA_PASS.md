@@ -25,6 +25,24 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - **Lighting:** tried darker sky light, stronger lamps and lower exposure (`-SBSky`, `-SBLampCd`, `-SBExposure`).
   Auto exposure evened most of it out, and the brightest variant cost about 5% FPS, so the defaults stay.
 
+## Done in pass 2 (same branch)
+
+- **Terracotta fix:** the bridges' red cast was the red team trim lines' bounce light (`-SBTrimGlow=0` shot the
+  pillars near black). Team trim now lerps 70% toward the hall's cold white (`-SBKeelTeamTrim` for full colour).
+- **Landmark paint:** original stencil digits and chevrons (`Art/textures/make_keel_stencils.py`, drawn from
+  rectangles, worn-paint alpha), a deferred-decal master and instances (`Tools/MakeKeelDecals.bat`): "01" (red) and
+  "02" (blue) over each bridge window, read from the Cradle, and hazard chevrons along the trench walls
+  (`-SBNoKeelDecals`).
+- **Views out:** an original procedural space panorama (`Art/textures/make_keel_space.py`: star field, faint nebula,
+  a banded gas giant, no ring), shown unlit with parallax by `M_SB_KeelSpace` (`Tools/MakeKeelSpace.bat`). A 64 m
+  framed window over the Breach catwalk and one over each bridge's overwatch, in front of the cladding, visual only
+  (`-SBNoKeelWindow`).
+- **Galleries set piece:** `SM_SB_Kit_ReactorPylon` (1.4k tris) dresses the six pylon blocks round the Camo with
+  framed panels, cold light slots, a hazard band and a light column to the ceiling.
+- **Shots:** `-SBHeroShots` adds `10_hero_landmark`, `11_hero_breach`, `12_hero_galleries`, `13_hero_bridge`.
+- Gameplay self-test 177/178 (the known hands-through-guns check). Fixed-view Keel 168-185 FPS across pass 2 runs
+  (final 177.4); baseline 156.5, so still no measurable regression. Contact sheet `keel_aaa_pass2.jpg`.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
@@ -37,7 +55,5 @@ builds (153-185) is larger than any change, so the pass shows no measurable regr
   still need Vincent to accept Epic's licence on fab.com. Plan once on disk: stage in a throwaway project outside the
   repo (like `WraithStaging`), check they load in 5.8, migrate only the pieces Keel uses, restyle them onto
   `M_SB_KeelHull`, and keep the raw files git-ignored.
-- Bridge windows, Breach view to space, landmark signs per zone, reactor pylon ring in the Galleries.
-- The bridges' pillars still read terracotta red on their front faces in every variant tried (kit, block and hazard
-  materials changed, the colour did not), so it is probably coloured light (team glow or its bounce), not a surface.
-  Next step: a `-SBNoCladding` / no-team-glow comparison to find the source.
+- Landmark signs for the Breach and Galleries; props and floor clutter kept off on purpose (readability).
+- Fixed in pass 2: the terracotta pillars were the red team blocks themselves (a strong team tint on the block surface), not light.

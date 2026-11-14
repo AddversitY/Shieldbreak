@@ -907,36 +907,48 @@ void AShieldbreakArena::BuildMapArt()
 			AddInstanceComponent(Component);
 			++DecalCount;
 		}
-		// The Breach's view out (30 cm proud of the wall, in front of the hull cladding): a long hull window over the catwalk (x +-3200, z 760..1380 on the north hull) showing
-		// the space panorama (Tools/create_keel_space.py: unlit, parallax), split by heavy frame mullions. Visual only.
+		// Views out (Tools/create_keel_space.py: the space panorama, unlit, parallax), 30 cm proud of the hull in front
+		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
+		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).
 		UMaterialInterface* Space = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
+		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
 		if (Space && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindow")))
 		{
-			const double WindowY = Layout.HalfExtent.Y - 30.0, Bottom = 760.0, Top = 1380.0, HalfLength = 3200.0;
-			UStaticMeshComponent* Window = AddDecoration<UStaticMeshComponent>(TEXT("KeelWindow"), CubeMesh);
-			Window->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			Window->SetCastShadow(false);
-			Window->SetRelativeLocation(FVector(0.0, WindowY, Layout.FloorZ + (Bottom + Top) * 0.5));
-			Window->SetRelativeScale3D(FVector(HalfLength / 50.0, 0.02, (Top - Bottom) / 100.0));
-			Window->SetMaterial(0, Space);
-			Window->RegisterComponent();
-			AddInstanceComponent(Window);
 			auto* Mullions = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), CubeMesh);
 			Mullions->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			if (UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame")))
+			if (Frame)
 			{
 				Mullions->SetMaterial(0, Frame);
 			}
-			for (double X = -HalfLength; X <= HalfLength + 1.0; X += 800.0)
+			// Center on the hull face, Yaw turns the window's length from X (0) to Y (+-90); the panel's -Y face, which
+			// shows the panorama, then faces the room.
+			auto AddWindow = [&](const FVector& Center, float Yaw, double HalfLength, double Bottom, double Top)
 			{
-				Mullions->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, WindowY - 15.0, Layout.FloorZ + (Bottom + Top) * 0.5),
-					FVector(0.5, 0.3, (Top - Bottom + 80.0) / 100.0)));
-			}
-			for (const double Z : { Bottom, Top })
-			{
-				Mullions->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, WindowY - 15.0, Layout.FloorZ + Z),
-					FVector(HalfLength / 50.0 + 0.5, 0.3, 0.4)));
-			}
+				const FRotator Turn(0.f, Yaw, 0.f);
+				const FVector Middle = Center + FVector(0.0, 0.0, Layout.FloorZ + (Bottom + Top) * 0.5);
+				const FVector Inward = Turn.RotateVector(FVector(0.0, -1.0, 0.0));
+				UStaticMeshComponent* Window = AddDecoration<UStaticMeshComponent>(TEXT("KeelWindow"), CubeMesh);
+				Window->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Window->SetCastShadow(false);
+				Window->SetRelativeLocationAndRotation(Middle, Turn);
+				Window->SetRelativeScale3D(FVector(HalfLength / 50.0, 0.02, (Top - Bottom) / 100.0));
+				Window->SetMaterial(0, Space);
+				Window->RegisterComponent();
+				AddInstanceComponent(Window);
+				for (double Along = -HalfLength; Along <= HalfLength + 1.0; Along += 800.0)
+				{
+					Mullions->AddInstance(FTransform(Turn, Middle + Turn.RotateVector(FVector(Along, 0.0, 0.0)) + Inward * 15.0,
+						FVector(0.5, 0.3, (Top - Bottom + 80.0) / 100.0)));
+				}
+				for (const double Z : { Bottom, Top })
+				{
+					Mullions->AddInstance(FTransform(Turn, Center + FVector(0.0, 0.0, Layout.FloorZ + Z) + Inward * 15.0,
+						FVector(HalfLength / 50.0 + 0.5, 0.3, 0.4)));
+				}
+			};
+			AddWindow(FVector(0.0, Layout.HalfExtent.Y - 30.0, 0.0), 0.f, 3200.0, 760.0, 1380.0);
+			AddWindow(FVector(-Layout.HalfExtent.X + 30.0, 0.0, 0.0), 90.f, 1600.0, 760.0, 1340.0);
+			AddWindow(FVector(Layout.HalfExtent.X - 30.0, 0.0, 0.0), -90.f, 1600.0, 760.0, 1340.0);
 			Mullions->RegisterComponent();
 			AddInstanceComponent(Mullions);
 		}
