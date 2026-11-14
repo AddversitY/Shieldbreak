@@ -950,6 +950,31 @@ void AShieldbreakArena::BuildMapArt()
 			Housings->RegisterComponent();
 			AddInstanceComponent(Housings);
 		}
+		// Zone light: cold starlight spilling in from the Breach window and a cyan glow over the reactor ring, so the two
+		// flanks read differently at a glance (unshadowed, three points and one spot). -SBNoKeelZoneLights for comparisons.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelZoneLights")))
+		{
+			auto AddZoneLight = [&](const FVector& At, const FLinearColor& Colour, float Candelas, float Radius)
+			{
+				UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
+				Light->SetupAttachment(Root);
+				Light->SetMobility(EComponentMobility::Movable);
+				Light->SetRelativeLocation(At + FVector(0.0, 0.0, Layout.FloorZ));
+				Light->SetIntensityUnits(ELightUnits::Candelas);
+				Light->SetIntensity(Candelas);
+				Light->SetAttenuationRadius(Radius);
+				Light->SetSourceRadius(200.f);
+				Light->SetLightColor(Colour);
+				Light->SetCastShadows(false);
+				Light->RegisterComponent();
+			};
+			const FLinearColor Starlight(0.55f, 0.68f, 1.f), ReactorGlow(0.45f, 0.95f, 1.f);
+			for (const double X : { -2400.0, 0.0, 2400.0 })
+			{
+				AddZoneLight(FVector(X, Layout.HalfExtent.Y - 300.0, 1050.0), Starlight, 70.f, 1900.f);
+			}
+			AddZoneLight(FVector(0.0, -2800.0, 900.0), ReactorGlow, 170.f, 1700.f);
+		}
 		// Views out (Tools/create_keel_space.py: the space panorama, unlit, parallax), 30 cm proud of the hull in front
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
 		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).

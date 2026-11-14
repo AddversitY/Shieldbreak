@@ -64,6 +64,16 @@ shapes; professional free source material only, restyled; no paid tools; perform
   without collision would let players walk through it.
 - Self-test 177/178 (known hands check). Fixed-view Keel 170.1 / 184.6 with pass 4, 176.2 with it off.
 
+## Done in pass 5 (same branch)
+
+- **Positional sound** (synthesized in `ShieldbreakAmbience`, like the rest of the ambience): a whirring loop at each
+  of the six Galleries fans (3 Hz blade thrum, soft motor whine) and a deep reactor drone at the pylon ring that
+  swells every 4 s, on top of the ship's hum. 8 looping sources on Keel.
+- **Zone light:** cold starlight from the Breach window (three unshadowed points) and a cyan glow over the reactor
+  ring, so the two flanks read differently at a glance (`-SBNoKeelZoneLights`).
+- **Screenshot tour:** `keel_tour.jpg`, nine player-eye views with the HUD off (`-SBShots -SBHeroShots -SBCleanShots`).
+- Self-test 177/178 (known hands check). Fixed-view Keel 170.2 / 172.9 / 173.3.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical

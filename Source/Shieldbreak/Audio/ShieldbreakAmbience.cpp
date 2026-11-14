@@ -93,6 +93,43 @@ namespace ShieldbreakAmbiencePrivate
 		});
 	}
 
+	/** A hull vent fan: a soft motor whine and air pushed past six blades (a 3 Hz thrum). Whole-number rates over 4 s. */
+	TSharedRef<FPCM> VentFan(int32 Seed)
+	{
+		return MakeLoop(4.f, 0.7f, [Seed](TArray<float>& Out)
+		{
+			FRandomStream Noise(Seed);
+			FLowPass Air, AirLow;
+			for (int32 Index = 0; Index < Out.Num(); ++Index)
+			{
+				const float Time = static_cast<float>(Index) / Rate;
+				const float Blades = 0.65f + 0.35f * FMath::Sin(2.f * UE_PI * 3.f * Time);
+				const float White = Noise.FRandRange(-1.f, 1.f);
+				const float Rush = Air.Step(White, 900.f) - 0.6f * AirLow.Step(White, 150.f);
+				const float Whine = 0.12f * FMath::Sin(2.f * UE_PI * 180.f * Time) + 0.05f * FMath::Sin(2.f * UE_PI * 360.f * Time);
+				Out[Index] = 1.4f * Rush * Blades + Whine;
+			}
+		});
+	}
+
+	/** The reactor ring: a deep two-tone drone that swells every 4 s with the pylons' light pulse. */
+	TSharedRef<FPCM> ReactorDrone(int32 Seed)
+	{
+		return MakeLoop(8.f, 0.7f, [Seed](TArray<float>& Out)
+		{
+			FRandomStream Noise(Seed);
+			FLowPass Rumble;
+			for (int32 Index = 0; Index < Out.Num(); ++Index)
+			{
+				const float Time = static_cast<float>(Index) / Rate;
+				const float Swell = 0.7f + 0.3f * FMath::Sin(2.f * UE_PI * 0.25f * Time);
+				const float Tone = FMath::Sin(2.f * UE_PI * 41.f * Time) + 0.6f * FMath::Sin(2.f * UE_PI * 82.f * Time)
+					+ 0.2f * FMath::Sin(2.f * UE_PI * 123.f * Time) + 0.08f * FMath::Sin(2.f * UE_PI * 492.f * Time);
+				Out[Index] = (0.55f * Tone + 1.2f * Rumble.Step(Noise.FRandRange(-1.f, 1.f), 120.f)) * Swell;
+			}
+		});
+	}
+
 	/** A shallow creek: a rushing bed of filtered noise and lots of tiny bubbles (fast rising, quickly decaying tones). */
 	TSharedRef<FPCM> Creek(int32 Seed)
 	{
@@ -292,6 +329,23 @@ void ShieldbreakAmbience::Start(AActor* Arena, FName MapId, bool bIndoor, const 
 	{
 		AddLoop(Arena, Hum(static_cast<int32>(Seed)), 0.22f, nullptr, nullptr);
 		++Sources;
+		if (MapId == FName(TEXT("Keel")))
+		{
+			// Placed sources that match Keel's set pieces (ShieldbreakArena::BuildMapArt): the six Galleries hull fans
+			// and the reactor pylon ring round the Camo. Arena-local positions.
+			const FTransform& ToWorld = Arena->GetActorTransform();
+			USoundAttenuation* FanFalloff = Falloff(150.f, 1600.f);
+			const TSharedRef<FPCM> Fan = VentFan(static_cast<int32>(Seed) ^ 0xFA4);
+			for (const double X : { -3400.0, -2600.0, -1000.0, 1000.0, 2600.0, 3400.0 })
+			{
+				const FVector Location = ToWorld.TransformPosition(FVector(X, -3540.0, 850.0));
+				AddLoop(Arena, Fan, 0.35f, &Location, FanFalloff);
+				++Sources;
+			}
+			const FVector Reactor = ToWorld.TransformPosition(FVector(0.0, -2800.0, 300.0));
+			AddLoop(Arena, ReactorDrone(static_cast<int32>(Seed) ^ 0x2EAC), 0.45f, &Reactor, Falloff(400.f, 3200.f));
+			++Sources;
+		}
 	}
 	else
 	{
