@@ -308,8 +308,10 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 			{
 				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
 				{
-					const FLinearColor Hue = Name == TEXT("red") ? FLinearColor(0.20f, 0.12f, 0.10f)
-						: Name == TEXT("blue") ? FLinearColor(0.10f, 0.13f, 0.19f) : FLinearColor(0.08f, 0.085f, 0.095f);
+					// Team blocks: only a hint of the team colour over the gunmetal. At full strength the red side's pillars
+					// read as terracotta brick (k10 shots); the team colour belongs to the lights and accents.
+					const FLinearColor Hue = Name == TEXT("red") ? FLinearColor(0.165f, 0.13f, 0.125f)
+						: Name == TEXT("blue") ? FLinearColor(0.12f, 0.135f, 0.165f) : FLinearColor(0.08f, 0.085f, 0.095f);
 					MID->SetVectorParameterValue(TEXT("BaseColor"), Hue);
 					return MID;
 				}
@@ -456,7 +458,15 @@ void AShieldbreakArena::BuildTrim()
 	// One instanced mesh per colour: three draw calls for every trim line on the map.
 	const FName RedStyle(TEXT("red")), BlueStyle(TEXT("blue"));
 	UInstancedStaticMeshComponent* Strips[3] = { nullptr, nullptr, nullptr };
-	const FLinearColor Colors[3] = { ShieldbreakMapArt::GetLook(MapId).Trim, TrimRed, TrimBlue };
+	FLinearColor Colors[3] = { ShieldbreakMapArt::GetLook(MapId).Trim, TrimRed, TrimBlue };
+	// Keel: the team trim lines were most of the light in the bridges, so their bounce painted the scanned steel
+	// terracotta red (-SBTrimGlow=0 shot the pillars near black). Mostly the hall's cold white with a hint of team.
+	// -SBKeelTeamTrim keeps the full team colours.
+	if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelTeamTrim")))
+	{
+		Colors[1] = FMath::Lerp(TrimRed, Colors[0], 0.7f);
+		Colors[2] = FMath::Lerp(TrimBlue, Colors[0], 0.7f);
+	}
 	// Enclosed maps: half as bright, or the strips bloom the dim halls out to a wash. -SBTrimGlow=<strength> to compare.
 	float TrimGlow = Layout.bIndoor ? 7.f : 14.f;
 	const bool bSpireStructure = MapId == FName(TEXT("Spire"))
