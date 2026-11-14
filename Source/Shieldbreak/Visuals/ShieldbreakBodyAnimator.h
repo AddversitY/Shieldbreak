@@ -157,8 +157,14 @@ private:
 	float LastPoseChangeTime = -100.f;
 	bool bHasBodyArt = false;
 	bool bRagdoll = false;
-	/** SkinnedSuit is the trooper: team colour goes to its CarPaint parameter. */
+	/** SkinnedSuit is the trooper: the team shows as white or black armour (ApplyTrooperLook). */
 	bool bTrooper = false;
+
+	/** The trooper's cracked-shield shoulder emblem and its material (EmblemColor contrasts with the armour). */
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> TrooperEmblem;
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> TrooperEmblemMID;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> ArmorPieces;

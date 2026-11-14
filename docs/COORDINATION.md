@@ -1,3 +1,22 @@
+**Trooper emblem: not shipped, sticker kept behind `sb.TrooperEmblem` (2026-11-14, Claude, desktop).**
+
+What I tried:
+- The cracked-shield emblem as a masked sticker: the engine plane with our own `M_Trooper_Emblem` and
+  `T_Trooper_Emblem`, made from `Content/Splash/Emblem.png`.
+- Colour is black on white armour and light grey on black, set by team in `SetArmorColor`.
+- It rides the left shoulder pad's parent bone (`upperarm_twist_01_l`). On the pad bone itself it never rendered.
+
+Why it's off:
+- At sensible sizes (8–12 cm, 0.6–10 cm off the surface) it is buried in the pad, or hidden by the pad and the raised
+  arm, in every shot.
+- It only reads when it floats at 15 cm lift and 40 cm size (`emblem_sticker_40cm_lift15.jpg`), so the default is
+  off (0).
+- A proper emblem needs painting into the plate texture or the armour material. Those are Epic's local-only files, so
+  that can't ship in Git under option B.
+
+Regression check on this build: self-test **177/177**, four-bot Crucible **113.9 FPS**, fixed FP Keel **120.3 FPS**
+(single runs, desktop load not controlled). Checkout is free.
+
 **Trooper pushed, code only (2026-11-14, Claude, desktop).** Vincent chose to keep Epic's Fab files off GitHub.
 `Content/ParagonWraith/` is git-ignored and present only on the desktop; `docs/HANDOFF.md` says how to restore it.
 Without those files the game falls back to `SK_SB_Soldier` cleanly (checked on the desktop with the folder moved out:

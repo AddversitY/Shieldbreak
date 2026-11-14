@@ -334,6 +334,13 @@ namespace ShieldbreakBodyAnimatorPrivate
 	 *  light-grey accents. "Dark metal" is the plate tint (white in the source), MeatllicCCTint* its clear coat, Latex* the
 	 *  undersuit. sb.TrooperTeamLook -1 = by team, 0 = white, 1 = black (new spawns; for shots and A/B). */
 	TAutoConsoleVariable<int32> CVarTrooperTeamLook(TEXT("sb.TrooperTeamLook"), -1, TEXT("-1: white or black armour by team; 0: all white; 1: all black (new spawns)."));
+	/** Off by default: on the shoulder pad the sticker is buried in or hidden by the pad and raised arm unless it floats
+	 *  well off the surface (desktop shots 2026-11-14: visible only at 15 cm lift and 40 cm size). A proper emblem needs
+	 *  painting into the plate texture (an edit of the local-only Epic material). 2 and 3 are placement checks. */
+	TAutoConsoleVariable<int32> CVarTrooperEmblem(TEXT("sb.TrooperEmblem"), 0, TEXT("1: the trooper wears the cracked-shield emblem sticker on its left shoulder (experimental; new spawns)."));
+	TAutoConsoleVariable<float> CVarTrooperEmblemSize(TEXT("sb.TrooperEmblemSize"), 8.f, TEXT("Width in cm of the trooper's shoulder emblem (new spawns)."));
+	TAutoConsoleVariable<float> CVarTrooperEmblemLift(TEXT("sb.TrooperEmblemLift"), 0.6f, TEXT("cm the shoulder emblem sits off the pad's surface (new spawns)."));
+	TAutoConsoleVariable<float> CVarTrooperEmblemRoll(TEXT("sb.TrooperEmblemRoll"), 90.f, TEXT("Degrees the shoulder emblem turns about its facing (new spawns)."));
 	/** The black team's material overrides (see ApplyTrooperLook). Tunable without a rebuild. */
 	TAutoConsoleVariable<FString> CVarTrooperBlackRecipe(TEXT("sb.TrooperBlackRecipe"),
 		// BrightnessAdjust scales the whole albedo; the plates' roughness/metal detail stays. The Latex* colours feed the
@@ -451,6 +458,56 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 						}
 					}
 				}
+			}
+			// The cracked-shield emblem: a small masked sticker (engine plane, our own material) riding the left shoulder
+			// pad's bone, just off its outer surface. Deferred decals did not render on these materials.
+			static const FName PadBone(TEXT("shoulderpad_l"));
+			const int32 PadIndex = TrooperMesh->GetRefSkeleton().FindBoneIndex(PadBone);
+			UStaticMesh* Plane = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Engine/BasicShapes/Plane.Plane"));
+			UMaterialInterface* EmblemMaterial = ShieldbreakArt::Load<UMaterialInterface>(CVarTrooperEmblem.GetValueOnGameThread() >= 2
+				? TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial") // 2: placement check with a plain material
+				: TEXT("/Game/Characters/Trooper/M_Trooper_Emblem.M_Trooper_Emblem"));
+			if (PadIndex != INDEX_NONE && Plane && EmblemMaterial && CVarTrooperEmblem.GetValueOnGameThread() != 0)
+			{
+				UStaticMeshComponent* Emblem = NewObject<UStaticMeshComponent>(GetOwner(), TEXT("TrooperEmblem"));
+				Emblem->SetStaticMesh(Plane);
+				Emblem->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Emblem->SetGenerateOverlapEvents(false);
+				Emblem->SetCanEverAffectNavigation(false);
+				Emblem->SetCastShadow(false);
+				Emblem->bAffectDistanceFieldLighting = false;
+				Emblem->SetOwnerNoSee(true);
+				// Mesh space, reference pose (measured on the source mesh, 2026-11-14): the pad's outer face is at
+				// x 32.7 around (y -13.7, z 146.1); the character faces +Y and its left side is +X.
+				const FVector Outward(1.f, 0.f, 0.f);
+				const FVector Spot(32.7f + CVarTrooperEmblemLift.GetValueOnGameThread(), -13.7f, 146.1f);
+				const FQuat Facing = FQuat(Outward, FMath::DegreesToRadians(CVarTrooperEmblemRoll.GetValueOnGameThread()))
+					* FRotationMatrix::MakeFromZX(Outward, FVector::UpVector).ToQuat();
+				const FTransform Wanted(Facing, Spot, FVector(CVarTrooperEmblemSize.GetValueOnGameThread() / 100.f));
+				if (CVarTrooperEmblem.GetValueOnGameThread() == 3)
+				{
+					Emblem->SetupAttachment(SkinnedSuit); // placement check: fixed in mesh space, not riding the bone
+					Emblem->SetRelativeTransform(Wanted);
+				}
+				else
+				{
+					// Ride the pad's parent (an arm-chain bone the retargeter drives); attached to the pad bone itself the
+					// sticker never rendered (2026-11-14), though the same sticker fixed in mesh space did.
+					const FReferenceSkeleton& Ref = TrooperMesh->GetRefSkeleton();
+					const int32 Carrier = Ref.GetParentIndex(PadIndex) != INDEX_NONE ? Ref.GetParentIndex(PadIndex) : PadIndex;
+					Emblem->SetupAttachment(SkinnedSuit, Ref.GetBoneName(Carrier));
+					Emblem->SetRelativeTransform(Wanted.GetRelativeTransform(RefPoseComponentSpace(Ref, Carrier)));
+				}
+				Emblem->RegisterComponent();
+				TrooperEmblemMID = Emblem->CreateDynamicMaterialInstance(0, EmblemMaterial);
+				TrooperEmblem = Emblem;
+				UE_LOG(LogShieldbreak, Log, TEXT("%s: trooper emblem on %s at %s (pad bone %s)"), *GetOwner()->GetName(), *Emblem->GetAttachSocketName().ToString(),
+					*Emblem->GetComponentLocation().ToString(), *SkinnedSuit->GetSocketLocation(PadBone).ToString());
+			}
+			else
+			{
+				UE_LOG(LogShieldbreak, Log, TEXT("%s: no trooper emblem (bone %d, plane %d, material %d)"), *GetOwner()->GetName(),
+					PadIndex, Plane != nullptr, EmblemMaterial != nullptr);
 			}
 			for (int32 Slot = 0; Slot < SkinnedSuit->GetNumMaterials(); ++Slot)
 			{
@@ -578,13 +635,19 @@ void UShieldbreakBodyAnimator::AttachArmor(USkeletalMeshComponent* Body, bool bF
 void UShieldbreakBodyAnimator::SetArmorColor(const FLinearColor& TeamColor)
 {
 	using namespace ShieldbreakBodyAnimatorPrivate;
+	// The HUD keeps red and blue; the trooper's armour shows the team as white (red team) or black (blue team).
+	const int32 Look = CVarTrooperTeamLook.GetValueOnGameThread();
+	const bool bBlackTrooper = Look >= 0 ? Look == 1 : TeamColor.B > TeamColor.R + 0.1f;
+	if (TrooperEmblemMID)
+	{
+		// The emblem contrasts with the plates: black on white armour, light grey on black.
+		TrooperEmblemMID->SetVectorParameterValue(TEXT("EmblemColor"), bBlackTrooper ? FLinearColor(0.75f, 0.75f, 0.76f) : FLinearColor(0.02f, 0.02f, 0.022f));
+	}
 	for (UMaterialInstanceDynamic* MID : ArmorTeamMIDs)
 	{
 		if (bTrooper)
 		{
-			// The HUD keeps red and blue; the armour shows the team as white (red team) or black (blue team).
-			const int32 Look = CVarTrooperTeamLook.GetValueOnGameThread();
-			ApplyTrooperLook(MID, Look >= 0 ? Look == 1 : TeamColor.B > TeamColor.R + 0.1f);
+			ApplyTrooperLook(MID, bBlackTrooper);
 		}
 		else
 		{
@@ -607,6 +670,10 @@ void UShieldbreakBodyAnimator::SetArmorHidden(bool bHidden)
 	if (SkinnedSuit)
 	{
 		SkinnedSuit->SetHiddenInGame(bHidden);
+	}
+	if (TrooperEmblem)
+	{
+		TrooperEmblem->SetHiddenInGame(bHidden);
 	}
 }
 
