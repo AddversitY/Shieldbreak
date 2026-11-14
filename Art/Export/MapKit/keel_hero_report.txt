@@ -2,3 +2,5 @@ SM_SB_Kit_CradlePod: 7752 tris, X -820.0..820.0 Y -461.5..461.5 Z -2.5..1100.0, 
 SM_SB_Kit_ReactorPylon: 1440 tris, X -132.0..132.0 Y -132.0..132.0 Z 0.0..1500.0, slots M_HullFrame, M_HullLight, M_HullPlate, M_HullHazard
 SM_SB_Kit_PipeRun: 728 tris, X -400.0..400.0 Y -51.7..0.0 Z -20.0..44.0, slots M_HullFrame, M_HullPlate, M_HullHazard
 SM_SB_Kit_CeilingBeam: 388 tris, X -22.0..22.0 Y -3600.0..3600.0 Z -61.0..0.0, slots M_HullFrame, M_HullHazard
+SM_SB_Kit_FanHousing: 620 tris, X -82.0..82.0 Y -31.5..0.0 Z -82.0..82.0, slots M_HullFrame, M_HullPlate, M_HullHazard
+SM_SB_Kit_FanBlades: 132 tris, X -51.7..51.7 Y -22.5..-5.5 Z -57.0..57.0, slots M_HullFrame, M_HullPlate

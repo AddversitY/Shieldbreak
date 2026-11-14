@@ -9,6 +9,7 @@
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/DecalComponent.h"
+#include "GameFramework/RotatingMovementComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Audio/ShieldbreakAmbience.h"
@@ -715,6 +716,12 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			// The wall plates' big amber panels read as glowing terracotta, and as hazard paint they still turned whole
 			// pillars orange: they take the gunmetal plate, so orange stays an accent (pod bands, ramp edges).
 			// -SBKeelHazardPlates paints them hazard orange instead. The thin amber accents on the bands keep their glow.
+			// The reactor pylons breathe: their light slots and columns pulse slowly, out of step (Tools/create_keel_fx.py).
+			if (!Scanned && Slot.StartsWith(TEXT("M_HullLight")) && Asset->GetName().StartsWith(TEXT("SM_SB_Kit_ReactorPylon"))
+				&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPulse")))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPulse.MI_SB_KeelPulse"));
+			}
 			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
 			{
 				Scanned = FParse::Param(FCommandLine::Get(), TEXT("SBKeelHazardPlates"))
@@ -906,6 +913,42 @@ void AShieldbreakArena::BuildMapArt()
 			Component->RegisterComponent();
 			AddInstanceComponent(Component);
 			++DecalCount;
+		}
+		// Vent fans on the Galleries hull (under the pipework, over the upper walkway): a housing and a rotor that turns
+		// (Art/blender/build_keel_hero.py). Six rotors, each with its own rotating movement; -SBNoKeelFans leaves them off.
+		UStaticMesh* FanHousing = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_FanHousing.SM_SB_Kit_FanHousing"));
+		UStaticMesh* FanBlades = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_FanBlades.SM_SB_Kit_FanBlades"));
+		if (FanHousing && FanBlades && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelFans")))
+		{
+			const FShieldbreakMapLook& KeelLook = ShieldbreakMapArt::GetLook(MapId);
+			auto* Housings = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelFanHousing"), FanHousing);
+			Housings->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Housings->SetCastShadow(false);
+			ApplyKitSurfaces(Housings, KeelLook, 0.f);
+			int32 Fan = 0;
+			for (const double X : { -3400.0, -2600.0, -1000.0, 1000.0, 2600.0, 3400.0 })
+			{
+				// South hull, facing +Y into the Galleries.
+				const FTransform At(FRotator(0.f, 180.f, 0.f), FVector(X, -Layout.HalfExtent.Y + 25.0, Layout.FloorZ + 850.0));
+				Housings->AddInstance(At);
+				UStaticMeshComponent* Rotor = AddDecoration<UStaticMeshComponent>(TEXT("KeelFanRotor"), FanBlades);
+				Rotor->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Rotor->SetCastShadow(false);
+				Rotor->SetMobility(EComponentMobility::Movable);
+				Rotor->SetRelativeTransform(At);
+				Rotor->RegisterComponent();
+				AddInstanceComponent(Rotor);
+				ApplyKitSurfaces(Rotor, KeelLook, 0.f);
+				URotatingMovementComponent* Spin = NewObject<URotatingMovementComponent>(this);
+				Spin->RotationRate = FRotator(Fan % 2 ? 150.f : 190.f, 0.f, 0.f);   // pitch: about the rotor's own Y, the wall normal
+				Spin->bRotationInLocalSpace = true;
+				Spin->SetUpdatedComponent(Rotor);
+				Spin->RegisterComponent();
+				AddInstanceComponent(Spin);
+				++Fan;
+			}
+			Housings->RegisterComponent();
+			AddInstanceComponent(Housings);
 		}
 		// Views out (Tools/create_keel_space.py: the space panorama, unlit, parallax), 30 cm proud of the hull in front
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north

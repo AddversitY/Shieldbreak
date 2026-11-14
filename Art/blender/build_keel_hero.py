@@ -176,8 +176,34 @@ def build_ceiling_beam():
     return export_piece('SM_SB_Kit_CeilingBeam', parts)
 
 
+def build_fan():
+    """A hull vent fan (visual only): a square housing with a grille ring on the wall, and a separate blade rotor that
+    the game spins about its Y axis. Pivot at the wall face centre; the fan faces -Y (into the room)."""
+    sb_kit.reset_scene()
+    housing = [sb_kit.box('frame_top', (0, -14.0, 74.0), (164.0, 28.0, 16.0), 'HullFrame', bevel=2),
+               sb_kit.box('frame_bottom', (0, -14.0, -74.0), (164.0, 28.0, 16.0), 'HullFrame', bevel=2),
+               sb_kit.box('frame_left', (-74.0, -14.0, 0), (16.0, 28.0, 132.0), 'HullFrame', bevel=2),
+               sb_kit.box('frame_right', (74.0, -14.0, 0), (16.0, 28.0, 132.0), 'HullFrame', bevel=2),
+               sb_kit.box('back', (0, -2.0, 0), (140.0, 4.0, 140.0), 'HullFrame', bevel=0),
+               sb_kit.ring('shroud', (0, -16.0, 0), 62.0, 4.0, 'HullPlate', axis='Y', verts=32, tube_verts=6),
+               sb_kit.box('stencil', (0, -28.5, 74.0), (100.0, 1.0, 8.0), 'HullHazard', bevel=0)]
+    for z in (-30.0, 0.0, 30.0):
+        housing.append(sb_kit.box('grille', (0, -30.0, z), (124.0, 3.0, 3.0), 'HullFrame', bevel=0))
+    first = export_piece('SM_SB_Kit_FanHousing', housing)
+    sb_kit.reset_scene()
+    import math
+    rotor = [sb_kit.cyl('hub', (0, -14.0, 0), 14.0, 16.0, 'HullFrame', axis='Y', verts=16, bevel=0)]
+    for i in range(6):
+        blade = sb_kit.box('blade', (0, 0, 0), (12.0, 3.0, 46.0), 'HullPlate', bevel=0)
+        blade.location = (math.sin(math.radians(i * 60.0)) * 34.0, -14.0, math.cos(math.radians(i * 60.0)) * 34.0)
+        blade.rotation_euler = (0.0, math.radians(i * 60.0), math.radians(18.0))
+        rotor.append(blade)
+    second = export_piece('SM_SB_Kit_FanBlades', rotor)
+    return first + chr(10) + second
+
+
 if __name__ == '__main__':
     build()
     report = OUT / 'keel_hero_report.txt'
     report.write_text(report.read_text(encoding='utf-8') + build_pylon() + chr(10) + build_pipe_run() + chr(10)
-                      + build_ceiling_beam() + chr(10), encoding='utf-8')
+                      + build_ceiling_beam() + chr(10) + build_fan() + chr(10), encoding='utf-8')
