@@ -663,7 +663,7 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 		const FString Slot = Slots[Index].MaterialSlotName.ToString();
 		if (bKeelScanHull)
 		{
-			const TCHAR* HullKinds[] = { TEXT("Plate"), TEXT("Deck"), TEXT("Frame") };
+			const TCHAR* HullKinds[] = { TEXT("Plate"), TEXT("Deck"), TEXT("Frame"), TEXT("Hazard") };
 			UMaterialInterface* Scanned = nullptr;
 			for (const TCHAR* Kind : HullKinds)
 			{
@@ -673,6 +673,12 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind));
 					break;
 				}
+			}
+			// The wall plates' big amber panels read as glowing terracotta: worn hazard-orange paint instead. The thin
+			// amber accents on the bands keep their glow.
+			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelHazard.MI_SB_KeelHazard"));
 			}
 			if (Scanned)
 			{

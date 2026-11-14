@@ -19,7 +19,10 @@ SURFACES = {
     'Plate': ((.15, .16, .18), .50, .38, .80, 300.0, .0014, 0.7),
     'Deck': ((.075, .078, .085), .55, .45, .85, 160.0, .0022, 0.9),
     'Frame': ((.065, .07, .08), .55, .35, .75, 140.0, .0012, 0.8),
+    # Worn hazard-orange paint on the bridges' wall plates (the brief's fourth hull material), on the plate scan.
+    'Hazard': ((.40, .15, .03), .15, .45, .85, 300.0, .0014, 1.0),
 }
+MASKS = {'Plate': 'Plate', 'Deck': 'Deck', 'Frame': 'Frame', 'Hazard': 'Plate'}
 
 
 def import_masks(surface):
@@ -133,14 +136,14 @@ def build_master(default_texture):
 
 
 def main():
-    textures = {surface: import_masks(surface) for surface in SURFACES}
+    textures = {surface: import_masks(surface) for surface in set(MASKS.values())}
     master = build_master(textures['Plate'])
     for surface, (tint, metal, rmin, rmax, tile, depth, contrast) in SURFACES.items():
         path = DEST + '/MI_SB_Keel' + surface
         instance = unreal.load_asset(path) if EAL.does_asset_exist(path) else TOOLS.create_asset(
             'MI_SB_Keel' + surface, DEST, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
         MEL.set_material_instance_parent(instance, master)
-        MEL.set_material_instance_texture_parameter_value(instance, 'SurfaceMasks', textures[surface])
+        MEL.set_material_instance_texture_parameter_value(instance, 'SurfaceMasks', textures[MASKS[surface]])
         MEL.set_material_instance_vector_parameter_value(instance, 'BaseColor', unreal.LinearColor(*tint, 1))
         for name, value in (('Metallic', metal), ('RoughnessMin', rmin), ('RoughnessMax', rmax), ('TileSize', tile),
                             ('ReliefDepth', depth), ('DetailContrast', contrast)):

@@ -716,8 +716,17 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		}
 		if (Id == TEXT("Keel"))
 		{
-			// The warship's reactor crown over the core (hangs 2.6 m; the core top is at 6.5 m, the ceiling at 15 m).
-			Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			// The Cradle's hero set (Art/blender/build_keel_hero.py): the cargo pod dressed over the pod block (x +-700,
+			// y +-400, z 400..650) with its cables and crane yoke up to the ceiling. -SBLegacyKeelHero brings back the
+			// old reactor crown (hung 2.6 m under the ceiling over the middle).
+			if (FParse::Param(FCommandLine::Get(), TEXT("SBLegacyKeelHero")))
+			{
+				Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			}
+			else
+			{
+				Group(Groups, TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
+			}
 		}
 		else if (Id == TEXT("Spire"))
 		{
