@@ -54,6 +54,16 @@ shapes; professional free source material only, restyled; no paid tools; perform
   the map out; the default exposure stays.
 - Gameplay self-test 177/178 (known hands check). Fixed-view Keel 173.8 / 179.8 on the final build.
 
+## Done in pass 4 (same branch)
+
+- **Reactor pulse:** `M_SB_KeelPulse` (`Tools/MakeKeelFX.bat`) breathes the reactor pylons' light slots and columns on
+  a sine of game time, out of step by world X (`-SBNoKeelPulse`). GPU only, no ticking.
+- **Vent fans:** `SM_SB_Kit_FanHousing` and `SM_SB_Kit_FanBlades` (Art/blender/build_keel_hero.py): six fans on the
+  Galleries hull under the pipework, rotors turned by rotating movement (`-SBNoKeelFans`).
+- Floor-level props were left out on purpose: the brief keeps detail off the floor for readability, and any prop
+  without collision would let players walk through it.
+- Self-test 177/178 (known hands check). Fixed-view Keel 170.1 / 184.6 with pass 4, 176.2 with it off.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
