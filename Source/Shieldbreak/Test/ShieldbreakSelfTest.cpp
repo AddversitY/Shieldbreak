@@ -4009,6 +4009,7 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			AddView(TEXT("7_hero_trench"), FVector(-900.f, -1700.f, 170.f), FVector(0.f, 0.f, 500.f));
 			AddView(TEXT("8_hero_pod"), FVector(-550.f, 250.f, 820.f), FVector(3000.f, 0.f, 500.f));
 			AddView(TEXT("9_hero_window"), FVector(-3200.f, 300.f, 560.f), FVector(0.f, 0.f, 620.f));
+			AddView(TEXT("10_hero_landmark"), FVector(300.f, 500.f, 820.f), FVector(-3870.f, 0.f, 900.f));
 		}
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{

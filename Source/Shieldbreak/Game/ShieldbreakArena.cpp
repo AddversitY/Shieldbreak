@@ -8,6 +8,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Components/DecalComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
 #include "Audio/ShieldbreakAmbience.h"
@@ -874,6 +875,39 @@ void AShieldbreakArena::BuildMapArt()
 		AddInstanceComponent(Instances);
 		++Kinds;
 		Placed += Group.Instances.Num();
+	}
+	// Keel's landmark paint (Tools/create_keel_decals.py): a big stencilled bridge number over each team's window, read
+	// from the Cradle ("01" red at -X, "02" blue at +X), and hazard chevrons along the trench walls under the approach
+	// decks. Decals only, no geometry. -SBNoKeelDecals leaves them off.
+	if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelDecals")))
+	{
+		struct FKeelDecal { const TCHAR* Material; FVector At; float Yaw; FVector HalfSize; };
+		const FKeelDecal Decals[] = {
+			{ TEXT("Stencil01"), FVector(-3870.0, 0.0, 1160.0), 180.f, FVector(20.0, 320.0, 320.0) },
+			{ TEXT("Stencil02"), FVector(3870.0, 0.0, 1160.0), 0.f, FVector(20.0, 320.0, 320.0) },
+			{ TEXT("Chevrons"), FVector(-1300.0, 0.0, 175.0), 0.f, FVector(20.0, 112.0, 900.0) },
+			{ TEXT("Chevrons"), FVector(1300.0, 0.0, 175.0), 180.f, FVector(20.0, 112.0, 900.0) },
+		};
+		int32 DecalCount = 0;
+		for (const FKeelDecal& Decal : Decals)
+		{
+			UMaterialInterface* Paint = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
+				TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Decal.Material, Decal.Material));
+			if (!Paint)
+			{
+				continue;
+			}
+			UDecalComponent* Component = NewObject<UDecalComponent>(this);
+			Component->SetupAttachment(Root);
+			Component->SetDecalMaterial(Paint);
+			Component->DecalSize = Decal.HalfSize;
+			// The decal projects along its X axis into the wall; rolled a quarter turn so the texture stands upright.
+			Component->SetRelativeLocationAndRotation(Decal.At + FVector(0.0, 0.0, Layout.FloorZ), FRotator(0.f, Decal.Yaw, -90.f));
+			Component->RegisterComponent();
+			AddInstanceComponent(Component);
+			++DecalCount;
+		}
+		UE_LOG(LogShieldbreak, Log, TEXT("Keel landmark decals: %d."), DecalCount);
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
 }
