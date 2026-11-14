@@ -1,3 +1,5 @@
+**Keel AAA pass holding the desktop (Claude, desktop PC, started 2026-11-14 09:05 local, branch `claude/project-thread-kwjmqj` from ndksis `bd8b302`).** Other threads: please wait for "Keel AAA pass done, desktop released".
+
 **S14 done (2026-11-12, Claude, desktop; source `6c04437`).**
 
 Build and tests:
