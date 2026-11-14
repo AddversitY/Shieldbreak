@@ -20,7 +20,7 @@ SURFACES = {
     'Deck': ((.075, .078, .085), .55, .45, .85, 160.0, .0022, 0.9),
     'Frame': ((.065, .07, .08), .55, .35, .75, 140.0, .0012, 0.8),
     # Worn hazard-orange paint on the bridges' wall plates (the brief's fourth hull material), on the plate scan.
-    'Hazard': ((.40, .15, .03), .15, .45, .85, 300.0, .0014, 1.0),
+    'Hazard': ((.24, .09, .022), .20, .50, .88, 300.0, .0016, 1.25),
 }
 MASKS = {'Plate': 'Plate', 'Deck': 'Deck', 'Frame': 'Frame', 'Hazard': 'Plate'}
 
