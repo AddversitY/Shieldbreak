@@ -1,0 +1,226 @@
+Shieldbreak self-test, 2026.11.06-02.40.43
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 37 pieces
+-- Original art is in place
+PASS  Weapon_BattleRifle uses its own model  -- SM_SB_BattleRifle
+PASS  Weapon_Sidearm uses its own model  -- SM_SB_Sidearm
+PASS  Weapon_SniperRifle uses its own model  -- SM_SB_Sniper
+PASS  Weapon_RocketLauncher uses its own model  -- SM_SB_RocketLauncher
+PASS  Weapon_RailLance uses its own model  -- SM_SB_RailLance
+PASS  Soldiers wear the armor set  -- 14 armor pieces
+PASS  ...over a matte suit (MI_SBC_Polymer, not the mannequin's material)  -- MI_SBC_Polymer
+PASS  Soldier bodies blend their animation (native anim instance)  -- aim pitch 0.0
+-- First-person arms hold the gun
+PASS  The local player has first-person arms
+PASS  ...and the gun is in their hand  -- FirstPersonArms
+PASS  ...with the index finger on the trigger  -- finger pad 1.48 cm from the trigger (Weapon_BattleRifle_1; hand space: trigger (-7.8,-0.2,-2.8) pad (-9.1,0.0,-3.5) index_01 (-9.3,-0.4,2.9); gun space: trigger (0.0,3.7,-7.0) pad (1.4,3.6,-7.6) index_01 (0.9,3.0,-1.2) hand_r (-8.0,2.4,-5.1) middle_01 (1.3,4.1,-3.7) pinky_01 (0.3,3.2,-8.2) thumb_03 (-0.1,-2.7,-0.3))
+FAIL  ...and on a rifle the left hand holds the forend  -- left wrist -1.00 cm from SupportHand (Weapon_BattleRifle_1)
+-- Scope overlays
+PASS  Zooming the Battle Rifle brings up its Marksman scope and hides the gun  -- Weapon_BattleRifle_2, blend 1.00, gun hidden 1
+INFO  screenshot crucible_shot_scope_marksman
+PASS  ...and zoomed out the gun is back  -- Weapon_SniperRifle_0
+INFO  screenshot crucible_shot_scope_sniper_1
+PASS  The Sniper's LongRange scope has a second, closer zoom  -- Weapon_SniperRifle_0, level 2, FOV 7.0
+INFO  screenshot crucible_shot_scope_sniper_2
+PASS  ...and a third press zooms out
+-- Death camera
+INFO  screenshot crucible_shot_death_camera
+PASS  The death camera watches the body from outside it  -- camera 321.31 cm from the pelvis, view target CameraActor_1, death camera CameraActor_1, overview CameraActor_0, alive 0
+-- Controller aim assist tracks a nearby enemy
+PASS  Controller aim assist tracks a nearby enemy  -- yaw error 2.29 -> 0.00 deg, strength 1.00
+-- Soldier bodies bend to the aim pitch
+PASS  Aim pitch raises the gun hand  -- aim pitch 45.0, hand 44.3 -> 63.2
+-- Crouch camera settles without a capsule-height pop
+PASS  Crouching does not jump the camera by the 34 cm capsule change  -- largest frame change 3.92 cm
+PASS  Standing also eases the camera without delaying the capsule  -- largest frame change 3.90 cm
+-- The camera rides over a step instead of snapping
+PASS  The test walk climbs the 30 cm curb  -- rose 29.86 cm, largest capsule jump 9.52 cm
+PASS  The eye trails the step (no 30 cm one-frame snap)  -- largest eye change 6.06 cm (curb 29.86, capsule frame 9.52), largest trail 15.47 cm
+PASS  ...and settles back to eye height  -- offset 0.00 cm 0.6 s after stopping
+-- Coyote time: a jump just after walking off a ledge still goes off
+PASS  A jump 0.06 s after leaving the ledge takes off  -- peak vertical speed 889.61 uu/s (jump 900.00)
+PASS  ...but a press 0.2 s into the fall does not (no air jumps)  -- peak vertical speed -321.71 uu/s
+-- A jump pressed just before landing goes off on touchdown
+PASS  The early press jumps again on landing  -- peak vertical speed 889.54 uu/s after pressing 60.00 cm above the floor
+-- Directional gait keeps its cycle through a turn
+PASS  A strafe turn advances the gait instead of restarting the feet  -- phase 0.175 -> 0.198
+-- Interrupted upper-body actions blend
+PASS  Reload-to-melee does not teleport the gun hand  -- hand moved 0.16 cm over 0.014 s
+-- Shield impacts and passive decay
+PASS  Absorbed bullets flash the character's shield overlay
+PASS  Shield flash fades and releases its overlay
+PASS  A shield break has a stronger pulse
+PASS  Health-only damage does not fake a shield impact
+PASS  Passive overshield decay does not flash
+PASS  Overshield damage does flash
+-- First-person gun kicks on a shot and settles
+PASS  The local player has first-person arms
+PASS  A shot tips the first-person gun up  -- peak pitch 1.34 deg (still: offset 0.00 cm)
+PASS  ...and it springs back to rest  -- offset 0.00 cm, pitch -0.00 deg after 0.8 s
+-- Walking bobs the first-person gun; standing does not
+PASS  Standing still keeps the gun steady  -- height range 0.00 cm
+PASS  Walking bobs the gun with the steps  -- height range 0.60 cm at 20.05 uu/s
+-- Firing never moves the aim (no recoil)
+PASS  Firing never moves the aim (no recoil)  -- pitch 0.00, yaw 0.00 deg after two bursts
+-- Bullet magnetism bends a near miss onto the enemy
+PASS  Bullet magnetism bends a near miss onto the enemy  -- bent 1.26 deg
+PASS  ...a clear miss stays a miss
+PASS  ...a direct hit is left exactly as aimed
+PASS  ...and nothing bends with aim assist off
+-- Aim slowdown works with a mouse
+PASS  Aim slowdown works with a mouse  -- strength 0.78
+PASS  ...without pulling a mouse player's view  -- yaw 0.00
+-- Hit markers report shield hits, shield pops and kills
+PASS  Hit markers report shield hits, shield pops and kills
+PASS  ...a shield pop is its own marker
+PASS  ...and bursts the shield bubble
+PASS  ...and a kill is a kill marker
+PASS  ...hurting yourself gives no marker
+-- An interrupted locomotion fade does not pop
+PASS  The gun hand moves smoothly through an interrupted fade  -- fastest hand movement 192.66 cm/s
+-- Locomotion plays in place (no root motion drift)
+PASS  The jogging body stays over its capsule  -- pelvis wandered 6.24 cm
+-- Main menu launch rules
+PASS  The game runs with the Shieldbreak game instance (menu routing)  -- ShieldbreakGameInstance
+PASS  A bare launch or ?Menu opens the menu; map, mode, listen, self-test and autoshot go to a match  -- bare 1, ?Menu 1, match 0, host 0, self-test 0, autoshot 0
+PASS  Menu match options parse back to the same map, mode, bots and skill  -- ?Map=Spire?Mode=KOTH?Bots=5?Skill=2?listen
+PASS  Sensitivity and field of view clamp to their ranges  -- sensitivity 3.00, fov 70
+PASS  Rebinding a key moves the control and swaps a taken key  -- moved 1, swapped 1
+PASS  Medal streaks: chains within the window, sprees end on death  -- chain 3, after pause 1, spree 4, after death 0
+-- Shield absorbs damage
+PASS  Spawned at full shield/health  -- shield 70.00 health 45.00
+PASS  30 ballistic damage comes off the shield only  -- shield 40.00 health 45.00
+PASS  Overflow past a broken shield carries into health  -- shield 0.00 health 25.00 (expected 25.00)
+-- Recharge delay and refill
+PASS  Health regenerates once the shield is full  -- health 45.00
+-- Shield Bleed (plasma)
+PASS  Plasma does bonus shield damage  -- shield 54.00 (expected 54.00)
+PASS  Plasma extends the recharge delay  -- recharging=0 shield 54.00 at 5.00s
+PASS  ...and recharge still starts afterwards  -- shield 70.00
+-- Overcharge Vent (hit)
+PASS  Vent in the sweet spot refills the shield  -- shield 70.00, marker was 0.58
+PASS  ...and grants overshield  -- overshield 19.99
+-- Overcharge Vent (miss)
+PASS  Missed vent restarts the recharge from empty  -- shield 0.58 before, 0.00 right after
+PASS  ...and only one attempt per recharge  -- marker -1.00
+-- Break Pulse
+PASS  Pulse strips nearby enemy shields  -- enemy shield 40.00
+PASS  Pulse knocks the enemy back  -- moved 365.90 uu
+-- Break Pulse outside the window
+PASS  A late melee does not pulse  -- enemy shield 70.00
+-- Battle Rifle hitscan and headshot
+PASS  Shooter holds the Battle Rifle  -- Weapon_BattleRifle_38
+PASS  A burst into a shielded head does normal damage  -- lost 19.50, alive 1
+PASS  An unshielded headshot kills  -- health 45.00 -> 0.00
+-- Sprint, slide and Momentum Carry
+PASS  Sprint reaches sprint speed  -- 994.62 uu/s
+PASS  Crouching at sprint speed starts a slide  -- 1290.52 uu/s, mode 6
+PASS  A slide starts faster than a sprint  -- 1290.52 uu/s 0.15 s in (sprint 1020.00)
+PASS  The slide keeps far more speed than a crouch-walk  -- 1008.03 uu/s after 0.45 s (crouch walk 260.00)
+PASS  Jumping out of a slide sets Momentum Carry  -- carry=1 falling=1
+PASS  ...and keeps the speed in the air  -- 1008.03 uu/s in the air, 1008.03 at take-off
+-- Grenade damage and knockback
+PASS  The explosion damages nearby characters  -- shield 0.00
+PASS  The explosion launches them upward (grenade jump)  -- peak up-velocity 571.01
+-- Grenade throw timing
+PASS  A throw doesn't release the grenade at the press  -- 0 grenades 0.06 s in (release at 0.15 s)
+PASS  ...the grenade shows in the thrower's hand until then
+PASS  ...and the gun can't fire mid-throw
+PASS  The grenade leaves the hand at the release  -- 1 new
+PASS  ...and the hand is empty after it
+PASS  A second press mid-throw doesn't throw again  -- grenades 4 -> 3
+PASS  The grenade blinks its arming light in flight  -- peak 0.64
+PASS  It goes off as a layered explosion  -- 9 fire/smoke cards (0 = M_SB_FX materials missing)
+-- Melee and assassination
+PASS  A frontal melee hits hard but does not kill  -- shield 0.00 health 45.00
+PASS  The melee plays a swing animation  -- MM_Rifle_Melee
+PASS  A melee from behind is an assassination  -- health 0.00
+-- Arena power weapon and power-up placement
+PASS  The arena places two Sniper Rifles  -- 2
+PASS  ...one Rocket Launcher  -- 1
+PASS  ...and one Overshield  -- 1
+-- Arena pieces are net addressable
+PASS  An arena exists
+PASS  The arena's name is stable for networking  -- ShieldbreakArena_crucible
+PASS  ...and so is every floor/wall piece  -- 0 of 32 not stable
+-- Map pieces use the world materials
+PASS  Most map pieces use M_SB_World  -- 32 of 32
+-- Sniper Rifle body shots and headshot
+PASS  Shooter holds the Sniper Rifle  -- Weapon_SniperRifle_2
+INFO  sniper shot: eye z 158.15, aim pitch -4.41, target z 94.15, head z 166.15, head scale 0.42, head-ray hit 0
+PASS  A sniper body shot does 60  -- lost 60.00, alive 1
+PASS  Two sniper body shots kill from full  -- shield 0.00 health 0.00
+PASS  Fresh target has a full shield
+PASS  A sniper headshot kills through a full shield  -- shield 0.00 health 0.00
+-- Rocket Launcher direct hit
+PASS  Shooter holds the Rocket Launcher  -- Weapon_RocketLauncher_1
+PASS  Firing spawns a rocket ahead of the shooter  -- 97.44 uu from the eye
+PASS  A direct rocket hit kills from full  -- shield 0.00 health 0.00
+PASS  ...and the shooter 700 uu away is unharmed  -- shooter shield 70.00
+-- A rocket at your own feet (no rocket jumps)
+INFO  own-rocket pass 1: shooter at V(X=1151.08, Y=1450.00, Z=94.15), aim pitch -89.49, ammo 1, rockets: (V(X=1201.30, Y=1450.00, Z=11.02))
+PASS  A rocket at your feet from full shield is survivable  -- shield 0.00 health 27.00
+PASS  ...leaves 20-40 health  -- health 27.00
+PASS  ...and does not launch you (no rocket jumps)  -- peak up-velocity 0.00
+INFO  own-rocket pass 2: shooter at V(X=1151.08, Y=1450.00, Z=94.15), aim pitch -89.49, ammo 1, rockets: (V(X=1201.30, Y=1450.00, Z=11.02))
+PASS  With an overshield, a rocket at your feet is survivable  -- overshield 49.59 shield 70.00 health 45.00
+PASS  ...and with an overshield it does not launch you either  -- peak up-velocity 0.00
+-- Rocket times out after 6 s
+PASS  A rocket fired into the open sky spawns
+PASS  ...and explodes on its own after ~6 s  -- gone at 6.01 s
+-- Overshield power-up
+PASS  Walking into the Overshield grants 140  -- overshield 139.60
+PASS  ...and the orb is consumed
+PASS  The overshield decays at ~2/s  -- 2.00/s, now 135.60
+PASS  Damage drains the overshield before the shield  -- overshield 85.60 shield 70.00
+PASS  The orb respawns after its timer
+-- Arena sandbox placement (mechanics pass)
+PASS  The arena places Rail Lances  -- 2
+PASS  ...and only sandbox weapons (no SMG or Plasma Rifle)  -- 0
+PASS  ...and one Aegis  -- 1
+-- Spawn kit, walk speed and acceleration
+PASS  Spawn kit is Battle Rifle + Sidearm  -- Weapon_BattleRifle_53 / Weapon_Sidearm_49
+PASS  Walking reaches ~600 within 0.25 s (snappy acceleration)  -- 660.00 uu/s
+PASS  Walk speed is 660  -- 660.00 uu/s
+-- Power Jump
+PASS  Jump while crouched charges a Power Jump  -- charge 1.00
+PASS  A full charge launches ~1.5x height (~1.22x jump speed)  -- 1090.04 uu/s vs normal jump 889.64 (x1.23)
+-- Sidearm
+PASS  A Sidearm body shot does 12  -- lost 12.00
+PASS  A Sidearm headshot kills an unshielded target  -- health 0.00
+-- Rail Lance charge
+PASS  Shooter holds the Rail Lance  -- Weapon_RailLance_1
+PASS  An early Rail Lance release does ~66 and doesn't kill  -- lost 66.00, alive 1
+PASS  A fully charged Rail Lance kills from full  -- shield 0.00 health 0.00
+-- Aegis barrier
+PASS  Walking over the Aegis pickup equips it  -- equipment 1
+PASS  Use Equipment raises the barrier
+PASS  The raised barrier stops hitscan  -- shield 70.00
+PASS  ...and the bullets drain the barrier  -- barrier 0.90
+PASS  Lowering the barrier
+PASS  ...lets bullets through again  -- shield 50.50
+-- Active Camo power-up
+PASS  No camo before the pickup
+PASS  Walking into Active Camo cloaks you for ~30 s  -- 29.70 s left
+-- Teams and friendly fire
+PASS  Team dummies resolve to the same team  -- teams 0 / 0
+PASS  Friendly fire is off by default  -- teammate shield 70.00
+PASS  Your own explosives still hurt you  -- own shield 50.00
+PASS  Enemies take damage  -- enemy shield 50.00
+-- Bot match sanity (75 s)
+INFO  3 third-person screenshots in Saved/Screenshots/SelfTest
+INFO  Bot team score after the bot match: red 4, blue 10
+PASS  No bot stays stuck in one spot for 20 s  -- 0 stuck: 
+INFO  average 137.1 FPS over 74 real seconds with 4 bots
+PASS  4 bots joined  -- 4 bots
+PASS  Bots find and fight each other  -- 28 kills+deaths in 75 s
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 159 passed, 1 failed

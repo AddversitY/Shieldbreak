@@ -1,0 +1,28 @@
+reference /Engine/BasicShapes/Cube volume -1000000
+OK   SM_SB_BattleRifle outward 21% volume -7944
+OK   SM_SB_BattleRifle_Mag outward 15% volume -342
+OK   SM_SB_BattleRifle_NoMag outward 21% volume -7626
+OK   SM_SB_FragGrenade outward 10% volume -279
+OK   SM_SB_RailLance outward 8% volume -7388
+OK   SM_SB_RocketLauncher outward 21% volume -15382
+OK   SM_SB_Sidearm outward 18% volume -995
+OK   SM_SB_Sidearm_Mag outward 11% volume -113
+OK   SM_SB_Sidearm_NoMag outward 17% volume -967
+OK   SM_SB_Sniper outward 20% volume -9057
+OK   SM_SB_Sniper_Mag outward 15% volume -278
+OK   SM_SB_Sniper_NoMag outward 19% volume -8805
+OK   SM_SB_Armor_calf_l outward 1% volume -4677
+OK   SM_SB_Armor_calf_r outward 1% volume -4568
+OK   SM_SB_Armor_foot_l outward 3% volume -1787
+OK   SM_SB_Armor_foot_r outward 3% volume -1804
+OK   SM_SB_Armor_head outward 0% volume -52623
+OK   SM_SB_Armor_lowerarm_l outward 7% volume -1897
+OK   SM_SB_Armor_lowerarm_r outward 8% volume -2033
+OK   SM_SB_Armor_pelvis outward 6% volume 7384 (volume sign disagrees: open shell)
+OK   SM_SB_Armor_spine_03 outward 11% volume 3509 (volume sign disagrees: open shell)
+OK   SM_SB_Armor_spine_05 outward 15% volume -153930
+OK   SM_SB_Armor_thigh_l outward 4% volume -11308
+OK   SM_SB_Armor_thigh_r outward 5% volume -11955
+OK   SM_SB_Armor_upperarm_l outward 19% volume -7395
+OK   SM_SB_Armor_upperarm_r outward 20% volume -7178
+RESULT all outward

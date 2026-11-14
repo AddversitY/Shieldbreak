@@ -13,6 +13,24 @@
 
 class UAnimSequenceBase;
 
+/** Grip fingers (index, middle, ring, pinky, thumb; joints _01.._03), the order every per-joint curl array uses. */
+namespace ShieldbreakGrip
+{
+	constexpr int32 NumJoints = 15;
+	inline const TCHAR* const LeftBones[NumJoints] = {
+		TEXT("index_01_l"), TEXT("index_02_l"), TEXT("index_03_l"), TEXT("middle_01_l"), TEXT("middle_02_l"), TEXT("middle_03_l"),
+		TEXT("ring_01_l"), TEXT("ring_02_l"), TEXT("ring_03_l"), TEXT("pinky_01_l"), TEXT("pinky_02_l"), TEXT("pinky_03_l"),
+		TEXT("thumb_01_l"), TEXT("thumb_02_l"), TEXT("thumb_03_l") };
+	inline const TCHAR* const RightBones[NumJoints] = {
+		TEXT("index_01_r"), TEXT("index_02_r"), TEXT("index_03_r"), TEXT("middle_01_r"), TEXT("middle_02_r"), TEXT("middle_03_r"),
+		TEXT("ring_01_r"), TEXT("ring_02_r"), TEXT("ring_03_r"), TEXT("pinky_01_r"), TEXT("pinky_02_r"), TEXT("pinky_03_r"),
+		TEXT("thumb_01_r"), TEXT("thumb_02_r"), TEXT("thumb_03_r") };
+	/** The left hand's forend wrap at sb.FPFingerCurl 1 (degrees, toward the palm), before contact correction. */
+	inline constexpr float LeftNominal[NumJoints] = { 30.f, 55.f, 35.f, 38.f, 60.f, 38.f, 42.f, 62.f, 40.f, 48.f, 62.f, 40.f, 8.f, 18.f, 18.f };
+	/** cm from a finger's _03 joint to its tip. */
+	inline constexpr float TipLength[5] = { 2.0f, 2.1f, 2.0f, 1.8f, 2.2f };
+}
+
 USTRUCT()
 struct SHIELDBREAK_API FShieldbreakBodyAnimProxy : public FAnimInstanceProxy
 {
@@ -45,6 +63,18 @@ private:
 	static void LockRoot(FPoseContext& Output);
 	void ApplyAction(FPoseContext& Output) const;
 	void ApplyAimPitch(FPoseContext& Output) const;
+	/** Fits the right index finger to the trigger, bending into the guard's opening. */
+	void ApplyTriggerFinger(FPoseContext& Output) const;
+	/** First-person grenade throw: moves the left shoulder to LeftShoulderTarget (the arms' rig holds it far right of
+	 *  the eye), curls the left fingers round the grenade, then a two-bone IK puts hand_l at LeftHandTarget with the
+	 *  elbow toward LeftElbowPole and flexes the wrist (all component space). */
+	void ApplyLeftArm(FPoseContext& Output) const;
+	/** Two-bone IK of the left arm so hand_l reaches SupportTarget (component space); the hand keeps its animated
+	 *  component-space rotation, so it still holds the gun the way the rifle idle does. */
+	void ApplySupportHand(FPoseContext& Output) const;
+	/** Turns each grip-finger joint of one hand toward that hand's palm by Curls (degrees, negative opens) on top of the
+	 *  pose, scaled by Weight. The right index finger is left to ApplyTriggerFinger. */
+	void ApplyFingerCurls(FPoseContext& Output, bool bLeft, const float* Curls, float Weight) const;
 
 	FTrack Current;
 	FTrack Previous;
@@ -69,6 +99,28 @@ private:
 	float KickPitch = 0.f;
 	float KickVelocity = 0.f;
 	float SeenKickTotal = 0.f;
+	float TriggerWeight = 0.f;
+	FVector TriggerTarget = FVector::ZeroVector;
+	FVector TriggerForward = FVector::ForwardVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	FVector LeftShoulderTarget = FVector::ZeroVector;
+	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
+	const UAnimSequenceBase* GripAnimation = nullptr;
+	float GripTime = 0.f;
+	float SupportWeight = 0.f;
+	FVector SupportTarget = FVector::ZeroVector;
+	FVector SupportFingers = FVector::ForwardVector;
+	FVector SupportPalmNormal = FVector::UpVector;
+	float SupportCurl = 0.f;
+	/** Per-joint finger curls from the game thread's contact solve (UShieldbreakBodyAnimator::SolveGripContact). */
+	float LeftCurls[ShieldbreakGrip::NumJoints] = {};
+	float RightCurls[ShieldbreakGrip::NumJoints] = {};
+	bool bLeftCurls = false;
+	float RightCurlWeight = 0.f;
 	/** The last base pose (local bone transforms, before actions and aim), and whether the current cross-fade starts
 	 *  from it: a pose change that interrupts a cross-fade fades from what was on screen instead of popping. */
 	TArray<FTransform> LastBasePose;
@@ -94,6 +146,55 @@ public:
 	float GetAimPitch() const { return AimPitch; }
 	/** Diagnostic snapshot; completes any in-flight animation work before reading. */
 	float GetLocomotionPhase() const { return GetProxyOnGameThread<FShieldbreakBodyAnimProxy>().GetCyclePhase(); }
+
+	/** First-person arms: Weight 0-1 of curling the index finger onto the gun's trigger, at Target in hand_r bone
+	 *  space. 0 leaves the finger as the animation has it. */
+	void SetTriggerFinger(float Weight, const FVector& TargetInHandSpace, const FVector& ForwardInHandSpace = FVector::ZeroVector)
+	{
+		TriggerWeight = Weight; TriggerTarget = TargetInHandSpace;
+		if (!ForwardInHandSpace.IsNearlyZero()) { TriggerForward = ForwardInHandSpace; }
+	}
+	const FVector& GetTriggerTarget() const { return TriggerTarget; }
+	/** First-person rifles: Weight 0-1 of reaching the left hand (hand_l) to Target in component space (the gun's
+	 *  SupportHand socket). 0 leaves the arm as the animation has it. */
+	void SetSupportHand(float Weight, const FVector& PalmComponentSpace, const FVector& FingersComponentSpace, const FVector& PalmNormalComponentSpace,
+		float Curl)
+	{
+		SupportWeight = Weight;
+		SupportTarget = PalmComponentSpace;
+		SupportFingers = FingersComponentSpace;
+		SupportPalmNormal = PalmNormalComponentSpace;
+		SupportCurl = Curl;
+	}
+	const FVector& GetSupportTarget() const { return SupportTarget; }
+	const FVector& GetSupportFingers() const { return SupportFingers; }
+	const FVector& GetSupportPalmNormal() const { return SupportPalmNormal; }
+	float GetSupportCurl() const { return SupportCurl; }
+	/** Contact-solved finger curls (ShieldbreakGrip order, degrees). Left: replaces the nominal wrap while the support
+	 *  hand holds (null = nominal x Curl). Right: added to the pose's own fingers with Weight. */
+	void SetLeftFingerCurls(const float* Curls)
+	{
+		bLeftCurls = Curls != nullptr;
+		if (Curls) { FMemory::Memcpy(LeftCurls, Curls, sizeof(LeftCurls)); }
+	}
+	void SetRightFingerCurls(const float* Curls, float Weight)
+	{
+		RightCurlWeight = Curls ? Weight : 0.f;
+		if (Curls) { FMemory::Memcpy(RightCurls, Curls, sizeof(RightCurls)); }
+	}
+
+	/** First-person arms, grenade throw: Weight 0-1 of driving the left arm. The shoulder moves to ShoulderTarget, the
+	 *  hand goes to HandTarget with the elbow bent toward ElbowPole (all mesh component space), the wrist flexes by
+	 *  WristFlex degrees about the elbow's hinge and the fingers curl in by FingerCurl (1 = a grip round a grenade).
+	 *  Grip, when set, first takes that clip's finger pose at GripTime. */
+	void SetLeftArm(float Weight, const FVector& ShoulderTarget, const FVector& HandTarget, const FVector& ElbowPole, float WristFlex,
+		float FingerCurl, UAnimSequenceBase* Grip, float InGripTime)
+	{
+		LeftArmWeight = Weight; LeftShoulderTarget = ShoulderTarget; LeftHandTarget = HandTarget; LeftElbowPole = ElbowPole;
+		LeftWristFlex = WristFlex; LeftFingerCurl = FingerCurl; LeftGrip = Grip; LeftGripTime = InGripTime;
+	}
+	/** Grenade throw: degrees the left hand turns about the forearm (to show the grenade in it rather than the back of the hand). */
+	void SetLeftHandRoll(float Degrees) { LeftHandRoll = Degrees; }
 
 	/** A shot: rocks the upper body back by an amount that scales with Strength (about 0.6-2). */
 	void AddFireKick(float Strength) { KickTotal += Strength; }
@@ -134,4 +235,25 @@ private:
 	FVector AimAxis = FVector::RightVector;
 	/** Sum of every AddFireKick strength; the proxy applies the difference since its last update. */
 	float KickTotal = 0.f;
+	float TriggerWeight = 0.f;
+	FVector TriggerTarget = FVector::ZeroVector;
+	FVector TriggerForward = FVector::ForwardVector;
+	float LeftArmWeight = 0.f;
+	FVector LeftHandTarget = FVector::ZeroVector;
+	FVector LeftElbowPole = FVector::ZeroVector;
+	float LeftWristFlex = 0.f;
+	FVector LeftShoulderTarget = FVector::ZeroVector;
+	float LeftFingerCurl = 0.f;
+	float LeftHandRoll = 0.f;
+	UPROPERTY(Transient) TObjectPtr<UAnimSequenceBase> LeftGrip;
+	float LeftGripTime = 0.f;
+	float SupportWeight = 0.f;
+	FVector SupportTarget = FVector::ZeroVector;
+	FVector SupportFingers = FVector::ForwardVector;
+	FVector SupportPalmNormal = FVector::UpVector;
+	float SupportCurl = 0.f;
+	float LeftCurls[ShieldbreakGrip::NumJoints] = {};
+	float RightCurls[ShieldbreakGrip::NumJoints] = {};
+	bool bLeftCurls = false;
+	float RightCurlWeight = 0.f;
 };

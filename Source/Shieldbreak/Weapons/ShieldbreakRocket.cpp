@@ -203,8 +203,5 @@ void AShieldbreakRocket::PlayExplosionFX()
 	const FVector Location = GetActorLocation();
 	AShieldbreakTracer::SpawnBurst(GetWorld(), Location, 40.f, InnerRadius * 1.2f, 0.35f, FLinearColor(1.f, 0.5f, 0.1f));
 	ShieldbreakArt::SpawnFX(this, ShieldbreakArt::GrenadeExplosionFX, Location, FRotator::ZeroRotator, 1.6f);
-	if (!ShieldbreakArt::PlaySound(this, ShieldbreakArt::GrenadeExplosionSound, &Location, 1.f, 0.85f))
-	{
-		FShieldbreakSFX::PlayAt(this, EShieldbreakSound::GrenadeExplosion, Location, 1.f, 0.85f);
-	}
+	FShieldbreakSFX::PlayAt(this, EShieldbreakSound::GrenadeExplosion, Location, 1.f, 0.88f);
 }

@@ -1,0 +1,14 @@
+﻿
+Process            CpuSeconds
+-------            ----------
+Cursor                  100.9
+NZXT CAM                   44
+BackgroundDownload       23.6
+Grok Bot                  7.4
+claude                    4.3
+Discord                   4.1
+audiodg                   3.1
+cam_helper                0.9
+
+
+

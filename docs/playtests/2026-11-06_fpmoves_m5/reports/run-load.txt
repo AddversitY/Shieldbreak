@@ -1,0 +1,4 @@
+head ef4c34ec488dbd61ee8c4aaa1f6e9f6900fae933 start 2026-11-06T12:30:36
+build exit 0 2026-11-06T12:30:57
+SelfTest1 exit 0 2026-11-06T12:34:36 wall 218s | CPU others: NZXT CAM#21312=46.2s, cam_helper#22308=18.3s, NZXT CAM#21032=3.6s, zenserver#30148=2.6s, claude#488=1.8s, audiodg#26276=1.2s | GPU@45s: 88 %, 2156 MiB
+done 2026-11-06T12:34:36

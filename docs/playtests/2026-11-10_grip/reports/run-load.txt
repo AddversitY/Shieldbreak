@@ -1,0 +1,22 @@
+Baseline full report: 2026-11-10 22:42:18 local. Baseline fixed-view: see before-fp.txt.
+World of Warcraft process observed after baseline:
+
+ProcessName   Id StartTime
+-----------   -- ---------
+Wow         1300 11/10/2026 11:07:08 PM
+
+
+CPU-seconds consumed during a 3-second sample while final gameplay verification ran:
+
+Name            Id CPUSeconds
+----            -- ----------
+UnrealEditor 28532       8.30
+Wow           1300       5.33
+Discord       2468       0.75
+NZXT CAM     21360       0.56
+ChatGPT      24156       0.42
+cam_helper   23836       0.33
+Battle.net    4300       0.12
+Battle.net   11504       0.09
+NZXT CAM      9480       0.08
+pwsh         30140       0.08

@@ -1,0 +1,13 @@
+manny <Object '/Game/Characters/Heroes/Mannequin/Meshes/SKM_Manny.SKM_Manny' (0x000001D79389C800) Class 'SkeletalMesh'>, suit <Object '/Game/Shieldbreak/Art/Armor/SM_SB_SoldierSuit.SM_SB_SoldierSuit' (0x000001D793F6B800) Class 'StaticMesh'>, material <Object '/Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier' (0x000001D793F6B000) Class 'MaterialInstanceConstant'>
+source tris 92178, suit tris 43283
+bone weight library: ['acquire_editor_element_handle', 'blend_bone_weights', 'call_method', 'cast', 'compute_smooth_bone_weights', 'copy_bones_from_mesh', 'copy_bones_from_skeleton', 'discard_bones_from_mesh', 'get_all_bones_info', 'get_bone_children', 'get_bone_index', 'get_bone_info', 'get_class', 'get_default_object', 'get_editor_property', 'get_fname', 'get_full_name', 'get_largest_vertex_bone_weight', 'get_max_bone_weight_index', 'get_name', 'get_outer', 'get_outermost', 'get_package', 'get_path_name', 'get_root_bone_name', 'get_typed_outer', 'get_vertex_bone_weights', 'get_world', 'is_editor_property_overridden', 'is_package_external', 'mesh_copy_bone_weights', 'mesh_create_bone_weights', 'mesh_has_bone_weights', 'modify', 'prune_bone_weights', 'rename', 'reset_editor_property', 'set_all_vertex_bone_weights', 'set_editor_properties', 'set_editor_property']
+copy_bones_from_mesh -> <Object '/Engine/Transient.DynamicMesh_1' (0x000001D793E756A0) Class 'DynamicMesh'>
+transfer options: ['assign', 'cast', 'copy', 'export_text', 'get_editor_property', 'import_text', 'inpaint_mask', 'layered_mesh_support', 'normal_threshold', 'num_smoothing_iterations', 'output_target_mesh_bones', 'radius_percentage', 'set_editor_properties', 'set_editor_property', 'smoothing_strength', 'source_profile', 'static_struct', 'target_profile', 'to_dict', 'to_tuple', 'transfer_method']
+transfer_bone_weights_from_mesh -> <Object '/Engine/Transient.DynamicMesh_1' (0x000001D793E756A0) Class 'DynamicMesh'>
+target has bone weights: (<Object '/Engine/Transient.DynamicMesh_1' (0x000001D793E756A0) Class 'DynamicMesh'>, True)
+rigid pack: 1848 vertices on spine_05 (bone 6)
+create_new_skeletal_mesh_asset_from_mesh -> (<Object '/Game/Shieldbreak/Art/Armor/SK_SB_Soldier.SK_SB_Soldier' (0x000001D78FE2F000) Class 'SkeletalMesh'>, <GeometryScriptOutcomePins.SUCCESS: 1>)
+slots before: [('M_Team_Soldier', 'MI_SB_Soldier')]
+regenerate_lod: True
+slots: [('M_Team_Soldier', 'MI_SB_Soldier')]
+RESULT OK /Game/Shieldbreak/Art/Armor/SK_SB_Soldier

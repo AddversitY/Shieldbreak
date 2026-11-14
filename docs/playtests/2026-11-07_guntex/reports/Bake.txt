@@ -1,0 +1,97 @@
+﻿  high poly: 126 cutters, 119 boolean cuts
+SM_SB_BattleRifle: LOW 11704 tris, HIGH 89301 tris (2s)
+python.exe : C:\Users\addve\Documents\ChatGPT\Shieldbreak\Art\blender\bake_weapons.py:362: DeprecationWarning: 
+'Material.use_nodes' is expected to be removed in Blender 6.0
+At line:1 char:328
++ ... rt\blender; & "$env:USERPROFILE\sb-bake-venv\Scripts\python.exe" bake ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\addve\... in Blender 6.0:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  mat.use_nodes = True
+Info: Baking map saved to internal image, save it externally or pack it
+  normal baked (8s)
+C:\Users\addve\Documents\ChatGPT\Shieldbreak\Art\blender\bake_weapons.py:436: DeprecationWarning: 'Material.use_nodes' 
+is expected to be removed in Blender 6.0
+  mat.use_nodes = True
+Info: Baking map saved to internal image, save it externally or pack it
+  baked curv
+Info: Baking map saved to internal image, save it externally or pack it
+  baked basecolor
+Info: Baking map saved to internal image, save it externally or pack it
+  baked rough
+Info: Baking map saved to internal image, save it externally or pack it
+  baked metal
+Info: Baking map saved to internal image, save it externally or pack it
+  baked emit
+Info: Baking map saved to internal image, save it externally or pack it
+  baked ao
+  textures written (103s)
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_BattleRifle.fbx'
+export finished in 0.0189 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_BattleRifle_NoMag.fbx'
+export finished in 0.0170 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_BattleRifle_Mag.fbx'
+export finished in 0.0047 sec.
+SM_SB_Sniper: LOW 11436 tris, HIGH 55196 tris (1s)
+Info: Baking map saved to internal image, save it externally or pack it
+  normal baked (6s)
+Info: Baking map saved to internal image, save it externally or pack it
+  AO baked (22s)
+Info: Baking map saved to internal image, save it externally or pack it
+  baked basecolor
+Info: Baking map saved to internal image, save it externally or pack it
+  baked rough
+Info: Baking map saved to internal image, save it externally or pack it
+  baked metal
+Info: Baking map saved to internal image, save it externally or pack it
+  baked emit
+Info: Baking map saved to internal image, save it externally or pack it
+  baked ao
+  textures written (67s)
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sniper.fbx'
+export finished in 0.0170 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sniper_NoMag.fbx'
+export finished in 0.0165 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sniper_Mag.fbx'
+export finished in 0.0039 sec.
+SM_SB_Sidearm: LOW 1372 tris, HIGH 8464 tris (0s)
+Info: Baking map saved to internal image, save it externally or pack it
+  normal baked (7s)
+Info: Baking map saved to internal image, save it externally or pack it
+  AO baked (29s)
+Info: Baking map saved to internal image, save it externally or pack it
+  baked basecolor
+Info: Baking map saved to internal image, save it externally or pack it
+  baked rough
+Info: Baking map saved to internal image, save it externally or pack it
+  baked metal
+Info: Baking map saved to internal image, save it externally or pack it
+  baked emit
+Info: Baking map saved to internal image, save it externally or pack it
+  baked ao
+  textures written (79s)
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sidearm.fbx'
+export finished in 0.0060 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sidearm_NoMag.fbx'
+export finished in 0.0057 sec.
+
+FBX export starting... 'C:\\Users\\addve\\Documents\\ChatGPT\\Shieldbreak\\Art\\blender\\..\\Export\\Weapons\\SM_SB_Sidearm_Mag.fbx'
+export finished in 0.0037 sec.
+SM_SB_BattleRifle bake: LOW 11704 tris, HIGH 89301 tris, 2048 px
+SM_SB_BattleRifle: 11660 tris, 1 material (textured), bounds X -3.5..3.5 Y -39.1..58.7 Z -17.5..17.1
+SM_SB_BattleRifle_NoMag: 11076 tris; SM_SB_BattleRifle_Mag: 628 tris, bounds X -2.0..2.0 Y -3.0..5.8 Z -13.9..1.4
+SM_SB_Sniper bake: LOW 11436 tris, HIGH 55196 tris, 2048 px
+SM_SB_Sniper: 11392 tris, 1 material (textured), bounds X -3.2..6.3 Y -48.9..105.4 Z -16.2..18.9
+SM_SB_Sniper_NoMag: 11072 tris; SM_SB_Sniper_Mag: 364 tris, bounds X -2.0..2.0 Y -4.2..4.2 Z -9.2..1.4
+SM_SB_Sidearm bake: LOW 1372 tris, HIGH 8464 tris, 2048 px
+SM_SB_Sidearm: 1284 tris, 1 material (textured), bounds X -1.8..1.8 Y -7.1..18.3 Z -12.4..6.4
+SM_SB_Sidearm_NoMag: 1240 tris; SM_SB_Sidearm_Mag: 132 tris, bounds X -1.8..1.8 Y -4.7..2.4 Z -10.0..0.6

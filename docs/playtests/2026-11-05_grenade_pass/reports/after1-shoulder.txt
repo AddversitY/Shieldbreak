@@ -1,0 +1,3 @@
+﻿[2026.11.06-00.31.55:664][792]LogShieldbreak: First-person left shoulder in camera space: V(X=7.86, Y=30.44, Z=-6.88)
+[2026.11.06-00.32.05:354][301]LogShieldbreak: First-person left shoulder in camera space: V(X=18.21, Y=67.27, Z=-14.86)
+[2026.11.06-00.32.08:042][703]LogShieldbreak: First-person left shoulder in camera space: V(X=7.69, Y=30.91, Z=-7.14)
