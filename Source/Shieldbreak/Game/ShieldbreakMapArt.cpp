@@ -3,6 +3,7 @@
 #include "Game/ShieldbreakMaps.h"
 #include "Math/RandomStream.h"
 #include "Misc/CommandLine.h"
+#include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 
 namespace ShieldbreakMapArtPrivate
@@ -716,8 +717,54 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 		}
 		if (Id == TEXT("Keel"))
 		{
-			// The warship's reactor crown over the core (hangs 2.6 m; the core top is at 6.5 m, the ceiling at 15 m).
-			Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			// The Cradle's hero set (Art/blender/build_keel_hero.py): the cargo pod dressed over the pod block (x +-700,
+			// y +-400, z 400..650) with its cables and crane yoke up to the ceiling. -SBLegacyKeelHero brings back the
+			// old reactor crown (hung 2.6 m under the ceiling over the middle).
+			if (FParse::Param(FCommandLine::Get(), TEXT("SBLegacyKeelHero")))
+			{
+				Group(Groups, TEXT("ReactorCrown")).Add(FTransform(FRotator(0.f, 22.5f, 0.f), FVector(0.0, 0.0, CeilingZ), FVector(1.f)));
+			}
+			else
+			{
+				Group(Groups, TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
+				// The Galleries' second set piece: the six reactor pylon blocks round the Camo (x +-500 / +-250,
+				// y -2367..-3233) dressed as reactor pylons, each throwing a light column up to the ceiling.
+				for (const FVector2D& At : { FVector2D(500.0, -2800.0), FVector2D(250.0, -2367.0), FVector2D(-250.0, -2367.0),
+					FVector2D(-500.0, -2800.0), FVector2D(-250.0, -3233.0), FVector2D(250.0, -3233.0) })
+				{
+					Group(Groups, TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
+				}
+				// Structure overhead: I-beams across the ship under the ceiling, clear of the lamp rows (x +-1300, +-3900) and
+				// the pod's yoke; hull pipework at 12.5 m along the Galleries' hull and both faces of the band walls (y +-2000).
+				// All of it far above any jump, so it never hides a player or a shot.
+				// With the Fab pack's ceiling tiles (55 cm deep, ShieldbreakArena) on this machine, the beams hang under them.
+				const bool bPackCeiling = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks"))
+					&& FPackageName::DoesPackageExist(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/SRTUCTURE/CEILING/SM_CEILING_05"));
+				for (const double X : { -4550.0, -3250.0, -2600.0, -2000.0, 2000.0, 2600.0, 3250.0, 4550.0 })
+				{
+					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ - (bPackCeiling ? 55.0 : 0.0)), FVector(1.f)));
+				}
+				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.
+				for (const double X : { -4950.0, -4050.0, 4050.0, 4950.0 })
+				{
+					for (const double Side : { -1.0, 1.0 })
+					{
+						Group(Groups, TEXT("WallConsole")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f),
+							FVector(X, Side * 1950.0, Layout.FloorZ + 560.0), FVector(1.f)));
+					}
+				}
+				const double PipeZ = Layout.FloorZ + 1250.0;
+				for (double X = -4400.0; X <= 4400.0 + 1.0; X += 800.0)
+				{
+					Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, 180.f, 0.f), FVector(X, -Layout.HalfExtent.Y + 25.0, PipeZ), FVector(1.f)));
+					for (const double Side : { -1.0, 1.0 })
+					{
+						// Cradle face (toward y = 0) and flank face of each band wall.
+						Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f), FVector(X, Side * 1950.0, PipeZ), FVector(1.f)));
+						Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 180.f : 0.f, 0.f), FVector(X, Side * 2050.0, PipeZ), FVector(1.f)));
+					}
+				}
+			}
 		}
 		else if (Id == TEXT("Spire"))
 		{

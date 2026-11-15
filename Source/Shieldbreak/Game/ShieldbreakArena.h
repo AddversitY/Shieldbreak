@@ -77,6 +77,8 @@ private:
 	void BuildMapArt();
 	/** Sci-fi kit panels and plates over the map's own blocks and ramps (ShieldbreakMapArt::Cladding). Visual only. */
 	void BuildCladding();
+	/** Keel rebuilt on the Fab Mechanic Base grid (local pack): returns false (nothing built) when the pack is missing. */
+	bool BuildKeelPackKit();
 	/** Scanned materials on the blocks, cliffs, boulders, plants and trees for maps whose look has bScan. Visual only:
 	 *  the blocks keep their collision (rock cover is hidden under its boulder). */
 	void BuildScanArt();

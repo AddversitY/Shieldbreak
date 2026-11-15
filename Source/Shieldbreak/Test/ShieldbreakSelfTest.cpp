@@ -4001,6 +4001,21 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			AddView(TEXT("6_hero_bridge"), FVector(-1800.f, 0.f, 870.f), FVector(0.f, 0.f, 2060.f));
 			AddView(TEXT("7_hero_floor"), FVector(-1200.f, -3000.f, 170.f), FVector(0.f, 0.f, 2060.f));
 		}
+		if (Arena && Arena->GetMapId() == FName(TEXT("Keel")) && FParse::Param(FCommandLine::Get(), TEXT("SBHeroShots")))
+		{
+			// The Cradle at eye height: from red's approach deck, from the trench under the pod, and from the pod top
+			// toward the blue bridge. Before the spawn view, so the FPS fixture stays the same camera.
+			AddView(TEXT("6_hero_deck"), FVector(-1800.f, 1400.f, 520.f), FVector(0.f, 0.f, 520.f));
+			AddView(TEXT("7_hero_trench"), FVector(-900.f, -1700.f, 170.f), FVector(0.f, 0.f, 500.f));
+			AddView(TEXT("8_hero_pod"), FVector(-550.f, 250.f, 820.f), FVector(3000.f, 0.f, 500.f));
+			AddView(TEXT("9_hero_window"), FVector(-3200.f, 300.f, 560.f), FVector(0.f, 0.f, 620.f));
+			AddView(TEXT("10_hero_landmark"), FVector(300.f, 500.f, 820.f), FVector(-3870.f, 0.f, 900.f));
+			AddView(TEXT("11_hero_breach"), FVector(-700.f, 2500.f, 820.f), FVector(1200.f, 3600.f, 1050.f));
+			AddView(TEXT("12_hero_galleries"), FVector(-1500.f, -2300.f, 170.f), FVector(0.f, -2800.f, 600.f));
+			AddView(TEXT("13_hero_bridge"), FVector(-4000.f, 900.f, 520.f), FVector(-5200.f, 0.f, 1000.f));
+			AddView(TEXT("14_hero_fans"), FVector(-1800.f, -2800.f, 560.f), FVector(-2700.f, -3600.f, 850.f));
+			AddView(TEXT("15_hero_console"), FVector(-4500.f, 700.f, 520.f), FVector(-4300.f, 1950.f, 560.f));
+		}
 		if (Arena && Arena->GetSpawnTransforms().Num() > 0)
 		{
 			const FTransform& Spawn = Arena->GetSpawnTransforms()[0];

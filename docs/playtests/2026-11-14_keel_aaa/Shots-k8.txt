@@ -1,0 +1,38 @@
+Shieldbreak self-test, 2026.11.14-09.31.25
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Every combat sound bank is imported  -- 173 variations loaded
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 149 pieces
+-- No bots
+-- View 0_corner
+INFO  screenshot keel_k8_0_corner
+-- View 1_corner
+INFO  screenshot keel_k8_1_corner
+-- View 2_top
+INFO  screenshot keel_k8_2_top
+-- View 4_ground
+INFO  screenshot keel_k8_4_ground
+-- View 5_ground
+INFO  screenshot keel_k8_5_ground
+-- View 6_hero_deck
+INFO  screenshot keel_k8_6_hero_deck
+-- View 7_hero_trench
+INFO  screenshot keel_k8_7_hero_trench
+-- View 8_hero_pod
+INFO  screenshot keel_k8_8_hero_pod
+-- View 9_hero_window
+INFO  screenshot keel_k8_9_hero_window
+-- View 3_spawn
+INFO  screenshot keel_k8_3_spawn
+-- Fixed-view FPS (20 s)
+INFO  fixed-view FPS 172.9 over 20.4 s
+-- GPU profile of the fixed view
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 9 passed, 0 failed
