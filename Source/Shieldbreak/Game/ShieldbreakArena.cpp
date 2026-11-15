@@ -1050,6 +1050,22 @@ void AShieldbreakArena::BuildMapArt()
 				}
 			}
 			Pack(TEXT("SRTUCTURE/CEILING/SM_CEILING_05"), Tiles, 0.f);
+			// Door frames round the 5 x 3.5 m deck doors (bottom at the 3.5 m decks): the band-wall doors to the docks and
+			// flank ramps, and the bridges' window-wall doors. The pack frame is 4 m wide; widened to clear the openings.
+			TArray<FTransform> DoorFrames;
+			const FVector FrameScale(1.55, 1.0, 1.0);
+			for (const double Side : { -1.0, 1.0 })
+			{
+				for (const double X : { -4450.0, -2550.0, 2550.0, 4450.0 })
+				{
+					DoorFrames.Add(FTransform(FRotator::ZeroRotator, FVector(X, Side * 2000.0, 350.0), FrameScale));
+				}
+				for (const double X : { -3900.0, 3900.0 })
+				{
+					DoorFrames.Add(FTransform(FRotator(0.f, 90.f, 0.f), FVector(X, Side * 1550.0, 350.0), FrameScale));
+				}
+			}
+			Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
 			Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
 			Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
 			Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
