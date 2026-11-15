@@ -83,6 +83,19 @@ shapes; professional free source material only, restyled; no paid tools; perform
   each stands only 2-3 dB over the hum close up (the drone was 9 dB over before).
 - Tour refreshed (`keel_tour.jpg`). Self-test 177/178 (known hands check). Fixed-view Keel 167.3 / 171.3.
 
+## Done in pass 7 (2026-11-15)
+
+- **Bridge wall consoles:** `SM_SB_Kit_WallConsole` (192 tris, 9 cm deep, no cover), glass displays with scanlines,
+  two per bridge side wall at deck eye height (`15_hero_console`).
+- **Fab pack tooling:** `Tools/InventoryFabPacks.bat` lists the packs' meshes once they are in the project. The packs
+  are still not on the desktop (desktop control of the Launcher was refused; another thread owns that fix).
+- **Keel CTF map tour with four bots:** 59/60, no bot stuck for 20 s, 108.5 FPS average (the known hands check is the
+  only failure).
+- **Why FPS is lower today (~117 fixed-view against ~170 on 2026-11-14):** the same build measures 116.6 with every
+  Keel art layer off, so it is the PC, not the art. At idle the GPU sits at 32-38% busy: the Claude desktop app
+  ~29% of the 3D engine, Chrome Remote Desktop (`remoting_desktop`) ~7%, the desktop compositor ~13%. Close the Claude
+  app's busy view (or minimise it) and end the remote-desktop session before comparing FPS with earlier runs.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
