@@ -10,6 +10,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/DecalComponent.h"
 #include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 #include "GameFramework/RotatingMovementComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
@@ -300,7 +301,10 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 	if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBLegacyKeelHull")))
 	{
 		const FString Name = Style.ToString();
-		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? TEXT("Hazard")
+		// With the Fab pack grid on (pack tiles on the ramp tops), the ramp slabs' sides and undersides go dark steel.
+		const bool bPackRamps = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPackKit"))
+			&& FPackageName::DoesPackageExist(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/SRTUCTURE/FLOOR/SM_FLOOR_08"));
+		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? (bPackRamps ? TEXT("Frame") : TEXT("Hazard"))
 			: (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("wall") || Name == TEXT("metal") || Name == TEXT("bridge")
 				|| Name == TEXT("dark") || Name == TEXT("cover")) ? TEXT("Plate") : nullptr;
 		if (UMaterialInterface* Hull = Kind ? ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
@@ -1123,10 +1127,181 @@ void AShieldbreakArena::BuildMapArt()
 	UE_LOG(LogShieldbreak, Log, TEXT("%s map art: %d kit pieces, %d instances (visual only)."), *Layout.DisplayName, Kinds, Placed);
 }
 
+bool AShieldbreakArena::BuildKeelPackKit()
+{
+	// Every exposed wall face of every block gets the pack's 4 m wall modules at full height and width (stretched a
+	// little to fill the span exactly), their detailed +Y face 1 cm proud of the block face and their depth set into
+	// the block (at most half its thickness, so a thin wall's two faces never poke through each other). Every
+	// walkable top gets the pack's 3 m floor tiles, flush with the collision surface (sunk by their thickness), and
+	// every ramp gets floor tiles laid along its slope (tile tops a few millimetres over the collision surface, so they show). Collision stays the blocks and ramps: visual only.
+	auto Load = [](const TCHAR* Path) -> UStaticMesh*
+	{
+		const FString Name = FPaths::GetBaseFilename(Path);
+		return ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/%s.%s"), Path, *Name));
+	};
+	const TCHAR* WallPaths[] = { TEXT("SRTUCTURE/WALL/SM_WALL_12"), TEXT("SRTUCTURE/WALL/SM_WALL_07"),
+		TEXT("SRTUCTURE/WALL/SM_WALL_09"), TEXT("SRTUCTURE/WALL/SM_WALL_13") };
+	const TCHAR* FloorPaths[] = { TEXT("SRTUCTURE/FLOOR/SM_FLOOR_08"), TEXT("SRTUCTURE/FLOOR/SM_FLOOR_07"),
+		TEXT("SRTUCTURE/FLOOR/SM_FLOOR_05") };
+	TArray<UStaticMesh*> Walls, Floors;
+	for (const TCHAR* Path : WallPaths) { if (UStaticMesh* Mesh = Load(Path)) Walls.Add(Mesh); }
+	for (const TCHAR* Path : FloorPaths) { if (UStaticMesh* Mesh = Load(Path)) Floors.Add(Mesh); }
+	if (Walls.Num() == 0 || Floors.Num() == 0)
+	{
+		return false;
+	}
+	TArray<UInstancedStaticMeshComponent*> WallSets, FloorSets;
+	auto MakeSet = [this](UStaticMesh* Mesh)
+	{
+		auto* Set = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPackKit"), Mesh);
+		Set->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Set->SetCastShadow(false);
+		Set->bAffectDistanceFieldLighting = false;
+		return Set;
+	};
+	for (UStaticMesh* Mesh : Walls) WallSets.Add(MakeSet(Mesh));
+	for (UStaticMesh* Mesh : Floors) FloorSets.Add(MakeSet(Mesh));
+
+	// Blocks the hero set pieces already dress (the Cradle pod, the six reactor pylons) stay as they are.
+	auto Dressed = [](const FShieldbreakMapBlock& Block)
+	{
+		const FVector Size = Block.Max - Block.Min, Center = (Block.Min + Block.Max) * 0.5f;
+		const bool bPod = FMath::IsNearlyEqual(Size.X, 1400.f, 5.f) && FMath::IsNearlyEqual(Size.Y, 800.f, 5.f) && FMath::Abs(Center.X) < 5.f;
+		const bool bPylon = FMath::IsNearlyEqual(Size.X, 200.f, 5.f) && FMath::IsNearlyEqual(Size.Y, 200.f, 5.f)
+			&& FMath::IsNearlyEqual(Size.Z, 600.f, 5.f) && Center.Y < -2000.f && FMath::Abs(Center.X) < 700.f;
+		return bPod || bPylon;
+	};
+	const double CeilingZ = Ceiling ? Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z : Layout.FloorZ + 1500.0;
+	auto Inside = [this](const FVector& Point)
+	{
+		return Layout.Blocks.ContainsByPredicate([&Point](const FShieldbreakMapBlock& Block)
+		{
+			return Point.X > Block.Min.X && Point.X < Block.Max.X && Point.Y > Block.Min.Y && Point.Y < Block.Max.Y
+				&& Point.Z > Block.Min.Z && Point.Z < Block.Max.Z;
+		});
+	};
+	const FVector Half(Layout.HalfExtent.X, Layout.HalfExtent.Y, 0.0);
+	int32 WallCount = 0, FloorCount = 0;
+	uint32 Hash = 17;
+	struct FFace { FVector Normal; double Plane; double A0, A1; double Thickness; bool bAlongX; };
+	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+	{
+		if (Dressed(Block) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
+		{
+			continue;
+		}
+		const FVector Size = Block.Max - Block.Min;
+		const FFace Faces[] = {
+			{ FVector(1, 0, 0), Block.Max.X, Block.Min.Y, Block.Max.Y, Size.X, false },
+			{ FVector(-1, 0, 0), Block.Min.X, Block.Min.Y, Block.Max.Y, Size.X, false },
+			{ FVector(0, 1, 0), Block.Max.Y, Block.Min.X, Block.Max.X, Size.Y, true },
+			{ FVector(0, -1, 0), Block.Min.Y, Block.Min.X, Block.Max.X, Size.Y, true } };
+		const double Z0 = Block.Min.Z, Z1 = FMath::Min<double>(Block.Max.Z, CeilingZ);
+		if (Z1 - Z0 >= 20.0)
+		{
+			for (const FFace& Face : Faces)
+			{
+				const double Span = Face.A1 - Face.A0, Height = Z1 - Z0;
+				const int32 Columns = FMath::Max(1, FMath::RoundToInt(Span / 400.0));
+				const int32 Rows = FMath::Max(1, FMath::RoundToInt(Height / 400.0));
+				const double Width = Span / Columns, RowHeight = Height / Rows;
+				// The yaw that turns the module's +Y (detailed) face to the face normal.
+				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X)) - 90.f;
+				const FRotator Turn(0.f, Yaw, 0.f);
+				for (int32 Column = 0; Column < Columns; ++Column)
+				{
+					const double Along = Face.A0 + (Column + 0.5) * Width;
+					for (int32 Row = 0; Row < Rows; ++Row)
+					{
+						const double MidZ = Z0 + (Row + 0.5) * RowHeight;
+						const FVector OnFace = Face.bAlongX ? FVector(Along, Face.Plane, MidZ) : FVector(Face.Plane, Along, MidZ);
+						const FVector Probe = OnFace + Face.Normal * 15.0;
+						if (Inside(Probe) || FMath::Abs(Probe.X) > Half.X || FMath::Abs(Probe.Y) > Half.Y)
+						{
+							continue;   // covered by a neighbour, or the outside of the hull
+						}
+						Hash = Hash * 31u + static_cast<uint32>(Column * 7 + Row * 13 + FMath::Abs(static_cast<int32>(Along)));
+						const int32 Pick = static_cast<int32>(Hash % static_cast<uint32>(Walls.Num()));
+						const FBox Bounds = Walls[Pick]->GetBoundingBox();
+						const double Front = Bounds.Max.Y - 10.0, Depth = Front - Bounds.Min.Y;
+						const double DepthScale = FMath::Clamp(Face.Thickness * 0.5 / Depth, 0.1, 1.0);
+						const FVector Scale(Width / Bounds.GetSize().X, DepthScale, RowHeight / Bounds.GetSize().Z);
+						// Place the pivot so the module's front plane sits 1 cm proud of the face, centred on the column.
+						const FVector OnBase = Face.bAlongX ? FVector(Along, Face.Plane, Z0 + Row * RowHeight) : FVector(Face.Plane, Along, Z0 + Row * RowHeight);
+						const FVector Base = OnBase + Face.Normal * (1.0 - Front * DepthScale)
+							- Turn.RotateVector(FVector(Bounds.GetCenter().X * Scale.X, 0.0, Bounds.Min.Z * Scale.Z));
+						WallSets[Pick]->AddInstance(FTransform(Turn, Base, Scale));
+						++WallCount;
+					}
+				}
+			}
+		}
+		// The walkable top, tile by tile where nothing stands on it.
+		if (Block.Max.Z < CeilingZ - 100.0)
+		{
+			const int32 CountX = FMath::Max(1, FMath::RoundToInt(Size.X / 300.0)), CountY = FMath::Max(1, FMath::RoundToInt(Size.Y / 300.0));
+			const double StepX = Size.X / CountX, StepY = Size.Y / CountY;
+			for (int32 IX = 0; IX < CountX; ++IX)
+			{
+				for (int32 IY = 0; IY < CountY; ++IY)
+				{
+					const FVector Top(Block.Min.X + (IX + 0.5) * StepX, Block.Min.Y + (IY + 0.5) * StepY, Block.Max.Z);
+					if (Inside(Top + FVector(0.0, 0.0, 30.0)))
+					{
+						continue;
+					}
+					const int32 Pick = (IX * 3 + IY * 5) % Floors.Num();
+					const FBox Bounds = Floors[Pick]->GetBoundingBox();
+					FloorSets[Pick]->AddInstance(FTransform(FRotator::ZeroRotator, Top - FVector(0.0, 0.0, Bounds.Max.Z - 0.6),
+						FVector(StepX / Bounds.GetSize().X, StepY / Bounds.GetSize().Y, 1.0)));
+					++FloorCount;
+				}
+			}
+		}
+	}
+	// Ramps: floor tiles laid along the slope, flush with the walking surface.
+	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
+	{
+		const FVector Run = Ramp.End - Ramp.Start;
+		const double Length = Run.Size();
+		if (Length < 50.0)
+		{
+			continue;
+		}
+		const FRotator Turn = Run.Rotation();
+		const int32 Count = FMath::Max(1, FMath::RoundToInt(Length / 300.0));
+		const int32 Across = FMath::Max(1, FMath::RoundToInt(Ramp.Width / 300.0));
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			for (int32 Lane = 0; Lane < Across; ++Lane)
+			{
+				const int32 Pick = Index % Floors.Num();
+				const FBox Bounds = Floors[Pick]->GetBoundingBox();
+				const FVector Center = Ramp.Start + Run * ((Index + 0.5) / Count)
+					+ Turn.RotateVector(FVector(0.0, (Lane + 0.5) * Ramp.Width / Across - Ramp.Width * 0.5, 0.0));
+				const FVector Down = Turn.RotateVector(FVector(0.0, 0.0, 0.8 - Bounds.Max.Z));
+				FloorSets[Pick]->AddInstance(FTransform(Turn, Center + Down,
+					FVector(Length / Count / Bounds.GetSize().X, Ramp.Width / Across / Bounds.GetSize().Y, 1.0)));
+				++FloorCount;
+			}
+		}
+	}
+	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	for (UInstancedStaticMeshComponent* Set : FloorSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles (visual only)."), WallCount, FloorCount);
+	return true;
+}
+
 void AShieldbreakArena::BuildCladding()
 {
 	// -SBNoCladding leaves the blocks bare, for before/after shots and performance comparisons.
 	if (GetNetMode() == NM_DedicatedServer || FParse::Param(FCommandLine::Get(), TEXT("SBNoCladding")))
+	{
+		return;
+	}
+	// Keel on the Fab pack's grid replaces the hull-kit cladding (local pack only; -SBNoKeelPackKit keeps the hull kit).
+	if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks"))
+		&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPackKit")) && BuildKeelPackKit())
 	{
 		return;
 	}
