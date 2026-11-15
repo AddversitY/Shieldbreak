@@ -1,0 +1,14 @@
+start 2026-11-05T19:09:30
+SelfTest1 exit 0 2026-11-05T19:12:47 wall 197s | CPU others: NZXT CAM#21312=41.4s, cam_helper#22308=17.8s, claude#17508=4.4s, NZXT CAM#21032=3.4s, claude#13840=2.5s, zenserver#5728=2.2s | GPU@45s: 88 %, 2215 MiB
+SelfTest2 exit 0 2026-11-05T19:16:04 wall 197s | CPU others: NZXT CAM#21312=43s, cam_helper#22308=18.2s, NZXT CAM#21032=4.4s, claude#13840=2.4s, zenserver#27292=2.1s, Discord#15936=1.3s | GPU@45s: 88 %, 2208 MiB
+SelfTest-NoExplosionFX exit 0 2026-11-05T19:19:23 wall 199s | CPU others: remoting_network#6320=113.5s, claude#17508=56s, NZXT CAM#21312=43.6s, claude#13840=20.5s, cam_helper#22308=18.9s, NZXT CAM#21032=4.8s | GPU@45s: 90 %, 2211 MiB
+fp_run2 exit 0 2026-11-05T19:20:40 wall 77s | CPU others: claude#17508=37s, remoting_network#6320=29.2s, NZXT CAM#21312=16.3s, claude#13840=8.5s, cam_helper#22308=7.1s, zenserver#27608=2s | GPU@45s: 84 %, 2146 MiB
+fp exit 0 2026-11-05T19:21:58 wall 77s | CPU others: remoting_network#6320=40.9s, claude#17508=35.6s, NZXT CAM#21312=16.3s, claude#13840=9.8s, cam_helper#22308=7.3s, zenserver#16172=2.2s | GPU@45s: 75 %, 2147 MiB
+done 2026-11-05T19:21:58
+SelfTest-NoExplosionFX exit 0 2026-11-05T19:26:35 wall 199s | CPU others: remoting_network#6320=75.5s, NZXT CAM#21312=43.3s, cam_helper#22308=18.4s, NZXT CAM#21032=3.5s, zenserver#3028=2.3s, claude#13840=2.2s | GPU@45s: 90 %, 2233 MiB
+fp_run2 exit 0 2026-11-05T19:27:51 wall 76s | CPU others: NZXT CAM#21312=14.1s, cam_helper#22308=6.7s, zenserver#25376=1.8s, NZXT CAM#21032=1.5s, claude#13840=0.5s, CrashReportClientEditor#21944=0.4s | GPU@45s: 53 %, 2143 MiB
+fp exit 0 2026-11-05T19:29:06 wall 76s | CPU others: NZXT CAM#21312=15.7s, cam_helper#22308=6.9s, zenserver#11488=1.9s, NZXT CAM#21032=1.6s, claude#13840=0.8s, Discord#15936=0.4s | GPU@45s: 46 %, 2142 MiB
+done2 2026-11-05T19:29:06
+fp_run2 exit 0 2026-11-05T19:31:29 wall 77s | CPU others: NZXT CAM#21312=15.5s, cam_helper#22308=7s, zenserver#20192=1.9s, NZXT CAM#21032=1.2s, claude#17508=0.8s, claude#13840=0.5s | GPU@45s: 71 %, 2147 MiB
+fp exit 0 2026-11-05T19:32:46 wall 77s | CPU others: NZXT CAM#21312=15.3s, cam_helper#22308=6.7s, zenserver#24236=2s, NZXT CAM#21032=1.1s, claude#13840=0.8s, claude#30500=0.6s | GPU@45s: 53 %, 2147 MiB
+done3 2026-11-05T19:32:46

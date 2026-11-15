@@ -1,0 +1,33 @@
+Using bundled DotNet SDK version: 10.0 win-x64
+Running UnrealBuildTool: dotnet "..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" ShieldbreakEditor Win64 Development -Project=C:\Users\addve\Documents\ChatGPT\Shieldbreak\Shieldbreak.uproject -WaitMutex -NoHotReload -MaxParallelActions=2
+Log file: C:\Users\addve\AppData\Local\UnrealBuildTool\Log.txt
+Executing up to 2 actions based on MaxProcessorCount override
+Using 'git status' to determine working set for adaptive non-unity build (C:\Users\addve\Documents\ChatGPT\Shieldbreak).
+UbaServer - Listening on 0.0.0.0:1345
+Building ShieldbreakEditor...
+===== Toolchain Information =====
+Using ISPC compiler (C:\Users\addve\Epic Games\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2)
+Using Visual Studio 14.44.35229 toolchain (C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.26100.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+[Adaptive Build] Excluded from Shieldbreak unity file: ShieldbreakSelfTest.cpp, ShieldbreakBodyAnimator.cpp, ShieldbreakViewmodelMoves.cpp
+===== End Toolchain Information =====
+Using Unreal Build Accelerator local executor to run 6 action(s)
+  CPU 8 physical cores, 16 logical cores
+  Memory 15.92 GB physical, 27.74 GB/32.21 GB committed
+  UBA Storage capacity 40 GB
+[1/6] Compile [x64] ShieldbreakBodyAnimator.cpp
+[2/6] Compile [x64] ShieldbreakSelfTest.cpp
+C:\Users\addve\Documents\ChatGPT\Shieldbreak\Source\Shieldbreak\Test\ShieldbreakSelfTest.cpp(1160,10): warning C4996: 'APawn::RemoteViewPitch': This property is deprecated, use GetRemoteViewPitch()/RemoteViewPitch16 instead. - Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
+				if (A->RemoteViewPitch == 0)
+				     ^
+[3/6] Compile [x64] ShieldbreakViewmodelMoves.cpp
+[4/6] Link [x64] UnrealEditor-Shieldbreak.dll
+[5/6] Link [x64] UnrealEditor-Shieldbreak.lib
+[6/6] WriteMetadata ShieldbreakEditor.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 25.71 seconds
+Output binary: C:\Users\addve\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe
+
+Result: Succeeded
+Total execution time: 27.12 seconds
+Trace written to file C:\Users\addve\AppData\Local\UnrealBuildTool\Trace.uba with size 7.8kb

@@ -1,0 +1,52 @@
+/Game/Shieldbreak/Art/Materials/MI_SB_Polymer: BaseColor (0.06, 0.062, 0.068), Metallic 0.000, Roughness 0.620, EmissiveStrength 0.000
+/Game/Shieldbreak/Art/Materials/MI_SB_ArmorMetal: BaseColor (0.2, 0.21, 0.23), Metallic 0.150, Roughness 0.500, EmissiveStrength 0.000
+/Game/Shieldbreak/Art/Materials/MI_SB_WeaponMetal: BaseColor (0.27, 0.275, 0.29), Metallic 0.150, Roughness 0.420, EmissiveStrength 0.000
+25 palette instances
+FBX folders: Weapons, Armor
+built /Game/Shieldbreak/Art/Materials/M_SB_Character (108 expressions)
+25 character instances on M_SB_Character
+T_SB_BattleRifle_BC: 2048x2048 BC
+T_SB_BattleRifle_N: 2048x2048 N
+T_SB_BattleRifle_ORM: 2048x2048 ORM
+T_SB_Sidearm_BC: 2048x2048 BC
+T_SB_Sidearm_N: 2048x2048 N
+T_SB_Sidearm_ORM: 2048x2048 ORM
+T_SB_Sniper_BC: 2048x2048 BC
+T_SB_Sniper_N: 2048x2048 N
+T_SB_Sniper_ORM: 2048x2048 ORM
+built /Game/Shieldbreak/Art/Materials/M_SB_WeaponPBR (30 expressions)
+/Game/Shieldbreak/Art/Materials/MI_SBW_BattleRifle on M_SB_WeaponPBR
+/Game/Shieldbreak/Art/Materials/MI_SBW_Sidearm on M_SB_WeaponPBR
+/Game/Shieldbreak/Art/Materials/MI_SBW_Sniper on M_SB_WeaponPBR
+T_SB_Soldier_BC: 2048x2048 BC
+T_SB_Soldier_M: 2048x2048 M
+T_SB_Soldier_N: 2048x2048 N
+T_SB_Soldier_ORM: 2048x2048 ORM
+built /Game/Shieldbreak/Art/Materials/M_SB_ArmorPBR (26 expressions)
+/Game/Shieldbreak/Art/Materials/MI_SB_Soldier on M_SB_ArmorPBR
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_calf_l: tris 2368, bounds min (3.2, -13.6, -0.6) max (24.3, 12.8, 45.4), LODs 3 (tris 2368/1184/591), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_calf_r: tris 2368, bounds min (-24.3, -13.6, -0.6) max (-3.1, 12.5, 45.5), LODs 3 (tris 2368/1184/592), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_foot_l: tris 945, bounds min (8.7, -0.1, -0.6) max (24.7, 20.1, 11.4), LODs 3 (tris 945/472/237), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_foot_r: tris 960, bounds min (-24.7, -0.5, -0.6) max (-8.8, 20.4, 11.4), LODs 3 (tris 960/480/239), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_head: tris 2920, bounds min (-15.2, -14.5, 161.2) max (15.3, 21.1, 184.0), LODs 3 (tris 2920/1459/730), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_lowerarm_l: tris 1656, bounds min (30.3, -6.6, 94.4) max (50.6, 26.2, 123.2), LODs 3 (tris 1656/827/414), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_lowerarm_r: tris 1657, bounds min (-50.5, -6.1, 93.5) max (-30.3, 25.1, 122.9), LODs 3 (tris 1657/828/414), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_pelvis: tris 3140, bounds min (-14.8, -17.9, 71.1) max (14.7, 20.0, 95.0), LODs 3 (tris 3140/1570/785), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_spine_03: tris 2368, bounds min (-24.7, -39.1, 83.0) max (24.7, 27.5, 127.3), LODs 3 (tris 2368/1184/592), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_spine_05: tris 12314, bounds min (-34.6, -39.6, 116.4) max (34.6, 27.7, 168.8), LODs 3 (tris 12314/6157/3079), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_thigh_l: tris 2131, bounds min (0.9, -13.3, 42.2) max (26.7, 18.8, 107.3), LODs 3 (tris 2131/1066/533), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_thigh_r: tris 2131, bounds min (-27.2, -13.3, 42.3) max (-1.2, 18.9, 108.3), LODs 3 (tris 2131/1066/533), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_upperarm_l: tris 2841, bounds min (16.2, -18.9, 110.9) max (42.9, 12.4, 147.8), LODs 3 (tris 2841/1421/710), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Armor/SM_SB_Armor_upperarm_r: tris 2841, bounds min (-42.8, -18.7, 110.8) max (-15.9, 12.4, 147.8), LODs 3 (tris 2841/1421/710), slots [M_Team_Soldier -> /Game/Shieldbreak/Art/Materials/MI_SB_Soldier.MI_SB_Soldier]
+/Game/Shieldbreak/Art/Weapons/SM_SB_BattleRifle: tris 14486, bounds min (-3.6, -40.9, -17.4) max (3.4, 60.4, 16.9), socket Muzzle at (0.0, 60.5, 1.6), LODs 3 (tris 14486/7242/3622), slots [M_SBW_BattleRifle -> /Game/Shieldbreak/Art/Materials/MI_SBW_BattleRifle.MI_SBW_BattleRifle]
+/Game/Shieldbreak/Art/Weapons/SM_SB_BattleRifle_Mag: tris 488, bounds min (-2.0, -3.0, -13.9) max (2.0, 5.8, 1.4), LODs 3 (tris 488/244/122), slots [M_SBW_BattleRifle -> /Game/Shieldbreak/Art/Materials/MI_SBW_BattleRifle.MI_SBW_BattleRifle]
+/Game/Shieldbreak/Art/Weapons/SM_SB_BattleRifle_NoMag: tris 14042, bounds min (-3.6, -40.9, -16.2) max (3.4, 60.4, 16.9), socket Muzzle at (0.0, 60.5, 1.6), LODs 3 (tris 14042/7020/3510), slots [M_SBW_BattleRifle -> /Game/Shieldbreak/Art/Materials/MI_SBW_BattleRifle.MI_SBW_BattleRifle]
+/Game/Shieldbreak/Art/Weapons/SM_SB_FragGrenade: tris 1768, bounds min (-3.9, -3.9, -3.8) max (3.9, 3.9, 5.0), LODs 3 (tris 1768/884/442), slots [M_Olive -> /Game/Shieldbreak/Art/Materials/MI_SBC_Olive.MI_SBC_Olive, M_WeaponMetal -> /Game/Shieldbreak/Art/Materials/MI_SBC_WeaponMetal.MI_SBC_WeaponMetal, M_Polymer -> /Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer, M_Steel -> /Game/Shieldbreak/Art/Materials/MI_SBC_Steel.MI_SBC_Steel, M_GlowAmber -> /Game/Shieldbreak/Art/Materials/MI_SBC_GlowAmber.MI_SBC_GlowAmber]
+/Game/Shieldbreak/Art/Weapons/SM_SB_RailLance: tris 972, bounds min (-3.6, -34.0, -15.0) max (3.6, 52.2, 10.4), socket Muzzle at (0.0, 50.0, 2.0), LODs 3 (tris 972/486/242), slots [M_Ivory -> /Game/Shieldbreak/Art/Materials/MI_SBC_Ivory.MI_SBC_Ivory, M_WeaponMetal -> /Game/Shieldbreak/Art/Materials/MI_SBC_WeaponMetal.MI_SBC_WeaponMetal, M_Polymer -> /Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer, M_GlowCyan -> /Game/Shieldbreak/Art/Materials/MI_SBC_GlowCyan.MI_SBC_GlowCyan, M_Steel -> /Game/Shieldbreak/Art/Materials/MI_SBC_Steel.MI_SBC_Steel]
+/Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher: tris 1304, bounds min (-10.4, -43.0, -14.0) max (8.1, 51.8, 17.0), socket Muzzle at (0.0, 52.0, 6.5), LODs 3 (tris 1304/652/326), slots [M_Olive -> /Game/Shieldbreak/Art/Materials/MI_SBC_Olive.MI_SBC_Olive, M_WeaponMetal -> /Game/Shieldbreak/Art/Materials/MI_SBC_WeaponMetal.MI_SBC_WeaponMetal, M_Polymer -> /Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer, M_Hazard -> /Game/Shieldbreak/Art/Materials/MI_SBC_Hazard.MI_SBC_Hazard, M_Lens -> /Game/Shieldbreak/Art/Materials/MI_SBC_Lens.MI_SBC_Lens, M_GlowAmber -> /Game/Shieldbreak/Art/Materials/MI_SBC_GlowAmber.MI_SBC_GlowAmber, M_Steel -> /Game/Shieldbreak/Art/Materials/MI_SBC_Steel.MI_SBC_Steel]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sidearm: tris 3856, bounds min (-1.9, -8.3, -12.4) max (1.8, 21.3, 6.5), socket Muzzle at (0.0, 21.4, 2.2), LODs 3 (tris 3856/1928/964), slots [M_SBW_Sidearm -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sidearm.MI_SBW_Sidearm]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sidearm_Mag: tris 132, bounds min (-1.8, -4.7, -10.0) max (1.8, 2.4, 0.6), LODs 3 (tris 132/66/64), slots [M_SBW_Sidearm -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sidearm.MI_SBW_Sidearm]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sidearm_NoMag: tris 3812, bounds min (-1.9, -8.3, -11.9) max (1.8, 21.3, 6.5), socket Muzzle at (0.0, 21.4, 2.2), LODs 3 (tris 3812/1906/952), slots [M_SBW_Sidearm -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sidearm.MI_SBW_Sidearm]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sniper: tris 15056, bounds min (-2.8, -48.6, -16.2) max (6.5, 105.6, 15.8), socket Muzzle at (0.0, 105.6, 2.4), LODs 3 (tris 15056/7528/3763), slots [M_SBW_Sniper -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sniper.MI_SBW_Sniper]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sniper_Mag: tris 364, bounds min (-2.0, -4.2, -9.2) max (2.0, 4.2, 1.4), LODs 3 (tris 364/182/90), slots [M_SBW_Sniper -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sniper.MI_SBW_Sniper]
+/Game/Shieldbreak/Art/Weapons/SM_SB_Sniper_NoMag: tris 14736, bounds min (-2.8, -48.6, -16.2) max (6.5, 105.6, 15.8), socket Muzzle at (0.0, 105.6, 2.4), LODs 3 (tris 14736/7368/3683), slots [M_SBW_Sniper -> /Game/Shieldbreak/Art/Materials/MI_SBW_Sniper.MI_SBW_Sniper]

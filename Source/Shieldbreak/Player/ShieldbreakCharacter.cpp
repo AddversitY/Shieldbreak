@@ -5,11 +5,13 @@
 #include "Audio/ShieldbreakSFX.h"
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Visuals/ShieldbreakShieldVisual.h"
+#include "Visuals/ShieldbreakArt.h"
 #include "Game/ShieldbreakTeams.h"
 #include "Game/ShieldbreakObjectives.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Shieldbreak.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -45,6 +47,8 @@ namespace ShieldbreakCharacterPrivate
 	const FLinearColor VisorColor(1.f, 0.65f, 0.08f);
 	const FLinearColor AegisColor(0.2f, 0.75f, 1.f);
 	const FLinearColor UndersuitColor(0.035f, 0.036f, 0.04f);
+	/** For FPS A/B runs: 0 keeps the mannequin's own (team-tinted) material under the armor on new spawns. */
+	TAutoConsoleVariable<int32> CVarArmorSuit(TEXT("sb.ArmorSuit"), 1, TEXT("1: armored soldiers wear the matte polymer suit (new spawns)."));
 	constexpr float LungeSpeed = 1500.f;
 	constexpr float MeleeConeDot = 0.7f;
 	constexpr float ZoomInterpSpeed = 14.f;
@@ -65,6 +69,17 @@ namespace ShieldbreakCharacterPrivate
 	constexpr float AimAssistPullDegreesPerSecond = 9.f;
 	/** Seconds after the last stick input that a player still counts as on a controller. */
 	constexpr float AimAssistMemory = 2.f;
+
+	// Movement feel: forgiving jump timing and a camera that rides over steps instead of snapping.
+	/** A jump pressed this long before landing still goes off on touchdown. */
+	constexpr float JumpBufferTime = 0.12f;
+	/** Steepest per-move rise still treated as walking a slope (tan of the 44.8 degree walkable limit is ~0.99). */
+	constexpr float StepSlope = 1.05f;
+	/** How fast the eye catches up after a step (1/s): 30 cm closes to under 2 cm in 0.2 s. */
+	constexpr float StepCameraSettleRate = 15.f;
+	constexpr float MaxStepCameraOffset = 32.f;
+	TAutoConsoleVariable<int32> CVarStepSmoothing(TEXT("sb.StepSmoothing"), 1,
+		TEXT("1: the first-person camera eases over steps and curbs. 0: it snaps with the capsule."));
 }
 
 AShieldbreakCharacter::AShieldbreakCharacter(const FObjectInitializer& ObjectInitializer)
@@ -211,6 +226,8 @@ void AShieldbreakCharacter::BeginPlay()
 	AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
 	ApplyPlayerColor();
 
+	OnCharacterMovementUpdated.AddDynamic(this, &AShieldbreakCharacter::HandleMovementUpdated);
+
 	if (ShieldHealth)
 	{
 		ShieldHealth->OnDeath.AddDynamic(this, &AShieldbreakCharacter::HandleDeath);
@@ -230,6 +247,11 @@ void AShieldbreakCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (HasAuthority())
 	{
 		DestroyInventory();
+	}
+	if (DeathCamera)
+	{
+		DeathCamera->Destroy();
+		DeathCamera = nullptr;
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -523,38 +545,57 @@ void AShieldbreakCharacter::TintMesh(UStaticMeshComponent* MeshComponent, const 
 void AShieldbreakCharacter::ApplyPlayerColor()
 {
 	// A dead body is unpossessed and loses its PlayerState: keep the team color it died in rather than going grey.
-	if (!GetPlayerState() && AppliedColor.A >= 0.f)
+	const bool bArmoredNow = BodyAnimator && BodyAnimator->HasArmor();
+	if (!GetPlayerState() && AppliedColor.A >= 0.f && bArmoredNow == bAppliedArmored)
 	{
 		return;
 	}
-	const FLinearColor Color = GetPlayerColor();
-	if (Color.Equals(AppliedColor))
+	const FLinearColor Color = GetPlayerState() || AppliedColor.A < 0.f ? GetPlayerColor() : AppliedColor;
+	if (Color.Equals(AppliedColor) && bArmoredNow == bAppliedArmored)
 	{
 		return;
 	}
 	AppliedColor = Color;
+	bAppliedArmored = bArmoredNow;
 	TintMesh(BodyMesh, Color, BodyMID);
 	TintMesh(HeadMesh, Color * 0.8f, HeadMID);
 
-	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips. Under our
-	// armor the mannequin is a dark undersuit and only its strips keep the team color.
+	// Mannequin (M_Mannequin, both slots): TeamColor is the armor base, EmissiveColor* the glowing strips.
 	const bool bArmored = BodyAnimator && BodyAnimator->HasArmor();
 	if (bArmored)
 	{
 		BodyAnimator->SetArmorColor(Color);
 	}
-	if (USkeletalMeshComponent* Body = GetMesh(); Body && Body->GetSkeletalMeshAsset())
+	USkeletalMeshComponent* Body = GetMesh();
+	if (!Body || !Body->GetSkeletalMeshAsset())
 	{
-		static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
-		for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+		return;
+	}
+	if (bArmored && ShieldbreakCharacterPrivate::CVarArmorSuit.GetValueOnGameThread() != 0)
+	{
+		// Under the armor the mannequin is a plain matte suit in our own polymer material. M_Mannequin's gloves stayed
+		// white whatever its brightness, clear-coat and tint parameters were set to (desktop shots after3 and after4),
+		// so it is swapped out rather than tuned. The first-person arms copy the body's materials, so they match.
+		UMaterialInterface* Suit = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SBC_Polymer.MI_SBC_Polymer"));
+		Suit = Suit ? Suit : ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_Polymer.MI_SB_Polymer"));
+		if (Suit)
 		{
-			if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
+			for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
 			{
-				MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
-				for (const FName& Parameter : GlowParameters)
-				{
-					MID->SetVectorParameterValue(Parameter, Color * 4.f);
-				}
+				Body->SetMaterial(Slot, Suit);
+			}
+			return;
+		}
+	}
+	static const FName GlowParameters[] = { TEXT("EmissiveColor"), TEXT("EmissiveColor2"), TEXT("EmissiveColor3") };
+	for (int32 Slot = 0; Slot < Body->GetNumMaterials(); ++Slot)
+	{
+		if (UMaterialInstanceDynamic* MID = Body->CreateDynamicMaterialInstance(Slot))
+		{
+			MID->SetVectorParameterValue(TEXT("TeamColor"), bArmored ? ShieldbreakCharacterPrivate::UndersuitColor : Color);
+			for (const FName& Parameter : GlowParameters)
+			{
+				MID->SetVectorParameterValue(Parameter, Color * 4.f);
 			}
 		}
 	}
@@ -573,6 +614,11 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 	if (CurrentWeapon && !CurrentWeapon->IsHidden() && CurrentWeapon->NeedsReattach())
 	{
 		CurrentWeapon->OnEquipped();
+	}
+
+	if (bDeathHandled)
+	{
+		UpdateDeathCamera(DeltaSeconds);
 	}
 
 	const bool bLocalPlayerView = Controller && Controller->IsLocalPlayerController();
@@ -609,7 +655,9 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 
 	if (bLocalPlayerView && FirstPersonCamera)
 	{
-		const float ZoomFOV = (bZoomed && CurrentWeapon) ? CurrentWeapon->GetStats().ZoomFOV : 0.f;
+		const float ZoomFOV = (bZoomed && CurrentWeapon)
+			? (ZoomLevel >= 2 && CurrentWeapon->GetStats().ZoomFOV2 > 0.f ? CurrentWeapon->GetStats().ZoomFOV2 : CurrentWeapon->GetStats().ZoomFOV) : 0.f;
+		ScopeBlend = FMath::FInterpConstantTo(ScopeBlend, ZoomFOV > 0.f ? 1.f : 0.f, DeltaSeconds, 1.f / 0.12f);
 		// Hip-fire FOV is the player's setting (DefaultFOV for bots' and spectators' views); scopes keep their zoom.
 		const float TargetFOV = ZoomFOV > 0.f ? ZoomFOV : (IsLocallyControlled() ? ShieldbreakSettings::GetFieldOfView() : DefaultFOV);
 		FirstPersonCamera->SetFieldOfView(FMath::FInterpTo(FirstPersonCamera->FieldOfView, TargetFOV, DeltaSeconds, ShieldbreakCharacterPrivate::ZoomInterpSpeed));
@@ -621,6 +669,7 @@ void AShieldbreakCharacter::Tick(float DeltaSeconds)
 void AShieldbreakCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	bSkipStepCheck = true;
 	if (IsLocallyControlled() && IsPlayerControlled())
 	{
 		CrouchCameraOffset += ScaledHalfHeightAdjust;
@@ -631,6 +680,7 @@ void AShieldbreakCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHa
 void AShieldbreakCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	bSkipStepCheck = true;
 	if (IsLocallyControlled() && IsPlayerControlled())
 	{
 		CrouchCameraOffset -= ScaledHalfHeightAdjust;
@@ -643,30 +693,69 @@ void AShieldbreakCharacter::UpdateCrouchCamera(float DeltaSeconds)
 	if (!FirstPersonCamera || !GetWorld() || bDeathHandled) { return; }
 	// Compensate the capsule's immediate height change, then settle visually.
 	// Movement/collision and saved-move prediction still take effect immediately.
-	CrouchCameraOffset *= FMath::Exp(-18.f * FMath::Max(0.f, DeltaSeconds));
+	const float Dt = FMath::Max(0.f, DeltaSeconds);
+	CrouchCameraOffset *= FMath::Exp(-18.f * Dt);
 	if (FMath::Abs(CrouchCameraOffset) < 0.01f) { CrouchCameraOffset = 0.f; }
+	StepCameraOffset *= FMath::Exp(-ShieldbreakCharacterPrivate::StepCameraSettleRate * Dt);
+	if (FMath::Abs(StepCameraOffset) < 0.01f) { StepCameraOffset = 0.f; }
+	// Crouch callbacks execute inside the capsule's deferred movement scope.
+	// A normal MoveComponent-based setter converts against its old transform
+	// and loses this compensation. Match ACharacter's mesh-offset handling;
+	// the enclosing movement scope updates the attached camera afterward.
+	ApplyCameraHeight(DeltaSeconds <= 0.f);
+}
+
+void AShieldbreakCharacter::ApplyCameraHeight(bool bInsideMovementScope)
+{
+	if (!FirstPersonCamera || !GetWorld()) { return; }
+	const float Offset = CrouchCameraOffset + StepCameraOffset;
 	FVector Relative = FirstPersonCamera->GetRelativeLocation();
-	Relative.Z = BaseEyeHeight + CrouchCameraOffset;
-	if (!FMath::IsNearlyZero(CrouchCameraOffset))
+	Relative.Z = BaseEyeHeight + Offset;
+	if (!FMath::IsNearlyZero(Offset))
 	{
 		const FVector Start = GetActorLocation() + FVector(0.f, 0.f, BaseEyeHeight);
 		FHitResult Hit;
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakCrouchCamera), false, this);
-		if (GetWorld()->SweepSingleByObjectType(Hit, Start, Start + FVector(0.f, 0.f, CrouchCameraOffset), FQuat::Identity,
+		if (GetWorld()->SweepSingleByObjectType(Hit, Start, Start + FVector(0.f, 0.f, Offset), FQuat::Identity,
 			FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeSphere(6.f), Params))
 		{
 			Relative.Z = Hit.bStartPenetrating ? BaseEyeHeight : Hit.Location.Z - GetActorLocation().Z;
 		}
 	}
-	if (DeltaSeconds <= 0.f)
+	if (bInsideMovementScope)
 	{
-		// Crouch callbacks execute inside the capsule's deferred movement scope.
-		// A normal MoveComponent-based setter converts against its old transform
-		// and loses this compensation. Match ACharacter's mesh-offset handling;
-		// the enclosing movement scope updates the attached camera afterward.
 		FirstPersonCamera->GetRelativeLocation_DirectMutable() = Relative;
 	}
 	else { FirstPersonCamera->SetRelativeLocation(Relative); }
+}
+
+void AShieldbreakCharacter::HandleMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
+{
+	using namespace ShieldbreakCharacterPrivate;
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	// Replayed moves after a server correction re-run old steps; the eye already rode over those.
+	if (!Movement || bClientUpdating)
+	{
+		return;
+	}
+	const bool bGrounded = Movement->IsMovingOnGround();
+	const bool bCheck = bGrounded && bWasGroundedForStep && !bSkipStepCheck;
+	bWasGroundedForStep = bGrounded;
+	bSkipStepCheck = false;
+	if (!bCheck || bDeathHandled || !IsLocallyControlled() || !IsPlayerControlled() || CVarStepSmoothing.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
+	const FVector NewLocation = GetActorLocation();
+	const float Rise = static_cast<float>(NewLocation.Z - OldLocation.Z);
+	const float Across = static_cast<float>(FVector::Dist2D(NewLocation, OldLocation));
+	// Slopes rise at most about as fast as they run; a step lifts the capsule much faster. Teleports are bigger.
+	if (FMath::Abs(Rise) > Across * StepSlope + 1.f && FMath::Abs(Rise) <= Movement->MaxStepHeight + 5.f)
+	{
+		StepCameraOffset = FMath::Clamp(StepCameraOffset - Rise, -MaxStepCameraOffset, MaxStepCameraOffset);
+		ApplyCameraHeight(false);
+	}
 }
 
 void AShieldbreakCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -826,7 +915,10 @@ void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 	}
 }
 
-void AShieldbreakCharacter::Input_JumpStarted()
+void AShieldbreakCharacter::Input_JumpStarted() { PressJump(); }
+void AShieldbreakCharacter::Input_JumpCompleted() { ReleaseJump(); }
+
+void AShieldbreakCharacter::PressJump()
 {
 	// Crouched on the ground: start charging a Power Jump (launches on release). Otherwise jump instantly.
 	UShieldbreakMovementComponent* Movement = GetShieldbreakMovement();
@@ -835,10 +927,13 @@ void AShieldbreakCharacter::Input_JumpStarted()
 		Movement->SetChargingPowerJump(true);
 		return;
 	}
+	// In the air (and past the coyote window) the press can't jump now; keep it for the landing.
+	JumpBufferedUntil = (Movement && Movement->IsFalling() && !Movement->HasCoyoteTime() && GetWorld())
+		? GetWorld()->GetTimeSeconds() + ShieldbreakCharacterPrivate::JumpBufferTime : -1.f;
 	Jump();
 }
 
-void AShieldbreakCharacter::Input_JumpCompleted()
+void AShieldbreakCharacter::ReleaseJump()
 {
 	if (UShieldbreakMovementComponent* Movement = GetShieldbreakMovement())
 	{
@@ -846,6 +941,66 @@ void AShieldbreakCharacter::Input_JumpCompleted()
 	}
 	StopJumping();
 }
+
+void AShieldbreakCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+	if (UShieldbreakMovementComponent* Movement = GetShieldbreakMovement())
+	{
+		Movement->ConsumeCoyoteTime();
+	}
+}
+
+void AShieldbreakCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+	// A jump pressed just before touchdown goes off on landing. The engine calls Landed() before it switches to
+	// walking, and that switch (ACharacter::OnMovementModeChanged) resets jump input, so the Jump() itself waits for
+	// OnMovementModeChanged below. Physics clears jump input before it moves, so the press then carries into the next
+	// move and is predicted and replicated like any other jump.
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (JumpBufferedUntil >= 0.f && GetWorld() && Movement && !bClientUpdating)
+	{
+		bJumpOnLandPending = GetWorld()->GetTimeSeconds() <= JumpBufferedUntil && IsAlive();
+		JumpBufferedUntil = -1.f;
+	}
+}
+
+void AShieldbreakCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	if (bJumpOnLandPending)
+	{
+		const UCharacterMovementComponent* Movement = GetCharacterMovement();
+		if (Movement && Movement->IsMovingOnGround())
+		{
+			bJumpOnLandPending = false;
+			Jump();
+		}
+		else if (!Movement || !Movement->IsFalling())
+		{
+			bJumpOnLandPending = false;
+		}
+	}
+}
+
+bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
+{
+	// Unlike the default, jumping is allowed while crouched (and so out of a slide). A ledge just walked off still
+	// counts as ground for UShieldbreakMovementComponent::CoyoteTime (the engine has already counted that fall as
+	// this jump, so JumpCurrentCount is 1 here).
+	if (!IsAlive())
+	{
+		return false;
+	}
+	if (JumpIsAllowedInternal())
+	{
+		return true;
+	}
+	const UShieldbreakMovementComponent* Movement = GetShieldbreakMovement();
+	return Movement && Movement->HasCoyoteTime() && Movement->IsJumpAllowed() && JumpCurrentCount <= 1 && !bWasJumping;
+}
+
 void AShieldbreakCharacter::Input_FireStarted() { StartFire(); }
 void AShieldbreakCharacter::Input_FireCompleted() { StopFire(); }
 void AShieldbreakCharacter::Input_Zoom() { ToggleZoom(); }
@@ -861,17 +1016,11 @@ void AShieldbreakCharacter::Input_SprintCompleted() { SetSprinting(false); }
 void AShieldbreakCharacter::Input_CrouchStarted() { StartCrouchOrSlide(); }
 void AShieldbreakCharacter::Input_CrouchCompleted() { StopCrouchOrSlide(); }
 
-bool AShieldbreakCharacter::CanJumpInternal_Implementation() const
-{
-	// Unlike the default, jumping is allowed while crouched (and so out of a slide).
-	return IsAlive() && JumpIsAllowedInternal();
-}
-
 // ---- Actions ----
 
 void AShieldbreakCharacter::StartFire()
 {
-	if (!IsAlive() || !CurrentWeapon || bAegisRaised || !CanFireWhileCarrying())
+	if (!IsAlive() || !CurrentWeapon || bAegisRaised || !CanFireWhileCarrying() || IsThrowingGrenade())
 	{
 		return;
 	}
@@ -921,10 +1070,17 @@ void AShieldbreakCharacter::ServerSetUsingEquipment_Implementation(bool bUse)
 void AShieldbreakCharacter::SetZoomed(bool bZoom)
 {
 	bZoomed = bZoom && IsAlive() && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV > 0.f;
+	ZoomLevel = bZoomed ? FMath::Max(ZoomLevel, 1) : 0;
 }
 
 void AShieldbreakCharacter::ToggleZoom()
 {
+	// Hip -> zoom -> (second zoom, on weapons that have one) -> hip.
+	if (bZoomed && ZoomLevel == 1 && CurrentWeapon && CurrentWeapon->GetStats().ZoomFOV2 > 0.f)
+	{
+		ZoomLevel = 2;
+		return;
+	}
 	SetZoomed(!bZoomed);
 }
 
@@ -1103,10 +1259,15 @@ void AShieldbreakCharacter::MulticastMeleeFX_Implementation(FVector_NetQuantize 
 
 void AShieldbreakCharacter::ThrowGrenade()
 {
-	if (!IsAlive() || GrenadeCount <= 0)
+	const UWorld* World = GetWorld();
+	const float Now = World ? World->GetTimeSeconds() : 0.f;
+	if (!IsAlive() || GrenadeCount <= 0 || Now - LastLocalThrowTime < AShieldbreakGrenade::GetThrowDuration())
 	{
 		return;
 	}
+	LastLocalThrowTime = Now;
+	// Halo: the gun dips out of the way while the other hand throws, so nothing fires mid-throw.
+	StopFire();
 	SetSprinting(false);
 	PlayActionAnimation(EShieldbreakAction::GrenadeThrow);
 
@@ -1118,6 +1279,12 @@ void AShieldbreakCharacter::ThrowGrenade()
 	{
 		ServerThrowGrenade();
 	}
+}
+
+bool AShieldbreakCharacter::IsThrowingGrenade() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetTimeSeconds() - LastLocalThrowTime < AShieldbreakGrenade::GetThrowDuration();
 }
 
 void AShieldbreakCharacter::ServerThrowGrenade_Implementation()
@@ -1132,22 +1299,62 @@ void AShieldbreakCharacter::DoThrowGrenade()
 	{
 		return;
 	}
+	// A little slack under the client's own limit for network jitter.
+	const float Now = World->GetTimeSeconds();
+	if (Now - LastServerThrowTime < AShieldbreakGrenade::GetThrowDuration() * 0.8f)
+	{
+		return;
+	}
+	LastServerThrowTime = Now;
+	// Spent at the press, so a second press during the wind-up can't throw a grenade we no longer have.
+	--GrenadeCount;
+	MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 
+	// The grenade leaves when the throwing hand comes forward, not at the press (both the first-person arm and the
+	// third-person toss are timed to this delay).
+	const float Delay = AShieldbreakGrenade::GetReleaseDelay();
+	if (Delay > 0.f)
+	{
+		World->GetTimerManager().SetTimer(GrenadeReleaseTimer, this, &AShieldbreakCharacter::ReleaseGrenade, Delay, false);
+	}
+	else
+	{
+		ReleaseGrenade();
+	}
+}
+
+void AShieldbreakCharacter::ReleaseGrenade()
+{
+	UWorld* World = GetWorld();
+	if (!World || !IsAlive() || !GrenadeClass)
+	{
+		// Killed during the wind-up: the grenade is lost with the player.
+		return;
+	}
+
+	// Aimed at release, like Halo, so the throw goes where you look when the hand comes through.
 	const FVector AimDir = GetAimRotation().Vector();
 	// Slight upward bias so throws arc like Halo frags.
 	const FVector ThrowDir = (AimDir + FVector(0.f, 0.f, 0.12f)).GetSafeNormal();
-	const FVector SpawnLocation = GetAimOrigin() + AimDir * 60.f;
+	// Leaves from in front of the eye, a little to the left (the throwing hand) and below the crosshair. Pulled back
+	// toward the eye if that spot is inside a wall, so a throw pressed against cover never starts on the far side.
+	const FRotator Aim = GetAimRotation();
+	const FVector Origin = GetAimOrigin();
+	FVector SpawnLocation = Origin + Aim.RotateVector(FVector(55.f, -12.f, -8.f));
+	FHitResult Blocked;
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakGrenadeRelease), false, this);
+	if (World->SweepSingleByChannel(Blocked, Origin, SpawnLocation, FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeSphere(10.f), Query))
+	{
+		SpawnLocation = Blocked.Location;
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.Instigator = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AShieldbreakGrenade* Grenade = World->SpawnActor<AShieldbreakGrenade>(GrenadeClass, SpawnLocation, AimDir.Rotation(), Params);
-	if (Grenade)
+	if (AShieldbreakGrenade* Grenade = World->SpawnActor<AShieldbreakGrenade>(GrenadeClass, SpawnLocation, AimDir.Rotation(), Params))
 	{
 		Grenade->Launch(ThrowDir, GetVelocity());
-		--GrenadeCount;
-		MulticastPlayAction(static_cast<uint8>(EShieldbreakAction::GrenadeThrow));
 	}
 }
 
@@ -1255,21 +1462,109 @@ void AShieldbreakCharacter::StartDeathCamera()
 	{
 		return;
 	}
-	using namespace ShieldbreakCharacterPrivate;
-	const FRotator Facing(0.f, GetControlRotation().Yaw, 0.f);
-	const FVector Head = FirstPersonCamera->GetComponentLocation();
-	FVector Desired = Head + Facing.RotateVector(FVector(-DeathCameraBack, 0.f, DeathCameraUp));
-
-	// Don't put the camera inside a wall: stop short of whatever is in the way.
-	FHitResult Hit;
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
-	if (GetWorld() && GetWorld()->SweepSingleByChannel(Hit, Head, Desired, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(12.f), Params))
+	DeathCameraYaw = GetControlRotation().Yaw;
+	DeathCameraSide = -1;
+	if (!DeathCamera && GetWorld())
 	{
-		Desired = Hit.Location;
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		Params.ObjectFlags |= RF_Transient;
+		DeathCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FirstPersonCamera->GetComponentTransform(), Params);
+		if (DeathCamera && DeathCamera->GetCameraComponent())
+		{
+			DeathCamera->GetCameraComponent()->SetFieldOfView(FirstPersonCamera->FieldOfView);
+			DeathCamera->GetCameraComponent()->bConstrainAspectRatio = false;
+		}
+	}
+	UpdateDeathCamera(0.f);
+}
+
+void AShieldbreakCharacter::UpdateDeathCamera(float DeltaSeconds)
+{
+	// The camera used to be placed once, 2.8 m behind the head. Shots from the front throw the ragdoll backwards
+	// onto it, and a wall behind stopped the sweep at the head, so the player watched the respawn timer from inside
+	// their own helmet (Vincent, 2026-11-06). Now it follows the ragdoll every frame from whichever side is clear.
+	using namespace ShieldbreakCharacterPrivate;
+	APlayerController* PC = DeathViewer.Get();
+	if (!DeathCamera || !PC)
+	{
+		return;
+	}
+	if (PC->GetViewTarget() != DeathCamera)
+	{
+		// Until the respawn gives the controller a pawn again, nothing else may take the view: something reset it to
+		// the controller itself (task 10, cause unknown), whose camera sits at the eye inside the ragdoll.
+		AActor* Taken = PC->GetViewTarget();
+		if (PC->GetPawn() || (Taken != PC && Taken != this))
+		{
+			return;
+		}
+		UE_LOG(LogShieldbreak, Warning, TEXT("%s: death camera took the view back from %s."), *GetName(), *GetNameSafe(Taken));
+		PC->SetViewTarget(DeathCamera);
+	}
+	FVector Subject = GetActorLocation();
+	const USkeletalMeshComponent* Body = GetMesh();
+	if (Body && Body->GetSkeletalMeshAsset() && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE)
+	{
+		Subject = Body->GetBoneLocation(TEXT("pelvis"));
+	}
+	const FVector Pivot = Subject + FVector(0.f, 0.f, 40.f);
+
+	// Behind, the two back diagonals, the sides, in front, then straight overhead.
+	static const float SideYaws[] = { 180.f, 135.f, -135.f, 90.f, -90.f, 0.f };
+	constexpr int32 NumSides = UE_ARRAY_COUNT(SideYaws);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakDeathCamera), false, this);
+	const FCollisionShape Sphere = FCollisionShape::MakeSphere(20.f);
+	auto Candidate = [&](int32 Side)
+	{
+		if (Side >= NumSides)
+		{
+			return Pivot + FVector(0.f, 0.f, DeathCameraBack);
+		}
+		return Pivot + FRotator(0.f, DeathCameraYaw + SideYaws[Side], 0.f).Vector() * DeathCameraBack + FVector(0.f, 0.f, DeathCameraUp - 40.f);
+	};
+	auto Clearance = [&](int32 Side, FVector& OutLocation)
+	{
+		const FVector Wanted = Candidate(Side);
+		FHitResult Hit;
+		if (GetWorld()->SweepSingleByChannel(Hit, Pivot, Wanted, FQuat::Identity, ECC_Camera, Sphere, Params))
+		{
+			OutLocation = Hit.Location;
+			return static_cast<float>(FVector::Dist(Pivot, Hit.Location));
+		}
+		OutLocation = Wanted;
+		return static_cast<float>(FVector::Dist(Pivot, Wanted));
+	};
+
+	FVector Desired;
+	const float Full = FVector::Dist(Pivot, Candidate(0));
+	// Keep the current side while it stays mostly clear, so the camera doesn't hop between sides as the body rolls.
+	float Best = DeathCameraSide >= 0 ? Clearance(DeathCameraSide, Desired) : -1.f;
+	if (Best < Full * 0.8f)
+	{
+		Best = -1.f;
+		for (int32 Side = 0; Side <= NumSides; ++Side)
+		{
+			FVector Location;
+			const float Clear = Clearance(Side, Location);
+			if (Clear > Best + 1.f)
+			{
+				Best = Clear;
+				Desired = Location;
+				DeathCameraSide = Side;
+			}
+			if (Clear >= Full * 0.95f)
+			{
+				break;
+			}
+		}
 	}
 
-	FirstPersonCamera->bUsePawnControlRotation = false;
-	FirstPersonCamera->SetWorldLocationAndRotation(Desired, (GetActorLocation() - Desired).Rotation());
+	const FVector Current = DeathCamera->GetActorLocation();
+	// Snap on the first frame (and if the camera ended up within arm's reach of the body); ease after that.
+	const bool bSnap = DeltaSeconds <= 0.f || FVector::DistSquared(Current, Pivot) < FMath::Square(90.f);
+	const FVector Location = bSnap ? Desired : FMath::VInterpTo(Current, Desired, DeltaSeconds, 5.f);
+	DeathCamera->SetActorLocationAndRotation(Location, (Pivot - Location).Rotation());
 }
 
 void AShieldbreakCharacter::HandleDeath(AController* Killer)
@@ -1281,6 +1576,7 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 	bDeathHandled = true;
 
 	bZoomed = false;
+	ZoomLevel = 0;
 	StopFire();
 	SetSprinting(false);
 
@@ -1338,7 +1634,11 @@ void AShieldbreakCharacter::HandleDeath(AController* Killer)
 		if (PC->IsLocalController())
 		{
 			StartDeathCamera();
-			PC->SetViewTarget(this);
+			if (DeathCamera)
+			{
+				DeathViewer = PC;
+				PC->SetViewTarget(DeathCamera);
+			}
 		}
 	}
 

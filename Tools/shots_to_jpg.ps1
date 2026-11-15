@@ -1,10 +1,11 @@
 # Converts Saved\Screenshots\Shots\*.png to JPG in an output folder (default docs\playtests\<today>_visual_pass) and
 # builds contact_sheet_before_after.jpg: one row per map view, "before" on the left, "after" on the right.
-# Usage: powershell -ExecutionPolicy Bypass -File Tools\shots_to_jpg.ps1 [-Out <folder>] [-Quality 85]
-param([string]$Out = "", [int]$Quality = 85)
+# SourcePath/Pattern allow a focused review without exporting older unrelated sessions.
+# Usage: powershell -ExecutionPolicy Bypass -File Tools\shots_to_jpg.ps1 [-Out <folder>] [-Quality 85] [-SourcePath <folder>] [-Pattern *.png]
+param([string]$Out = "", [int]$Quality = 85, [string]$SourcePath = "", [string]$Pattern = "*.png")
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
-$src = Join-Path $root "Saved\Screenshots\Shots"
+$src = if ($SourcePath) { $SourcePath } else { Join-Path $root "Saved\Screenshots\Shots" }
 if (-not $Out) { $Out = Join-Path $root ("docs\playtests\" + (Get-Date -Format "yyyy-MM-dd") + "_visual_pass") }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
@@ -13,13 +14,13 @@ function Save-Jpg($image, $path) {
     $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]$Quality)
     $image.Save($path, $codec, $params)
 }
-foreach ($png in Get-ChildItem $src -Filter *.png) {
+foreach ($png in Get-ChildItem $src -Filter $Pattern) {
     $image = [System.Drawing.Image]::FromFile($png.FullName)
     Save-Jpg $image (Join-Path $Out ($png.BaseName + ".jpg"))
     $image.Dispose()
 }
 # Contact sheet: pairs <map>_before_<view> / <map>_after_<view>, scaled to 480 px wide each.
-$pairs = Get-ChildItem $src -Filter *_after_*.png | Sort-Object Name | Where-Object { Test-Path ($_.FullName -replace "_after_", "_before_") }
+$pairs = Get-ChildItem $src -Filter $Pattern | Sort-Object Name | Where-Object { $_.Name -like '*_after_*.png' -and (Test-Path ($_.FullName -replace "_after_", "_before_")) }
 if ($pairs.Count -gt 0) {
     $w = 480; $h = 270; $label = 22
     $sheet = New-Object System.Drawing.Bitmap (2 * $w), ($pairs.Count * ($h + $label))

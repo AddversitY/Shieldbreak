@@ -14,6 +14,7 @@
 #include "Player/ShieldbreakMovementComponent.h"
 #include "Shield/ShieldHealthComponent.h"
 #include "Shield/ShieldTuningData.h"
+#include "Weapons/ShieldbreakGrenade.h"
 #include "Weapons/ShieldbreakWeapon.h"
 #include "Weapons/ShieldbreakWeaponClasses.h"
 #include "Weapons/ShieldbreakWeaponPickup.h"
@@ -802,7 +803,11 @@ void AShieldbreakBotController::UpdateCombat(float DeltaSeconds)
 		const float Distance = static_cast<float>(FVector::Dist(Bot->GetActorLocation(), LastKnownLocation));
 		if (Distance > 500.f && Distance < 1800.f && FMath::FRand() < 0.5f)
 		{
-			const FRotator Toss = (LastKnownLocation - Bot->GetAimOrigin()).Rotation() + FRotator(10.f + Distance / 200.f, 0.f, 0.f);
+			// Low-arc lob for the throw speed: range = v^2 sin(2a) / g, less the throw's own ~7 degree upward bias.
+			const float Speed = AShieldbreakGrenade::GetLaunchSpeed();
+			const float Gravity = FMath::Max(1.f, FMath::Abs(GetWorld()->GetGravityZ()));
+			const float Lob = 0.5f * FMath::RadiansToDegrees(FMath::Asin(FMath::Min(1.f, Gravity * Distance / (Speed * Speed)))) - 6.8f;
+			const FRotator Toss = (LastKnownLocation - Bot->GetAimOrigin()).Rotation() + FRotator(FMath::Max(0.f, Lob), 0.f, 0.f);
 			SetControlRotation(Toss);
 			Bot->ThrowGrenade();
 		}

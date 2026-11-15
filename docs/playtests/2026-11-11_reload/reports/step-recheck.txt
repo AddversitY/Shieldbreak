@@ -1,0 +1,9 @@
+PASS  Requested test filter matches a step  -- The camera rides over a step instead of snapping
+Shieldbreak self-test, 2026.11.11-02.53.08
+-- Settle
+-- The camera rides over a step instead of snapping
+PASS  The test walk climbs the 30 cm curb  -- rose 29.93 cm, largest capsule jump 17.36 cm
+FAIL  The eye trails the step (no 30 cm one-frame snap)  -- largest eye change 17.36 cm (curb 29.93, capsule frame 17.36), largest trail 12.74 cm
+PASS  ...and settles back to eye height  -- offset 0.00 cm 0.6 s after stopping
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 4 passed, 1 failed

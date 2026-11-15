@@ -1,0 +1,55 @@
+toss 0.967 s, 29 frames
+  t=0.000 hand_l (2.7, 32.1, 136.1) speed 0 cm/s
+  t=0.024 hand_l (8.9, 25.8, 130.2) speed 440 cm/s
+  t=0.048 hand_l (14.5, 19.0, 123.8) speed 452 cm/s
+  t=0.072 hand_l (18.8, 10.1, 116.9) speed 495 cm/s
+  t=0.097 hand_l (21.0, 0.4, 110.4) speed 492 cm/s
+  t=0.121 hand_l (18.8, -7.9, 107.0) speed 384 cm/s
+  t=0.145 hand_l (15.3, -13.4, 106.3) speed 272 cm/s
+  t=0.169 hand_l (12.9, -15.7, 107.6) speed 147 cm/s
+  t=0.193 hand_l (16.2, -14.3, 110.5) speed 191 cm/s
+  t=0.217 hand_l (20.5, -10.8, 112.5) speed 240 cm/s
+  t=0.242 hand_l (24.9, -5.6, 112.7) speed 287 cm/s
+  t=0.266 hand_l (29.0, 2.2, 110.3) speed 377 cm/s
+  t=0.290 hand_l (32.9, 11.5, 104.7) speed 479 cm/s
+  t=0.314 hand_l (34.9, 22.7, 99.1) speed 524 cm/s
+  t=0.338 hand_l (34.5, 35.4, 95.9) speed 543 cm/s
+  t=0.362 hand_l (31.7, 48.0, 97.3) speed 536 cm/s
+  t=0.387 hand_l (27.8, 60.4, 104.0) speed 603 cm/s
+  t=0.411 hand_l (23.9, 69.1, 114.6) speed 589 cm/s
+  t=0.435 hand_l (21.5, 74.7, 128.4) speed 625 cm/s
+  t=0.459 hand_l (20.2, 77.3, 142.3) speed 587 cm/s
+  t=0.483 hand_l (19.2, 77.7, 148.5) speed 260 cm/s
+  t=0.507 hand_l (17.8, 77.7, 149.8) speed 79 cm/s
+  t=0.532 hand_l (16.4, 76.9, 147.4) speed 122 cm/s
+  t=0.556 hand_l (15.0, 75.0, 143.1) speed 202 cm/s
+  t=0.580 hand_l (13.3, 72.6, 139.1) speed 205 cm/s
+  t=0.604 hand_l (11.2, 70.0, 135.5) speed 205 cm/s
+  t=0.628 hand_l (8.7, 67.5, 132.9) speed 183 cm/s
+  t=0.652 hand_l (6.1, 65.0, 131.6) speed 156 cm/s
+  t=0.677 hand_l (3.8, 62.6, 131.2) speed 140 cm/s
+  t=0.701 hand_l (1.6, 60.4, 131.7) speed 130 cm/s
+  t=0.725 hand_l (-0.4, 58.4, 132.8) speed 123 cm/s
+  t=0.749 hand_l (-2.2, 56.7, 134.1) speed 115 cm/s
+  t=0.773 hand_l (-3.8, 55.3, 135.5) speed 109 cm/s
+  t=0.797 hand_l (-5.3, 54.1, 137.1) speed 103 cm/s
+  t=0.822 hand_l (-6.7, 53.4, 138.5) speed 85 cm/s
+  t=0.846 hand_l (-7.8, 53.1, 139.6) speed 68 cm/s
+  t=0.870 hand_l (-8.8, 53.0, 140.5) speed 53 cm/s
+  t=0.894 hand_l (-9.5, 52.9, 141.2) speed 40 cm/s
+  t=0.918 hand_l (-10.0, 52.3, 141.6) speed 39 cm/s
+  t=0.942 hand_l (-10.5, 51.5, 142.0) speed 40 cm/s
+  t=0.967 hand_l (-10.7, 50.6, 142.2) speed 41 cm/s
+SM_grenade bounds origin <Struct 'Vector' (0x000001B2D7625800) {x: 0.000000, y: 0.005435, z: 7.676579}> extent <Struct 'Vector' (0x000001B2D7625818) {x: 4.531096, y: 4.310634, z: 7.873907}>, 1382 tris LOD0, 1 LODs, materials [Name("lambert2")]
+/Game/Effects/Textures/Flipbooks/T_Explosion_Areal_E64 8192x8192 srgb=True compression=<TextureCompressionSettings.TC_DEFAULT: 0>
+/Game/Effects/Textures/Flipbooks/SmokeSwirl_3_Flipbook_CHANNELPACK 2048x2048 srgb=False compression=<TextureCompressionSettings.TC_BC7: 11>
+/Game/Effects/Textures/Flipbooks/LDR_Squib_2_rop_comp1_0001_flipbook 8192x8192 srgb=True compression=<TextureCompressionSettings.TC_BC7: 11>
+/Game/Effects/Textures/General/T_Inky_Smoke_Tile 512x512 srgb=True compression=<TextureCompressionSettings.TC_DEFAULT: 0>
+/Game/Effects/Textures/Decals/T_ExplosionDecal 4096x4096 srgb=True compression=<TextureCompressionSettings.TC_DEFAULT: 0>
+/Game/Effects/Textures/BlastGraphics/T_ExplosionFlare 1024x1024 srgb=True compression=<TextureCompressionSettings.TC_DEFAULT: 0>
+/Game/Effects/Textures/General/blurry_texture 512x512 srgb=True compression=<TextureCompressionSettings.TC_DEFAULT: 0>
+/Game/Effects/Materials/Pyro/M_Flipbook_Pyro_Base domain=<MaterialDomain.MD_SURFACE: 0> blend=<BlendMode.BLEND_TRANSLUCENT: 2> scalars=["Emissive Curve", "Eye Adaptation", "Emissive Curve Time", "Emissive Intensity", "Near Distance Fade", "Depth Fade", "Angle Fade Exponent", "Opacity", "Depth Clip Distance", "Blend To White", "Texture Opacity Exponent", "Texture Opacity Gain", "Texture Opacity Channel", "Texture Opacity Remap Low", "Texture Opacity Remap High", "Texture Opacity Remap Target Low", "Texture Opacity Remap Target High", "TextureEmissiveExponent", "Texture Emissive Gain", "Texture Emissive Channel", "Texture Emissive Remap Low", "Texture Emissive Remap High", "Texture Emissive Remap Target Low", "Texture Emissive Remap Target High", "Texture Diffuse Exponent", "Texture Diffuse Gain", "Texture Diffuse Channel", "Texture Diffuse Remap Low", "Texture Diffuse Remap High", "Texture Diffuse Remap Target Low", "Texture Diffuse Remap Target High"] vectors=["Emissive", "Diffuse", "Texture Emissive Exponent RGB", "Texture Emissive Gain RGB", "Texture Diffuse Exponent RGB", "Texture Diffuse Gain RGB"] textures=["Flipbook0"]
+/Game/Effects/Materials/Pyro/Instances/MI_Flipbook_Pyro_Grenade domain=<MaterialDomain.MD_SURFACE: 0> blend=<BlendMode.BLEND_TRANSLUCENT: 2> scalars=["Emissive Curve", "Eye Adaptation", "Emissive Curve Time", "Emissive Intensity", "Near Distance Fade", "Depth Fade", "Angle Fade Exponent", "Opacity", "Depth Clip Distance", "Blend To White", "Texture Opacity Exponent", "Texture Opacity Gain", "Texture Opacity Channel", "Texture Opacity Remap Low", "Texture Opacity Remap High", "Texture Opacity Remap Target Low", "Texture Opacity Remap Target High", "TextureEmissiveExponent", "Texture Emissive Gain", "Texture Emissive Channel", "Texture Emissive Remap Low", "Texture Emissive Remap High", "Texture Emissive Remap Target Low", "Texture Emissive Remap Target High", "Texture Diffuse Exponent", "Texture Diffuse Gain", "Texture Diffuse Channel", "Texture Diffuse Remap Low", "Texture Diffuse Remap High", "Texture Diffuse Remap Target Low", "Texture Diffuse Remap Target High"] vectors=["Emissive", "Diffuse", "Texture Emissive Exponent RGB", "Texture Emissive Gain RGB", "Texture Diffuse Exponent RGB", "Texture Diffuse Gain RGB"] textures=["Flipbook0"]
+/Game/Effects/Materials/Decals/M_ExplosionDecal domain=<MaterialDomain.MD_SURFACE: 0> blend=<BlendMode.BLEND_TRANSLUCENT: 2> scalars=[] vectors=[] textures=[]
+/Game/Effects/Materials/BlastGraphics/M_Grenade_EX_Flare domain=<MaterialDomain.MD_SURFACE: 0> blend=<BlendMode.BLEND_ADDITIVE: 3> scalars=[] vectors=[] textures=[]
+/Game/Effects/Materials/BlastGraphics/M_Grenade_Blast domain=<MaterialDomain.MD_SURFACE: 0> blend=<BlendMode.BLEND_TRANSLUCENT: 2> scalars=["Radius", "Hardness_Ring", "Radius1"] vectors=[] textures=[]

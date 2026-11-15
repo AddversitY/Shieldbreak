@@ -1,0 +1,2 @@
+﻿INFO  soldier ShieldbreakCharacter_1 colour (R=0.600000,G=0.600000,B=0.600000,A=1.000000) armor 1 team MIDs 14
+INFO  soldier ShieldbreakCharacter_2 colour (R=0.600000,G=0.600000,B=0.600000,A=1.000000) armor 1 team MIDs 14

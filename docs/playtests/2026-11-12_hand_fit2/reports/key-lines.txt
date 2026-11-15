@@ -1,0 +1,29 @@
+﻿-- Hands never pass through guns
+INFO  trigger hand FP Weapon_BattleRifle: 2.99 cm (SM_SB_BattleRifle_NoMag: grip centre 3.0 cm off the fingers' wrap across the grip, 2.9 cm along it, 2.1 cm out along the palm normal (half width 1.7, finger arc radius 3.8), gun offset V(X=-0.12, Y=-1.13, Z=14.52))
+INFO  trigger hand FP Weapon_SniperRifle: 3.01 cm (SM_SB_Sniper_NoMag: grip centre 3.0 cm off the fingers' wrap across the grip, 3.0 cm along it, 2.0 cm out along the palm normal (half width 1.8, finger arc radius 3.7), gun offset V(X=-0.13, Y=-1.13, Z=14.50))
+INFO  trigger hand FP Weapon_Sidearm: 2.79 cm (SM_SB_Sidearm_NoMag: grip centre 2.8 cm off the fingers' wrap across the grip, 1.5 cm along it, 2.1 cm out along the palm normal (half width 1.6, finger arc radius 3.2), gun offset V(X=-0.15, Y=1.71, Z=9.87))
+INFO  trigger hand FP Weapon_RailLance: 1.49 cm (SM_SB_RailLance: grip centre 1.5 cm off the fingers' wrap across the grip, 3.0 cm along it, 0.9 cm out along the palm normal (half width 1.7, finger arc radius 3.8), gun offset V(X=-0.13, Y=0.35, Z=14.52))
+INFO  trigger hand FP Weapon_RocketLauncher: 2.13 cm (SM_SB_RocketLauncher: grip centre 2.1 cm off the fingers' wrap across the grip, 1.6 cm along it, 1.5 cm out along the palm normal (half width 1.8, finger arc radius 3.8), gun offset V(X=-1.64, Y=0.09, Z=10.66))
+INFO  trigger hand third-person BR: 2.16 cm (SM_SB_BattleRifle: grip centre 2.2 cm off the fingers' wrap across the grip, 3.2 cm along it, 2.0 cm out along the palm normal (half width 1.7, finger arc radius 4.3), gun offset V(X=-0.15, Y=-1.14, Z=14.50))
+FAIL  Hands never pass through guns (first person, reload, third person)  -- Weapon_Sidearm: 1 (middle_03_r); Weapon_RocketLauncher: 2 (palm>pinky_01_l pinky_01_l); third-person BR: 1 (thumb_02_r)
+FAIL  Every gun's pistol grip sits in the trigger hand's palm (first and third person)  -- FP Weapon_BattleRifle: SM_SB_BattleRifle_NoMag: grip centre 3.0 cm off the fingers' wrap across the grip, 2.9 cm along it, 2.1 cm out along the palm normal (half width 1.7, finger arc radius 3.8), gun offset V(X=-0.12, Y=-1.13, Z=14.52); FP Weapon_SniperRifle: SM_SB_Sniper_NoMag: grip centre 3.0 cm off the fingers' wrap across the grip, 3.0 cm along it, 2.0 cm out along the palm normal (half width 1.8, finger arc radius 3.7), gun offset V(X=-0.13, Y=-1.13, Z=14.50); FP Weapon_Sidearm: SM_SB_Sidearm_NoMag: grip centre 2.8 cm off the fingers' wrap across the grip, 1.5 cm along it, 2.1 cm out along the palm normal (half width 1.6, finger arc radius 3.2), gun offset V(X=-0.15, Y=1.71, Z=9.87); FP Weapon_RocketLauncher: SM_SB_RocketLauncher: grip centre 2.1 cm off the fingers' wrap across the grip, 1.6 cm along it, 1.5 cm out along the palm normal (half width 1.8, finger arc radius 3.8), gun offset V(X=-1.64, Y=0.09, Z=10.66); third-person BR: SM_SB_BattleRifle: grip centre 2.2 cm off the fingers' wrap across the grip, 3.2 cm along it, 2.0 cm out along the palm normal (half width 1.7, finger arc radius 4.3), gun offset V(X=-0.15, Y=-1.14, Z=14.50)
+INFO  average 168.7 FPS over 76 real seconds with 4 bots
+FAIL  The camera never sits inside a character or draws the viewer's own body  -- 20 frames, first: Bot match sanity (75 s): camera inside ShieldbreakCharacter_67
+RESULT 175 passed, 3 failed
+
+LogShieldbreak: Pistol grip of SM_SB_BattleRifle: centre V(X=0.00, Y=-1.05, Z=-10.00), half width 1.70 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_BattleRifle_NoMag: centre V(X=-0.00, Y=-1.05, Z=-10.00), half width 1.70 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_RailLance: centre V(Y=-1.05, Z=-10.00), half width 1.70 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_RocketLauncher: centre V(Y=-0.80, Z=-7.60), half width 1.80 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_Sidearm: centre V(Y=-2.85, Z=-7.80), half width 1.65 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_Sidearm_NoMag: centre V(X=-0.00, Y=-2.85, Z=-7.80), half width 1.65 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_Sniper: centre V(Y=-1.05, Z=-10.00), half width 1.85 cm, valid
+LogShieldbreak: Pistol grip of SM_SB_Sniper_NoMag: centre V(X=-0.00, Y=-1.05, Z=-10.00), half width 1.85 cm, valid
+LogShieldbreak: Trigger hand fit for SM_SB_BattleRifle in SKM_Manny: gun offset V(X=-0.15, Y=-1.14, Z=14.50) (moved 8.4 cm, finger cavity radius 3.8, nudged 4.2 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_BattleRifle_NoMag in SKM_Manny: gun offset V(X=-0.12, Y=-1.13, Z=14.52) (moved 8.4 cm, finger cavity radius 3.8, nudged 4.2 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_RailLance in SKM_Manny: gun offset V(X=-0.13, Y=0.35, Z=14.52) (moved 8.0 cm, finger cavity radius 3.8, nudged 3.4 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_RocketLauncher in SKM_Manny: gun offset V(X=-1.64, Y=0.09, Z=10.66) (moved 8.6 cm, finger cavity radius 3.8, nudged 2.6 cm, 1 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_Sidearm in SKM_Manny: gun offset V(X=-0.17, Y=1.40, Z=12.32) (moved 7.9 cm, finger cavity radius 3.8, nudged 3.8 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_Sidearm_NoMag in SKM_Manny: gun offset V(X=-0.15, Y=1.71, Z=9.87) (moved 6.6 cm, finger cavity radius 3.4, nudged 3.3 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_Sniper in SKM_Manny: gun offset V(X=-0.16, Y=-1.16, Z=14.51) (moved 8.4 cm, finger cavity radius 3.8, nudged 4.2 cm, 0 palm/finger segment(s) still touching)
+LogShieldbreak: Trigger hand fit for SM_SB_Sniper_NoMag in SKM_Manny: gun offset V(X=-0.13, Y=-1.13, Z=14.50) (moved 8.4 cm, finger cavity radius 3.8, nudged 4.2 cm, 0 palm/finger segment(s) still touching)

@@ -1,0 +1,14 @@
+﻿
+Process           CpuSeconds
+-------           ----------
+Cursor                    88
+NZXT CAM                41.3
+claude                  10.3
+audiodg                  4.6
+Grok Bot                 4.6
+Discord                  3.3
+lghub_system_tray        0.8
+cam_helper               0.7
+
+
+

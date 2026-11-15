@@ -3,13 +3,17 @@
 #include "Audio/ShieldbreakSFX.h"
 #include "Components/AudioComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
+#include "Player/ShieldbreakMovementComponent.h"
 #include "Shield/ShieldHealthComponent.h"
 
 UShieldbreakCharacterAudio::UShieldbreakCharacterAudio()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickInterval = 0.05f;
+	// Every frame: footsteps are timed from distance travelled and must land on time.
+	PrimaryComponentTick.TickInterval = 0.f;
 }
 
 void UShieldbreakCharacterAudio::BeginPlay()
@@ -21,6 +25,9 @@ void UShieldbreakCharacterAudio::BeginPlay()
 		SetComponentTickEnabled(false);
 		return;
 	}
+
+	// Load the imported combat banks once, before the first shot (cheap after the first character).
+	FShieldbreakSFX::Preload();
 
 	UShieldHealthComponent* ShieldComponent = GetOwner() ? GetOwner()->FindComponentByClass<UShieldHealthComponent>() : nullptr;
 	if (!ShieldComponent)
@@ -59,19 +66,24 @@ void UShieldbreakCharacterAudio::TickComponent(float DeltaTime, ELevelTick TickT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// Halo-style warning: keep beeping while your shield is gone.
+	TickFootsteps(DeltaTime);
+
+	// Danger cue for the owning player: one alarm beep, repeated fast while the shield is low or gone. It stops as soon
+	// as the shield starts recharging (the recharge whine takes over).
 	const UShieldHealthComponent* ShieldComponent = ObservedShield.Get();
 	const UWorld* World = GetWorld();
-	if (!ShieldComponent || !World || ShieldComponent->IsDead() || ShieldComponent->GetShield() > 0.f || !IsLocalPlayer())
+	if (!ShieldComponent || !World || ShieldComponent->IsDead() || !IsLocalPlayer())
 	{
 		return;
 	}
 
 	const float Now = World->GetTimeSeconds();
-	if (Now >= NextBeepTime)
+	const float Fraction = ShieldComponent->GetShield() / FMath::Max(ShieldComponent->GetMaxShield(), 1.f);
+	const bool bRecharging = RechargeWhine && RechargeWhine->IsPlaying();
+	if (Fraction < LowShieldFraction && !bRecharging && Now >= NextBeepTime)
 	{
 		NextBeepTime = Now + LowShieldBeepInterval;
-		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.6f);
+		FShieldbreakSFX::Play2D(this, EShieldbreakSound::ShieldLowBeep, 0.55f);
 	}
 }
 
@@ -79,6 +91,74 @@ bool UShieldbreakCharacterAudio::IsLocalPlayer() const
 {
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	return Pawn && Pawn->IsLocallyControlled() && Pawn->IsPlayerControlled();
+}
+
+void UShieldbreakCharacterAudio::PlayMovementSound(EShieldbreakSound Sound, float Volume)
+{
+	if (IsLocalPlayer())
+	{
+		FShieldbreakSFX::Play2D(this, Sound, Volume * 0.45f);
+	}
+	else if (const ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	{
+		const float HalfHeight = Character->GetSimpleCollisionHalfHeight();
+		FShieldbreakSFX::PlayAt(this, Sound, Character->GetActorLocation() - FVector(0.f, 0.f, HalfHeight), Volume);
+	}
+}
+
+void UShieldbreakCharacterAudio::TickFootsteps(float DeltaTime)
+{
+	const ACharacter* Character = Cast<ACharacter>(GetOwner());
+	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	const UShieldHealthComponent* ShieldComponent = ObservedShield.Get();
+	if (!Movement || (ShieldComponent && ShieldComponent->IsDead()))
+	{
+		return;
+	}
+
+	if (Movement->IsFalling())
+	{
+		bWasFalling = true;
+		FallSpeed = FMath::Max(FallSpeed, -Movement->Velocity.Z);
+		StrideDistance = 0.f;
+		return;
+	}
+
+	if (bWasFalling)
+	{
+		bWasFalling = false;
+		// Landing weight scales with how fast you came down; tiny hops just get a step.
+		if (FallSpeed > 350.f)
+		{
+			PlayMovementSound(EShieldbreakSound::Land, FMath::GetMappedRangeValueClamped(FVector2D(350.f, 1400.f), FVector2D(0.45f, 1.f), FallSpeed));
+		}
+		else if (FallSpeed > 100.f)
+		{
+			PlayMovementSound(EShieldbreakSound::Footstep, 0.6f);
+		}
+		FallSpeed = 0.f;
+		StrideDistance = 0.f;
+		return;
+	}
+	FallSpeed = 0.f;
+
+	const UShieldbreakMovementComponent* ShieldbreakMovement = Cast<UShieldbreakMovementComponent>(Movement);
+	const float Speed = Movement->Velocity.Size2D();
+	if (!Movement->IsMovingOnGround() || Speed < 120.f || (ShieldbreakMovement && ShieldbreakMovement->IsSliding()))
+	{
+		// Standing still resets the cadence so the first step after moving lands quickly.
+		StrideDistance = FMath::Min(StrideDistance, StrideWalk * 0.6f);
+		return;
+	}
+
+	StrideDistance += Speed * DeltaTime;
+	const float Stride = FMath::GetMappedRangeValueClamped(FVector2D(300.f, 1000.f), FVector2D(StrideWalk, StrideSprint), Speed);
+	if (StrideDistance >= Stride)
+	{
+		StrideDistance -= Stride;
+		const float Volume = Character->bIsCrouched ? 0.3f : FMath::GetMappedRangeValueClamped(FVector2D(300.f, 1000.f), FVector2D(0.55f, 0.9f), Speed);
+		PlayMovementSound(EShieldbreakSound::Footstep, Volume);
+	}
 }
 
 void UShieldbreakCharacterAudio::StopRechargeWhine()
@@ -106,6 +186,7 @@ void UShieldbreakCharacterAudio::HandleShieldChanged(float NewValue, float MaxVa
 	{
 		StopRechargeWhine();
 	}
+
 	LastShieldValue = NewValue;
 }
 

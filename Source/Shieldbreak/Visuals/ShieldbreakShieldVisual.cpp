@@ -53,7 +53,9 @@ void UShieldbreakShieldVisual::HandleImpact(float AbsorbedDamage, bool bBroken, 
 		UE_LOG(LogShieldbreak, Log, TEXT("ShieldFeedback: impact=%d absorbed=%.1f broken=%d overshield=%d role=%d"),
 			ImpactCount, AbsorbedDamage, bBroken, bOvershield, static_cast<int32>(GetOwner()->GetLocalRole()));
 	}
-	Pulse(bBroken ? 1.f : FMath::Clamp(AbsorbedDamage / 35.f, 0.65f, 1.f), bBroken ? 0.5f : 0.32f,
+	// Ordinary hits shimmer at about half strength: at full strength the bloom whited out the whole soldier (FX1/FX2
+	// captures), and the localised flare at the hit point (ShieldbreakImpactFX) now carries the "where".
+	Pulse(bBroken ? 1.f : FMath::Clamp(AbsorbedDamage / 35.f, 0.65f, 1.f) * 0.45f, bBroken ? 0.5f : 0.32f,
 		bOvershield ? FLinearColor(1.f, 0.65f, 0.12f) : FLinearColor(0.18f, 0.7f, 1.f));
 }
 

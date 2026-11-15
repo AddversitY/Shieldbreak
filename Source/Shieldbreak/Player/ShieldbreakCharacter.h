@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/TimerHandle.h"
 #include "GameFramework/Character.h"
 #include "ShieldbreakCharacter.generated.h"
 
@@ -54,11 +55,18 @@ public:
 	UStaticMeshComponent* GetHeadMesh() const { return HeadMesh; }
 	UShieldbreakBodyAnimator* GetBodyAnimator() const { return BodyAnimator; }
 	AShieldbreakWeapon* GetCurrentWeapon() const { return CurrentWeapon; }
+	/** While a local player watches this body die: the camera that follows it. */
+	class ACameraActor* GetDeathCamera() const { return DeathCamera; }
 	AShieldbreakWeapon* GetHolsteredWeapon() const;
 	int32 GetGrenadeCount() const { return GrenadeCount; }
 	int32 GetMaxGrenades() const { return MaxGrenades; }
 	bool IsAlive() const;
 	bool IsZoomed() const { return bZoomed; }
+	/** 0 = hip, 1 = first zoom, 2 = the second, longer zoom (weapons with a ZoomFOV2, the sniper). */
+	int32 GetZoomLevel() const { return bZoomed ? ZoomLevel : 0; }
+	/** 0..1: how far the scope view has come up (eases over about 0.12 s). The HUD fades the scope overlay with it
+	 *  and the first-person gun and arms hide once it passes half. */
+	float GetScopeBlend() const { return ScopeBlend; }
 	FVector GetAimOrigin() const;
 	FRotator GetAimRotation() const;
 	float GetSpreadMultiplier() const;
@@ -91,6 +99,8 @@ public:
 	void StopFire();
 	void Melee();
 	void ThrowGrenade();
+	/** True from a throw's press until the arm has followed through (no firing; the gun is dipped out of the way). */
+	bool IsThrowingGrenade() const;
 	void ReloadOrVent();
 	void SwapWeapon();
 	void Interact();
@@ -101,6 +111,14 @@ public:
 	void ToggleZoom();
 	void StartCrouchOrSlide();
 	void StopCrouchOrSlide();
+	/** The jump button went down (input, AI and the self-test). On the ground it jumps, or starts a Power Jump charge
+	 *  when crouched. In the air it is remembered for JumpBufferTime, so a press just before landing still jumps. */
+	void PressJump();
+	void ReleaseJump();
+
+	/** Local player's view: how far the camera trails the capsule after a step up (negative) or down (positive), in
+	 *  cm. Stepping onto a curb moves the capsule up to 45 cm in one frame; the eye follows over about 0.2 s. */
+	float GetStepCameraOffset() const { return StepCameraOffset; }
 
 	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
 	void NotifyGamepadLook();
@@ -133,6 +151,9 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual bool CanJumpInternal_Implementation() const override;
+	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
@@ -254,6 +275,12 @@ private:
 	void SetAegisRaisedInternal(bool bRaise);
 	void UpdateCamoVisuals();
 	void UpdateCrouchCamera(float DeltaSeconds);
+	/** Puts the camera at the eye height plus the crouch and step offsets. bInsideMovementScope: called from a crouch
+	 *  callback, inside the capsule's deferred movement scope. */
+	void ApplyCameraHeight(bool bInsideMovementScope);
+	/** After every move: spots a step up or down (a height change steeper than any walkable slope) and lets the
+	 *  camera trail it instead of snapping. */
+	UFUNCTION() void HandleMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 	UFUNCTION() void OnRep_AegisRaised();
 	UFUNCTION() void OnRep_CamoEnd();
 
@@ -261,6 +288,8 @@ private:
 
 	void DoMelee();
 	void DoThrowGrenade();
+	/** Server: the hand lets go (sb.GrenadeReleaseDelay after the press), so the grenade leaves where the arm is. */
+	void ReleaseGrenade();
 	void DoSwapWeapon();
 	void DoInteract();
 
@@ -271,6 +300,15 @@ private:
 	UFUNCTION() void HandleDeath(AController* Killer);
 	/** Local player only: moves the camera behind and above the body so they watch the ragdoll. */
 	void StartDeathCamera();
+	/** Every frame while a local player watches this body: follows the ragdoll from the clearest side, never inside it. */
+	void UpdateDeathCamera(float DeltaSeconds);
+	float DeathCameraYaw = 0.f;
+	/** The local player's view while dead. A camera actor, not this body: the engine re-points a view whose pawn has
+	 *  lost its PlayerState (as a dead body does) back to the controller, which sat at the eye inside the ragdoll. */
+	UPROPERTY(Transient) TObjectPtr<class ACameraActor> DeathCamera;
+	/** The local controller that watched this body die (it has no pawn until the respawn). */
+	TWeakObjectPtr<class APlayerController> DeathViewer;
+	int32 DeathCameraSide = -1;
 	UFUNCTION() void HandleShieldChanged(float NewValue, float MaxValue);
 	UFUNCTION() void HandleBreakPulse();
 
@@ -318,15 +356,32 @@ private:
 
 	TWeakObjectPtr<AShieldbreakWeapon> VisualEquippedWeapon;
 	FLinearColor AppliedColor = FLinearColor(-1.f, -1.f, -1.f, -1.f);
+	/** The armor can attach after the first tint; the suit material is swapped in when it does. */
+	bool bAppliedArmored = false;
 	float LastLocalMeleeTime = -100.f;
 	/** Last time the right stick moved the view; aim assist only helps controller players. */
 	float LastGamepadLookTime = -100.f;
 	/** 0..1: how close the crosshair is to an enemy (aim assist friction). */
 	float AimAssistStrength = 0.f;
 	float LastServerMeleeTime = -100.f;
+	/** Grenade throws: when this machine last started one (input), and when the server last accepted one. */
+	float LastLocalThrowTime = -100.f;
+	float LastServerThrowTime = -100.f;
+	FTimerHandle GrenadeReleaseTimer;
 	float LastShieldValue = -1.f;
 	float CrouchCameraOffset = 0.f;
+	float StepCameraOffset = 0.f;
+	bool bWasGroundedForStep = false;
+	/** A crouch change moved the capsule during this move: not a step. */
+	bool bSkipStepCheck = false;
+	/** World time until which a jump pressed in the air fires on landing (-1 = none). */
+	float JumpBufferedUntil = -1.f;
+	/** Landed() saw a buffered press in time; the jump is issued once the walking mode is set (the engine resets
+	 *  jump input on that mode change, after Landed()). */
+	bool bJumpOnLandPending = false;
 	bool bZoomed = false;
+	int32 ZoomLevel = 0;
+	float ScopeBlend = 0.f;
 	bool bDeathHandled = false;
 	bool bCamoHidden = false;
 	bool bWantsEquipment = false;

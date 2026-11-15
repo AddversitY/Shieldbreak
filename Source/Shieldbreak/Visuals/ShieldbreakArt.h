@@ -30,6 +30,8 @@ namespace ShieldbreakArt
 	inline constexpr const TCHAR* SBSniperMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_Sniper.SM_SB_Sniper");
 	inline constexpr const TCHAR* SBRocketLauncherMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher.SM_SB_RocketLauncher");
 	inline constexpr const TCHAR* SBRailLanceMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_RailLance.SM_SB_RailLance");
+	/** Frag grenade (Art/blender/build_grenade.py): origin at its centre, fuse up +Z, arming light in slot GlowAmber. */
+	inline constexpr const TCHAR* SBFragGrenadeMesh = TEXT("/Game/Shieldbreak/Art/Weapons/SM_SB_FragGrenade.SM_SB_FragGrenade");
 
 	// Niagara
 	inline constexpr const TCHAR* MuzzleFlashRifle = TEXT("/Game/Effects/Particles/Weapons/NS_WeaponFire_MuzzleFlash_Rifle.NS_WeaponFire_MuzzleFlash_Rifle");

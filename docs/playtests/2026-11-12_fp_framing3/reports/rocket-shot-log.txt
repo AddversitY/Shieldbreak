@@ -1,0 +1,17 @@
+﻿LogStreaming: Display: FlushAsyncLoading(433): 1 QueuedPackages, 0 AsyncPackages
+LogUObjectGlobals: Warning: Failed to find object 'Object /Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher_NoMag.SM_SB_RocketLauncher_NoMag'
+LogShieldbreak: Warning: Art asset missing, using greybox fallback: /Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher_NoMag.SM_SB_RocketLauncher_NoMag
+LogUObjectGlobals: Warning: Failed to find object 'Object /Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher_Mag.SM_SB_RocketLauncher_Mag'
+LogShieldbreak: Warning: Art asset missing, using greybox fallback: /Game/Shieldbreak/Art/Weapons/SM_SB_RocketLauncher_Mag.SM_SB_RocketLauncher_Mag
+LogShieldbreak: Weapon_RocketLauncher art: SM_SB_RocketLauncher, muzzle socket Muzzle, barrel X=0.024 Y=1.000 Z=0.000, view scale 0.735
+LogShieldbreak: Pistol grip of SM_SB_RocketLauncher: centre V(Y=-0.80, Z=-7.60), half width 1.80 cm, valid
+LogShieldbreak: Trigger hand fit for SM_SB_RocketLauncher in SKM_Manny: gun offset V(X=-2.20, Y=0.14, Z=6.26), turned 0 degrees (R(0)), nudged 1.0 cm, 2 palm/finger segment(s) still touching
+LogShieldbreak: First-person arms placed for MM_Rifle_Idle_Hipfire: offset V(X=20.33, Y=50.01, Z=-158.60), rotation R(P=-0.46, Y=172.56, R=3.70).
+LogShieldbreak: First-person left shoulder in camera space: V(X=1.36, Y=32.46, Z=-12.10)
+LogShieldbreak: First-person hand joints in grip space for MM_Rifle_Idle_Hipfire: hand_r=(-8.0,2.4,0.6) thumb_01_r=(-6.1,0.7,3.2) thumb_02_r=(-2.9,-1.4,5.2) thumb_03_r=(-0.1,-2.7,5.4) index_01_r=(0.9,3.0,4.6) index_02_r=(1.1,7.1,4.7) index_03_r=(-0.9,6.5,3.2) middle_01_r=(1.3,4.0,2.0) middle_02_r=(3.7,-0.5,1.6) middle_03_r=(2.4,-2.6,1.9) ring_01_r=(1.0,4.1,-0.5) ring_03_r=(0.8,-2.5,-0.1) pinky_01_r=(0.3,3.2,-2.4) pinky_03_r=(-0.3,-2.0,-2.3)
+LogShieldbreak: Weapon_BattleRifle art: SM_SB_BattleRifle, muzzle socket Muzzle, barrel X=0.001 Y=1.000 Z=0.000, view scale 0.493
+LogShieldbreak: First-person arms placed for MM_Rifle_Idle_Hipfire: offset V(X=20.37, Y=57.47, Z=-161.68), rotation R(P=-0.63, Y=172.58, R=3.54).
+LogShieldbreak: First-person left shoulder in camera space: V(X=1.54, Y=39.52, Z=-15.33)
+LogShieldbreak: First-person hand joints in grip space for MM_Rifle_Idle_Hipfire: hand_r=(-8.0,2.5,0.6) thumb_01_r=(-6.2,0.8,3.1) thumb_02_r=(-2.9,-1.3,5.1) thumb_03_r=(-0.2,-2.7,5.3) index_01_r=(0.9,3.0,4.5) index_02_r=(0.8,7.1,4.4) index_03_r=(-1.1,6.4,2.7) middle_01_r=(1.3,4.1,2.0) middle_02_r=(3.7,-0.5,1.6) middle_03_r=(2.4,-2.5,1.8) ring_01_r=(1.0,4.2,-0.5) ring_03_r=(0.8,-2.4,-0.1) pinky_01_r=(0.3,3.3,-2.5) pinky_03_r=(-0.4,-1.9,-2.3)
+LogCore: Display: Tracing Screenshot "crucible_fr3_grip_Weapon_RocketLauncher" taken with size: 1280 x 720
+LogShieldbreak: ShieldbreakCharacter_5: skinned armor suit

@@ -1,0 +1,11 @@
+start 2026-11-05T18:51:11
+SelfTest1 exit 0 2026-11-05T18:54:27 wall 196s | CPU others: NZXT CAM#21312=43.7s, cam_helper#22308=17.7s, claude#17508=4.4s, claude#13840=3.5s, NZXT CAM#21032=3.2s, zenserver#3144=2.4s | GPU@45s: 87 %, 2217 MiB
+SelfTest2 exit 0 2026-11-05T18:57:43 wall 196s | CPU others: NZXT CAM#21312=41.9s, cam_helper#22308=17.7s, NZXT CAM#21032=2.9s, zenserver#28896=2.3s, audiodg#19468=1.3s, Discord#15936=0.8s | GPU@45s: 88 %, 2205 MiB
+fp_a exit 0 2026-11-05T18:58:54 wall 71s | CPU others: NZXT CAM#21312=13.6s, cam_helper#22308=6.4s, zenserver#24820=2s, NZXT CAM#21032=1s, claude#13840=0.7s, CrashReportClientEditor#30704=0.4s | GPU@45s: 29 %, 3154 MiB
+fp_a2 exit 0 2026-11-05T19:00:05 wall 71s | CPU others: NZXT CAM#21312=15s, cam_helper#22308=6.3s, zenserver#5432=2s, NZXT CAM#21032=0.9s, claude#13840=0.9s, claude#30500=0.5s | GPU@45s: 12 %, 3154 MiB
+fp_b exit 0 2026-11-05T19:01:15 wall 70s | CPU others: NZXT CAM#21312=13.8s, cam_helper#22308=6.3s, zenserver#456=1.9s, NZXT CAM#21032=1.2s, explorer#11260=0.4s, audiodg#19468=0.4s | GPU@45s: 14 %, 3151 MiB
+fp_c exit 0 2026-11-05T19:02:25 wall 70s | CPU others: NZXT CAM#21312=13.8s, cam_helper#22308=6.2s, zenserver#4548=1.8s, NZXT CAM#21032=1.2s, Discord#15936=0.4s, explorer#11260=0.4s | GPU@45s: 22 %, 3151 MiB
+fp_d exit 0 2026-11-05T19:03:36 wall 70s | CPU others: NZXT CAM#21312=14s, cam_helper#22308=6.6s, zenserver#8508=2.1s, NZXT CAM#21032=1.1s, claude#13840=0.5s, audiodg#19468=0.4s | GPU@45s: 59 %, 3143 MiB
+fp_e exit 0 2026-11-05T19:04:47 wall 71s | CPU others: NZXT CAM#21312=14s, cam_helper#22308=6.2s, zenserver#28116=1.9s, NZXT CAM#21032=1.1s, claude#13840=0.8s, Discord#15936=0.4s | GPU@45s: 38 %, 3143 MiB
+fp_f exit 0 2026-11-05T19:05:57 wall 71s | CPU others: NZXT CAM#21312=15.8s, cam_helper#22308=6.2s, zenserver#7056=1.9s, NZXT CAM#21032=1.5s, audiodg#19468=0.5s, claude#30500=0.3s | GPU@45s: 7 %, 2770 MiB
+done 2026-11-05T19:05:57

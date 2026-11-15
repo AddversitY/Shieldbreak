@@ -167,8 +167,8 @@ void AShieldbreakPlayerController::OnUnPossess()
 	APawn* PreviousPawn = GetPawn();
 	Super::OnUnPossess();
 
-	// Keep watching the body until the respawn.
-	if (IsValid(PreviousPawn))
+	// Keep watching the body until the respawn, unless its death camera already has the view.
+	if (IsValid(PreviousPawn) && (GetViewTarget() == this || GetViewTarget() == PreviousPawn))
 	{
 		SetViewTarget(PreviousPawn);
 	}
@@ -179,6 +179,12 @@ bool AShieldbreakPlayerController::IsHelpVisible() const
 	if (HelpOverride >= 0)
 	{
 		return HelpOverride == 1;
+	}
+	// -SBNoHelp: keep the F1 controls overlay off (clean first-person captures); F1 still toggles it.
+	static const bool bNoHelp = FParse::Param(FCommandLine::Get(), TEXT("SBNoHelp"));
+	if (bNoHelp)
+	{
+		return false;
 	}
 	const UWorld* World = GetWorld();
 	return World && World->GetTimeSeconds() < HelpAutoHideTime;

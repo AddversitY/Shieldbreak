@@ -11,6 +11,8 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "Engine/HitResult.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -171,9 +173,10 @@ void AShieldbreakHUD::DrawHUD()
 
 	if (Character && Character->IsAlive())
 	{
+		// The crosshair first: while scoped it draws the scope housing, and the rest of the HUD sits on top of it.
+		DrawCrosshair(Character, PC);
 		DrawShieldAndHealth(Character);
 		DrawDamageDirection(Character, PC);
-		DrawCrosshair(Character, PC);
 		DrawWeaponInfo(Character);
 		DrawMomentum(Character);
 		DrawMotionTracker(Character);
@@ -199,7 +202,8 @@ void AShieldbreakHUD::DrawHUD()
 	{
 		DrawScoreboard(GameState);
 	}
-	if (PC && PC->IsHelpVisible())
+	// The controls panel would sit over the reticle while scoped (task 15 shots), so it waits until zoom ends.
+	if (PC && PC->IsHelpVisible() && !(Character && Character->GetScopeBlend() > 0.f))
 	{
 		DrawHelp();
 	}
@@ -353,6 +357,7 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 
 	// Red reticle when an enemy is under the crosshair within range.
 	bool bOnEnemy = false;
+	AimDistance = 0.f;
 	if (Weapon && GetWorld())
 	{
 		FVector ViewLocation;
@@ -362,6 +367,7 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakReticle), true, Character);
 		if (GetWorld()->LineTraceSingleByChannel(Hit, ViewLocation, ViewLocation + ViewRotation.Vector() * Weapon->GetStats().Range, ECC_Weapon, Params))
 		{
+			AimDistance = Hit.Distance;
 			const AShieldbreakCharacter* HitCharacter = Cast<AShieldbreakCharacter>(Hit.GetActor());
 			bOnEnemy = HitCharacter && HitCharacter != Character && HitCharacter->IsAlive()
 				&& !ShieldbreakTeams::AreTeammates(HitCharacter, Character);
@@ -379,8 +385,11 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 		RingRadius = FMath::Max(6.f * S, FMath::Tan(FMath::DegreesToRadians(Spread)) / FMath::Tan(FMath::DegreesToRadians(FOV * 0.5f)) * Canvas->ClipX * 0.5f);
 		RingRadius = FMath::Min(RingRadius, 160.f * S);
 	}
-	Box(CX - 2.f * S, CY - 2.f * S, 4.f * S, 4.f * S, ReticleColor);
-	Circle(CX, CY, RingRadius + 6.f * S, ReticleColor, 1.5f * S, 28);
+	if (!DrawScope(Character, bOnEnemy))
+	{
+		Box(CX - 2.f * S, CY - 2.f * S, 4.f * S, 4.f * S, ReticleColor);
+		Circle(CX, CY, RingRadius + 6.f * S, ReticleColor, 1.5f * S, 28);
+	}
 
 	// Hit marker: an X that pops out a little bigger and settles as it fades. White on health, shield blue on a
 	// shielded hit, red on a kill. Popping a shield adds a ring bursting outward, so you know the head is open.
@@ -419,6 +428,256 @@ void AShieldbreakHUD::DrawCrosshair(AShieldbreakCharacter* Character, AShieldbre
 	if (PC && PC->WasLastHitHeadshot() && PC->WasLastHitKill() && Now - PC->GetLastHitConfirmTime() < 1.f)
 	{
 		Text(TEXT("HEADSHOT"), CX, CY - 70.f * S, Gold, GEngine->GetMediumFont(), S, true);
+	}
+}
+
+// ---- Scopes ----
+// Two original optics, one per scoped weapon, so zooming in reads as looking through a different instrument rather
+// than a narrower view (Vincent 2026-11-06). The Battle Rifle's Marksman optic is a cool cyan instrument with a
+// chevron reticle and holdover marks; the Sniper's LongRange optic is a full-height lens with a warm fine cross, mil
+// ladder, heading tape and a second zoom level. The gun and arms hide while either is up (UpdateScopeHide).
+
+UTexture2D* AShieldbreakHUD::GetLensMaskTexture()
+{
+	if (LensMask)
+	{
+		return LensMask;
+	}
+	constexpr int32 Size = 256;
+	LensMask = UTexture2D::CreateTransient(Size, Size, PF_B8G8R8A8);
+	if (!LensMask)
+	{
+		return nullptr;
+	}
+	LensMask->SRGB = false;
+	LensMask->Filter = TF_Bilinear;
+	FTexture2DMipMap& Mip = LensMask->GetPlatformData()->Mips[0];
+	FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 Y = 0; Y < Size; ++Y)
+	{
+		for (int32 X = 0; X < Size; ++X)
+		{
+			const float DX = (X + 0.5f) / Size * 2.f - 1.f;
+			const float DY = (Y + 0.5f) / Size * 2.f - 1.f;
+			const float D = FMath::Sqrt(DX * DX + DY * DY);
+			// Clear centre, a gentle vignette from 70% out, then a soft but quick edge into solid housing.
+			const float Vignette = 0.55f * FMath::SmoothStep(0.7f, 0.985f, D);
+			const float Edge = FMath::SmoothStep(0.975f, 1.f, D);
+			const float A = FMath::Clamp(FMath::Max(Vignette, Edge), 0.f, 1.f);
+			Pixels[Y * Size + X] = FColor(255, 255, 255, static_cast<uint8>(A * 255.f + 0.5f));
+		}
+	}
+	Mip.BulkData.Unlock();
+	LensMask->UpdateResource();
+	return LensMask;
+}
+
+void AShieldbreakHUD::DrawLensMask(float CX, float CY, float R, const FLinearColor& Color)
+{
+	// Solid housing everywhere outside the lens square, then the soft round mask inside it.
+	Box(0.f, 0.f, Canvas->ClipX, FMath::Max(0.f, CY - R), Color);
+	Box(0.f, CY + R, Canvas->ClipX, FMath::Max(0.f, Canvas->ClipY - (CY + R)), Color);
+	Box(0.f, CY - R, FMath::Max(0.f, CX - R), 2.f * R, Color);
+	Box(CX + R, CY - R, FMath::Max(0.f, Canvas->ClipX - (CX + R)), 2.f * R, Color);
+	if (UTexture2D* Mask = GetLensMaskTexture())
+	{
+		FCanvasTileItem Tile(FVector2D(CX - R, CY - R), Mask->GetResource(), FVector2D(2.f * R, 2.f * R), Color);
+		Tile.BlendMode = SE_BLEND_Translucent;
+		Canvas->DrawItem(Tile);
+	}
+}
+
+bool AShieldbreakHUD::DrawScope(AShieldbreakCharacter* Character, bool bOnEnemy)
+{
+	const AShieldbreakWeapon* Weapon = Character->GetCurrentWeapon();
+	const float Blend = Character->GetScopeBlend();
+	if (!Weapon || Weapon->GetStats().Scope == EShieldbreakScope::None || Blend <= 0.01f)
+	{
+		return false;
+	}
+	const float Alpha = FMath::SmoothStep(0.f, 1.f, Blend);
+	const float CX = Canvas->ClipX * 0.5f;
+	const float CY = Canvas->ClipY * 0.5f;
+	// The lens opens out from slightly smaller as the scope comes up.
+	const float Open = FMath::Lerp(0.9f, 1.f, Alpha);
+	const float RangeMeters = AimDistance / 100.f;
+	if (Weapon->GetStats().Scope == EShieldbreakScope::LongRange)
+	{
+		DrawLongRangeScope(Character, CX, CY, Canvas->ClipY * 0.475f * Open, Alpha, bOnEnemy, RangeMeters);
+	}
+	else
+	{
+		DrawMarksmanScope(Character, CX, CY, Canvas->ClipY * 0.4f * Open, Alpha, bOnEnemy, RangeMeters);
+	}
+	return Blend > 0.5f;
+}
+
+namespace ShieldbreakHUDPrivate
+{
+	FLinearColor Faded(const FLinearColor& C, float Alpha) { return FLinearColor(C.R, C.G, C.B, C.A * Alpha); }
+
+	float Magnification(const AShieldbreakCharacter* Character)
+	{
+		const UCameraComponent* Camera = Character->GetFirstPersonCamera();
+		const float FOV = Camera ? Camera->FieldOfView : 78.f;
+		return FMath::Tan(FMath::DegreesToRadians(ShieldbreakSettings::GetFieldOfView() * 0.5f)) / FMath::Tan(FMath::DegreesToRadians(FOV * 0.5f));
+	}
+}
+
+void AShieldbreakHUD::DrawMarksmanScope(AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters)
+{
+	using namespace ShieldbreakHUDPrivate;
+	const FLinearColor Housing(0.008f, 0.01f, 0.012f, Alpha);
+	const FLinearColor Cyan = Faded(FLinearColor(0.45f, 0.95f, 1.f, 0.9f), Alpha);
+	const FLinearColor CyanDim = Faded(FLinearColor(0.45f, 0.95f, 1.f, 0.35f), Alpha);
+	const FLinearColor Reticle = bOnEnemy ? Faded(Danger, Alpha) : Faded(FLinearColor(0.8f, 1.f, 1.f, 0.95f), Alpha);
+	UFont* Small = GEngine->GetSmallFont();
+
+	DrawLensMask(CX, CY, R, Housing);
+	// Faint cool tint over the glass.
+	Box(CX - R * 0.7f, CY - R * 0.7f, R * 1.4f, R * 1.4f, Faded(FLinearColor(0.2f, 0.6f, 0.7f, 0.035f), Alpha));
+	// Housing: a dark metal ring with a bright inner lip, and an instrument scale every 5 degrees.
+	Circle(CX, CY, R + 5.f * S, Faded(FLinearColor(0.16f, 0.19f, 0.22f, 1.f), Alpha), 9.f * S, 96);
+	Circle(CX, CY, R - 1.f * S, CyanDim, 1.5f * S, 96);
+	for (int32 I = 0; I < 72; ++I)
+	{
+		const float A = FMath::DegreesToRadians(I * 5.f);
+		const float Len = (I % 6 == 0 ? 14.f : 6.f) * S;
+		const FVector2D D(FMath::Cos(A), FMath::Sin(A));
+		Line(CX + D.X * (R - 4.f * S), CY + D.Y * (R - 4.f * S), CX + D.X * (R - 4.f * S - Len), CY + D.Y * (R - 4.f * S - Len),
+			I % 6 == 0 ? Cyan : CyanDim, (I % 6 == 0 ? 2.f : 1.f) * S);
+	}
+
+	// Reticle: left, right and lower stems that thicken toward the rim (no top stem, so the target stays clear),
+	// a small diamond at the centre and three holdover bars down the lower stem.
+	const float Gap = 22.f * S;
+	const float Mid = R * 0.55f;
+	const float Outer = R - 22.f * S;
+	for (const FVector2D D : { FVector2D(-1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(0.f, 1.f) })
+	{
+		Line(CX + D.X * Gap, CY + D.Y * Gap, CX + D.X * Mid, CY + D.Y * Mid, Reticle, 2.5f * S);
+		Line(CX + D.X * Mid, CY + D.Y * Mid, CX + D.X * Outer, CY + D.Y * Outer, Reticle, 5.f * S);
+	}
+	const float Dm = 6.f * S;
+	Line(CX, CY - Dm, CX + Dm, CY, Reticle, 2.f * S);
+	Line(CX + Dm, CY, CX, CY + Dm, Reticle, 2.f * S);
+	Line(CX, CY + Dm, CX - Dm, CY, Reticle, 2.f * S);
+	Line(CX - Dm, CY, CX, CY - Dm, Reticle, 2.f * S);
+	for (int32 I = 1; I <= 3; ++I)
+	{
+		const float Y = CY + Gap + I * R * 0.09f;
+		const float W = (16.f - I * 3.f) * S;
+		Line(CX - W, Y, CX + W, Y, Reticle, 1.5f * S);
+	}
+	// Chevron brackets either side of the centre, opening outward.
+	for (const float Side : { -1.f, 1.f })
+	{
+		const float X = CX + Side * (Gap + 30.f * S);
+		Line(X, CY - 10.f * S, X + Side * 10.f * S, CY, Cyan, 2.f * S);
+		Line(X + Side * 10.f * S, CY, X, CY + 10.f * S, Cyan, 2.f * S);
+	}
+
+	// Readouts inside the rim: magnification and range up top right, ammo as an arc on the left.
+	const float TextX = CX + R * 0.5f;
+	Text(FString::Printf(TEXT("%.1fx"), Magnification(Character)), TextX, CY - R * 0.62f, Cyan, Small, 1.4f * S, true);
+	Text(RangeMeters > 0.f ? FString::Printf(TEXT("RNG %d m"), FMath::RoundToInt(RangeMeters)) : FString(TEXT("RNG ---")),
+		TextX, CY - R * 0.62f + 22.f * S, CyanDim.CopyWithNewOpacity(0.8f * Alpha), Small, 1.1f * S, true);
+	if (const AShieldbreakWeapon* Weapon = Character->GetCurrentWeapon())
+	{
+		const int32 Max = FMath::Clamp(Weapon->GetStats().MagazineSize, 1, 40);
+		const int32 Left = FMath::Clamp(Weapon->GetAmmoInMagazine(), 0, Max);
+		const float Span = 70.f;
+		const float Step = Span / Max;
+		for (int32 I = 0; I < Max; ++I)
+		{
+			const float Angle = 180.f - Span * 0.5f + Step * (I + 0.5f);
+			Arc(CX, CY, R - 30.f * S, Angle, Step * 0.6f, I < Left ? Cyan : CyanDim.CopyWithNewOpacity(0.15f * Alpha), 6.f * S);
+		}
+	}
+}
+
+void AShieldbreakHUD::DrawLongRangeScope(AShieldbreakCharacter* Character, float CX, float CY, float R, float Alpha, bool bOnEnemy, float RangeMeters)
+{
+	using namespace ShieldbreakHUDPrivate;
+	const FLinearColor Housing(0.005f, 0.005f, 0.006f, Alpha);
+	const FLinearColor Warm = Faded(FLinearColor(1.f, 0.82f, 0.55f, 0.92f), Alpha);
+	const FLinearColor WarmDim = Faded(FLinearColor(1.f, 0.82f, 0.55f, 0.4f), Alpha);
+	const FLinearColor Reticle = bOnEnemy ? Faded(Danger, Alpha) : Faded(FLinearColor(0.05f, 0.05f, 0.05f, 0.95f), Alpha);
+	const FLinearColor ReticleLight = bOnEnemy ? Faded(Danger, Alpha) : Warm;
+	UFont* Small = GEngine->GetSmallFont();
+	const int32 Level = Character->GetZoomLevel();
+
+	DrawLensMask(CX, CY, R, Housing);
+	Circle(CX, CY, R + 6.f * S, Faded(FLinearColor(0.1f, 0.1f, 0.11f, 1.f), Alpha), 12.f * S, 128);
+	Circle(CX, CY, R - 2.f * S, WarmDim.CopyWithNewOpacity(0.25f * Alpha), 1.f * S, 128);
+
+	// Fine cross through the whole lens, with heavy posts in from the rim on all four sides (dark, so it reads on
+	// bright sky; outlined warm so it reads in shadow) and a lit centre dot.
+	const float Post = R * 0.62f;
+	for (const FVector2D D : { FVector2D(-1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(0.f, -1.f), FVector2D(0.f, 1.f) })
+	{
+		Line(CX + D.X * 3.f * S, CY + D.Y * 3.f * S, CX + D.X * Post, CY + D.Y * Post, Reticle, 2.f * S);
+		Line(CX + D.X * Post, CY + D.Y * Post, CX + D.X * R, CY + D.Y * R, ReticleLight, 9.f * S);
+		Line(CX + D.X * Post, CY + D.Y * Post, CX + D.X * R, CY + D.Y * R, Reticle, 6.f * S);
+	}
+	Box(CX - 2.f * S, CY - 2.f * S, 4.f * S, 4.f * S, ReticleLight);
+	// Mil ladder: ticks along the horizontal and the lower vertical, longer every fifth.
+	const float Mil = R * 0.05f;
+	for (int32 I = 1; I <= 11; ++I)
+	{
+		const float Len = (I % 5 == 0 ? 9.f : 4.f) * S;
+		for (const float Side : { -1.f, 1.f })
+		{
+			Line(CX + Side * I * Mil, CY - Len, CX + Side * I * Mil, CY + Len, Reticle, 2.f * S);
+		}
+		Line(CX - Len, CY + I * Mil, CX + Len, CY + I * Mil, Reticle, 2.f * S);
+	}
+	// The second zoom level adds a rangefinder box around the centre.
+	if (Level >= 2)
+	{
+		const float B = R * 0.16f;
+		const float L = B * 0.35f;
+		for (const FVector2D C : { FVector2D(-1.f, -1.f), FVector2D(1.f, -1.f), FVector2D(-1.f, 1.f), FVector2D(1.f, 1.f) })
+		{
+			Line(CX + C.X * B, CY + C.Y * B, CX + C.X * (B - L), CY + C.Y * B, Warm, 2.f * S);
+			Line(CX + C.X * B, CY + C.Y * B, CX + C.X * B, CY + C.Y * (B - L), Warm, 2.f * S);
+		}
+	}
+
+	// Heading tape across the top of the lens: a tick every 5 degrees of yaw, numbered every 15.
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	PlayerOwner->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	const float Yaw = FRotator::ClampAxis(ViewRotation.Yaw);
+	const float TapeY = CY - R * 0.8f;
+	const float PxPerDeg = R * 0.6f / 30.f;
+	for (int32 Deg = FMath::FloorToInt(Yaw / 5.f) * 5 - 30; Deg <= Yaw + 30.f; Deg += 5)
+	{
+		const float X = CX + (Deg - Yaw) * PxPerDeg;
+		const bool bMajor = ((Deg % 15) + 15) % 15 == 0;
+		Line(X, TapeY, X, TapeY + (bMajor ? 10.f : 5.f) * S, WarmDim, 1.5f * S);
+		if (bMajor)
+		{
+			Text(FString::Printf(TEXT("%03d"), ((Deg % 360) + 360) % 360), X, TapeY - 18.f * S, WarmDim, Small, 1.f * S, true);
+		}
+	}
+	Line(CX, TapeY + 12.f * S, CX - 5.f * S, TapeY + 20.f * S, Warm, 2.f * S);
+	Line(CX, TapeY + 12.f * S, CX + 5.f * S, TapeY + 20.f * S, Warm, 2.f * S);
+
+	// Lower readouts: range on the left, magnification and the zoom-level pips on the right.
+	const float RowY = CY + R * 0.7f;
+	Text(RangeMeters > 0.f ? FString::Printf(TEXT("%d m"), FMath::RoundToInt(RangeMeters)) : FString(TEXT("--- m")),
+		CX - R * 0.42f, RowY, Warm, Small, 1.4f * S, true);
+	Text(FString::Printf(TEXT("%.1fx"), Magnification(Character)), CX + R * 0.42f, RowY, Warm, Small, 1.4f * S, true);
+	for (int32 I = 0; I < 2; ++I)
+	{
+		const float PX = CX + R * 0.42f - 10.f * S + I * 20.f * S;
+		Box(PX - 6.f * S, RowY + 26.f * S, 12.f * S, 4.f * S, I < Level ? Warm : WarmDim.CopyWithNewOpacity(0.2f * Alpha));
+	}
+	if (const AShieldbreakWeapon* Weapon = Character->GetCurrentWeapon())
+	{
+		Text(FString::Printf(TEXT("%d / %d"), Weapon->GetAmmoInMagazine(), Weapon->GetReserveAmmo()), CX, CY + R * 0.82f, WarmDim,
+			Small, 1.2f * S, true);
 	}
 }
 

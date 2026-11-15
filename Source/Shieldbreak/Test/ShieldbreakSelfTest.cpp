@@ -1,6 +1,7 @@
 #include "Test/ShieldbreakSelfTest.h"
 
 #include "Shieldbreak.h"
+#include "Audio/ShieldbreakSFX.h"
 #include "AIController.h"
 #include "AI/ShieldbreakBotController.h"
 #include "Camera/CameraActor.h"
@@ -9,6 +10,7 @@
 #include "GameFramework/HUD.h"
 #include "UnrealClient.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Game/ShieldbreakArena.h"
@@ -38,9 +40,13 @@
 #include "Visuals/ShieldbreakBodyAnimator.h"
 #include "Visuals/ShieldbreakBodyAnimInstance.h"
 #include "Visuals/ShieldbreakShieldVisual.h"
+#include "Visuals/ShieldbreakImpactFX.h"
 #include "Visuals/ShieldbreakArt.h"
+#include "Visuals/ShieldbreakExplosionFX.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
+#include "Engine/CollisionProfile.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Materials/Material.h"
 #include "Weapons/ShieldbreakDamageTypes.h"
@@ -91,6 +97,13 @@ void AShieldbreakSelfTest::BeginPlay()
 {
 	Super::BeginPlay();
 	BuildSteps();
+	FString Filter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SBTestFilter="), Filter) && !Filter.IsEmpty())
+	{
+		Steps.RemoveAll([&Filter](const FStep& Step) { return Step.Name != TEXT("Settle") && !Step.Name.Contains(Filter); });
+		ModeTag = TEXT("Filtered");
+		Check(TEXT("Requested test filter matches a step"), Steps.Num() > 1, Filter);
+	}
 	Lines.Add(FString::Printf(TEXT("Shieldbreak self-test, %s"), *FDateTime::Now().ToString()));
 	UE_LOG(LogShieldbreak, Log, TEXT("SelfTest: %d steps queued."), Steps.Num());
 }
@@ -153,9 +166,143 @@ void AShieldbreakSelfTest::ClearDummies()
 	Spawned.Reset();
 	A = nullptr;
 	B = nullptr;
+	ViewOverviewIfUnpossessed();
 	Mark = -1.f;
 	Value0 = Value1 = 0.f;
 	Phase = 0;
+}
+
+void AShieldbreakSelfTest::ViewOverviewIfUnpossessed()
+{
+	using namespace ShieldbreakSelfTestPrivate;
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || PC->GetPawn())
+	{
+		return;
+	}
+	const AActor* Target = PC->GetViewTarget();
+	// A step's own camera (chase shots) or the body the player is watching after a death stays put.
+	if (Target && Target != PC && IsValid(Target) && !Target->IsActorBeingDestroyed())
+	{
+		return;
+	}
+	// A dead player's death camera reclaims the view itself (AShieldbreakCharacter::UpdateDeathCamera).
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsAlive() && It->GetDeathCamera())
+		{
+			return;
+		}
+	}
+	if (!OverviewCamera)
+	{
+		FActorSpawnParameters CameraParams;
+		CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		const FVector Mid = (RangeA + RangeB) * 0.5f;
+		const FVector Eye = Mid + FVector(0.f, -700.f, 260.f);
+		OverviewCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(),
+			FTransform((Mid + FVector(0.f, 0.f, 60.f) - Eye).Rotation(), Eye), CameraParams);
+	}
+	if (OverviewCamera)
+	{
+		PC->SetViewTarget(OverviewCamera);
+	}
+}
+
+void AShieldbreakSelfTest::CheckViewNotInsideCharacter()
+{
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PC || !PC->PlayerCameraManager || InsideViewReports.Num() >= 20)
+	{
+		return;
+	}
+	const FVector Eye = PC->PlayerCameraManager->GetCameraLocation();
+	const AActor* Viewer = PC->GetViewTarget();
+	const FString StepName = Steps.IsValidIndex(StepIndex) ? Steps[StepIndex].Name : FString(TEXT("start"));
+	for (TActorIterator<AShieldbreakCharacter> It(GetWorld()); It; ++It)
+	{
+		AShieldbreakCharacter* Character = *It;
+		if (Character->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+		const bool bOwnBody = Character == Viewer || (!Character->IsAlive() && Viewer
+			&& Viewer->IsA<ACameraActor>() && Viewer != OverviewCamera && Viewer != ChaseCamera);
+		if (!Character->IsAlive() && !bOwnBody)
+		{
+			continue;
+		}
+		if (!bOwnBody)
+		{
+			if (Viewer && Viewer == ChaseCamera)
+			{
+				continue; // the bot-match chase camera trails a live bot; others may wander through it
+			}
+			// Someone else's body: the eye must be outside their capsule (plus a hand's width).
+			const UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+			const FVector Local = Capsule->GetComponentTransform().InverseTransformPosition(Eye);
+			const float Radius = Capsule->GetUnscaledCapsuleRadius() + 10.f;
+			const float HalfHeight = Capsule->GetUnscaledCapsuleHalfHeight() + 10.f;
+			const float Z = FMath::Max(0.f, FMath::Abs(Local.Z) - (HalfHeight - Radius));
+			if (FVector2D(Local.X, Local.Y).SizeSquared() + Z * Z < Radius * Radius)
+			{
+				InsideViewReports.Add(FString::Printf(TEXT("%s: camera inside %s"), *StepName, *Character->GetName()));
+			}
+			continue;
+		}
+		// The viewer's own pawn: nothing third-person may draw near the eye (only the first-person arms and gun).
+		TInlineComponentArray<UPrimitiveComponent*> Primitives(Character);
+		for (const UPrimitiveComponent* Primitive : Primitives)
+		{
+			if (!Primitive->IsRegistered() || !Primitive->IsVisible() || Primitive->bHiddenInGame || Primitive->bOwnerNoSee
+				|| Primitive->bOnlyOwnerSee || Primitive->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson
+				|| Primitive->IsA<UShapeComponent>())
+			{
+				continue;
+			}
+			const FBoxSphereBounds& Bounds = Primitive->Bounds;
+			if (Bounds.GetBox().ExpandBy(15.f).IsInside(Eye))
+			{
+				InsideViewReports.Add(FString::Printf(TEXT("%s: own %s draws at the eye"), *StepName, *Primitive->GetName()));
+			}
+		}
+	}
+}
+
+AActor* AShieldbreakSelfTest::SpawnTestBlock(const FVector& BaseCenter, const FVector& Size)
+{
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UWorld* World = GetWorld();
+	if (!Cube || !World)
+	{
+		return nullptr;
+	}
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AStaticMeshActor* Block = World->SpawnActor<AStaticMeshActor>(BaseCenter + FVector(0.f, 0.f, Size.Z * 0.5f), FRotator::ZeroRotator, Params);
+	if (!Block)
+	{
+		return nullptr;
+	}
+	UStaticMeshComponent* Mesh = Block->GetStaticMeshComponent();
+	Mesh->SetMobility(EComponentMobility::Movable);
+	Mesh->SetStaticMesh(Cube);
+	Mesh->SetWorldScale3D(Size / 100.f); // the engine cube is 100 cm
+	Mesh->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	Spawned.Add(Block);
+	return Block;
+}
+
+float AShieldbreakSelfTest::FloorZ(const FVector& Location) const
+{
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ShieldbreakSelfTestFloor), false);
+	for (AActor* Actor : Spawned) { Params.AddIgnoredActor(Actor); }
+	if (GetWorld() && GetWorld()->LineTraceSingleByChannel(Hit, Location + FVector(0.f, 0.f, 50.f), Location - FVector(0.f, 0.f, 2000.f), ECC_Visibility, Params))
+	{
+		return static_cast<float>(Hit.ImpactPoint.Z);
+	}
+	return static_cast<float>(Location.Z) - 100.f;
 }
 
 void AShieldbreakSelfTest::Damage(AShieldbreakCharacter* Target, float Amount, TSubclassOf<UDamageType> Type, AActor* Causer)
@@ -174,6 +321,8 @@ void AShieldbreakSelfTest::Tick(float DeltaSeconds)
 	{
 		return;
 	}
+	ViewOverviewIfUnpossessed();
+	CheckViewNotInsideCharacter();
 
 	if (StepIndex >= 0 && Steps.IsValidIndex(StepIndex))
 	{
@@ -219,6 +368,9 @@ void AShieldbreakSelfTest::Finish()
 {
 	bFinished = true;
 	ClearDummies();
+	Check(TEXT("The camera never sits inside a character or draws the viewer's own body"), InsideViewReports.Num() == 0,
+		InsideViewReports.Num() == 0 ? FString(TEXT("checked every frame"))
+			: FString::Printf(TEXT("%d frames, first: %s"), InsideViewReports.Num(), *InsideViewReports[0]));
 
 	Lines.Add(FString::Printf(TEXT("RESULT %d passed, %d failed"), Passed, Failed));
 	const FString Path = FPaths::ProjectSavedDir() / TEXT("Logs") / (ModeTag == TEXT("Bot") ? FString(TEXT("SelfTest.txt")) : FString::Printf(TEXT("SelfTest-%s.txt"), *ModeTag));
@@ -244,6 +396,12 @@ void AShieldbreakSelfTest::BuildSteps()
 	Steps.Add({ TEXT("Front end and match capacity"), [this]()
 	{
 		Check(TEXT("Session capacity is eight players"), GetDefault<AGameSession>()->MaxPlayers == 8);
+		{
+			int32 Loaded = 0;
+			const FString Missing = FShieldbreakSFX::DescribeMissingBanks(Loaded);
+			Check(TEXT("Every combat sound bank is imported"), Missing.IsEmpty(), FString::Printf(TEXT("%d variations loaded%s%s"),
+				Loaded, Missing.IsEmpty() ? TEXT("") : TEXT("; missing "), *Missing));
+		}
 		const AShieldbreakGameMode* Rules = GetWorld()->GetAuthGameMode<AShieldbreakGameMode>();
 		Check(TEXT("Runtime session enforces eight players"), Rules && Rules->GameSession && Rules->GameSession->MaxPlayers == 8);
 		Check(TEXT("Configured game instance preserves connection recovery across travel"),
@@ -275,7 +433,13 @@ void AShieldbreakSelfTest::BuildSteps()
 		}, nullptr, 5.f });
 
 	// -SBShots / -SBFPShots: only take comparison screenshots (and a fixed-view FPS figure), no checks.
-	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBImpactShots")))
+	{
+		BuildImpactShotSteps();
+		return;
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("SBShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBFPShots")) || FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots"))
+		|| FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
 	{
 		BuildShotSteps();
 		return;
@@ -307,7 +471,13 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
 			const int32 Pieces = Animator ? Animator->GetArmorPieceCount() : -1;
-			Check(TEXT("Soldiers wear the armor set"), Pieces >= 14, FString::Printf(TEXT("%d armor pieces"), Pieces));
+			const bool bSkinned = Animator && Animator->HasSkinnedSuit();
+			Check(TEXT("Soldiers wear the armor set"), bSkinned || Pieces >= 14,
+				bSkinned ? FString(TEXT("skinned suit SK_SB_Soldier")) : FString::Printf(TEXT("%d armor pieces"), Pieces));
+			// Under the armor the mannequin wears our matte polymer (its own material kept white gloves).
+			const UMaterialInterface* Suit = A && A->GetMesh() ? A->GetMesh()->GetMaterial(0) : nullptr;
+			Check(TEXT("...over a matte suit (MI_SBC_Polymer, not the mannequin's material)"), Suit && Suit->GetName().EndsWith(TEXT("_Polymer")),
+				Suit ? Suit->GetName() : TEXT("no material"));
 			Check(TEXT("Soldier bodies blend their animation (native anim instance)"), Animator && Animator->IsBlendedAnimation(),
 				Animator ? FString::Printf(TEXT("aim pitch %.1f"), Animator->GetAimPitch()) : TEXT("no animator"));
 			ClearDummies();
@@ -342,11 +512,637 @@ void AShieldbreakSelfTest::BuildSteps()
 			{
 				return false; // give the arms a moment to take the gun
 			}
-			Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
-			Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
+			if (Phase == 0)
+			{
+				Check(TEXT("The local player has first-person arms"), Animator && Animator->HasFirstPersonArms(), TEXT(""));
+				Check(TEXT("...and the gun is in their hand"), Animator && Holder && Holder == Animator->GetFirstPersonArms(), GetNameSafe(Holder));
+				Mark = Now();
+				Phase = 1;
+				return false;
+			}
+			// The index finger curls onto the trigger socket instead of pointing out through the receiver.
+			const float FingerError = Animator ? Animator->GetTriggerFingerError() : -1.f;
+			if (Now() - Mark < 1.f && !(FingerError >= 0.f && FingerError < 1.5f))
+			{
+				return false;
+			}
+			// Rifles: the left hand holds the forend (SupportHand socket) and is the hand the player sees.
+			const bool bSupport = Animator && Animator->WantsFirstPersonSupportArm();
+			const float SupportError = Animator ? Animator->GetSupportHandError() : -1.f;
+			if (bSupport && Now() - Mark < 1.5f && !(SupportError >= 0.f && SupportError < 2.f))
+			{
+				return false;
+			}
+			Check(TEXT("...with the index finger on the trigger"), FingerError >= 0.f && FingerError < 2.f,
+				FString::Printf(TEXT("finger pad %s cm from the trigger (%s; %s)"), *ShieldbreakSelfTestPrivate::Num(FingerError), *GetNameSafe(Weapon),
+					Animator ? *Animator->DescribeTriggerFinger() : TEXT("no animator")));
+			if (Weapon && Weapon->GetStats().ZoomFOV > 0.f && Weapon->GetStats().Scope != EShieldbreakScope::None)
+			{
+				Check(TEXT("...and on a rifle the left hand holds the forend"), bSupport && SupportError >= 0.f && SupportError < 7.f, // palm centre; at the task (22) framing the arm's reach stops ~6 cm short and the shots show a correct grip
+					FString::Printf(TEXT("left wrist %s cm from SupportHand (%s)"), *ShieldbreakSelfTestPrivate::Num(SupportError), *GetNameSafe(Weapon)));
+			}
 			ClearDummies();
 			return true;
-		}, 5.f });
+		}, 7.f });
+
+	// ---- Scopes: zooming swaps the view for the weapon's own optic, the gun hides, the sniper has a second level. ----
+	Steps.Add({ TEXT("Scope overlays"),
+		[this]()
+		{
+			A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
+		},
+		[this](float Elapsed)
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+			if (!Player)
+			{
+				if (Elapsed > 2.f)
+				{
+					Check(TEXT("Zooming shows the weapon's scope"), false, TEXT("could not possess a local pawn"));
+					ClearDummies();
+					return true;
+				}
+				return false;
+			}
+			AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+			auto Hidden = [PC, Weapon]() { return Weapon && PC->HiddenActors.Contains(Weapon); };
+			switch (Phase)
+			{
+			case 0: // Equip a Battle Rifle and zoom.
+				if (Elapsed < 1.5f)
+				{
+					return false;
+				}
+				if (!Weapon || !Weapon->IsA<AWeapon_BattleRifle>())
+				{
+					Player->GiveWeapon(AWeapon_BattleRifle::StaticClass());
+					for (TActorIterator<AWeapon_BattleRifle> It(GetWorld()); It; ++It)
+					{
+						if (It->GetOwner() == Player) { Player->EquipWeapon(*It); break; }
+					}
+				}
+				Mark = Now();
+				Phase = 1;
+				return false;
+			case 1:
+				if (Now() - Mark < 1.2f)
+				{
+					return false;
+				}
+				TakeShot(TEXT("fp_br_hip"), true); // the Battle Rifle held at the hip, before zooming
+				Mark = Now();
+				Phase = 10;
+				return false;
+			case 10:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->SetZoomed(true);
+				Mark = Now();
+				Phase = 11;
+				return false;
+			case 11: // mid zoom (the scope blend takes 0.12 s): the gun on its way up, before the optic view takes over
+				if (Now() - Mark < 0.05f)
+				{
+					return false;
+				}
+				TakeShot(TEXT("fp_br_ads_in"), true);
+				Phase = 2; // Mark stays at the zoom start
+				return false;
+			case 2:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				Check(TEXT("Zooming the Battle Rifle brings up its Marksman scope and hides the gun"),
+					Weapon && Weapon->IsA<AWeapon_BattleRifle>() && Player->GetScopeBlend() > 0.95f && Hidden(),
+					FString::Printf(TEXT("%s, blend %.2f, gun hidden %d"), *GetNameSafe(Weapon), Player->GetScopeBlend(), Hidden() ? 1 : 0));
+				TakeShot(TEXT("scope_marksman"), true);
+				Mark = Now();
+				Phase = 6; // let the screenshot render before changing the view
+				return false;
+			case 6:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->SetZoomed(false);
+				Player->GiveWeapon(AWeapon_SniperRifle::StaticClass());
+				for (TActorIterator<AWeapon_SniperRifle> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == Player) { Player->EquipWeapon(*It); break; }
+				}
+				Mark = Now();
+				Phase = 3;
+				return false;
+			case 3:
+				if (Now() - Mark < 1.5f)
+				{
+					return false;
+				}
+				Check(TEXT("...and zoomed out the gun is back"), !Hidden(), GetNameSafe(Weapon));
+				TakeShot(TEXT("fp_sniper_idle"), true); // the Sniper held, unzoomed
+				Mark = Now();
+				Phase = 9; // let the screenshot render before zooming
+				return false;
+			case 9:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->ToggleZoom();
+				Mark = Now();
+				Phase = 4;
+				return false;
+			case 4:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				TakeShot(TEXT("scope_sniper_1"), true);
+				Mark = Now();
+				Phase = 5;
+				return false;
+			case 5:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->ToggleZoom();
+				Mark = Now();
+				Phase = 7;
+				return false;
+			case 7:
+				if (Now() - Mark < 0.8f)
+				{
+					return false;
+				}
+				{
+					const UCameraComponent* Camera = Player->GetFirstPersonCamera();
+					const float FOV = Camera ? Camera->FieldOfView : 0.f;
+					Check(TEXT("The Sniper's LongRange scope has a second, closer zoom"),
+						Weapon && Weapon->IsA<AWeapon_SniperRifle>() && Player->GetZoomLevel() == 2 && FOV < Weapon->GetStats().ZoomFOV - 4.f && Hidden(),
+						FString::Printf(TEXT("%s, level %d, FOV %.1f"), *GetNameSafe(Weapon), Player->GetZoomLevel(), FOV));
+				}
+				TakeShot(TEXT("scope_sniper_2"), true);
+				Mark = Now();
+				Phase = 8;
+				return false;
+			case 8:
+				if (Now() - Mark < 0.3f)
+				{
+					return false;
+				}
+				Player->ToggleZoom();
+				Check(TEXT("...and a third press zooms out"), !Player->IsZoomed(), TEXT(""));
+				ClearDummies();
+				return true;
+			}
+			return true;
+		}, 12.f });
+
+	// ---- First-person moves: hand-keyed reload (magazine out and back), melee swing, draw after a swap, sidearm
+	// reload. Screenshots at the key poses: Saved/Screenshots/Shots/<map>_shot_fp_*.png ----
+	const TSharedRef<FTransform> ReloadGrip = MakeShared<FTransform>();
+	const TSharedRef<float> ReloadGripDrift = MakeShared<float>(0.f);
+	const TSharedRef<bool> FreshGripSampled = MakeShared<bool>(false);
+	const TSharedRef<bool> EmptyDropSampled = MakeShared<bool>(false);
+	const TSharedRef<FQuat> IdleReloadWrist = MakeShared<FQuat>();
+	const TSharedRef<FQuat> IdleReloadFinger = MakeShared<FQuat>();
+	Steps.Add({ TEXT("First-person moves"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
+		},
+		[this, ReloadGrip, ReloadGripDrift, FreshGripSampled, EmptyDropSampled, IdleReloadWrist, IdleReloadFinger](float Elapsed)
+		{
+			APlayerController* PC = GetWorld()->GetFirstPlayerController();
+			AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+			UShieldbreakBodyAnimator* Animator = Player ? Player->GetBodyAnimator() : nullptr;
+			if (!Player || !Animator)
+			{
+				if (Elapsed > 2.f)
+				{
+					Check(TEXT("First-person moves have a local player"), false, TEXT("could not possess a local pawn"));
+					ClearDummies();
+					return true;
+				}
+				return false;
+			}
+			AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+			const FShieldbreakViewmodelMoves& Moves = Animator->GetViewmodelMoves();
+			const double T = GetWorld()->GetTimeSeconds();
+			auto Equip = [this, Player](TSubclassOf<AShieldbreakWeapon> Class)
+			{
+				Player->GiveWeapon(Class);
+				for (TActorIterator<AShieldbreakWeapon> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == Player && It->IsA(Class)) { Player->EquipWeapon(*It); break; }
+				}
+			};
+			// Seconds since Mark, and progress through the move.
+			const float Since = Now() - Mark;
+			switch (Phase)
+			{
+			case 0:
+				if (Elapsed < 1.5f) { return false; }
+				if (!Weapon || !Weapon->IsA<AWeapon_BattleRifle>()) { Equip(AWeapon_BattleRifle::StaticClass()); }
+				Mark = Now(); Phase = 1; return false;
+			case 1: // one burst so the magazine is not full
+				if (Since < 1.2f) { return false; }
+				Player->StartFire(); Mark = Now(); Phase = 2; return false;
+			case 2:
+				if (Since < 0.3f) { return false; }
+				Player->StopFire(); Mark = Now(); Phase = 3; return false;
+			case 3:
+				if (Since < 0.6f) { return false; }
+				Value0 = Animator->GetSupportHandError();
+				if (Weapon)
+				{
+					const USkeletalMeshComponent* Arms = Animator->GetFirstPersonArms();
+					*IdleReloadWrist = Weapon->GetWeaponMesh()->GetComponentQuat().Inverse() * Arms->GetBoneQuaternion(TEXT("hand_l"));
+					*IdleReloadFinger = Arms->GetBoneQuaternion(TEXT("middle_01_l")).Inverse() * Arms->GetBoneQuaternion(TEXT("middle_02_l"));
+				}
+				if (Weapon) { Weapon->StartReload(); }
+				Mark = Now(); Phase = 4; return false;
+			case 4: // t ~ 0.3: magazine out, in the left hand
+				if (Since < 0.6f) { return false; }
+				{
+					UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+					Check(TEXT("A first-person reload plays the hand-keyed move, not the third-person clip"),
+						Moves.GetMove() == EShieldbreakViewmodelMove::Reload && Animator->GetViewmodelPose().HandWeight > 0.5f,
+						FString::Printf(TEXT("move %d, progress %.2f, hand weight %.2f, gun roll %.1f"), static_cast<int32>(Moves.GetMove()),
+							Moves.GetProgress(T), Animator->GetViewmodelPose().HandWeight, Animator->GetViewmodelPose().Rotation.Z));
+					if (Magazine)
+					{
+						const USkeletalMeshComponent* Arms = Animator->GetFirstPersonArms();
+						const FVector Palm = (Arms->GetBoneLocation(TEXT("hand_l")) + Arms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
+						*ReloadGrip = Magazine->GetComponentTransform().GetRelativeTransform(FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm));
+						*ReloadGripDrift = 0.f;
+						*FreshGripSampled = false;
+						*EmptyDropSampled = false;
+						const float Out = static_cast<float>(Magazine->GetRelativeLocation().Size());
+						Check(TEXT("...the magazine comes out of the gun with the left hand"), Moves.IsMagazineOut() && Out > 4.f,
+							FString::Printf(TEXT("%.1f cm from its socket"), Out));
+					}
+					else
+					{
+						Check(TEXT("...split magazine art imported (SM_SB_<Gun>_NoMag/_Mag)"), false,
+							TEXT("not imported yet: the hand moves but the magazine stays in the gun"));
+					}
+				}
+				TakeShot(TEXT("fp_reload_mag_out"), true);
+				Phase = 5; return false;
+			case 5: // t ~ 0.665: magazine seated
+				if (Moves.IsMagazineFalling() && !*EmptyDropSampled)
+				{
+					Check(TEXT("The extracted magazine releases before a fresh one is brought up"), true, TEXT("observed falling after the strip"));
+					*EmptyDropSampled = true;
+				}
+				// Measure the NEW grasp, after the release/reach into the pouch and
+				// before the seating blend. The old magazine intentionally leaves view.
+				if (Since >= 0.94f && Since < 1.2f && *EmptyDropSampled && Moves.IsMagazineInHand())
+				{
+					const UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+					const USkeletalMeshComponent* Arms = Animator->GetFirstPersonArms();
+					if (Magazine && Arms)
+					{
+						const FVector Palm = (Arms->GetBoneLocation(TEXT("hand_l")) + Arms->GetBoneLocation(TEXT("middle_01_l"))) * 0.5;
+						if (!*FreshGripSampled)
+						{
+							Check(TEXT("A fresh magazine is carried after the old one releases"), Moves.IsMagazineInHand() && Magazine->IsVisible(), TEXT("fresh grasp"));
+							*ReloadGrip = Magazine->GetComponentTransform().GetRelativeTransform(FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm));
+							*FreshGripSampled = true;
+						}
+						const FTransform Expected = *ReloadGrip * FTransform(Arms->GetBoneQuaternion(TEXT("hand_l")), Palm);
+						*ReloadGripDrift = FMath::Max(*ReloadGripDrift, static_cast<float>(FVector::Distance(Expected.GetLocation(), Magazine->GetComponentLocation())));
+						if (Since >= 1.08f && Value1 == 0.f)
+						{
+							const FQuat Wrist = Weapon->GetWeaponMesh()->GetComponentQuat().Inverse() * Arms->GetBoneQuaternion(TEXT("hand_l"));
+							const FQuat Finger = Arms->GetBoneQuaternion(TEXT("middle_01_l")).Inverse() * Arms->GetBoneQuaternion(TEXT("middle_02_l"));
+							const float WristTurn = FMath::RadiansToDegrees(IdleReloadWrist->AngularDistance(Wrist));
+							const float FingerBend = FMath::RadiansToDegrees(IdleReloadFinger->AngularDistance(Finger));
+							Check(TEXT("The reload wrist turns into a side grasp"), WristTurn > 35.f, FString::Printf(TEXT("%.1f degrees relative to idle in gun space"), WristTurn));
+							Check(TEXT("The fresh magazine is held with a curled middle finger"), FingerBend > 20.f, FString::Printf(TEXT("%.1f degrees at the evaluated middle joint"), FingerBend));
+							FVector2D HandScreen = FVector2D::ZeroVector, MagScreen = FVector2D::ZeroVector;
+							int32 Width = 0, Height = 0;
+							PC->GetViewportSize(Width, Height);
+							auto Visible = [Width, Height](const FVector2D& P) { return P.X > 0.f && P.X < Width && P.Y > 0.f && P.Y < Height * 0.97f; };
+							const bool bVisible = PC->ProjectWorldLocationToScreen(Palm, HandScreen)
+								&& PC->ProjectWorldLocationToScreen(Magazine->Bounds.Origin, MagScreen) && Visible(HandScreen) && Visible(MagScreen);
+							Check(TEXT("The reload keeps the carried magazine and palm in frame"), bVisible,
+								FString::Printf(TEXT("palm %.0f,%.0f; magazine %.0f,%.0f; viewport %dx%d"), HandScreen.X, HandScreen.Y, MagScreen.X, MagScreen.Y, Width, Height));
+							TakeShot(TEXT("fp_reload_carry"), true);
+							Value1 = 1.f;
+						}
+					}
+				}
+				if (Since < 1.33f) { return false; }
+				if (!*EmptyDropSampled) { Check(TEXT("The extracted magazine releases before a fresh one is brought up"), false, TEXT("release pose not sampled")); }
+				if (!*FreshGripSampled) { Check(TEXT("A fresh magazine is carried after the old one releases"), false, TEXT("fresh grasp not sampled")); }
+				if (Value1 == 0.f) { Check(TEXT("The reload keeps the carried magazine and palm in frame"), false, TEXT("carry pose was not sampled")); }
+				Check(TEXT("The carried magazine stays fixed in the evaluated palm"), *ReloadGripDrift < 0.5f,
+					FString::Printf(TEXT("maximum grip drift %.3f cm"), *ReloadGripDrift));
+				TakeShot(TEXT("fp_reload_insert"), true);
+				Phase = 6; return false;
+			case 6: // t ~ 0.86: charging handle
+				if (Since < 1.72f) { return false; }
+				TakeShot(TEXT("fp_reload_charge"), true);
+				Phase = 7; return false;
+			case 7: // done
+				if (Since < 2.5f) { return false; }
+				{
+					UStaticMeshComponent* Magazine = Weapon ? Weapon->GetFirstPersonMagazine() : nullptr;
+					const float Seat = Magazine ? static_cast<float>(Magazine->GetRelativeLocation().Size()) : 0.f;
+					const float Support = Animator->GetSupportHandError();
+					Check(TEXT("...and ends with the magazine seated and the left hand back on the forend"),
+						!Moves.IsPlaying() && Seat < 0.1f && Animator->GetViewmodelPose().IsIdentity() && Support >= 0.f && Support < FMath::Max(3.f, Value0 + 1.f),
+						FString::Printf(TEXT("magazine %.2f cm off, support hand %.2f cm (before %.2f)"), Seat, Support, Value0));
+				}
+				Animator->PlayAction(EShieldbreakAction::Melee);
+				Mark = Now(); Phase = 8; return false;
+			case 8: // melee strike peaks early
+				if (Since < 0.14f) { return false; }
+				Check(TEXT("A first-person melee chops the gun down and in"),
+					Moves.GetMove() == EShieldbreakViewmodelMove::Melee && Animator->GetViewmodelPose().Rotation.Size() > 6.f,
+					FString::Printf(TEXT("gun %.1f cm forward, pitch %.1f, yaw %.1f"), Animator->GetViewmodelPose().Offset.X, Animator->GetViewmodelPose().Rotation.X, Animator->GetViewmodelPose().Rotation.Y));
+				TakeShot(TEXT("fp_melee"), true);
+				Mark = Now(); Phase = 9; return false;
+			case 9:
+				if (Since < 1.f) { return false; }
+				Equip(AWeapon_Sidearm::StaticClass());
+				Mark = Now(); Value1 = -1.f; Phase = 10; return false;
+			case 10: // the draw starts once the arms are placed for the sidearm
+				if (Moves.GetMove() == EShieldbreakViewmodelMove::Draw && Value1 < 0.f) { Value1 = Since; }
+				if (Value1 >= 0.f && Since > Value1 + 0.2f)
+				{
+					Check(TEXT("A weapon swap brings the new gun up with the hand-keyed draw"), Value1 < 0.8f,
+						FString::Printf(TEXT("draw began %.2f s after the swap"), Value1));
+					TakeShot(TEXT("fp_draw"), true);
+					Mark = Now(); Phase = 11; return false;
+				}
+				if (Since > 1.5f)
+				{
+					Check(TEXT("A weapon swap brings the new gun up with the hand-keyed draw"), false, TEXT("no draw"));
+					Mark = Now(); Phase = 11;
+				}
+				return false;
+			case 11:
+				if (Since < 1.f) { return false; }
+				Player->StartFire(); Mark = Now(); Phase = 12; return false;
+			case 12:
+				if (Since < 0.1f) { return false; }
+				Player->StopFire(); Mark = Now(); Phase = 13; return false;
+			case 13:
+				if (Since < 0.5f) { return false; }
+				if (Weapon) { Weapon->StartReload(); }
+				Mark = Now(); Phase = 14; return false;
+			case 14: // sidearm t ~ 0.22: the empty magazine falls away
+				if (Since < 0.3f) { return false; }
+				TakeShot(TEXT("fp_pistol_drop"), true);
+				Phase = 15; return false;
+			case 15: // t ~ 0.5: fresh magazine coming up in the left hand
+				if (Since < 0.7f) { return false; }
+				Check(TEXT("The sidearm reload brings the left arm in with a fresh magazine"),
+					Moves.GetMove() == EShieldbreakViewmodelMove::Reload && Animator->GetViewmodelPose().bWantsLeftArm,
+					FString::Printf(TEXT("move %d, progress %.2f"), static_cast<int32>(Moves.GetMove()), Moves.GetProgress(T)));
+				TakeShot(TEXT("fp_pistol_fresh"), true);
+				Phase = 16; return false;
+			case 16:
+				if (Since < 1.8f) { return false; }
+				Check(TEXT("...and puts it away again"), !Moves.IsPlaying() && Animator->GetViewmodelPose().IsIdentity(), TEXT(""));
+				ClearDummies();
+				return true;
+			}
+			return true;
+		}, 25.f });
+
+	// ---- Hands never pass through guns: every finger and palm segment of the visible hands is traced against the held
+	// gun's real surface, for each weapon in first person, during a reload, and on a third-person body up close. ----
+	{
+		TSharedRef<FString> Bad = MakeShared<FString>();
+		TSharedRef<FString> Hold = MakeShared<FString>(); // grips not in the trigger hand's palm
+		TSharedRef<int32> Index = MakeShared<int32>(0);
+		Steps.Add({ TEXT("Hands never pass through guns"),
+			[this, Bad, Hold, Index]()
+			{
+				ClearDummies();
+				Bad->Reset();
+				Hold->Reset();
+				*Index = 0;
+				A = PossessLocalDummy(FTransform(FRotator(0.f, 90.f, 0.f), ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 0.f, 200.f)));
+			},
+			[this, Bad, Hold, Index](float Elapsed)
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				AShieldbreakCharacter* Player = PC ? Cast<AShieldbreakCharacter>(PC->GetPawn()) : nullptr;
+				UShieldbreakBodyAnimator* Animator = Player ? Player->GetBodyAnimator() : nullptr;
+				if (!Player || !Animator)
+				{
+					if (Elapsed > 2.f)
+					{
+						Check(TEXT("Hands never pass through guns"), false, TEXT("could not possess a local pawn"));
+						ClearDummies();
+						return true;
+					}
+					return false;
+				}
+				const TSubclassOf<AShieldbreakWeapon> Weapons[] = { AWeapon_BattleRifle::StaticClass(), AWeapon_SniperRifle::StaticClass(),
+					AWeapon_Sidearm::StaticClass(), AWeapon_RailLance::StaticClass(), AWeapon_RocketLauncher::StaticClass() };
+				AShieldbreakWeapon* Weapon = Player->GetCurrentWeapon();
+				auto Equip = [this](AShieldbreakCharacter* Who, TSubclassOf<AShieldbreakWeapon> Class)
+				{
+					Who->GiveWeapon(Class);
+					for (TActorIterator<AShieldbreakWeapon> It(GetWorld()); It; ++It)
+					{
+						if (It->GetOwner() == Who && It->IsA(Class)) { Who->EquipWeapon(*It); break; }
+					}
+				};
+				auto Record = [Bad](const FString& What, int32 Count, const FString& Detail)
+				{
+					if (Count != 0)
+					{
+						*Bad += FString::Printf(TEXT("%s%s: %s"), Bad->IsEmpty() ? TEXT("") : TEXT("; "), *What,
+							Count < 0 ? *Detail : *FString::Printf(TEXT("%d (%s)"), Count, *Detail));
+					}
+				};
+				// The gun's pistol grip must sit in the trigger hand's palm (2 cm: the grip centre from where the palm holds it).
+				auto RecordHold = [this, Hold](const FString& What, float Error, const FString& Detail)
+				{
+					Lines.Add(FString::Printf(TEXT("INFO  trigger hand %s: %.2f cm (%s)"), *What, Error, *Detail));
+					if (Error < 0.f || Error > 2.f)
+					{
+						*Hold += FString::Printf(TEXT("%s%s: %s"), Hold->IsEmpty() ? TEXT("") : TEXT("; "), *What, *Detail);
+					}
+				};
+				const float Since = Now() - Mark;
+				if (Phase == 0) // equip the next weapon
+				{
+					if (Elapsed < 1.5f) { return false; }
+					Equip(Player, Weapons[*Index]);
+					Mark = Now(); Phase = 1; return false;
+				}
+				if (Phase == 1) // let the draw finish and the grip settle, then measure
+				{
+					if (Since < 2.2f) { return false; }
+					FString Detail;
+					const int32 Count = Animator->MeasureHandClipping(true, &Detail);
+					Lines.Add(FString::Printf(TEXT("INFO  grip %s: %d (%s); support error %.2f cm; %s"),
+						*GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, *Detail, Animator->GetSupportHandError(), *Animator->DescribeTriggerFinger()));
+					Record(GetNameSafe(Weapon ? Weapon->GetClass() : nullptr), Count, Detail);
+					{
+						FString HoldDetail;
+						const float HoldError = Animator->MeasureTriggerHandHold(true, &HoldDetail);
+						RecordHold(FString::Printf(TEXT("FP %s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), HoldError, HoldDetail);
+					}
+					TakeShot(FString::Printf(TEXT("grip_%s"), *GetNameSafe(Weapon ? Weapon->GetClass() : nullptr)), true);
+					if (++*Index < UE_ARRAY_COUNT(Weapons)) { Phase = 0; Mark = Now(); return false; }
+					// The screenshot is taken at the end of a later frame: switching guns now captured the next gun's
+					// draw instead (task 33: the rocket launcher's shot showed the Battle Rifle below the frame).
+					Mark = Now(); Phase = 20; return false;
+				}
+				switch (Phase)
+				{
+				case 20: // the last gun's screenshot is out: back to the Battle Rifle
+					if (Since < 0.5f) { return false; }
+					Equip(Player, AWeapon_BattleRifle::StaticClass());
+					Mark = Now(); Phase = 2; return false;
+				case 2: // a burst, then reload the Battle Rifle
+					if (Since < 2.2f) { return false; }
+					Player->StartFire(); Mark = Now(); Phase = 3; return false;
+				case 3:
+					if (Since < 0.3f) { return false; }
+					Player->StopFire(); Mark = Now(); Phase = 4; return false;
+				case 4:
+					if (Since < 0.6f) { return false; }
+					if (Weapon) { Weapon->StartReload(); }
+					Mark = Now(); Phase = 5; return false;
+				case 5: // the hand carries the magazine: test against the receiver only
+				case 6:
+				{
+					if (Since < (Phase == 5 ? 0.6f : 1.33f)) { return false; }
+					FString Detail;
+					const int32 Count = Animator->MeasureHandClipping(true, &Detail, false);
+					Record(FString::Printf(TEXT("BR reload at %.1f s"), Since), Count, Detail);
+					Phase = Phase == 5 ? 6 : 7; return false;
+				}
+				case 7: // a third-person soldier up close, facing the camera, Battle Rifle in hand
+					if (Since < 2.6f) { return false; }
+					B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 180.f, 200.f), -90.f, false);
+					if (B) { Equip(B, AWeapon_BattleRifle::StaticClass()); }
+					Mark = Now(); Phase = 8; return false;
+				case 8:
+					if (Since < 2.5f) { return false; }
+					{
+						const UShieldbreakBodyAnimator* Other = B ? B->GetBodyAnimator() : nullptr;
+						FString Detail = TEXT("no third-person dummy");
+						const int32 Count = Other ? Other->MeasureHandClipping(false, &Detail) : -1;
+						Record(TEXT("third-person BR"), Count, Detail);
+						FString HoldDetail = TEXT("no third-person dummy");
+						const float HoldError = Other ? Other->MeasureTriggerHandHold(false, &HoldDetail) : -1.f;
+						RecordHold(TEXT("third-person BR"), HoldError, HoldDetail);
+					}
+					TakeShot(TEXT("tp_grip_br"), true);
+					Mark = Now(); Phase = 10; return false;
+				case 10: // close side views of the third-person trigger hand: its right (back of the hand), then its left (fingers)
+				case 12:
+				{
+					if (Since < 0.3f) { return false; }
+					if (!B || !B->GetMesh()) { Mark = Now(); Phase = 14; return false; }
+					const FVector Hand = B->GetMesh()->GetBoneLocation(TEXT("hand_r"));
+					const FVector Eye = Hand + B->GetActorRightVector() * (Phase == 12 ? -65.f : 65.f) + B->GetActorForwardVector() * 15.f
+						+ FVector(0.f, 0.f, 12.f);
+					ACameraActor* Cam = nullptr;
+					for (TActorIterator<ACameraActor> It(GetWorld()); It; ++It)
+					{
+						if (It->Tags.Contains(TEXT("SBGripCam"))) { Cam = *It; }
+					}
+					if (!Cam)
+					{
+						FActorSpawnParameters CameraParams;
+						CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						Cam = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+						if (Cam) { Cam->Tags.Add(TEXT("SBGripCam")); }
+					}
+					if (Cam)
+					{
+						Cam->SetActorLocationAndRotation(Eye, (Hand - Eye).Rotation());
+						if (PC) { PC->SetViewTarget(Cam); }
+					}
+					Mark = Now(); ++Phase; return false;
+				}
+				case 11:
+				case 13:
+					if (Since < 0.5f) { return false; }
+					TakeShot(Phase == 11 ? TEXT("tp_grip_br_right") : TEXT("tp_grip_br_left"), true);
+					Mark = Now(); ++Phase; return false;
+				case 14:
+					if (Since < 0.3f) { return false; }
+					for (TActorIterator<ACameraActor> It(GetWorld()); It; ++It)
+					{
+						if (It->Tags.Contains(TEXT("SBGripCam"))) { It->Destroy(); }
+					}
+					if (PC && PC->GetPawn()) { PC->SetViewTarget(PC->GetPawn()); }
+					Mark = Now(); Phase = 9; return false;
+				case 9:
+					if (Since < 0.3f) { return false; }
+					Check(TEXT("Hands never pass through guns (first person, reload, third person)"), Bad->IsEmpty(),
+						Bad->IsEmpty() ? TEXT("no finger or palm segment crosses the gun") : *Bad);
+					Check(TEXT("Every gun's pistol grip sits in the trigger hand's palm (first and third person)"), Hold->IsEmpty(),
+						Hold->IsEmpty() ? TEXT("all within 2 cm") : *Hold);
+					ClearDummies();
+					return true;
+				}
+				return true;
+			}, 45.f });
+	}
+
+	// ---- Death camera: killed from the front, the ragdoll is thrown back toward where the camera used to sit. ----
+	Steps.Add({ TEXT("Death camera"),
+		[this]()
+		{
+			ClearDummies();
+			A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA));
+			B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(300.f, 0.f, 0.f), 180.f, false);
+		},
+		[this](float Elapsed)
+		{
+			if (Phase == 0 && Elapsed > 1.f)
+			{
+				// Just lethal (a 10000 overkill flung the ragdoll metres away), and checked before the 3 s respawn: task (8)
+				// checked at 2.5 s after the kill and the player had already respawned elsewhere.
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(A, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
+				Phase = 1;
+			}
+			if (Phase == 1 && Now() - Mark > 1.2f)
+			{
+				TakeShot(TEXT("death_camera"), true); // Saved/Screenshots/Shots/<map>_shot_death_camera.png
+				Phase = 2;
+			}
+			if (Phase == 2 && Now() - Mark > 1.6f)
+			{
+				const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const USkeletalMeshComponent* Body = A ? A->GetMesh() : nullptr;
+				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (A ? A->GetActorLocation() : FVector::ZeroVector);
+				const float Distance = PC && PC->PlayerCameraManager ? static_cast<float>(FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Pelvis)) : -1.f;
+				// Task (9): the view had fallen back to the controller (the engine drops a view on a pawn whose PlayerState
+				// is gone), which this test's overview camera then took. The body's own death camera must hold it.
+				const AActor* View = PC ? PC->GetViewTarget() : nullptr;
+				const bool bDeathView = View && View->IsA<ACameraActor>() && View != OverviewCamera && View != ChaseCamera;
+				Check(TEXT("The death camera watches the body from outside it"), A && !A->IsAlive() && bDeathView && Distance > 150.f,
+					FString::Printf(TEXT("camera %s cm from the pelvis, view target %s, death camera %s, overview %s, alive %d"), *ShieldbreakSelfTestPrivate::Num(Distance),
+						PC ? *GetNameSafe(PC->GetViewTarget()) : TEXT("none"), A ? *GetNameSafe(A->GetDeathCamera()) : TEXT("none"),
+						*GetNameSafe(OverviewCamera), A && A->IsAlive() ? 1 : 0));
+				ClearDummies();
+				return true;
+			}
+			return false;
+		}, 8.f });
 
 	// ---- Controller aim assist: with the stick in use, the view eases onto an enemy just off the crosshair. ----
 	{
@@ -769,6 +1565,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			ClearDummies();
 			A = SpawnDummy(RangeA, 0.f, true);
 			B = SpawnDummy(RangeA + FVector(700.f, 0.f, 0.f), 180.f, false);
+			const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this);
+			Value1 = FX ? static_cast<float>(FX->GetImpactCount()) : -1.f;
 		},
 		[this, ShieldOf, HealthOf](float Elapsed)
 		{
@@ -806,8 +1604,17 @@ void AShieldbreakSelfTest::BuildSteps()
 				// Either way a headshot multiplier through the shield would be far more, and kill.
 				Check(TEXT("A burst into a shielded head does normal damage"), Lost >= 12.f && Lost <= 40.f && B->IsAlive(),
 					FString::Printf(TEXT("lost %s, alive %d"), *Num(Lost), B->IsAlive()));
+				if (const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this))
+				{
+					Check(TEXT("Rounds into a shield flare it (impact effects)"), FX->GetImpactCount() > Value1 && FX->GetMuzzleFlashCount() > 0
+						&& FX->GetLastSurface() == EShieldbreakImpactSurface::Shield,
+						FString::Printf(TEXT("impacts %d (was %s), flashes %d, surface %d, materials %d"), FX->GetImpactCount(), *Num(Value1),
+							FX->GetMuzzleFlashCount(), static_cast<int32>(FX->GetLastSurface()), FX->HasMaterials()));
+				}
 				Damage(B, ShieldOf(B), UDamageType_Ballistic::StaticClass());
 				Value0 = HealthOf(B);
+				const UShieldbreakImpactFXSubsystem* ArmorFX = UShieldbreakImpactFXSubsystem::Get(this);
+				Value1 = ArmorFX ? static_cast<float>(ArmorFX->GetSurfaceCount(EShieldbreakImpactSurface::Armor)) : 0.f;
 				A->StartFire();
 				Mark = Now();
 				Phase = 3;
@@ -820,6 +1627,12 @@ void AShieldbreakSelfTest::BuildSteps()
 			else if (Phase == 4 && Now() - Mark > 0.8f)
 			{
 				Check(TEXT("An unshielded headshot kills"), !B->IsAlive(), FString::Printf(TEXT("health %s -> %s"), *Num(Value0), *Num(HealthOf(B))));
+				if (const UShieldbreakImpactFXSubsystem* FX = UShieldbreakImpactFXSubsystem::Get(this))
+				{
+					// Counted, not the last surface: rounds after the kill land on the wall behind.
+					Check(TEXT("...and the killing round sparks off bare armor"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor) > Value1,
+						FString::Printf(TEXT("armor hits %d (was %s)"), FX->GetSurfaceCount(EShieldbreakImpactSurface::Armor), *Num(Value1)));
+				}
 				return true;
 			}
 			return false;
@@ -861,6 +1674,8 @@ void AShieldbreakSelfTest::BuildSteps()
 			else if (Phase == 2 && Now() - Mark > 0.15f)
 			{
 				Check(TEXT("Crouching at sprint speed starts a slide"), Move->IsSliding(), FString::Printf(TEXT("%s uu/s, mode %d"), *Num(Speed), static_cast<int32>(Move->MovementMode)));
+				Check(TEXT("A slide starts faster than a sprint"), Speed > Move->SprintSpeed,
+					FString::Printf(TEXT("%s uu/s 0.15 s in (sprint %s)"), *Num(Speed), *Num(Move->SprintSpeed)));
 				Value0 = Speed;
 				Phase = 3;
 			}
@@ -926,6 +1741,76 @@ void AShieldbreakSelfTest::BuildSteps()
 			}
 			return false;
 		}, 8.f });
+
+	// ---- Grenade throw: the hand lets go after the wind-up, one throw at a time, no firing mid-throw ----
+	Steps.Add({ TEXT("Grenade throw timing"),
+		[this]()
+		{
+			ClearDummies();
+			A = SpawnDummy(RangeA, 0.f, false);
+		},
+		[this](float Elapsed)
+		{
+			auto CountGrenades = [this]()
+			{
+				int32 Count = 0;
+				for (TActorIterator<AShieldbreakGrenade> It(GetWorld()); It; ++It) { ++Count; }
+				return Count;
+			};
+			const float Release = AShieldbreakGrenade::GetReleaseDelay();
+			const UShieldbreakBodyAnimator* Animator = A ? A->GetBodyAnimator() : nullptr;
+			if (Phase == 0 && Elapsed > 0.6f)
+			{
+				A->AddGrenades(2);
+				Value0 = static_cast<float>(A->GetGrenadeCount());
+				Value1 = static_cast<float>(CountGrenades());
+				A->ThrowGrenade();
+				Mark = Now();
+				Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > Release * 0.4f)
+			{
+				Check(TEXT("A throw doesn't release the grenade at the press"), CountGrenades() == static_cast<int32>(Value1),
+					FString::Printf(TEXT("%d grenades %s s in (release at %s s)"), CountGrenades(), *Num(Now() - Mark), *Num(Release)));
+				Check(TEXT("...the grenade shows in the thrower's hand until then"), Animator && Animator->GetVisibleHeldGrenade(false) != nullptr);
+				Check(TEXT("...and the gun can't fire mid-throw"), A->IsThrowingGrenade());
+				A->ThrowGrenade();
+				Phase = 2;
+			}
+			else if (Phase == 2 && Now() - Mark > Release + 0.12f)
+			{
+				Check(TEXT("The grenade leaves the hand at the release"), CountGrenades() == static_cast<int32>(Value1) + 1,
+					FString::Printf(TEXT("%d new"), CountGrenades() - static_cast<int32>(Value1)));
+				Check(TEXT("...and the hand is empty after it"), Animator && Animator->GetVisibleHeldGrenade(false) == nullptr);
+				Check(TEXT("A second press mid-throw doesn't throw again"), A->GetGrenadeCount() == static_cast<int32>(Value0) - 1,
+					FString::Printf(TEXT("grenades %d -> %d"), static_cast<int32>(Value0), A->GetGrenadeCount()));
+				Value0 = 0.f;
+				Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				for (TActorIterator<AShieldbreakGrenade> It(GetWorld()); It; ++It)
+				{
+					Value0 = FMath::Max(Value0, It->GetBlinkLevel());
+				}
+				for (TActorIterator<AShieldbreakExplosionFX> It(GetWorld()); It; ++It)
+				{
+					// Smoke from the preceding damage fixture can outlive that step.
+					// Observe only explosions created after this throw was pressed.
+					if (It->GetGameTimeSinceCreation() > Now() - Mark) { continue; }
+					Check(TEXT("The grenade blinks its arming light in flight"), Value0 > 0.5f, FString::Printf(TEXT("peak %s"), *Num(Value0)));
+					Check(TEXT("It goes off as a layered explosion"), It->GetCardCount() > 0,
+						FString::Printf(TEXT("%d fire/smoke cards (0 = M_SB_FX materials missing)"), It->GetCardCount()));
+					return true;
+				}
+				if (Now() - Mark > 6.f)
+				{
+					Check(TEXT("It goes off as a layered explosion"), false, TEXT("no explosion within 6 s"));
+					return true;
+				}
+			}
+			return false;
+		}, 9.f });
 
 	// ---- Melee and assassination ----
 	Steps.Add({ TEXT("Melee and assassination"),
@@ -1895,6 +2780,7 @@ void AShieldbreakSelfTest::BuildSteps()
 
 void AShieldbreakSelfTest::BuildPresentationSteps()
 {
+	using namespace ShieldbreakSelfTestPrivate;
 	Steps.Add({ TEXT("Crouch camera settles without a capsule-height pop"),
 		[this]() { ClearDummies(); A = PossessLocalDummy(FTransform(ShieldbreakSelfTestPrivate::RangeA)); },
 		[this](float Elapsed)
@@ -1932,6 +2818,157 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			}
 			return false;
 		}, 4.f });
+	// ---- Movement feel: step smoothing, coyote time, jump buffering ----
+	Steps.Add({ TEXT("The camera rides over a step instead of snapping"),
+		[this]()
+		{
+			ClearDummies();
+			const float Floor = FloorZ(RunwayStart);
+			// A 30 cm curb, 2 m deep, 3-5 m ahead: walked up, across and off.
+			SpawnTestBlock(FVector(RunwayStart.X + 400.f, RunwayStart.Y, Floor), FVector(200.f, 400.f, 30.f));
+			A = PossessLocalDummy(FTransform(RunwayStart));
+			Value0 = Value1 = 0.f; // largest single-frame capsule / eye change while walking
+		},
+		[this](float Elapsed)
+		{
+			if (!A || !A->GetFirstPersonCamera()) { Check(TEXT("Step view has a local pawn"), false); return true; }
+			const float Capsule = static_cast<float>(A->GetActorLocation().Z);
+			const float Eye = static_cast<float>(A->GetFirstPersonCamera()->GetComponentLocation().Z);
+			static float LastCapsule = 0.f, LastEye = 0.f, Highest = 0.f, Start = 0.f, LargestOffset = 0.f;
+			if (Phase == 0 && Elapsed > 0.8f)
+			{
+				LastCapsule = Start = Highest = Capsule; LastEye = Eye; LargestOffset = 0.f;
+				Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1)
+			{
+				A->AddMovementInput(FVector::ForwardVector, 1.f);
+				Value0 = FMath::Max(Value0, FMath::Abs(Capsule - LastCapsule));
+				Value1 = FMath::Max(Value1, FMath::Abs(Eye - LastEye));
+				Highest = FMath::Max(Highest, Capsule);
+				LargestOffset = FMath::Max(LargestOffset, FMath::Abs(A->GetStepCameraOffset()));
+				LastCapsule = Capsule; LastEye = Eye;
+				if (Now() - Mark > 1.3f)
+				{
+					// The engine's step-up spreads the 30 cm over a few frames (about 9 cm each at 144 FPS), so only the climb is required.
+					Check(TEXT("The test walk climbs the 30 cm curb"), Highest - Start > 25.f,
+						FString::Printf(TEXT("rose %s cm, largest capsule jump %s cm"), *Num(Highest - Start), *Num(Value0)));
+					// Judged against the curb, not the capsule's per-frame change: at high frame rates the step-up is spread over
+					// several small frames, so "eye < 0.75 x capsule frame" failed at 144 FPS (5.95 vs 7.93) while the eye did trail.
+					Check(TEXT("The eye trails the step (no 30 cm one-frame snap)"), LargestOffset > 10.f && Value1 < (Highest - Start) * 0.4f,
+						FString::Printf(TEXT("largest eye change %s cm (curb %s, capsule frame %s), largest trail %s cm"), *Num(Value1), *Num(Highest - Start), *Num(Value0), *Num(LargestOffset)));
+					Mark = Now(); Phase = 2;
+				}
+			}
+			else if (Phase == 2 && Now() - Mark > 0.6f)
+			{
+				Check(TEXT("...and settles back to eye height"), FMath::Abs(A->GetStepCameraOffset()) < 1.f,
+					FString::Printf(TEXT("offset %s cm 0.6 s after stopping"), *Num(A->GetStepCameraOffset())));
+				return true;
+			}
+			return false;
+		}, 6.f });
+
+	Steps.Add({ TEXT("Coyote time: a jump just after walking off a ledge still goes off"),
+		[this]()
+		{
+			ClearDummies();
+			const float Floor = FloorZ(RunwayStart);
+			// A 1.5 m ledge whose edge is 2 m ahead.
+			SpawnTestBlock(FVector(RunwayStart.X, RunwayStart.Y, Floor), FVector(400.f, 400.f, 150.f));
+			A = SpawnDummy(FVector(RunwayStart.X, RunwayStart.Y, Floor + 150.f + 100.f), 0.f, true);
+		},
+		[this](float Elapsed)
+		{
+			UShieldbreakMovementComponent* Move = A ? A->GetShieldbreakMovement() : nullptr;
+			if (!Move) { Check(TEXT("Coyote test has a moving pawn"), false); return true; }
+			const float Vz = static_cast<float>(A->GetVelocity().Z);
+			if (Elapsed > 0.6f && Phase <= 1) { A->AddMovementInput(FVector::ForwardVector, 1.f); }
+			if (Phase == 0 && Elapsed > 0.6f && Move->IsMovingOnGround()) { Phase = 1; }
+			else if (Phase == 1 && Move->IsFalling())
+			{
+				Mark = Now(); Phase = 2; // walked off the edge
+			}
+			else if (Phase == 2 && Now() - Mark > 0.06f)
+			{
+				A->PressJump(); Value0 = Vz; Mark = Now(); Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				Value0 = FMath::Max(Value0, Vz);
+				if (Now() - Mark > 0.2f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("A jump 0.06 s after leaving the ledge takes off"), Value0 > Move->JumpZVelocity * 0.7f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s (jump %s)"), *Num(Value0), *Num(Move->JumpZVelocity)));
+					Phase = 4;
+				}
+			}
+			else if (Phase == 4 && Move->IsMovingOnGround())
+			{
+				// Back onto the ledge for the late press.
+				A->SetActorLocation(FVector(RunwayStart.X, RunwayStart.Y, FloorZ(RunwayStart) + 150.f + 100.f), false, nullptr, ETeleportType::ResetPhysics);
+				Move->StopMovementImmediately();
+				Mark = Now(); Phase = 5;
+			}
+			else if (Phase == 5 && Now() - Mark > 0.5f) { Phase = 6; }
+			else if (Phase == 6)
+			{
+				A->AddMovementInput(FVector::ForwardVector, 1.f);
+				if (Move->IsFalling()) { Mark = Now(); Phase = 7; }
+			}
+			else if (Phase == 7 && Now() - Mark > 0.2f)
+			{
+				// Past the window and too high above the floor for the landing buffer: nothing happens.
+				A->PressJump(); Value0 = Vz; Mark = Now(); Phase = 8;
+			}
+			else if (Phase == 8)
+			{
+				Value0 = FMath::Max(Value0, Vz);
+				if (Now() - Mark > 0.15f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("...but a press 0.2 s into the fall does not (no air jumps)"), Value0 < 50.f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s"), *Num(Value0)));
+					return true;
+				}
+			}
+			return false;
+		}, 8.f });
+
+	Steps.Add({ TEXT("A jump pressed just before landing goes off on touchdown"),
+		[this]() { ClearDummies(); A = SpawnDummy(RangeA, 0.f, true); },
+		[this](float Elapsed)
+		{
+			UShieldbreakMovementComponent* Move = A ? A->GetShieldbreakMovement() : nullptr;
+			if (!Move) { Check(TEXT("Jump buffer test has a moving pawn"), false); return true; }
+			const float Z = static_cast<float>(A->GetActorLocation().Z);
+			const float Vz = static_cast<float>(A->GetVelocity().Z);
+			if (Phase == 0 && Elapsed > 0.6f && Move->IsMovingOnGround())
+			{
+				Value0 = Z; // standing height
+				A->PressJump(); Mark = Now(); Phase = 1;
+			}
+			else if (Phase == 1 && Now() - Mark > 0.1f) { A->ReleaseJump(); Phase = 2; }
+			else if (Phase == 2 && Move->IsFalling() && Vz < 0.f && Z - Value0 < 60.f)
+			{
+				A->PressJump(); Value1 = 0.f; Mark = Now(); Phase = 3;
+			}
+			else if (Phase == 3)
+			{
+				// Only count take-off speed once the pawn has been back on the ground (or the press landed as a normal jump).
+				if (Vz > 0.f) { Value1 = FMath::Max(Value1, Vz); }
+				if (Now() - Mark > 0.3f)
+				{
+					A->ReleaseJump();
+					Check(TEXT("The early press jumps again on landing"), Value1 > Move->JumpZVelocity * 0.7f,
+						FString::Printf(TEXT("peak vertical speed %s uu/s after pressing %s cm above the floor"), *Num(Value1), *Num(60.f)));
+					return true;
+				}
+			}
+			return false;
+		}, 5.f });
+
 	Steps.Add({ TEXT("Directional gait keeps its cycle through a turn"),
 		[this]()
 		{
@@ -2588,6 +3625,8 @@ AShieldbreakCharacter* AShieldbreakSelfTest::SpawnTeamDummy(const FVector& Locat
 		if (AShieldbreakPlayerState* State = DummyController->GetPlayerState<AShieldbreakPlayerState>())
 		{
 			State->SetTeamId(Team);
+			// AssignTeam sets the colour with the team in a real match; SetTeamId alone left dummies grey (S3 shots).
+			State->SetPlayerColor(ShieldbreakTeams::GetTeamColor(Team));
 		}
 	}
 	return Dummy;
@@ -3034,6 +4073,123 @@ void AShieldbreakSelfTest::BuildShotSteps()
 			},
 			[](float Elapsed) { return Elapsed > 2.f; }, 5.f });
 	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("SBSoldierShots")))
+	{
+		// Third person through a free camera (the first-person rifle hid one soldier in S1/S2): a red and a blue soldier
+		// side by side, four turns of 90 degrees (rot0 faces the camera), then a close-up of the red one's upper body.
+		Steps.Add({ TEXT("Soldier pair"),
+			[this]()
+			{
+				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
+				const FTransform Where = Arena && !Arena->GetSpawnTransforms().IsEmpty() ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
+				A = PossessLocalDummy(Where);
+			},
+			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // let the possessed pawn settle (as the FP shots do)
+		Steps.Add({ TEXT("Soldier pair rot0"),
+			[this]()
+			{
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				const APawn* P = PC ? PC->GetPawn() : nullptr;
+				if (!P) { return; }
+				const FVector Forward = P->GetActorForwardVector();
+				const FVector Ahead = P->GetActorLocation() + Forward * 450.f;
+				const FVector Right = P->GetActorRightVector() * 70.f;
+				const float Facing = Forward.Rotation().Yaw + 90.f; // empirically (S4-S7) this is the yaw that faces the camera
+				B = SpawnTeamDummy(Ahead - Right, Facing, ShieldbreakTeams::Red);
+				C = SpawnTeamDummy(Ahead + Right, Facing, ShieldbreakTeams::Blue);
+				// Camera 3.2 m from the pair at chest-to-head height, looking slightly down at their middle.
+				const FVector Target = Ahead + FVector(0.f, 0.f, 10.f);
+				const FVector Eye = Ahead - Forward * 320.f + FVector(0.f, 0.f, 40.f);
+				FActorSpawnParameters CameraParams;
+				CameraParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				if (!ChaseCamera)
+				{
+					ChaseCamera = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass(), FTransform::Identity, CameraParams);
+				}
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Target - Eye).Rotation());
+				if (PC)
+				{
+					PC->SetViewTarget(ChaseCamera);
+					if (AHUD* Overlay = PC->GetHUD()) { Overlay->bShowHUD = false; }
+				}
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 3.f) return false;
+				// Log what the armor actually received, so a missing team tint can be told apart from a weak one.
+				for (AShieldbreakCharacter* S : { B.Get(), C.Get() })
+				{
+					if (!S) { continue; }
+					const UShieldbreakBodyAnimator* Anim = S->FindComponentByClass<UShieldbreakBodyAnimator>();
+					Lines.Add(FString::Printf(TEXT("INFO  soldier %s colour %s armor %d team MIDs %d"), *S->GetName(),
+						*S->GetPlayerColor().ToString(), Anim && Anim->HasArmor(), Anim ? Anim->GetArmorTeamMaterialCount() : -1));
+				}
+				TakeShot(TEXT("tp_soldiers_rot0"), false);
+				return true;
+			}, 6.f });
+		for (int32 Turn = 1; Turn < 4; ++Turn)
+		{
+			const FString Name = FString::Printf(TEXT("tp_soldiers_rot%d"), Turn * 90);
+			Steps.Add({ Name,
+				[this]()
+				{
+					for (AShieldbreakCharacter* S : { B.Get(), C.Get() }) { if (S) { S->SetActorRotation(FRotator(0.f, S->GetActorRotation().Yaw + 90.f, 0.f)); } }
+				},
+				[this, Name](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(Name, false); return true; }, 4.f });
+		}
+		Steps.Add({ TEXT("tp_soldier_closeup"),
+			[this]()
+			{
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				// Three-quarter front: the yaw that faces the camera (camera-to-soldier yaw + 90, as for rot0), turned 35.
+				// (S10-S12 added 90 to the yaw left by the rot turns, which ended up showing the back.)
+				const float Facing = (S->GetActorLocation() - ChaseCamera->GetActorLocation()).Rotation().Yaw + 90.f;
+				S->SetActorRotation(FRotator(0.f, Facing + 35.f, 0.f));
+				const FVector Chest = S->GetActorLocation() + FVector(0.f, 0.f, 25.f);
+				const FVector Eye = Chest + (ChaseCamera->GetActorLocation() - Chest).GetSafeNormal2D() * 230.f + FVector(0.f, 0.f, 20.f); // 2.3 m out (S13 framed only the helmet)
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Chest - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_closeup"), false); return true; }, 4.f });
+		Steps.Add({ TEXT("tp_soldier_helmet"),
+			[this]()
+			{
+				// The visor and helmet up close, a little off the soldier's front.
+				AShieldbreakCharacter* S = B.Get();
+				if (!S || !ChaseCamera) { return; }
+				const FVector Head = S->GetActorLocation() + FVector(0.f, 0.f, 80.f);
+				const FVector Eye = Head + (ChaseCamera->GetActorLocation() - Head).GetSafeNormal2D() * 110.f;
+				ChaseCamera->SetActorLocationAndRotation(Eye, (Head - Eye).Rotation());
+			},
+			[this](float Elapsed) { if (Elapsed < 1.f) return false; TakeShot(TEXT("tp_soldier_helmet"), false); return true; }, 4.f });
+		// Ragdoll: kill the blue soldier (just lethal, as the death-camera test does) and look at the body 1.5 s later,
+		// to see whether the skinned suit follows the physics body.
+		Steps.Add({ TEXT("tp_soldier_ragdoll"),
+			[this]()
+			{
+				if (!C) { return; }
+				const UShieldTuningData* Tuning = GetDefault<UShieldTuningData>();
+				Damage(C, Tuning->MaxShield + Tuning->MaxHealth + 20.f, UDamageType_Ballistic::StaticClass(), B);
+				Mark = Now();
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 1.5f) return false;
+				AShieldbreakCharacter* S = C.Get();
+				const USkeletalMeshComponent* Body = S ? S->GetMesh() : nullptr;
+				const FVector Pelvis = Body && Body->GetBoneIndex(TEXT("pelvis")) != INDEX_NONE ? Body->GetBoneLocation(TEXT("pelvis")) : (S ? S->GetActorLocation() : FVector::ZeroVector);
+				if (ChaseCamera)
+				{
+					const FVector Eye = Pelvis + FVector(-160.f, 160.f, 140.f);
+					ChaseCamera->SetActorLocationAndRotation(Eye, (Pelvis - Eye).Rotation());
+				}
+				if (Elapsed < 1.7f) return false; // one frame for the camera move
+				Lines.Add(FString::Printf(TEXT("INFO  ragdoll alive %d, pelvis %s"), S && S->IsAlive() ? 1 : 0, *Pelvis.ToString()));
+				TakeShot(TEXT("tp_soldier_ragdoll"), false);
+				return true;
+			}, 5.f });
+		Steps.Add({ TEXT("Hold last capture"), nullptr, [](float Elapsed) { return Elapsed > 1.f; }, 3.f });
+	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("SBShieldShots")))
 	{
 		Steps.Add({ TEXT("Shield reaction target"),
@@ -3101,12 +4257,41 @@ void AShieldbreakSelfTest::BuildShotSteps()
 				const AShieldbreakArena* Arena = AShieldbreakArena::Find(GetWorld());
 				const FTransform Where = Arena && Arena->GetSpawnTransforms().Num() > 0 ? Arena->GetSpawnTransforms()[0] : FTransform(FVector(0.f, 0.f, 200.f));
 				A = PossessLocalDummy(Where);
+				if (A)
+				{
+					A->SetCanBeDamaged(false); // the fixture's own grenades must not kill the viewer before the later shots
+				}
 			},
 			[](float Elapsed) { return Elapsed > 8.f; }, 10.f }); // also waits out the controls overlay
 		Shot(TEXT("fp_0_idle_br"), [Reset]() { Reset(); }, { 0.5f }, 1.f);
 		Shot(TEXT("fp_1_idle_sidearm"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f, 2.f }, 2.5f);
 		Shot(TEXT("fp_2_back_to_br"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 0.15f }, 2.f);
 		Shot(TEXT("fp_3_grenade"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.08f, 0.2f, 0.35f, 0.5f }, 2.f);
+		// The throw up to its release (sb.GrenadeReleaseDelay, 0.15 s): hand rising, cocked with the grenade, coming through, after.
+		Shot(TEXT("fp_3b_grenade_release"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ThrowGrenade(); }, { 0.04f, 0.08f, 0.12f, 0.2f }, 2.f);
+		// The same throw held at two poses (sb.FPThrowFreeze), since a capture lands too late for the 0.15 s wind-up:
+		// cocked beside the head with the grenade, and the hand coming through just before it lets go.
+		// fp_3e repeats the through pose with the hand turned the other way (G8 picked -70 for the cocked pose) (sb.FPThrowHandRoll), to pick the sign.
+		struct FHeldPose { const TCHAR* Name; float Hold; float Roll; };
+		for (const FHeldPose& Pose : { FHeldPose{ TEXT("fp_3c_grenade_cocked"), 0.09f, -70.f }, FHeldPose{ TEXT("fp_3d_grenade_through"), 0.14f, -70.f },
+			FHeldPose{ TEXT("fp_3e_grenade_through_roll"), 0.14f, 70.f } })
+		{
+			const float Hold = Pose.Hold;
+			const float Roll = Pose.Roll;
+			Shot(Pose.Name, [Reset, Player, Hold, Roll]()
+				{
+					Reset();
+					if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(Hold); }
+					if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(Roll); }
+					// The earlier throws spend the starting grenades.
+					if (AShieldbreakCharacter* P = Player()) { P->AddGrenades(1); P->ThrowGrenade(); }
+				}, { 0.4f }, 1.2f);
+		}
+		Steps.Add({ TEXT("Release the held throw pose"), []()
+			{
+				if (IConsoleVariable* Freeze = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowFreeze"))) { Freeze->Set(-1.f); }
+				if (IConsoleVariable* HandRoll = IConsoleManager::Get().FindConsoleVariable(TEXT("sb.FPThrowHandRoll"))) { HandRoll->Set(-70.f); }
+			}, [](float Elapsed) { return Elapsed > 0.8f; }, 2.f });
 		Shot(TEXT("fp_4_melee"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->Melee(); }, { 0.08f, 0.2f, 0.4f }, 2.f);
 		Steps.Add({ TEXT("Empty a few rounds"), [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
 			[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.2f; }, 4.f });
@@ -3131,6 +4316,24 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					B->ThrowGrenade();
 				}
 			}, { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f }, 1.5f);
+		// An explosion 5 m ahead and to the left on the floor: flash, fireball, smoke and the scorch left behind.
+		Shot(TEXT("tp_7_explosion"),
+			[this, Player]()
+			{
+				Mark = 0.f;
+				const AShieldbreakCharacter* P = Player();
+				if (!P || !GetWorld())
+				{
+					return;
+				}
+				// On open floor in front of the tp_6 dummy (4 m ahead): 7 m was behind it in the dark corridor (G3), 5 m
+				// and 2.2 m left was inside the left wall (G4).
+				const FVector Ahead = P->GetActorLocation() + P->GetActorForwardVector() * 280.f + P->GetActorRightVector() * 80.f;
+				FHitResult Floor;
+				FCollisionQueryParams Query(SCENE_QUERY_STAT(ShieldbreakShotFloor), false, P);
+				const bool bFloor = GetWorld()->LineTraceSingleByChannel(Floor, Ahead + FVector(0.f, 0.f, 50.f), Ahead - FVector(0.f, 0.f, 400.f), ECC_Visibility, Query);
+				AShieldbreakExplosionFX::Spawn(GetWorld(), (bFloor ? Floor.ImpactPoint : Ahead) + FVector(0.f, 0.f, 10.f));
+			}, { 0.03f, 0.12f, 0.3f, 0.7f, 1.5f, 3.f }, 3.5f);
 		// FP captures also need a repeatable performance observation. Keep the
 		// possessed pawn and camera stationary after all action clips have ended.
 		Steps.Add({ TEXT("First-person fixed-view FPS (20 s)"),
@@ -3148,5 +4351,28 @@ void AShieldbreakSelfTest::BuildShotSteps()
 					(GFrameCounter - Value0) / Seconds, Seconds));
 				return true;
 			}, 25.f });
+		// After the FPS figure (so it stays comparable): the sidearm and the Sniper idle and mid reload.
+		auto EmptyRounds = [this, Player](const TCHAR* Name)
+		{
+			Steps.Add({ Name, [Player]() { if (AShieldbreakCharacter* P = Player()) P->StartFire(); },
+				[Player](float Elapsed) { if (Elapsed < 0.8f) return false; if (AShieldbreakCharacter* P = Player()) P->StopFire(); return Elapsed > 1.4f; }, 4.f });
+		};
+		Shot(TEXT("fp_7_sidearm_idle"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->SwapWeapon(); }, { 1.5f }, 2.f);
+		EmptyRounds(TEXT("Empty a few sidearm rounds"));
+		Shot(TEXT("fp_8_sidearm_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
+		Shot(TEXT("fp_9_sniper_idle"),
+			[this, Reset, Player]()
+			{
+				Reset();
+				AShieldbreakCharacter* P = Player();
+				if (!P) { return; }
+				P->GiveWeapon(AWeapon_SniperRifle::StaticClass());
+				for (TActorIterator<AWeapon_SniperRifle> It(GetWorld()); It; ++It)
+				{
+					if (It->GetOwner() == P) { P->EquipWeapon(*It); break; }
+				}
+			}, { 1.8f }, 2.2f);
+		EmptyRounds(TEXT("Fire a sniper round"));
+		Shot(TEXT("fp_10_sniper_reload"), [Reset, Player]() { Reset(); if (AShieldbreakCharacter* P = Player()) P->ReloadOrVent(); }, { 0.3f, 0.8f, 1.4f }, 2.5f);
 	}
 }

@@ -176,3 +176,9 @@ Lyra's Niagara systems expose user parameters (tracer end points, impact normals
 The imported content is about 1.45 GB of `.uasset` files in Git LFS. GitHub Free includes 10 GiB of LFS
 storage and 10 GiB of download bandwidth per month, so each full clone with LFS costs ~1.45 GB of that.
 Cloud sessions that only need the code should clone with `GIT_LFS_SKIP_SMUDGE=1`.
+
+## Grenade pass (2026-11-05)
+
+`SM_SB_FragGrenade` is original (`Art/blender/build_grenade.py`). The explosion's materials (`M_SB_FXFire`, `M_SB_FXSmoke`,
+`M_SB_Scorch`, built by `Tools/create_grenade_fx_materials.py`) are ours; they sample two Lyra Starter Game textures,
+`/Game/Effects/Textures/Flipbooks/T_Explosion_Areal_E64` and `/Game/Effects/Textures/General/Good64x64TilingNoiseHighFreq`.
