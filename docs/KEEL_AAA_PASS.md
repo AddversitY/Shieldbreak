@@ -96,6 +96,23 @@ shapes; professional free source material only, restyled; no paid tools; perform
   ~29% of the 3D engine, Chrome Remote Desktop (`remoting_desktop`) ~7%, the desktop compositor ~13%. Close the Claude
   app's busy view (or minimise it) and end the remote-desktop session before comparing FPS with earlier runs.
 
+## Done in pass 8 (2026-11-15): the Fab Mechanic Base in Keel
+
+- **Packs on disk (local only):** Modular Scifi Mechanic Base (UE 5.6 build) and Modular SciFi Season 1 Starter Bundle
+  (5.4 build), Epic Fab content on Vincent's personal licence, staged in `Documents/Unreal Projects/WraithStaging` and
+  copied to `Content/Modular_Scifi_Mechanic_Base` and `Content/StarterBundle`. Both folders are git-ignored; both
+  load in 5.8 (`Tools/InventoryFabPacks.bat`: 120 and 289 static meshes, none Nanite, no LODs).
+- **To restore on another PC:** add both packs from the Fab library to any 5.8 project with the Launcher, then copy the
+  two folders into Shieldbreak's `Content/`. Without them Keel shows pass 1-7 art only (no errors).
+- **Used in Keel (code only, loaded by path, visual only, no collision or shadows):** 7 x 7 m coffered ceiling tiles over
+  the whole ship (`SM_CEILING_05`), the pack ceiling lamp in place of the glow slab (`SM_LAMP_01`), conduit trays
+  (`SM_WALL_INSTALLATION_02`) and strip lights (`SM_LAMP_04`) high on the Cradle band walls, cable bundles in its
+  corners, junction boxes and panels on the approach-deck walls, and door frames round all twelve 5 x 3.5 m deck doors
+  (`SM_DOOR_FRAME_01_OUTSIDE`, widened 1.55x). `-SBNoKeelPacks` turns it all off for comparisons.
+- Season 1 (Starter Bundle) is on disk but not used yet.
+- Self-test 177/178 (known hands check). Fixed-view Keel with the pack 126.2-134.0, without 131.4 / 134.5 in the same
+  session: a cost of 0-3%, inside this desktop's noise. Tour `keel_tour_packs.jpg`.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
