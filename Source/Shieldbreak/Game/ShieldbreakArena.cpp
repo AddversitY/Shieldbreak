@@ -891,10 +891,10 @@ void AShieldbreakArena::BuildMapArt()
 	{
 		struct FKeelDecal { const TCHAR* Material; FVector At; float Yaw; FVector HalfSize; };
 		const FKeelDecal Decals[] = {
-			{ TEXT("Stencil01"), FVector(-3870.0, 0.0, 1160.0), 180.f, FVector(20.0, 320.0, 320.0) },
-			{ TEXT("Stencil02"), FVector(3870.0, 0.0, 1160.0), 0.f, FVector(20.0, 320.0, 320.0) },
-			{ TEXT("Chevrons"), FVector(-1300.0, 0.0, 175.0), 0.f, FVector(20.0, 112.0, 900.0) },
-			{ TEXT("Chevrons"), FVector(1300.0, 0.0, 175.0), 180.f, FVector(20.0, 112.0, 900.0) },
+			{ TEXT("Stencil01"), FVector(-3870.0, 0.0, 1160.0), 180.f, FVector(45.0, 320.0, 320.0) },
+			{ TEXT("Stencil02"), FVector(3870.0, 0.0, 1160.0), 0.f, FVector(45.0, 320.0, 320.0) },
+			{ TEXT("Chevrons"), FVector(-1300.0, 0.0, 175.0), 0.f, FVector(45.0, 112.0, 900.0) },
+			{ TEXT("Chevrons"), FVector(1300.0, 0.0, 175.0), 180.f, FVector(45.0, 112.0, 900.0) },
 		};
 		int32 DecalCount = 0;
 		for (const FKeelDecal& Decal : Decals)
@@ -1154,6 +1154,56 @@ void AShieldbreakArena::BuildCladding()
 		if (!Mesh)
 		{
 			continue;
+		}
+		// Keel with the Fab Mechanic Base on this machine (local only, git-ignored): its wall modules replace the hull
+		// kit's wall plates, each fitted into the hull piece's box (walls up to 20 cm deep, so they
+		// never reach into the play space). The bands and trims stay hull kit.
+		// -SBKeelPackFlip turns the walls round (the detailed face is the pack's +Y side: yaw -90 shows it).
+		// Opt-in for now (-SBKeelPackWalls): squeezed into the hull kit's 4 x 2 m, 20 cm slots the pack walls lose their
+		// depth and read flatter than the hull kit (2026-11-15 before/after); the real fix is rebuilding on the pack's grid.
+		if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks"))
+			&& FParse::Param(FCommandLine::Get(), TEXT("SBKeelPackWalls")))
+		{
+			static const TMap<FName, const TCHAR*> PackFor = {
+				{ FName(TEXT("WallMetal")), TEXT("SRTUCTURE/WALL/SM_WALL_07") }, { FName(TEXT("WallPlate")), TEXT("SRTUCTURE/WALL/SM_WALL_13") },
+				{ FName(TEXT("WallDark")), TEXT("SRTUCTURE/WALL/SM_WALL_12") },
+				// The light-band walls (WallBand) stay hull kit: their light slots are the pillars' landmark bands.
+				// Floors stay the scanned tread deck: the pack's pale floor tiles washed the decks out (w1 shots).
+				};
+			const TCHAR* const* PackPath = PackFor.Find(Group.Piece);
+			const FString PackName = PackPath ? FPaths::GetBaseFilename(*PackPath) : FString();
+			UStaticMesh* PackMesh = PackPath ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(
+				TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/%s.%s"), *PackPath, *PackName)) : nullptr;
+			if (PackMesh)
+			{
+				const bool bWall = !Group.Piece.ToString().StartsWith(TEXT("Floor"));
+				FBox Hull = Mesh->GetBoundingBox();
+				if (bWall)
+				{
+					Hull.Max.X = FMath::Max(Hull.Max.X, Hull.Min.X + 20.0);
+				}
+				const FBox Source = PackMesh->GetBoundingBox();
+				// Walls: the pack module's width (X) runs along the hull piece's width (Y), its depth (Y) out of the wall (X).
+				const FRotator Turn(0.f, bWall ? (FParse::Param(FCommandLine::Get(), TEXT("SBKeelPackFlip")) ? 90.f : -90.f) : 0.f, 0.f);
+				const FBox Turned = Source.TransformBy(FTransform(Turn));
+				const FVector Fit = Hull.GetSize() / Turned.GetSize().ComponentMax(FVector(1.0));
+				FTransform Local(Turn, FVector::ZeroVector, bWall ? FVector(Fit.Y, Fit.X, Fit.Z) : Fit);
+				Local.SetTranslation(Hull.GetCenter() - Local.TransformPosition(Source.GetCenter()));
+				const FMatrix LocalMatrix = Local.ToMatrixWithScale();
+				auto* PackInstances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPackClad"), PackMesh);
+				PackInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				PackInstances->SetCastShadow(false);
+				PackInstances->bAffectDistanceFieldLighting = false;
+				for (const FTransform& Instance : Group.Instances)
+				{
+					PackInstances->AddInstance(FTransform(LocalMatrix * Instance.ToMatrixWithScale()));
+				}
+				PackInstances->RegisterComponent();
+				AddInstanceComponent(PackInstances);
+				++Kinds;
+				Placed += Group.Instances.Num();
+				continue;
+			}
 		}
 		auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("Cladding"), Mesh);
 		// The blocks underneath already cast the shadows; the panels sit 1-2 cm off them.
