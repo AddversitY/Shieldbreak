@@ -202,8 +202,22 @@ def build_fan():
     return first + chr(10) + second
 
 
+def build_wall_console():
+    """A bridge wall console (visual only, 9 cm deep so it adds no cover): a framed display with a status strip and
+    two indicator lamps. Pivot on the wall face at the panel's centre, facing -Y."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('frame', (0, -4.0, 0), (180.0, 8.0, 110.0), 'HullFrame', bevel=2, segments=2),
+             sb_kit.box('screen', (0, -8.5, 8.0), (150.0, 1.0, 70.0), 'Lens', bevel=0),
+             sb_kit.box('status', (0, -8.5, -40.0), (150.0, 1.0, 6.0), 'HullLight', bevel=0),
+             sb_kit.box('lamp_a', (-60.0, -9.0, -50.0), (10.0, 2.0, 6.0), 'HullAmber', bevel=0),
+             sb_kit.box('lamp_b', (-45.0, -9.0, -50.0), (10.0, 2.0, 6.0), 'HullLight', bevel=0)]
+    for z in (-10.0, 10.0, 30.0):
+        parts.append(sb_kit.box('scanline', (20.0, -9.2, z), (90.0, 0.4, 2.0), 'HullLight', bevel=0))
+    return export_piece('SM_SB_Kit_WallConsole', parts)
+
+
 if __name__ == '__main__':
     build()
     report = OUT / 'keel_hero_report.txt'
     report.write_text(report.read_text(encoding='utf-8') + build_pylon() + chr(10) + build_pipe_run() + chr(10)
-                      + build_ceiling_beam() + chr(10) + build_fan() + chr(10), encoding='utf-8')
+                      + build_ceiling_beam() + chr(10) + build_fan() + chr(10) + build_wall_console() + chr(10), encoding='utf-8')

@@ -4,3 +4,4 @@ SM_SB_Kit_PipeRun: 728 tris, X -400.0..400.0 Y -51.7..0.0 Z -20.0..44.0, slots M
 SM_SB_Kit_CeilingBeam: 388 tris, X -22.0..22.0 Y -3600.0..3600.0 Z -61.0..0.0, slots M_HullFrame, M_HullHazard
 SM_SB_Kit_FanHousing: 620 tris, X -82.0..82.0 Y -31.5..0.0 Z -82.0..82.0, slots M_HullFrame, M_HullPlate, M_HullHazard
 SM_SB_Kit_FanBlades: 132 tris, X -51.7..51.7 Y -22.5..-5.5 Z -57.0..57.0, slots M_HullFrame, M_HullPlate
+SM_SB_Kit_WallConsole: 192 tris, X -90.0..90.0 Y -10.0..0.0 Z -55.0..55.0, slots M_HullFrame, M_Lens, M_HullLight, M_HullAmber
