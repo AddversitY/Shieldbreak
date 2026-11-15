@@ -113,6 +113,19 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Self-test 177/178 (known hands check). Fixed-view Keel with the pack 126.2-134.0, without 131.4 / 134.5 in the same
   session: a cost of 0-3%, inside this desktop's noise. Tour `keel_tour_packs.jpg`.
 
+## Done in pass 9 (2026-11-15): Keel rebuilt on the Fab Mechanic Base grid
+
+- `AShieldbreakArena::BuildKeelPackKit` replaces the hull-kit cladding on Keel when the pack is on disk: the pack's
+  4 m wall modules (`SM_WALL_07/09/12/13`) at full size on every exposed block face, stretched to fill each span, the
+  detailed face 1 cm proud of the block and the depth set into the block (at most half its thickness, so a thin
+  wall's two faces never cross). The pack's 3 m floor tiles (`SM_FLOOR_05/07/08`) on every walkable top and along
+  every ramp, flush with the collision surface. 1126 wall modules, 1019 floor tiles. Hero shells (pod, pylons) kept;
+  ramp slabs dark steel under the tiles. Collision, layout and gameplay unchanged. `-SBNoKeelPackKit` = hull kit.
+- Gameplay 177/178, Keel CTF tour with 4 bots 59/60 (known hands check only), no stuck bots, 127.6 FPS average.
+  Fixed-view Keel 125.9 / 131.6 with the pack grid, 129.0 without (same session). Tour `keel_tour_packgrid.jpg`.
+- Next: floors read pale (the pack's own floor material); darker floor variants or a tint, corner pieces at block
+  corners, pack stairs on the steeper ramps.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
