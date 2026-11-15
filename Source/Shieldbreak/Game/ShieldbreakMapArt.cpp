@@ -3,6 +3,7 @@
 #include "Game/ShieldbreakMaps.h"
 #include "Math/RandomStream.h"
 #include "Misc/CommandLine.h"
+#include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 
 namespace ShieldbreakMapArtPrivate
@@ -736,9 +737,12 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				// Structure overhead: I-beams across the ship under the ceiling, clear of the lamp rows (x +-1300, +-3900) and
 				// the pod's yoke; hull pipework at 12.5 m along the Galleries' hull and both faces of the band walls (y +-2000).
 				// All of it far above any jump, so it never hides a player or a shot.
+				// With the Fab pack's ceiling tiles (55 cm deep, ShieldbreakArena) on this machine, the beams hang under them.
+				const bool bPackCeiling = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks"))
+					&& FPackageName::DoesPackageExist(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/SRTUCTURE/CEILING/SM_CEILING_05"));
 				for (const double X : { -4550.0, -3250.0, -2600.0, -2000.0, 2000.0, 2600.0, 3250.0, 4550.0 })
 				{
-					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ), FVector(1.f)));
+					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ - (bPackCeiling ? 55.0 : 0.0)), FVector(1.f)));
 				}
 				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.
 				for (const double X : { -4950.0, -4050.0, 4050.0, 4950.0 })

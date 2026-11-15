@@ -9,6 +9,7 @@
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/DecalComponent.h"
+#include "Misc/Paths.h"
 #include "GameFramework/RotatingMovementComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/VolumetricCloudComponent.h"
@@ -986,6 +987,76 @@ void AShieldbreakArena::BuildMapArt()
 				}
 			}
 		}
+		// Fab Mechanic Base dressing (Epic content on Vincent's personal licence, local only and git-ignored; see
+		// docs/KEEL_AAA_PASS.md): conduit trays under the ceiling and strip lights high on the Cradle's band walls,
+		// cable bundles hanging in its corners, and junction boxes and panels on the approach-deck walls. All of it is
+		// thin or above any jump, so it is visual only. Missing pack (or -SBNoKeelPacks): nothing is added.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks")))
+		{
+			int32 PackPieces = 0;
+			auto Pack = [&](const TCHAR* Path, const TArray<FTransform>& Where, float CullDistance)
+			{
+				const FString Name = FPaths::GetBaseFilename(Path);
+				UStaticMesh* Mesh = ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/%s.%s"), Path, *Name));
+				if (!Mesh)
+				{
+					return;
+				}
+				auto* Instances = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPack"), Mesh);
+				Instances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Instances->SetCastShadow(false);
+				Instances->SetCullDistances(0, CullDistance);
+				for (const FTransform& At : Where)
+				{
+					Instances->AddInstance(FTransform(At.GetRotation(), At.GetLocation() + FVector(0.0, 0.0, Layout.FloorZ), At.GetScale3D()));
+				}
+				Instances->RegisterComponent();
+				AddInstanceComponent(Instances);
+				PackPieces += Where.Num();
+			};
+			// Facing: +1 for the wall at y = +1970 (its face looks toward -Y), -1 for the wall at y = -1970.
+			auto OnBandWall = [](double X, double Side, double Inset, double Z)
+			{
+				return FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f), FVector(X, Side * (1970.0 - Inset), Z));
+			};
+			TArray<FTransform> Trays, Strips, Cables, Boxes, Panels;
+			for (const double Side : { -1.0, 1.0 })
+			{
+				for (double X = -3700.0; X <= 3700.0 + 1.0; X += 400.0)
+				{
+					Trays.Add(OnBandWall(X, Side, 36.0, 1500.0));
+				}
+				for (const double X : { -3000.0, -1000.0, 1000.0, 3000.0 })
+				{
+					Strips.Add(OnBandWall(X, Side, 12.0, 1350.0));
+				}
+				for (const double X : { -3550.0, 3550.0 })
+				{
+					Cables.Add(FTransform(FRotator(0.f, 90.f, 0.f), FVector(X, Side * 1880.0, 1500.0 - 259.0)));
+				}
+				for (const double X : { -3500.0, -2000.0, 2000.0, 3500.0 })
+				{
+					Boxes.Add(OnBandWall(X, Side, 2.0, 490.0));
+					Panels.Add(OnBandWall(X + (X < 0.0 ? 160.0 : -160.0), Side, 1.5, 520.0));
+				}
+			}
+			// Ceiling: the pack's 7 x 7 m coffered tiles (55 cm deep, hung from their top face) over the whole ship.
+			TArray<FTransform> Tiles;
+			for (double X = -4900.0; X <= 4900.0 + 1.0; X += 700.0)
+			{
+				for (double Y = -3500.0; Y <= 3500.0 + 1.0; Y += 700.0)
+				{
+					Tiles.Add(FTransform(FRotator::ZeroRotator, FVector(X, Y, (Ceiling ? (Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z) : 1500.0) - Layout.FloorZ)));
+				}
+			}
+			Pack(TEXT("SRTUCTURE/CEILING/SM_CEILING_05"), Tiles, 0.f);
+			Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
+			Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
+			Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
+			Pack(TEXT("PROP/MACHINE/SM_ELECTRIC_BOX_01_CLOSE"), Boxes, 4000.f);
+			Pack(TEXT("PROP/OTHERS/SM_PANEL_01"), Panels, 4000.f);
+			UE_LOG(LogShieldbreak, Log, TEXT("Keel Fab pack dressing: %d pieces."), PackPieces);
+		}
 		// Views out (Tools/create_keel_space.py: the space panorama, unlit, parallax), 30 cm proud of the hull in front
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
 		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).
@@ -1262,6 +1333,7 @@ void AShieldbreakArena::BuildInteriorLights()
 	const int32 CountY = FMath::Max(1, FMath::RoundToInt(2.0 * Layout.HalfExtent.Y / Spacing));
 	UInstancedStaticMeshComponent* Fixtures = nullptr;
 	UInstancedStaticMeshComponent* LampHousings = nullptr;
+	bool bPackLampFixtures = false;
 	if (bSpots && CubeMesh && GlowMaterial)
 	{
 		Fixtures = AddDecoration<UInstancedStaticMeshComponent>(TEXT("LampFixture"), CubeMesh);
@@ -1280,6 +1352,18 @@ void AShieldbreakArena::BuildInteriorLights()
 				{
 					LampHousings->SetMaterial(0, Inset);
 				}
+			}
+		}
+		// Keel with the Fab Mechanic Base pack on this machine (local only, git-ignored): its ceiling lamp, with its own
+		// emissive panel, replaces the plain glow slab. Without the pack (or -SBNoKeelPacks) the slab stays.
+		if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks")))
+		{
+			if (UStaticMesh* PackLamp = ShieldbreakArt::Load<UStaticMesh>(
+				TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/PROP/LAMP/SM_LAMP_01.SM_LAMP_01")))
+			{
+				LampHousings = AddDecoration<UInstancedStaticMeshComponent>(TEXT("LampHousing"), PackLamp);
+				LampHousings->SetCastShadow(false);
+				bPackLampFixtures = true;
 			}
 		}
 	}
@@ -1314,12 +1398,15 @@ void AShieldbreakArena::BuildInteriorLights()
 				if (Fixtures)
 				{
 					// A 1.6 x 0.5 m light panel flush under the ceiling, turned a quarter on alternate rows.
-					Fixtures->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f), FVector(At.X, At.Y, CeilingZ - 6.f),
-						FVector(1.6f, 0.5f, 0.06f)));
+					if (!bPackLampFixtures)
+					{
+						Fixtures->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f), FVector(At.X, At.Y, CeilingZ - 6.f),
+							FVector(1.6f, 0.5f, 0.06f)));
+					}
 					if (LampHousings)
 					{
 						LampHousings->AddInstance(FTransform(FRotator(0.f, (IX + IY) % 2 ? 90.f : 0.f, 0.f),
-							FVector(At.X, At.Y, CeilingZ - 22.f), FVector(1.f)));
+							FVector(At.X, At.Y, CeilingZ - (bPackLampFixtures ? 61.f : 22.f)), FVector(1.f)));
 					}
 				}
 			}
