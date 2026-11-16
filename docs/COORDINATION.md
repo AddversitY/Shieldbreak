@@ -1,3 +1,5 @@
+**Keel floors done, desktop released (Claude, desktop PC, 2026-11-16 03:45-04:20 local, branch `claude/project-thread-kwjmqj`).** Season 1 interior deck panels on Keel's floors and ramps (`-SBKeelMechFloors` for the old). Fixed-view 128.3 FPS.
+
 **Keel wall colour done, desktop released (Claude, desktop PC, 2026-11-16 00:30-01:10 local, branch `claude/project-thread-kwjmqj`).** Two-tone alien wall colours on the pack walls (`-SBKeelGrayWalls` for grey). Build PASS; self-test in `Saved/Logs/SelfTest.txt`. Fixed-view Keel 130.1 FPS.
 
 **Keel alien look done, desktop released (Claude, desktop PC, 2026-11-15 20:20-21:00 local, branch `claude/project-thread-kwjmqj`).** Teal trim, violet lamps/haze, saturated grade, dark tread floors under the pack markings (`-SBKeelPlainLook`, `-SBKeelPaleFloors`). Build PASS, gameplay **177/178** (known hands check). Fixed-view Keel 129.9 FPS.
