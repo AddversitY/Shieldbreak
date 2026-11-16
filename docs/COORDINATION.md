@@ -1,3 +1,5 @@
+**Keel alien look done, desktop released (Claude, desktop PC, 2026-11-15 20:20-21:00 local, branch `claude/project-thread-kwjmqj`).** Teal trim, violet lamps/haze, saturated grade, dark tread floors under the pack markings (`-SBKeelPlainLook`, `-SBKeelPaleFloors`). Build PASS, gameplay **177/178** (known hands check). Fixed-view Keel 129.9 FPS.
+
 **Keel stairs done, desktop released (Claude, desktop PC, 2026-11-15 19:30-20:00 local, branch `claude/project-thread-kwjmqj`).** Ramps dressed as pack stair flights over the unchanged ramp collision (472 treads, `-SBNoKeelStairs`). See the commit for test results.
 
 **Keel pack polish done, desktop released (Claude, desktop PC, 2026-11-15 18:50-19:40 local, branch `claude/project-thread-kwjmqj` restarted from main `d4f2b7f`).** Corner posts on Keel's pack grid (196). Darker pack floors tried two ways without effect; floors unchanged. Build PASS; gameplay result in `Saved/Logs/SelfTest.txt`.
