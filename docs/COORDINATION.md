@@ -1,3 +1,5 @@
+**Keel look review done, desktop released (Claude, desktop PC, 2026-11-16 12:25-12:45 local).** Shots only, no code change.
+
 **Keel alien bridge done, desktop released (Claude, desktop PC, 2026-11-16 12:10-13:10 local, branch `claude/project-thread-kwjmqj`).** Original alien kit on both bridges (`SM_SB_Kit_Alien*`, `-SBNoKeelAlien`). Fixed-view 141.6 FPS. Self-test in `Saved/Logs/SelfTest.txt`.
 
 **Keel floors done, desktop released (Claude, desktop PC, 2026-11-16 03:45-04:20 local, branch `claude/project-thread-kwjmqj`).** Season 1 interior deck panels on Keel's floors and ramps (`-SBKeelMechFloors` for the old). Fixed-view 128.3 FPS.
