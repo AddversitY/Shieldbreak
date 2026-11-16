@@ -1293,6 +1293,9 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		AddInstanceComponent(Corners);
 		UE_LOG(LogShieldbreak, Log, TEXT("Keel pack grid: %d corner posts."), CornerCount);
 	}
+	UStaticMesh* StairMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelStairs")) ? nullptr : Load(TEXT("PROP/STAIRS/SM_STAIRS_01"));
+	UInstancedStaticMeshComponent* Stairs = StairMesh ? MakeSet(StairMesh) : nullptr;
+	int32 StairCount = 0;
 	// Ramps: floor tiles laid along the slope, flush with the walking surface.
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
@@ -1300,6 +1303,32 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		const double Length = Run.Size();
 		if (Length < 50.0)
 		{
+			continue;
+		}
+		// Sloped walkways (the "ramp" style, steeper than 8 degrees) become flights of the pack's step piece: one tread
+		// every 15 cm of rise, each touching the collision slope at its back edge, so the walking surface stays the
+		// smooth ramp (bots, sliding and movement unchanged) and the eye sees stairs. -SBNoKeelStairs keeps tiles.
+		const double Rise = Ramp.End.Z - Ramp.Start.Z, Flat = FVector2D(Run.X, Run.Y).Size();
+		if (StairMesh && Ramp.Style == FName(TEXT("ramp")) && Flat > 1.0 && FMath::Abs(Rise) / Flat > FMath::Tan(FMath::DegreesToRadians(8.0)))
+		{
+			const bool bUp = Rise > 0.0;
+			const FVector Low = bUp ? Ramp.Start : Ramp.End, High = bUp ? Ramp.End : Ramp.Start;
+			const FVector Climb = High - Low;
+			const FVector2D Dir = FVector2D(Climb.X, Climb.Y).GetSafeNormal();
+			const int32 Steps = FMath::Max(2, FMath::CeilToInt(FMath::Abs(Rise) / 15.0));
+			const double Tread = Flat / Steps, Riser = FMath::Abs(Rise) / Steps;
+			const FBox StepBounds = StairMesh->GetBoundingBox();
+			const FRotator Across(0.f, FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)) + 90.f, 0.f);
+			const FVector Scale(Ramp.Width / StepBounds.GetSize().X, Tread / StepBounds.GetSize().Y, Riser / StepBounds.GetSize().Z);
+			for (int32 Step = 0; Step < Steps; ++Step)
+			{
+				const double Mid = (Step + 0.5) * Tread;
+				const double TopZ = Low.Z + (Step + 1) * Riser + 0.5;
+				const FVector At(Low.X + Dir.X * Mid, Low.Y + Dir.Y * Mid, TopZ - StepBounds.Max.Z * Scale.Z);
+				Stairs->AddInstance(FTransform(Across, At - Across.RotateVector(FVector(StepBounds.GetCenter().X * Scale.X,
+					StepBounds.GetCenter().Y * Scale.Y, 0.0)), Scale));
+				++StairCount;
+			}
 			continue;
 		}
 		const FRotator Turn = Run.Rotation();
@@ -1322,7 +1351,8 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	for (UInstancedStaticMeshComponent* Set : FloorSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
-	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles (visual only)."), WallCount, FloorCount);
+	if (Stairs) { Stairs->RegisterComponent(); AddInstanceComponent(Stairs); }
+	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles, %d stair treads (visual only)."), WallCount, FloorCount, StairCount);
 	return true;
 }
 
