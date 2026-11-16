@@ -1349,6 +1349,57 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			}
 		}
 	}
+	// Wall colour (2026-11-16, Vincent: "wish the walls weren't a full gray"): each of the four wall modules takes its
+	// own two-tone scheme on Keel's scanned hull materials: the main panels a deep alien tint (violet, teal, plum or
+	// midnight), the big insets another of those tints, and the frames dark teal-steel. The pack's decal
+	// sheets stay. -SBKeelGrayWalls keeps the pack's own grey metals.
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelGrayWalls")))
+	{
+		UMaterialInterface* Plate = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPlate.MI_SB_KeelPlate"));
+		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
+		const FLinearColor Panels[] = { FLinearColor(0.11f, 0.055f, 0.17f), FLinearColor(0.03f, 0.10f, 0.11f),
+			FLinearColor(0.13f, 0.045f, 0.10f), FLinearColor(0.045f, 0.055f, 0.13f) };
+		const FLinearColor Trim(0.035f, 0.075f, 0.085f);
+		for (int32 Index = 0; Plate && Frame && Index < WallSets.Num(); ++Index)
+		{
+			UInstancedStaticMeshComponent* Set = WallSets[Index];
+			for (int32 Slot = 0; Slot < Set->GetNumMaterials(); ++Slot)
+			{
+				const UMaterialInterface* Current = Set->GetMaterial(Slot);
+				const FString Name = Current ? Current->GetName() : FString();
+				if (Name.Contains(TEXT("DECALS")) || !Name.StartsWith(TEXT("MI_Metal")))
+				{
+					continue;
+				}
+				if (Name == TEXT("MI_Metal_01"))
+				{
+					Set->SetMaterial(Slot, Plate);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), Panels[Index % UE_ARRAY_COUNT(Panels)]);
+					}
+				}
+				else if (Name == TEXT("MI_Metal_04"))
+				{
+					// The big inset panels: another scheme's tint, so every module is two-tone (no glow: as emissive they
+					// lit whole walls and blew the frames out, c1 shots).
+					Set->SetMaterial(Slot, Plate);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), Panels[(Index + 2) % UE_ARRAY_COUNT(Panels)] * 0.8f);
+					}
+				}
+				else
+				{
+					Set->SetMaterial(Slot, Frame);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), Trim);
+					}
+				}
+			}
+		}
+	}
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	// The pack's floor metals read pale under Keel's lamps (their colour parameters had no visible effect): the floor
 	// tiles keep their shapes but take the scanned tread deck, tinted dark violet steel. -SBKeelPaleFloors keeps them.
