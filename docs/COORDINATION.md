@@ -1,3 +1,5 @@
+**Keel alien slice done, desktop released (Claude, desktop PC, 2026-11-16 15:00-16:00 local, branch `claude/project-thread-kwjmqj`).** Mauve alien hull in both bridges (`-SBNoKeelAlienSlice`). Fixed-view 155 FPS.
+
 **Keel look review done, desktop released (Claude, desktop PC, 2026-11-16 12:25-12:45 local).** Shots only, no code change.
 
 **Keel alien bridge done, desktop released (Claude, desktop PC, 2026-11-16 12:10-13:10 local, branch `claude/project-thread-kwjmqj`).** Original alien kit on both bridges (`SM_SB_Kit_Alien*`, `-SBNoKeelAlien`). Fixed-view 141.6 FPS. Self-test in `Saved/Logs/SelfTest.txt`.
