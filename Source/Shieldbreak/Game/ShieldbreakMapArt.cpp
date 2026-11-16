@@ -765,11 +765,19 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 						{
 							Group(Groups, TEXT("AlienRib")).Add(FTransform(Turn, FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
 						}
-						for (double Y = -1350.0; Y <= 1350.0 + 1.0; Y += 300.0)
-						{
-							Group(Groups, TEXT("AlienCove")).Add(FTransform(Turn, FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
-						}
+
 						Group(Groups, TEXT("AlienBridge")).Add(FTransform(Turn, FVector(Side * 3900.0, 0.0, Layout.FloorZ), FVector(1.f)));
+					}
+				}
+				// The alien slice's curved wall-to-ceiling coves in both bridges (mauve hull), on unless -SBNoKeelAlienSlice.
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+				{
+					for (const double Side : { -1.0, 1.0 })
+					{
+						for (double Y = -1950.0 + 137.5; Y <= 1950.0 - 137.5 + 1.0; Y += 275.0)
+						{
+							Group(Groups, TEXT("AlienCove")).Add(FTransform(FRotator(0.f, Side < 0.0 ? 0.f : 180.f, 0.f), FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
+						}
 					}
 				}
 				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.

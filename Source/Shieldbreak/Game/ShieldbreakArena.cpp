@@ -730,7 +730,7 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			// The alien kit's hull: iridescent violet-teal gloss (Tools/create_keel_alien_material.py).
 			if (!Scanned && Slot.StartsWith(TEXT("M_AlienHull")))
 			{
-				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelAlien.MI_SB_KeelAlien"));
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve"));
 			}
 			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
 			{
@@ -1055,6 +1055,10 @@ void AShieldbreakArena::BuildMapArt()
 			{
 				for (double Y = -3500.0; Y <= 3500.0 + 1.0; Y += 700.0)
 				{
+					if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && FMath::Abs(X) > 3860.0 && FMath::Abs(Y) < 2000.0)
+					{
+						continue;   // the alien slice's bridges get their own mauve ceiling (BuildKeelPackKit)
+					}
 					Tiles.Add(FTransform(FRotator::ZeroRotator, FVector(X, Y, (Ceiling ? (Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z) : 1500.0) - Layout.FloorZ)));
 				}
 			}
@@ -1182,6 +1186,40 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	};
 	for (UStaticMesh* Mesh : Walls) WallSets.Add(MakeSet(Mesh));
 	for (UStaticMesh* Mesh : Floors) FloorSets.Add(MakeSet(Mesh));
+	// Alien vertical slice (2026-11-16, Vincent chose a true alien ship, reference: his Midship video): inside both
+	// bridges the pack modules give way to smooth mottled mauve hull (Art/textures/make_keel_alien_surfaces.py) on
+	// every face, dark mauve decks, and thin purple under-glow strips along the foot of each wall. -SBNoKeelAlienSlice
+	// keeps the pack there.
+	const bool bAlienSlice = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && CubeMesh;
+	auto InSlice = [bAlienSlice](const FVector& P) { return bAlienSlice && FMath::Abs(P.X) > 3860.0 && FMath::Abs(P.Y) < 2000.0; };
+	UInstancedStaticMeshComponent* SkinWalls = nullptr;
+	UInstancedStaticMeshComponent* SkinDecks = nullptr;
+	UInstancedStaticMeshComponent* Underglow = nullptr;
+	if (bAlienSlice)
+	{
+		SkinWalls = MakeSet(CubeMesh);
+		SkinDecks = MakeSet(CubeMesh);
+		Underglow = MakeSet(CubeMesh);
+		if (UMaterialInterface* Mauve = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve")))
+		{
+			SkinWalls->SetMaterial(0, Mauve);
+		}
+		if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
+		{
+			SkinDecks->SetMaterial(0, Dark);
+		}
+		if (GlowMaterial)
+		{
+			Underglow->SetMaterial(0, GlowMaterial);
+			if (UMaterialInstanceDynamic* MID = Underglow->CreateDynamicMaterialInstance(0))
+			{
+				const FLinearColor Purple(0.62f, 0.22f, 1.0f);
+				MID->SetVectorParameterValue(TEXT("BaseColor"), Purple * 0.2f);
+				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Purple);
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+			}
+		}
+	}
 
 	// Blocks the hero set pieces already dress (the Cradle pod, the six reactor pylons) stay as they are.
 	auto Dressed = [](const FShieldbreakMapBlock& Block)
@@ -1241,6 +1279,25 @@ bool AShieldbreakArena::BuildKeelPackKit()
 						{
 							continue;   // covered by a neighbour, or the outside of the hull
 						}
+						if (InSlice(OnFace))
+						{
+							// A smooth mauve skin over this cell (the cube is 100 cm), 1 cm proud of the face.
+							const FRotator Skin(0.f, Yaw, 0.f);
+							SkinWalls->AddInstance(FTransform(Skin, OnFace + Face.Normal * 1.5, FVector(Width / 100.0, 0.02, RowHeight / 100.0)));
+							if (Row == 0)
+							{
+								// A leaning dark skirting slab along the foot of the wall (tilted 22 degrees out, 25 cm at the
+								// floor), the angled lower walls of the reference; the glow strip runs along its top edge.
+								const FVector Out = Face.Normal;
+								const FRotator Lean = FRotator(0.f, Yaw, 0.f);
+								const FQuat Tilt = FQuat(Lean.RotateVector(FVector(1.0, 0.0, 0.0)), FMath::DegreesToRadians(22.0));
+								SkinDecks->AddInstance(FTransform(Tilt * Lean.Quaternion(), FVector(OnFace.X, OnFace.Y, Z0 + 60.0) + Out * 14.0,
+									FVector(Width / 100.0, 0.06, 1.25)));
+								Underglow->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + 118.0) + Face.Normal * 4.0,
+									FVector(Width / 100.0, 0.03, 0.03)));
+							}
+							continue;
+						}
 						Hash = Hash * 31u + static_cast<uint32>(Column * 7 + Row * 13 + FMath::Abs(static_cast<int32>(Along)));
 						const int32 Pick = static_cast<int32>(Hash % static_cast<uint32>(Walls.Num()));
 						const FBox Bounds = Walls[Pick]->GetBoundingBox();
@@ -1269,6 +1326,11 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					const FVector Top(Block.Min.X + (IX + 0.5) * StepX, Block.Min.Y + (IY + 0.5) * StepY, Block.Max.Z);
 					if (Inside(Top + FVector(0.0, 0.0, 30.0)))
 					{
+						continue;
+					}
+					if (InSlice(Top))
+					{
+						SkinDecks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 0.5), FVector(StepX / 100.0, StepY / 100.0, 0.01)));
 						continue;
 					}
 					const int32 Pick = (IX * 3 + IY * 5) % Floors.Num();
@@ -1420,6 +1482,18 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				}
 			}
 		}
+	}
+	if (SkinWalls)
+	{
+		// The bridges' ceilings: one smooth mauve skin under each (the pack tiles skip the slice).
+		for (const double Side : { -1.0, 1.0 })
+		{
+			SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(Side * 4550.0, 0.0, CeilingZ - 1.5), FVector(13.0, 40.0, 0.02)));
+		}
+	}
+	for (UInstancedStaticMeshComponent* Set : { SkinWalls, SkinDecks, Underglow })
+	{
+		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	// The pack's floor metals read pale under Keel's lamps (their colour parameters had no visible effect): the floor

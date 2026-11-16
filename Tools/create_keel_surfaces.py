@@ -22,7 +22,9 @@ SURFACES = {
     # Worn hazard-orange paint on the bridges' wall plates (the brief's fourth hull material), on the plate scan.
     'Hazard': ((.24, .09, .022), .20, .50, .88, 300.0, .0016, 1.25),
 }
-MASKS = {'Plate': 'Plate', 'Deck': 'Deck', 'Frame': 'Frame', 'Hazard': 'Plate'}
+SURFACES['Mauve'] = ((.12, .065, .15), .55, .32, .72, 650.0, .0022, 1.8)      # alien hull: mottled mauve-violet
+SURFACES['MauveDark'] = ((.03, .022, .04), .6, .30, .65, 420.0, .0020, 1.4)  # alien deck and recesses
+MASKS = {'Plate': 'Plate', 'Deck': 'Deck', 'Frame': 'Frame', 'Hazard': 'Plate', 'Mauve': 'Alien', 'MauveDark': 'Alien'}
 
 
 def import_masks(surface):
