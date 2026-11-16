@@ -1,3 +1,5 @@
+**Keel stairs done, desktop released (Claude, desktop PC, 2026-11-15 19:30-20:00 local, branch `claude/project-thread-kwjmqj`).** Ramps dressed as pack stair flights over the unchanged ramp collision (472 treads, `-SBNoKeelStairs`). See the commit for test results.
+
 **Keel pack polish done, desktop released (Claude, desktop PC, 2026-11-15 18:50-19:40 local, branch `claude/project-thread-kwjmqj` restarted from main `d4f2b7f`).** Corner posts on Keel's pack grid (196). Darker pack floors tried two ways without effect; floors unchanged. Build PASS; gameplay result in `Saved/Logs/SelfTest.txt`.
 
 *Keel pack polish holding the desktop (Claude, desktop PC, started 2026-11-15 18:50 local, branch `claude/project-thread-kwjmqj`).** Other threads: please wait for "Keel pack polish done, desktop released".
