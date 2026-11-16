@@ -1259,6 +1259,40 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			}
 		}
 	}
+	// Corner posts: the pack's convex corner piece, thinned to 30 cm, on every vertical block edge where both faces
+	// show, so the wall modules meet at a capped corner instead of a raw seam.
+	if (UStaticMesh* CornerMesh = Load(TEXT("SRTUCTURE/WALL/SM_WALL_03_CORNER_CONVEX")))
+	{
+		auto* Corners = MakeSet(CornerMesh);
+		const FBox CornerBounds = CornerMesh->GetBoundingBox();
+		int32 CornerCount = 0;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const double Z0 = Block.Min.Z, Z1 = FMath::Min<double>(Block.Max.Z, CeilingZ);
+			if (Dressed(Block) || Z1 - Z0 < 150.0 || Block.Style == FName(TEXT("glow")))
+			{
+				continue;
+			}
+			for (int32 Corner = 0; Corner < 4; ++Corner)
+			{
+				const double SX = (Corner & 1) ? 1.0 : -1.0, SY = (Corner & 2) ? 1.0 : -1.0;
+				const FVector Edge(SX > 0 ? Block.Max.X : Block.Min.X, SY > 0 ? Block.Max.Y : Block.Min.Y, (Z0 + Z1) * 0.5);
+				if (Inside(Edge + FVector(SX * 15.0, 0.0, 0.0)) || Inside(Edge + FVector(0.0, SY * 15.0, 0.0))
+					|| Inside(Edge + FVector(SX * 15.0, SY * 15.0, 0.0)) || FMath::Abs(Edge.X) >= Half.X - 1.0 || FMath::Abs(Edge.Y) >= Half.Y - 1.0)
+				{
+					continue;
+				}
+				// The piece spans +X/+Y from its pivot: mirror it into this corner's quadrant with the scale signs.
+				const FVector Scale(SX * 0.3, SY * 0.3, (Z1 - Z0) / CornerBounds.GetSize().Z);
+				const FVector Pivot(Edge.X - SX * 18.0, Edge.Y - SY * 18.0, Z0);
+				Corners->AddInstance(FTransform(FRotator::ZeroRotator, Pivot, Scale));
+				++CornerCount;
+			}
+		}
+		Corners->RegisterComponent();
+		AddInstanceComponent(Corners);
+		UE_LOG(LogShieldbreak, Log, TEXT("Keel pack grid: %d corner posts."), CornerCount);
+	}
 	// Ramps: floor tiles laid along the slope, flush with the walking surface.
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
