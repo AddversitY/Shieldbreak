@@ -530,8 +530,8 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
 		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
 		// 2026-11-16, Vincent: "make it look like the inside of an alien spaceship". The alien look (on unless
-		// -SBKeelPlainLook): teal trim, violet lamps, kit glow and haze, amber left on the hazard accents.
-		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+		// off by default since 2026-11-16, -SBKeelAlienLook): teal trim, violet lamps, kit glow and haze.
+		if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))
 		{
 			Keel.Trim = FLinearColor(0.10f, 1.0f, 0.82f);
 			Keel.KitGlow = FLinearColor(0.62f, 0.28f, 1.0f);
@@ -756,7 +756,7 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				// The alien bridge kit (Art/blender/build_keel_alien.py, 2026-11-16): vault ribs every 3 m, curved coves
 				// between them, rounded portal rims round the window and doors, a cowl lip on the overwatch and glowing deck
 				// channels. Pivot on each bridge's window-wall line, the blue side turned round. -SBNoKeelAlien leaves it off.
-				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlien")))
+				if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienKit")))
 				{
 					for (const double Side : { -1.0, 1.0 })
 					{

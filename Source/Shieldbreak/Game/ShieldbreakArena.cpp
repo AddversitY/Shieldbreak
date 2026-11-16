@@ -2109,7 +2109,7 @@ void AShieldbreakArena::SpawnLighting()
 				// Neutral, dim haze: the map's warm outdoor haze colour tinted every surface orange from start 0.
 				FogComponent->SetFogInscatteringColor(FLinearColor(0.05f, 0.055f, 0.065f));
 				FogComponent->SetVolumetricFogAlbedo(FColor(200, 205, 215));
-				if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+				if (MapId == FName(TEXT("Keel")) && FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))
 				{
 					// Alien look: a violet haze that catches the teal lamps and the reactor glow as shafts.
 					FogComponent->SetFogInscatteringColor(FLinearColor(0.045f, 0.02f, 0.07f));
@@ -2162,7 +2162,7 @@ void AShieldbreakArena::SpawnLighting()
 			Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.f);
 			Settings.bOverride_VignetteIntensity = true;
 			Settings.VignetteIntensity = 0.35f;
-			if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+			if (MapId == FName(TEXT("Keel")) && FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))
 			{
 				// Alien look: saturated and contrasty, shadows pushed toward violet and teal, highlights a touch warm,
 				// and more bloom so the trim and glow read as light sources.
