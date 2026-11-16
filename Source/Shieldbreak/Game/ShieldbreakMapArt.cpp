@@ -529,6 +529,15 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
 		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
+		// 2026-11-16, Vincent: "make it look like the inside of an alien spaceship". The alien look (on unless
+		// -SBKeelPlainLook): teal trim, violet lamps, kit glow and haze, amber left on the hazard accents.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+		{
+			Keel.Trim = FLinearColor(0.10f, 1.0f, 0.82f);
+			Keel.KitGlow = FLinearColor(0.62f, 0.28f, 1.0f);
+			Keel.InteriorLight = FLinearColor(0.72f, 0.55f, 1.0f);   // violet-white lamps against the teal trim
+			Keel.Haze = FLinearColor(0.20f, 0.10f, 0.32f);
+		}
 		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
 		FShieldbreakMapLook& Bastion = Out.Add(FName(TEXT("Bastion")));
 		Bastion.GroundStyle = TEXT("stone");

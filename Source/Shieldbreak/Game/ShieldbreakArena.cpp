@@ -1350,7 +1350,28 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		}
 	}
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
-	for (UInstancedStaticMeshComponent* Set : FloorSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	// The pack's floor metals read pale under Keel's lamps (their colour parameters had no visible effect): the floor
+	// tiles keep their shapes but take the scanned tread deck, tinted dark violet steel. -SBKeelPaleFloors keeps them.
+	UMaterialInterface* Deck = FParse::Param(FCommandLine::Get(), TEXT("SBKeelPaleFloors")) ? nullptr
+		: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelDeck.MI_SB_KeelDeck"));
+	for (UInstancedStaticMeshComponent* Set : FloorSets)
+	{
+		for (int32 Slot = 0; Deck && Slot < Set->GetNumMaterials(); ++Slot)
+		{
+			const UMaterialInterface* Current = Set->GetMaterial(Slot);
+			if (Current && Current->GetName().Contains(TEXT("DECALS")))
+			{
+				continue;   // keep the pack's floor markings
+			}
+			Set->SetMaterial(Slot, Deck);
+			if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+			{
+				MID->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.055f, 0.05f, 0.075f));
+			}
+		}
+		Set->RegisterComponent();
+		AddInstanceComponent(Set);
+	}
 	if (Stairs) { Stairs->RegisterComponent(); AddInstanceComponent(Stairs); }
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles, %d stair treads (visual only)."), WallCount, FloorCount, StairCount);
 	return true;
@@ -2016,6 +2037,13 @@ void AShieldbreakArena::SpawnLighting()
 				// Neutral, dim haze: the map's warm outdoor haze colour tinted every surface orange from start 0.
 				FogComponent->SetFogInscatteringColor(FLinearColor(0.05f, 0.055f, 0.065f));
 				FogComponent->SetVolumetricFogAlbedo(FColor(200, 205, 215));
+				if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+				{
+					// Alien look: a violet haze that catches the teal lamps and the reactor glow as shafts.
+					FogComponent->SetFogInscatteringColor(FLinearColor(0.045f, 0.02f, 0.07f));
+					FogComponent->SetVolumetricFogAlbedo(FColor(185, 140, 235));
+					FogComponent->SetVolumetricFogExtinctionScale(1.6f);
+				}
 				FogComponent->SetVolumetricFog(true);
 				FogComponent->SetVolumetricFogScatteringDistribution(0.5f);
 				FogComponent->SetVolumetricFogExtinctionScale(1.f);
@@ -2062,6 +2090,22 @@ void AShieldbreakArena::SpawnLighting()
 			Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.f);
 			Settings.bOverride_VignetteIntensity = true;
 			Settings.VignetteIntensity = 0.35f;
+			if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPlainLook")))
+			{
+				// Alien look: saturated and contrasty, shadows pushed toward violet and teal, highlights a touch warm,
+				// and more bloom so the trim and glow read as light sources.
+				Settings.ColorSaturation = FVector4(1.35f, 1.35f, 1.35f, 1.f);
+				Settings.ColorContrast = FVector4(1.18f, 1.18f, 1.18f, 1.f);
+				Settings.bOverride_ColorGammaShadows = true;
+				Settings.ColorGammaShadows = FVector4(0.94f, 0.96f, 1.12f, 1.f);
+				Settings.bOverride_ColorGainShadows = true;
+				Settings.ColorGainShadows = FVector4(0.85f, 0.85f, 1.05f, 1.f);
+				Settings.bOverride_ColorGainHighlights = true;
+				Settings.ColorGainHighlights = FVector4(1.04f, 1.0f, 0.98f, 1.f);
+				Settings.BloomIntensity = 1.4f;
+				Settings.BloomThreshold = 0.8f;
+				Settings.VignetteIntensity = 0.45f;
+			}
 			// The first shots read washed out (pale walls and floors in full sun): pull exposure down a little.
 			// -SBExposure=<stops> overrides it for comparisons.
 			float ExposureBias = -0.4f;
