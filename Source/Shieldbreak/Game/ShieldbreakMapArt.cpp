@@ -753,6 +753,25 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				{
 					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ - (bPackCeiling ? 55.0 : 0.0)), FVector(1.f)));
 				}
+				// The alien bridge kit (Art/blender/build_keel_alien.py, 2026-11-16): vault ribs every 3 m, curved coves
+				// between them, rounded portal rims round the window and doors, a cowl lip on the overwatch and glowing deck
+				// channels. Pivot on each bridge's window-wall line, the blue side turned round. -SBNoKeelAlien leaves it off.
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlien")))
+				{
+					for (const double Side : { -1.0, 1.0 })
+					{
+						const FRotator Turn(0.f, Side < 0.0 ? 0.f : 180.f, 0.f);
+						for (double Y = -1500.0; Y <= 1500.0 + 1.0; Y += 300.0)
+						{
+							Group(Groups, TEXT("AlienRib")).Add(FTransform(Turn, FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
+						}
+						for (double Y = -1350.0; Y <= 1350.0 + 1.0; Y += 300.0)
+						{
+							Group(Groups, TEXT("AlienCove")).Add(FTransform(Turn, FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
+						}
+						Group(Groups, TEXT("AlienBridge")).Add(FTransform(Turn, FVector(Side * 3900.0, 0.0, Layout.FloorZ), FVector(1.f)));
+					}
+				}
 				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.
 				for (const double X : { -4950.0, -4050.0, 4050.0, 4950.0 })
 				{

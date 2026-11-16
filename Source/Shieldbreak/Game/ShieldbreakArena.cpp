@@ -727,6 +727,11 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			{
 				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPulse.MI_SB_KeelPulse"));
 			}
+			// The alien kit's hull: iridescent violet-teal gloss (Tools/create_keel_alien_material.py).
+			if (!Scanned && Slot.StartsWith(TEXT("M_AlienHull")))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelAlien.MI_SB_KeelAlien"));
+			}
 			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
 			{
 				Scanned = FParse::Param(FCommandLine::Get(), TEXT("SBKeelHazardPlates"))
