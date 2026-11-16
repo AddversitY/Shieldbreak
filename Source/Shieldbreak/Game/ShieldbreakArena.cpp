@@ -1145,7 +1145,23 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		TEXT("SRTUCTURE/FLOOR/SM_FLOOR_05") };
 	TArray<UStaticMesh*> Walls, Floors;
 	for (const TCHAR* Path : WallPaths) { if (UStaticMesh* Mesh = Load(Path)) Walls.Add(Mesh); }
-	for (const TCHAR* Path : FloorPaths) { if (UStaticMesh* Mesh = Load(Path)) Floors.Add(Mesh); }
+	// Floors (2026-11-16, Vincent: "make the floor completely different"): the Modular SciFi Season 1 interior deck
+	// panels (Content/StarterBundle, local only) with their own dark plating and inlays, so the floor no longer echoes
+	// the Mechanic Base walls. Falls back to the Mechanic Base tiles without that pack (or -SBKeelMechFloors).
+	const bool bSeasonFloors = !FParse::Param(FCommandLine::Get(), TEXT("SBKeelMechFloors"));
+	const TCHAR* SeasonFloors[] = { TEXT("ModularSci_Int/Meshes/SM_FloorPanel_D"), TEXT("ModularSci_Int/Meshes/SM_FloorPanel_A_2"),
+		TEXT("ModularScifiProps/Meshes/SM_Floor_B") };
+	for (const TCHAR* Path : SeasonFloors)
+	{
+		const FString Name = FPaths::GetBaseFilename(Path);
+		UStaticMesh* Mesh = bSeasonFloors ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/StarterBundle/%s.%s"), Path, *Name)) : nullptr;
+		if (Mesh) Floors.Add(Mesh);
+	}
+	const bool bUsingSeasonFloors = Floors.Num() > 0;
+	if (!bUsingSeasonFloors)
+	{
+		for (const TCHAR* Path : FloorPaths) { if (UStaticMesh* Mesh = Load(Path)) Floors.Add(Mesh); }
+	}
 	if (Walls.Num() == 0 || Floors.Num() == 0)
 	{
 		return false;
@@ -1403,7 +1419,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	// The pack's floor metals read pale under Keel's lamps (their colour parameters had no visible effect): the floor
 	// tiles keep their shapes but take the scanned tread deck, tinted dark violet steel. -SBKeelPaleFloors keeps them.
-	UMaterialInterface* Deck = FParse::Param(FCommandLine::Get(), TEXT("SBKeelPaleFloors")) ? nullptr
+	UMaterialInterface* Deck = (bUsingSeasonFloors || FParse::Param(FCommandLine::Get(), TEXT("SBKeelPaleFloors"))) ? nullptr
 		: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelDeck.MI_SB_KeelDeck"));
 	for (UInstancedStaticMeshComponent* Set : FloorSets)
 	{
