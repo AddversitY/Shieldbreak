@@ -720,7 +720,8 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 				{
 					// The alien look: plates go mauve, frames and hazard paint dark mauve, so no grey or orange human hull is left.
 					const TCHAR* Use = !bAlienHazard ? Kind : FCString::Strcmp(Kind, TEXT("Plate")) == 0 ? TEXT("Mauve")
-						: (FCString::Strcmp(Kind, TEXT("Frame")) == 0 || FCString::Strcmp(Kind, TEXT("Hazard")) == 0) ? TEXT("MauveDark") : Kind;
+						: (FCString::Strcmp(Kind, TEXT("Frame")) == 0 || FCString::Strcmp(Kind, TEXT("Hazard")) == 0
+							|| FCString::Strcmp(Kind, TEXT("Deck")) == 0) ? TEXT("MauveDark") : Kind;
 					Scanned = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
 						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Use, Use));
 					break;
@@ -1547,6 +1548,13 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				const FBox Bounds = Floors[Pick]->GetBoundingBox();
 				const FVector Center = Ramp.Start + Run * ((Index + 0.5) / Count)
 					+ Turn.RotateVector(FVector(0.0, (Lane + 0.5) * Ramp.Width / Across - Ramp.Width * 0.5, 0.0));
+				if (Decks && InSlice(Center))
+				{
+					// The alien deck tile on ramp tops too (the pack's pale floor panels clashed on the crane arms).
+					Decks->AddInstance(FTransform(Turn, Center + Turn.RotateVector(FVector(0.0, 0.0, 2.1)),
+						FVector(Length / Count / 300.0, Ramp.Width / Across / 300.0, 1.0)));
+					continue;
+				}
 				const FVector Down = Turn.RotateVector(FVector(0.0, 0.0, 0.8 - Bounds.Max.Z));
 				FloorSets[Pick]->AddInstance(FTransform(Turn, Center + Down,
 					FVector(Length / Count / Bounds.GetSize().X, Ramp.Width / Across / Bounds.GetSize().Y, 1.0)));
