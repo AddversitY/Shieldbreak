@@ -47,7 +47,7 @@ def main():
         y += s * RNG.uniform(1.5, 1.9)
     halo = mask.filter(ImageFilter.GaussianBlur(28))
     core = np.asarray(mask, np.float32) / 255.0
-    glow = np.clip(core + 0.45 * np.asarray(halo, np.float32) / 255.0, 0, 1)
+    glow = np.clip(core + 0.22 * np.asarray(halo, np.float32) / 255.0, 0, 1)
     field = np.asarray(Image.fromarray((RNG.random((H // 16, W // 16)) * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC), np.float32) / 255.0
     rgb = np.stack([glow, field * 0.6 + 0.2, np.zeros_like(glow)], -1)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

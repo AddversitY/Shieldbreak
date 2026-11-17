@@ -1,6 +1,6 @@
-**Keel alien pass 3 done, desktop released (Claude, desktop PC, 2026-11-17 01:30-07:00 local, branch `claude/project-thread-kwjmqj`).** Wall panel variants, alien deck tiles, ceiling ribs, light seams, restyled props and window frames across Keel (see docs/KEEL_AAA_PASS.md pass 10). Fixed-view 163-176 FPS. Self-test 177 passed, 1 known failure (hands through guns).
+**Keel alien pass 3 done, desktop released (Claude, desktop PC, 2026-11-16 evening to 2026-11-17 00:30 local, branch `claude/project-thread-kwjmqj`).** Wall panel variants, alien deck tiles, ceiling ribs, light seams, restyled props and window frames across Keel (see docs/KEEL_AAA_PASS.md pass 10). Then a Midship mood pass: dustier hull, teal circuit glass. Fixed-view 161-176 FPS. Self-test 177 passed, 1 known failure (hands through guns).
 
-**Keel alien pass 2 done, desktop released (Claude, desktop PC, 2026-11-16 22:20-01:30 local, branch `claude/project-thread-kwjmqj`).** Sculpted alien panels, glyph plaques and mauve hull across the whole of Keel (`-SBKeelAlienBridgesOnly` for bridges only, `-SBNoKeelAlienSlice` for off). Fixed-view 175.8 FPS. Self-test 177 passed, 1 known failure (hands through guns).
+**Keel alien pass 2 done, desktop released (Claude, desktop PC, 2026-11-16 from 22:20 local, branch `claude/project-thread-kwjmqj`).** Sculpted alien panels, glyph plaques and mauve hull across the whole of Keel (`-SBKeelAlienBridgesOnly` for bridges only, `-SBNoKeelAlienSlice` for off). Fixed-view 175.8 FPS. Self-test 177 passed, 1 known failure (hands through guns).
 
 **Keel alien slice done, desktop released (Claude, desktop PC, 2026-11-16 15:00-16:00 local, branch `claude/project-thread-kwjmqj`).** Mauve alien hull in both bridges (`-SBNoKeelAlienSlice`). Fixed-view 155 FPS.
 
