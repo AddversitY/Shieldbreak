@@ -1244,6 +1244,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* Underglow = nullptr;
 	UInstancedStaticMeshComponent* Panels = nullptr;
 	UInstancedStaticMeshComponent* PanelsB = nullptr;
+	UInstancedStaticMeshComponent* Decks = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	if (bAlienSlice)
@@ -1254,6 +1255,15 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		{
 			Panels = MakeSet(PanelMesh);
 			ApplyKitSurfaces(Panels, ShieldbreakMapArt::GetLook(MapId), 0.f);
+		}
+		// The sculpted deck tile (rounded plates, dim violet seams) on the walkable tops; -SBKeelFlatDecks keeps the skin.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelFlatDecks")))
+		{
+			if (UStaticMesh* DeckMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienDeck.SM_SB_Kit_AlienDeck")))
+			{
+				Decks = MakeSet(DeckMesh);
+				ApplyKitSurfaces(Decks, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
 		}
 		// Two variants break up the repeat (-SBKeelOnePanel keeps one): stacked plates with vents, and a rose inset.
 		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelOnePanel")))
@@ -1426,7 +1436,15 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					}
 					if (InSlice(Top))
 					{
-						SkinDecks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 0.5), FVector(StepX / 100.0, StepY / 100.0, 0.01)));
+						if (Decks)
+						{
+							// The tile's base sits 2 cm under its pivot: lift it clear of the block top (plates end 3.6 cm up).
+							Decks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 2.1), FVector(StepX / 300.0, StepY / 300.0, 1.0)));
+						}
+						else
+						{
+							SkinDecks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 0.5), FVector(StepX / 100.0, StepY / 100.0, 0.01)));
+						}
 						continue;
 					}
 					const int32 Pick = (IX * 3 + IY * 5) % Floors.Num();
@@ -1602,7 +1620,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ - 1.5), FVector(Half.X / 50.0, Half.Y / 50.0, 0.02)));
 		}
 	}
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Decks })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

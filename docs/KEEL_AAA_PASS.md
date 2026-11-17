@@ -134,6 +134,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - The human hull is restyled in this look: plate slots go mauve, frame and hazard slots dark mauve, light and amber
   accents violet, the reactor pylons pulse violet, chevron decals are off, and the amber lamps are rose and violet.
 - Flags: `-SBNoKeelAlienSlice` (old look), `-SBKeelAlienBridgesOnly` (bridges only).
+- Walls mix three sculpted panel types (`SM_SB_Kit_AlienPanel`, `B` with vents, `C` with a rose inset;
+  `-SBKeelOnePanel` for one). Walkable tops get the alien deck tile `SM_SB_Kit_AlienDeck` (rounded plates, dim violet
+  seams; `-SBKeelFlatDecks` for the flat skin). A/B runs: both within FPS noise (2-3%).
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)

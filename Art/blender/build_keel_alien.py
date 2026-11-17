@@ -34,6 +34,7 @@ NEW_PALETTE = {
     'AlienViolet': ((0.60, 0.25, 1.0), 0.0, 0.3, 7.0),
     'AlienDark': ((0.03, 0.02, 0.04), 0.6, 0.3, 0.0),
     'AlienRose': ((0.22, 0.08, 0.15), 0.8, 0.28, 0.0),
+    'AlienSeam': ((0.45, 0.15, 0.85), 0.0, 0.4, 1.4),
 }
 sb_kit.PALETTE.update(NEW_PALETTE)
 
@@ -174,11 +175,42 @@ def build_panel_c():
     return parts
 
 
+def slab_xy(name, loop, z0, z1, mat, bevel=0.0):
+    """A closed XY loop extruded from z0 up to z1 (a floor plate)."""
+    bm = bmesh.new()
+    lo = [bm.verts.new((x, y, z0)) for x, y in loop]
+    hi = [bm.verts.new((x, y, z1)) for x, y in loop]
+    bm.faces.new(hi)
+    bm.faces.new(list(reversed(lo)))
+    n = len(loop)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((lo[i], lo[j], hi[j], hi[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    return sb_kit._finish(sb_kit._link(name, me), mat, bevel)
+
+
+def build_deck():
+    """The alien deck tile (2026-11-17): 3 x 3 m, pivot at the walkable top's centre (z 0), scaled to each tile.
+    A dark base 1 cm under the top, four rounded plates proud of it by 1.5 cm split by channels, and a short dim seam
+    of violet light where the channels cross. Visual only: the gameplay floor is unchanged."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('base', (0, 0, -1.5), (300, 300, 1), 'AlienDark', bevel=0)]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            parts.append(slab_xy('plate', rr_loop(sx * 74, sy * 74, 136, 136, 26, 4), -1.0, 1.5, 'AlienDark', bevel=0.8))
+    for horizontal in (True, False):
+        parts.append(sb_kit.box('seam', (0, 0, -0.8), (60, 3, 0.6) if horizontal else (3, 60, 0.6), 'AlienSeam', bevel=0))
+    return parts
+
+
 def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
                         ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
-                        ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c)):
+                        ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c),
+                        ('SM_SB_Kit_AlienDeck', build_deck)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
         sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])

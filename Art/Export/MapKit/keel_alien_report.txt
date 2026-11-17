@@ -4,3 +4,4 @@ SM_SB_Kit_AlienBridge: 2744 tris, X -900.0..-30.0 Y -1850.0..1850.0 Z 348.9..875
 SM_SB_Kit_AlienPanel: 368 tris, X -200.0..200.0 Y 0.0..27.0 Z 0.0..400.0, slots M_AlienDark, M_AlienHull
 SM_SB_Kit_AlienPanelB: 444 tris, X -200.0..200.0 Y 0.0..30.0 Z 0.0..400.0, slots M_AlienDark, M_AlienHull, M_AlienRose
 SM_SB_Kit_AlienPanelC: 464 tris, X -200.0..200.0 Y 0.0..39.0 Z 0.0..400.0, slots M_AlienDark, M_AlienHull, M_AlienRose
+SM_SB_Kit_AlienDeck: 660 tris, X -150.0..150.0 Y -150.0..150.0 Z -2.0..1.5, slots M_AlienDark, M_AlienSeam
