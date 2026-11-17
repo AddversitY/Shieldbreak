@@ -151,6 +151,7 @@ shapes; professional free source material only, restyled; no paid tools; perform
   coves).
 - Two deck tiles in three are the plain `SM_SB_Kit_AlienDeckPlain` (ramps all plain): a light cross on every tile read
   as a grid of marks.
+- One circuit-glass panel in three glows amber (Midship mixes teal with warm traces).
 - Pale lavender ceiling lamps on the alien ship (`-SBKeelWhiteLamps` for the cool white).
 - Hands-through-guns self-test (known failure, not Keel): traced on 2026-11-17 with `-SBGripDebug`. Sidearm: the
   wrist-to-index-knuckle palm line cuts the top of the grip, and the ring and pinky tips wrap round to the back strap;

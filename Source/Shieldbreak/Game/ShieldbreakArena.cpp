@@ -1269,6 +1269,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	UInstancedStaticMeshComponent* Circuits = nullptr;
+	UInstancedStaticMeshComponent* CircuitsWarm = nullptr;
 	if (bAlienSlice)
 	{
 		// The sculpted alien wall panel (Art/blender/build_keel_alien.py) on every wall cell, glowing glyph plaques
@@ -1330,6 +1331,13 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		{
 			Circuits = MakeSet(CubeMesh);
 			Circuits->SetMaterial(0, CircuitMaterial);
+			// Every third panel glows amber instead (Midship's glass mixes teal with warm orange traces).
+			CircuitsWarm = MakeSet(CubeMesh);
+			CircuitsWarm->SetMaterial(0, CircuitMaterial);
+			if (UMaterialInstanceDynamic* MID = CircuitsWarm->CreateDynamicMaterialInstance(0))
+			{
+				MID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor(1.0f, 0.42f, 0.08f));
+			}
 		}
 		SkinWalls = MakeSet(CubeMesh);
 		SkinDecks = MakeSet(CubeMesh);
@@ -1434,7 +1442,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							if (Circuits && Row == 1 && Rows >= 2 && RowHeight > 250.0 && (Column % 5) == 2
 								&& !(FMath::Abs(FMath::Abs(OnFace.X) - 3870.0) < 150.0 && FMath::Abs(OnFace.Y) < 600.0))
 							{
-								Circuits->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
+								((Column / 5 + Row + Rows) % 3 == 0 && CircuitsWarm ? CircuitsWarm : Circuits)->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
 									FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
 							}
 							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
@@ -1730,7 +1738,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, Decks, DecksPlain, CeilingRibs, Coves })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}
