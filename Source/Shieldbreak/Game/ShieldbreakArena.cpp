@@ -1032,7 +1032,7 @@ void AShieldbreakArena::BuildMapArt()
 			// on its walls, against the cold under-glow of the pod above.
 			// The alien look trades the amber for rose and violet.
 			const bool bAlienLights = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
-			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.55f, 0.78f) : FLinearColor(1.f, 0.72f, 0.55f), 90.f, 1600.f);
+			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.6f, 0.8f) : FLinearColor(1.f, 0.72f, 0.55f), bAlienLights ? 60.f : 90.f, 1600.f);
 			AddZoneLight(FVector(4500.0, 0.0, 1100.0), FLinearColor(0.62f, 0.75f, 1.f), 90.f, 1600.f);
 			for (const double X : { -1150.0, 1150.0 })
 			{
