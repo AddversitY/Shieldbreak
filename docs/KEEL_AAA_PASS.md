@@ -141,6 +141,8 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - The pack's door frames, trays, boxes and panels take the dark mauve hull in the alien look (lamps keep theirs); ramp
   tops get the alien deck tile. Wall-to-ceiling coves exist (`SM_SB_Kit_AlienWallCove`) but are opt-in
   (`-SBKeelCoves`): under the flat ceiling light they barely read.
+- Vertical violet light seams in the panel gaps every fourth column (`-SBNoKeelLightSeams`), and a dimmer sky light on
+  Keel (1.5 instead of 3) so the rooms take depth from their lamps and glows.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)

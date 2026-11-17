@@ -1401,6 +1401,14 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							const FRotator Skin(0.f, Yaw, 0.f);
 							const FVector CellBase(OnFace.X, OnFace.Y, Z0 + Row * RowHeight);
 							const bool bGlyphCell = Row == 0 && RowHeight > 250.0 && (Column % 3) == 1;
+							// Light seams: a thin violet slit glowing in the gap between two panels, every fourth column, floor to
+							// ceiling (Midship's vertical light lines). -SBNoKeelLightSeams turns them off.
+							if (Underglow && Column % 4 == 3 && Column + 1 < Columns && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelLightSeams")))
+							{
+								const FVector AlongDir = Face.bAlongX ? FVector(1.0, 0.0, 0.0) : FVector(0.0, 1.0, 0.0);
+								Underglow->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight)
+									+ AlongDir * (Width * 0.5) + Face.Normal * 9.0, FVector(0.04, 0.02, RowHeight * 0.86 / 100.0)));
+							}
 							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
 							{
 								Coves->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, CeilingZ - 1.0) + Face.Normal * 1.0,
@@ -2237,6 +2245,11 @@ void AShieldbreakArena::SpawnLighting()
 	// the sun itself, so the fill light goes and the sky light drops to a natural level.
 	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
 	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 3.f : 6.f;
+	// Keel's alien look: a dimmer sky light, so the rooms get depth from their own lamps and glows (lx1 comparison).
+	if (MapId == FName(TEXT("Keel")) && bLumen && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+	{
+		SkyIntensity = 1.5f;
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
