@@ -146,6 +146,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Midship comparison (2026-11-17): darker, dustier, more mottled mauve hull so the glows carry the mood, and teal
   circuit-glass panels high on the walls (original trace pattern, Art/textures/make_keel_circuits.py,
   `M_SB_KeelCircuit`; `-SBNoKeelCircuits`), within FPS noise.
+- Violet volumetric haze on the alien ship (`-SBKeelNeutralHaze` for the grey haze), within FPS noise. Tried and
+  dropped: curved knee braces where the ceiling ribs meet the walls (they read flat under the ceiling light, like the
+  coves).
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
