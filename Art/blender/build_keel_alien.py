@@ -217,12 +217,43 @@ def build_ceiling_rib():
     return parts
 
 
+def prism_yz(name, points_yz, x0, x1, mat, bevel=0.0):
+    """A closed YZ profile extruded along X from x0 to x1."""
+    bm = bmesh.new()
+    a = [bm.verts.new((x0, y, z)) for y, z in points_yz]
+    b = [bm.verts.new((x1, y, z)) for y, z in points_yz]
+    bm.faces.new(a)
+    bm.faces.new(list(reversed(b)))
+    n = len(points_yz)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((a[i], a[j], b[j], b[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    ob = sb_kit._finish(sb_kit._link(name, me), mat, bevel)
+    for poly in me.polygons:
+        poly.use_smooth = True
+    return ob
+
+
+def build_wall_cove():
+    """The wall-to-ceiling cove (2026-11-17): a 4 m long concave fillet of radius 95 cm that rounds every wall top into
+    the ceiling, with a dark lip where it meets the wall. Pivot: the wall face at the ceiling (y 0, z 0), front +Y."""
+    sb_kit.reset_scene()
+    R = 95.0
+    curve = [(R + R * math.cos(math.radians(a)), -R + R * math.sin(math.radians(a))) for a in range(180, 89, -10)]
+    parts = [prism_yz('cove', [(0.0, 0.0)] + curve, -200, 200, 'AlienHull')]
+    parts.append(sb_kit.box('lip', (0, 6, -R - 4), (400, 12, 8), 'AlienDark', bevel=0))
+    return parts
+
+
 def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
                         ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
                         ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c),
-                        ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib)):
+                        ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib),
+                        ('SM_SB_Kit_AlienWallCove', build_wall_cove)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
         sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])

@@ -6,3 +6,4 @@ SM_SB_Kit_AlienPanelB: 444 tris, X -200.0..200.0 Y 0.0..30.0 Z 0.0..400.0, slots
 SM_SB_Kit_AlienPanelC: 464 tris, X -200.0..200.0 Y 0.0..39.0 Z 0.0..400.0, slots M_AlienDark, M_AlienHull, M_AlienRose
 SM_SB_Kit_AlienDeck: 660 tris, X -150.0..150.0 Y -150.0..150.0 Z -2.0..1.5, slots M_AlienDark, M_AlienSeam
 SM_SB_Kit_AlienCeilingRib: 64 tris, X -47.0..47.0 Y -200.0..200.0 Z -48.5..0.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienWallCove: 52 tris, X -200.0..200.0 Y 0.0..95.0 Z -103.0..0.0, slots M_AlienHull, M_AlienDark

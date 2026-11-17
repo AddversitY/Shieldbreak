@@ -1061,6 +1061,23 @@ void AShieldbreakArena::BuildMapArt()
 				Instances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				Instances->SetCastShadow(false);
 				Instances->SetCullDistances(0, CullDistance);
+				// The alien look: the pack's grey steel goes dark mauve (door frames, trays, boxes, panels); lamps and their
+				// glowing slots keep the pack's materials.
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !Name.Contains(TEXT("LAMP")))
+				{
+					if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
+					{
+						for (int32 Slot = 0; Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+						{
+							const UMaterialInterface* Own = Mesh->GetMaterial(Slot);
+							const FString Kind = Own ? Own->GetName() : FString();
+							if (!Kind.Contains(TEXT("Emis")) && !Kind.Contains(TEXT("Light")) && !Kind.Contains(TEXT("Glow")) && !Kind.Contains(TEXT("Screen")))
+							{
+								Instances->SetMaterial(Slot, Dark);
+							}
+						}
+					}
+				}
 				for (const FTransform& At : Where)
 				{
 					Instances->AddInstance(FTransform(At.GetRotation(), At.GetLocation() + FVector(0.0, 0.0, Layout.FloorZ), At.GetScale3D()));
@@ -1246,6 +1263,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* Panels = nullptr;
 	UInstancedStaticMeshComponent* PanelsB = nullptr;
 	UInstancedStaticMeshComponent* Decks = nullptr;
+	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	if (bAlienSlice)
@@ -1264,6 +1282,16 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			{
 				Decks = MakeSet(DeckMesh);
 				ApplyKitSurfaces(Decks, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+		}
+		// Curved coves rounding every wall top into the ceiling: opt-in (-SBKeelCoves); under the flat ceiling light they
+		// barely read (sl20 shots), so they are not worth the instances by default.
+		if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelCoves")))
+		{
+			if (UStaticMesh* CoveMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienWallCove.SM_SB_Kit_AlienWallCove")))
+			{
+				Coves = MakeSet(CoveMesh);
+				ApplyKitSurfaces(Coves, ShieldbreakMapArt::GetLook(MapId), 0.f);
 			}
 		}
 		// Two variants break up the repeat (-SBKeelOnePanel keeps one): stacked plates with vents, and a rose inset.
@@ -1373,6 +1401,11 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							const FRotator Skin(0.f, Yaw, 0.f);
 							const FVector CellBase(OnFace.X, OnFace.Y, Z0 + Row * RowHeight);
 							const bool bGlyphCell = Row == 0 && RowHeight > 250.0 && (Column % 3) == 1;
+							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
+							{
+								Coves->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, CeilingZ - 1.0) + Face.Normal * 1.0,
+									FVector(Width / 400.0, 1.0, 1.0)));
+							}
 							const int32 Variant = bGlyphCell ? 0 : (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 5;
 							UInstancedStaticMeshComponent* PanelSet = Variant == 4 && PanelsC ? PanelsC : (Variant == 2 || Variant == 3) && PanelsB ? PanelsB : Panels;
 							if (PanelSet)
@@ -1658,7 +1691,9 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			}
 		}
 	}
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Decks, CeilingRibs })
+	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
+		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Decks, CeilingRibs, Coves })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

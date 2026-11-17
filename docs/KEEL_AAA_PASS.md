@@ -138,6 +138,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   `-SBKeelOnePanel` for one). Walkable tops get the alien deck tile `SM_SB_Kit_AlienDeck` (rounded plates, dim violet
   seams; `-SBKeelFlatDecks` for the flat skin). A/B runs: both within FPS noise (2-3%).
 - Heavy hull ribs across the ceiling every 6 m (`SM_SB_Kit_AlienCeilingRib`, `-SBNoKeelCeilingRibs`), within FPS noise.
+- The pack's door frames, trays, boxes and panels take the dark mauve hull in the alien look (lamps keep theirs); ramp
+  tops get the alien deck tile. Wall-to-ceiling coves exist (`SM_SB_Kit_AlienWallCove`) but are opt-in
+  (`-SBKeelCoves`): under the flat ceiling light they barely read.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
