@@ -307,11 +307,15 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) ? TEXT("MauveDark") : bPackRamps ? TEXT("Frame") : TEXT("Hazard"))
 			: (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("wall") || Name == TEXT("metal") || Name == TEXT("bridge")
 				|| Name == TEXT("dark") || Name == TEXT("cover")) ? TEXT("Plate") : nullptr;
+		if (Kind && FCString::Strcmp(Kind, TEXT("Plate")) == 0 && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+		{
+			Kind = (Name == TEXT("bridge") || Name == TEXT("cover") || Name == TEXT("metal")) ? TEXT("MauveDark") : TEXT("Mauve");
+		}
 		if (UMaterialInterface* Hull = Kind ? ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
 			TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind)) : nullptr)
 		{
 			Mesh->SetMaterial(0, Hull);
-			if (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("dark") || Name == TEXT("wall"))
+			if (FCString::Strcmp(Kind, TEXT("Plate")) == 0 && (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("dark") || Name == TEXT("wall")))
 			{
 				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
 				{
@@ -714,7 +718,9 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			{
 				if (Slot.StartsWith(FString(TEXT("M_Hull")) + Kind))
 				{
-					const TCHAR* Use = bAlienHazard && FCString::Strcmp(Kind, TEXT("Hazard")) == 0 ? TEXT("MauveDark") : Kind;
+					// The alien look: plates go mauve, frames and hazard paint dark mauve, so no grey or orange human hull is left.
+					const TCHAR* Use = !bAlienHazard ? Kind : FCString::Strcmp(Kind, TEXT("Plate")) == 0 ? TEXT("Mauve")
+						: (FCString::Strcmp(Kind, TEXT("Frame")) == 0 || FCString::Strcmp(Kind, TEXT("Hazard")) == 0) ? TEXT("MauveDark") : Kind;
 					Scanned = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
 						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Use, Use));
 					break;
@@ -728,6 +734,20 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 				&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPulse")))
 			{
 				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPulse.MI_SB_KeelPulse"));
+				if (Scanned && bAlienHazard)
+				{
+					Mesh->SetMaterial(Index, Scanned);
+					if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+					{
+						MID->SetVectorParameterValue(TEXT("EmissiveColor"), FLinearColor(0.55f, 0.18f, 1.0f));
+					}
+					continue;
+				}
+			}
+			// Other light and amber accents glow violet in the alien look.
+			if (!Scanned && bAlienHazard && (Slot.StartsWith(TEXT("M_HullLight")) || Slot.StartsWith(TEXT("M_HullAmber"))))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_AlienViolet.MI_SB_AlienViolet"));
 			}
 			// The alien kit's hull: iridescent violet-teal gloss (Tools/create_keel_alien_material.py).
 			if (!Scanned && Slot.StartsWith(TEXT("M_AlienDark")))
@@ -996,13 +1016,15 @@ void AShieldbreakArena::BuildMapArt()
 			AddZoneLight(FVector(0.0, -2800.0, 900.0), ReactorGlow, 170.f, 1700.f);
 			// Spawn rooms: a faint team hint in each bridge (warm on red, cool on blue). The trench: low amber work lamps
 			// on its walls, against the cold under-glow of the pod above.
-			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), FLinearColor(1.f, 0.72f, 0.55f), 90.f, 1600.f);
+			// The alien look trades the amber for rose and violet.
+			const bool bAlienLights = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
+			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.55f, 0.78f) : FLinearColor(1.f, 0.72f, 0.55f), 90.f, 1600.f);
 			AddZoneLight(FVector(4500.0, 0.0, 1100.0), FLinearColor(0.62f, 0.75f, 1.f), 90.f, 1600.f);
 			for (const double X : { -1150.0, 1150.0 })
 			{
 				for (const double Y : { -700.0, 700.0 })
 				{
-					AddZoneLight(FVector(X, Y, 420.0), FLinearColor(1.f, 0.62f, 0.28f), 22.f, 1100.f);
+					AddZoneLight(FVector(X, Y, 420.0), bAlienLights ? FLinearColor(0.8f, 0.4f, 1.f) : FLinearColor(1.f, 0.62f, 0.28f), 22.f, 1100.f);
 				}
 			}
 		}

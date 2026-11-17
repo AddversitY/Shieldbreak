@@ -126,6 +126,16 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Next: floors read pale (the pack's own floor material); darker floor variants or a tint, corner pieces at block
   corners, pack stairs on the steeper ramps.
 
+## Done in pass 10 (2026-11-16): the alien ship (Vincent picked direction B from his Midship video)
+
+- Original sculpted wall panel `SM_SB_Kit_AlienPanel` (Art/blender/build_keel_alien.py) on every wall cell, mottled
+  mauve hull (`MI_SB_KeelMauve`, `MI_SB_KeelMauveDark`), a mauve ceiling skin, dark decks, leaning skirting with a
+  purple under-glow, and glowing glyph plaques from an original procedural script (Art/textures/make_keel_glyphs.py).
+- The human hull is restyled in this look: plate slots go mauve, frame and hazard slots dark mauve, light and amber
+  accents violet, the reactor pylons pulse violet, chevron decals are off, and the amber lamps are rose and violet.
+- Flags: `-SBNoKeelAlienSlice` (old look), `-SBKeelAlienBridgesOnly` (bridges only).
+- Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
