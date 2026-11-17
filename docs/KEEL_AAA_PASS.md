@@ -143,6 +143,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   (`-SBKeelCoves`): under the flat ceiling light they barely read.
 - Vertical violet light seams in the panel gaps every fourth column (`-SBNoKeelLightSeams`), and a dimmer sky light on
   Keel (1.5 instead of 3) so the rooms take depth from their lamps and glows.
+- Midship comparison (2026-11-17): darker, dustier, more mottled mauve hull so the glows carry the mood, and teal
+  circuit-glass panels high on the walls (original trace pattern, Art/textures/make_keel_circuits.py,
+  `M_SB_KeelCircuit`; `-SBNoKeelCircuits`), within FPS noise.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
