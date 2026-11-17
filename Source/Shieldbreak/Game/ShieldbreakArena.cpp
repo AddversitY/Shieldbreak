@@ -1372,7 +1372,10 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	struct FFace { FVector Normal; double Plane; double A0, A1; double Thickness; bool bAlongX; };
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		if (Dressed(Block) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
+		// The Cradle pod's walls stay the hero mesh, but its wide top takes the alien deck tile in the alien look (a flat
+		// grey slab otherwise, the plainest surface in the hero shots).
+		const bool bTopOnly = Dressed(Block) && bAlienSlice && Block.Max.X - Block.Min.X > 1000.0;
+		if ((Dressed(Block) && !bTopOnly) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
 		{
 			continue;
 		}
@@ -1383,7 +1386,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			{ FVector(0, 1, 0), Block.Max.Y, Block.Min.X, Block.Max.X, Size.Y, true },
 			{ FVector(0, -1, 0), Block.Min.Y, Block.Min.X, Block.Max.X, Size.Y, true } };
 		const double Z0 = Block.Min.Z, Z1 = FMath::Min<double>(Block.Max.Z, CeilingZ);
-		if (Z1 - Z0 >= 20.0)
+		if (Z1 - Z0 >= 20.0 && !bTopOnly)
 		{
 			for (const FFace& Face : Faces)
 			{
@@ -1420,7 +1423,9 @@ bool AShieldbreakArena::BuildKeelPackKit()
 								Underglow->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight)
 									+ AlongDir * (Width * 0.5) + Face.Normal * 9.0, FVector(0.04, 0.02, RowHeight * 0.86 / 100.0)));
 							}
-							if (Circuits && Row == 1 && Rows >= 2 && RowHeight > 250.0 && (Column % 5) == 2)
+							// (Not over the 01 / 02 bridge stencils, which sit high on the window walls at x = +-3870, y = 0.)
+							if (Circuits && Row == 1 && Rows >= 2 && RowHeight > 250.0 && (Column % 5) == 2
+								&& !(FMath::Abs(FMath::Abs(OnFace.X) - 3870.0) < 150.0 && FMath::Abs(OnFace.Y) < 600.0))
 							{
 								Circuits->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
 									FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
