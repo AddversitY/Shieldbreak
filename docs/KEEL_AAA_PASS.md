@@ -152,9 +152,10 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Pale lavender ceiling lamps on the alien ship (`-SBKeelWhiteLamps` for the cool white).
 - Hands-through-guns self-test (known failure, not Keel): traced on 2026-11-17 with `-SBGripDebug`. Sidearm: the
   wrist-to-index-knuckle palm line cuts the top of the grip, and the ring and pinky tips wrap round to the back strap;
-  sniper: left index tip (intermittent); third-person BR: the right thumb, which SolveGripContact never adjusts.
-  Letting the servo back the right thumb out and open stuck fingers made the sidearm worse (reverted). A real fix
-  needs the sidearm re-seated lower in the hand and a thumb pose, judged on first-person shots.
+  sniper: left index tip (intermittent); third-person BR: the right thumb's first bone. (Finger order in
+  ShieldbreakGrip::RightBones is index, middle, ring, pinky, thumb: the servo's skipped right finger 0 is the trigger
+  index, not the thumb.) Opening stuck fingers in the servo made the sidearm worse (reverted). A real fix needs the
+  sidearm re-seated in the hand and the thumb pose reworked, judged on first-person shots.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
