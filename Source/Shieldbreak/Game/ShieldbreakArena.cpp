@@ -754,6 +754,19 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 			{
 				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark"));
 			}
+			// Rose accents on the alien panels: the mauve hull, tinted warmer.
+			if (!Scanned && Slot.StartsWith(TEXT("M_AlienRose")) && FParse::Param(FCommandLine::Get(), TEXT("SBKeelRoseScan")))
+			{
+				if (UMaterialInterface* Rose = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve")))
+				{
+					Mesh->SetMaterial(Index, Rose);
+					if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.15f, 0.055f, 0.10f));
+					}
+					continue;
+				}
+			}
 			if (!Scanned && Slot.StartsWith(TEXT("M_AlienHull")))
 			{
 				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve"));
@@ -1230,6 +1243,8 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* SkinDecks = nullptr;
 	UInstancedStaticMeshComponent* Underglow = nullptr;
 	UInstancedStaticMeshComponent* Panels = nullptr;
+	UInstancedStaticMeshComponent* PanelsB = nullptr;
+	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	if (bAlienSlice)
 	{
@@ -1239,6 +1254,20 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		{
 			Panels = MakeSet(PanelMesh);
 			ApplyKitSurfaces(Panels, ShieldbreakMapArt::GetLook(MapId), 0.f);
+		}
+		// Two variants break up the repeat (-SBKeelOnePanel keeps one): stacked plates with vents, and a rose inset.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelOnePanel")))
+		{
+			if (UStaticMesh* B = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelB.SM_SB_Kit_AlienPanelB")))
+			{
+				PanelsB = MakeSet(B);
+				ApplyKitSurfaces(PanelsB, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+			if (UStaticMesh* C = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelC.SM_SB_Kit_AlienPanelC")))
+			{
+				PanelsC = MakeSet(C);
+				ApplyKitSurfaces(PanelsC, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
 		}
 		if (UMaterialInterface* GlyphMaterial = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelGlyph.M_SB_KeelGlyph")))
 		{
@@ -1332,9 +1361,15 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							// A smooth mauve skin over this cell (the cube is 100 cm), 1 cm proud of the face.
 							const FRotator Skin(0.f, Yaw, 0.f);
 							const FVector CellBase(OnFace.X, OnFace.Y, Z0 + Row * RowHeight);
-							if (Panels)
+							const bool bGlyphCell = Row == 0 && RowHeight > 250.0 && (Column % 3) == 1;
+							const int32 Variant = bGlyphCell ? 0 : (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 5;
+							UInstancedStaticMeshComponent* PanelSet = Variant == 4 && PanelsC ? PanelsC : (Variant == 2 || Variant == 3) && PanelsB ? PanelsB : Panels;
+							if (PanelSet)
 							{
-								Panels->AddInstance(FTransform(Skin, CellBase + Face.Normal * 1.0, FVector(Width / 400.0, 1.0, RowHeight / 400.0)));
+								// The variants are deeper (30 and 39 cm); squash them to panel A's 27 cm so none pokes through the
+								// space windows set into the wall.
+								const double Depth = PanelSet == PanelsC ? 27.0 / 39.0 : PanelSet == PanelsB ? 27.0 / 30.0 : 1.0;
+								PanelSet->AddInstance(FTransform(Skin, CellBase + Face.Normal * 1.0, FVector(Width / 400.0, Depth, RowHeight / 400.0)));
 							}
 							else
 							{
@@ -1567,7 +1602,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ - 1.5), FVector(Half.X / 50.0, Half.Y / 50.0, 0.02)));
 		}
 	}
-	for (UInstancedStaticMeshComponent* Set : { Panels, Glyphs })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

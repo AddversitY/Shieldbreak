@@ -33,6 +33,7 @@ NEW_PALETTE = {
     'AlienTeal': ((0.10, 1.0, 0.80), 0.0, 0.3, 8.0),
     'AlienViolet': ((0.60, 0.25, 1.0), 0.0, 0.3, 7.0),
     'AlienDark': ((0.03, 0.02, 0.04), 0.6, 0.3, 0.0),
+    'AlienRose': ((0.22, 0.08, 0.15), 0.8, 0.28, 0.0),
 }
 sb_kit.PALETTE.update(NEW_PALETTE)
 
@@ -150,10 +151,34 @@ def build_panel():
     return parts
 
 
+def build_panel_b():
+    """Wall panel variant B (same cell and pivot as build_panel): two stacked rounded plates split by a dark recess,
+    a rose inset strip across the upper plate and a row of vent slots on the lower one."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('backing', (0, 4, 200), (400, 8, 400), 'AlienDark', bevel=0)]
+    for cz, h in ((300, 176), (108, 192)):
+        parts.append(kit.prism_xz('plate', rr_loop(0, cz, 372, h, 46, 4), 8, 24, 'AlienHull', bevel=3))
+    parts.append(kit.prism_xz('rose', rr_loop(0, 312, 250, 46, 20, 3), 23, 30, 'AlienRose', bevel=0))
+    for i in range(5):
+        parts.append(sb_kit.box('vent', (-120 + i * 60, 25, 92), (24, 4, 90), 'AlienDark', bevel=0))
+    return parts
+
+
+def build_panel_c():
+    """Wall panel variant C: a heavy plate with a raised rose inner plate (rounded, chamfered) and a dark node."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('backing', (0, 4, 200), (400, 8, 400), 'AlienDark', bevel=0)]
+    parts.append(kit.prism_xz('plate', rr_loop(0, 205, 372, 372, 110, 6), 8, 22, 'AlienHull', bevel=4))
+    parts.append(kit.prism_xz('inner', rr_loop(0, 190, 236, 270, 70, 5), 21, 34, 'AlienRose', bevel=4))
+    parts.append(sb_kit.cyl('node', (0, 36, 350), 22, 6, 'AlienDark', axis='Y', verts=12, bevel=0))
+    return parts
+
+
 def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
-                        ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel)):
+                        ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
+                        ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
         sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])
