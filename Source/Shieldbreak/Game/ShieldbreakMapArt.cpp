@@ -529,6 +529,12 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
 		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
+		// The alien ship (default since 2026-11-16, -SBNoKeelAlienSlice for the old look): lamps a pale lavender, so the
+		// pools of light belong to the purple ship instead of reading as a human work-lamp white.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelWhiteLamps")))
+		{
+			Keel.InteriorLight = FLinearColor(0.84f, 0.74f, 1.f);
+		}
 		// 2026-11-16, Vincent: "make it look like the inside of an alien spaceship". The alien look (on unless
 		// off by default since 2026-11-16, -SBKeelAlienLook): teal trim, violet lamps, kit glow and haze.
 		if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))

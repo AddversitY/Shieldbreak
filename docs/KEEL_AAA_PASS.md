@@ -149,6 +149,12 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Violet volumetric haze on the alien ship (`-SBKeelNeutralHaze` for the grey haze), within FPS noise. Tried and
   dropped: curved knee braces where the ceiling ribs meet the walls (they read flat under the ceiling light, like the
   coves).
+- Pale lavender ceiling lamps on the alien ship (`-SBKeelWhiteLamps` for the cool white).
+- Hands-through-guns self-test (known failure, not Keel): traced on 2026-11-17 with `-SBGripDebug`. Sidearm: the
+  wrist-to-index-knuckle palm line cuts the top of the grip, and the ring and pinky tips wrap round to the back strap;
+  sniper: left index tip (intermittent); third-person BR: the right thumb, which SolveGripContact never adjusts.
+  Letting the servo back the right thumb out and open stuck fingers made the sidearm worse (reverted). A real fix
+  needs the sidearm re-seated lower in the hand and a thumb pose, judged on first-person shots.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
