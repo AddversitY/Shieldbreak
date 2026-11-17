@@ -49,7 +49,55 @@ def main():
         'MI_SB_KeelAlien', DEST, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
     MEL.set_material_instance_parent(instance, material)
     EAL.save_loaded_asset(instance)
+    build_glyphs()
     (ROOT / 'Saved/Logs/KeelAlienMaterial.txt').write_text('RESULT OK\n', encoding='utf-8')
+
+
+
+def build_glyphs():
+    """M_SB_KeelGlyph: a dark mauve panel whose glyph strokes (T_SB_KeelGlyphs R) glow purple."""
+    task = unreal.AssetImportTask()
+    task.filename = str(ROOT / 'Art/Export/Textures/T_SB_KeelGlyphs.png')
+    task.destination_path = DEST
+    task.destination_name = 'T_SB_KeelGlyphs'
+    task.automated = True
+    task.replace_existing = True
+    task.save = False
+    TOOLS.import_asset_tasks([task])
+    texture = unreal.load_asset(DEST + '/T_SB_KeelGlyphs')
+    texture.set_editor_property('srgb', False)
+    texture.set_editor_property('compression_settings', unreal.TextureCompressionSettings.TC_MASKS)
+    EAL.save_loaded_asset(texture)
+    path = DEST + '/M_SB_KeelGlyph'
+    material = unreal.load_asset(path) if EAL.does_asset_exist(path) else TOOLS.create_asset(
+        'M_SB_KeelGlyph', DEST, unreal.Material, unreal.MaterialFactoryNew())
+    MEL.delete_all_material_expressions(material)
+
+    def node(kind, x, y, **props):
+        result = MEL.create_material_expression(material, kind, x, y)
+        for key, value in props.items():
+            result.set_editor_property(key, value)
+        return result
+
+    def link(a, b, pin, output=''):
+        if not MEL.connect_material_expressions(a, output, b, pin):
+            raise RuntimeError('Cannot connect %s to %s.%s' % (a.get_name(), b.get_name(), pin))
+
+    sample = node(unreal.MaterialExpressionTextureSampleParameter2D, -800, 0, parameter_name='Glyphs', texture=texture,
+                  sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    colour = node(unreal.MaterialExpressionVectorParameter, -800, -250, parameter_name='GlowColor',
+                  default_value=unreal.LinearColor(0.62, 0.22, 1.0, 1))
+    glow = node(unreal.MaterialExpressionMultiply, -500, -150); link(sample, glow, 'A', 'R'); link(colour, glow, 'B')
+    strength = node(unreal.MaterialExpressionMultiply, -300, -150); link(glow, strength, 'A')
+    link(node(unreal.MaterialExpressionScalarParameter, -500, 0, parameter_name='Strength', default_value=8.0), strength, 'B')
+    MEL.connect_material_property(strength, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    base = node(unreal.MaterialExpressionMultiply, -300, 150); link(sample, base, 'A', 'G')
+    link(node(unreal.MaterialExpressionConstant3Vector, -500, 250, constant=unreal.LinearColor(0.06, 0.03, 0.08, 1)), base, 'B')
+    MEL.connect_material_property(base, '', unreal.MaterialProperty.MP_BASE_COLOR)
+    MEL.connect_material_property(node(unreal.MaterialExpressionConstant, -300, 350, r=0.35), '', unreal.MaterialProperty.MP_ROUGHNESS)
+    MEL.set_base_material_usage(material, unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES, True)
+    MEL.recompile_material(material)
+    EAL.save_loaded_asset(material)
 
 
 main()

@@ -32,6 +32,7 @@ NEW_PALETTE = {
     'AlienHull': ((0.08, 0.03, 0.14), 0.85, 0.22, 0.0),
     'AlienTeal': ((0.10, 1.0, 0.80), 0.0, 0.3, 8.0),
     'AlienViolet': ((0.60, 0.25, 1.0), 0.0, 0.3, 7.0),
+    'AlienDark': ((0.03, 0.02, 0.04), 0.6, 0.3, 0.0),
 }
 sb_kit.PALETTE.update(NEW_PALETTE)
 
@@ -135,10 +136,24 @@ def build_bridge():
     return parts
 
 
+def build_panel():
+    """The alien wall panel (2026-11-17): a 4 x 4 m wall cell, front face toward +Y, pivot at the bottom centre of its
+    back. A dark backing slab, a thick raised hull plate with large rounded corners and heavy bevels, a recessed
+    vertical spine and a sweeping groove across its lower third, so walls read as thick sculpted hull, not flat skin."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('backing', (0, 4, 200), (400, 8, 400), 'AlienDark', bevel=0)]
+    plate = [(x, z) for (x, z) in [(p[0], p[1]) for p in rr_loop(0, 205, 372, 372, 70, 8)]]
+    parts.append(kit.prism_xz('plate', plate, 8, 24, 'AlienHull', bevel=5))
+    parts.append(sb_kit.box('spine', (0, 25, 205), (26, 4, 320), 'AlienDark', bevel=1))
+    groove = [(-170, 120), (-60, 96), (60, 96), (170, 120), (170, 108), (60, 84), (-60, 84), (-170, 108)]
+    parts.append(kit.prism_xz('groove', groove, 23, 26, 'AlienDark', bevel=0))
+    return parts
+
+
 def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
-                        ('SM_SB_Kit_AlienBridge', build_bridge)):
+                        ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
         sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])

@@ -1,3 +1,5 @@
+**Keel alien pass 2 done, desktop released (Claude, desktop PC, 2026-11-16 22:20-01:30 local, branch `claude/project-thread-kwjmqj`).** Sculpted alien panels, glyph plaques and mauve hull across the whole of Keel (`-SBKeelAlienBridgesOnly` for bridges only, `-SBNoKeelAlienSlice` for off). Fixed-view 175.8 FPS. Self-test 177 passed, 1 known failure (hands through guns).
+
 **Keel alien slice done, desktop released (Claude, desktop PC, 2026-11-16 15:00-16:00 local, branch `claude/project-thread-kwjmqj`).** Mauve alien hull in both bridges (`-SBNoKeelAlienSlice`). Fixed-view 155 FPS.
 
 **Keel look review done, desktop released (Claude, desktop PC, 2026-11-16 12:25-12:45 local).** Shots only, no code change.
