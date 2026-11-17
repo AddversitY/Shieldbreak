@@ -205,12 +205,24 @@ def build_deck():
     return parts
 
 
+def build_ceiling_rib():
+    """A ceiling rib segment (2026-11-17): 4 m along Y, 70 cm wide, 48 cm deep with a rounded underside and a dark
+    recess along its belly. Pivot at the ceiling (top centre, z 0); ribs run across the ship every 6 m."""
+    sb_kit.reset_scene()
+    belly = [(-35, 0), (-35, -18), (-28, -36), (-14, -47), (14, -47), (28, -36), (35, -18), (35, 0)]
+    parts = [kit.prism_xz('rib', belly, -200, 200, 'AlienHull', bevel=0)]
+    parts.append(sb_kit.box('recess', (0, 0, -47.5), (9, 400, 2), 'AlienDark', bevel=0))
+    for sx in (-1, 1):
+        parts.append(sb_kit.box('flange', (sx * 41, 0, -4), (12, 400, 8), 'AlienDark', bevel=0))
+    return parts
+
+
 def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
                         ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
                         ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c),
-                        ('SM_SB_Kit_AlienDeck', build_deck)):
+                        ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
         sb_kit.export_fbx(str(OUT / (name + '.fbx')), [obj])

@@ -1620,7 +1620,37 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ - 1.5), FVector(Half.X / 50.0, Half.Y / 50.0, 0.02)));
 		}
 	}
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Decks })
+	// Thick hull ribs across the ceiling every 6 m (Midship's heavy curved structure), 4 m segments wherever the ceiling
+	// is open above a room. -SBNoKeelCeilingRibs turns them off.
+	UInstancedStaticMeshComponent* CeilingRibs = nullptr;
+	if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCeilingRibs")))
+	{
+		if (UStaticMesh* RibMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienCeilingRib.SM_SB_Kit_AlienCeilingRib")))
+		{
+			CeilingRibs = MakeSet(RibMesh);
+			ApplyKitSurfaces(CeilingRibs, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			for (double X = -Half.X + 300.0; X < Half.X - 100.0; X += 600.0)
+			{
+				for (double Y = -Half.Y + 200.0; Y < Half.Y - 100.0; Y += 400.0)
+				{
+					bool bClear = true;
+					for (const double Dy : { -180.0, 0.0, 180.0 })
+					{
+						for (const double Dz : { -20.0, -60.0 })
+						{
+							const FVector Probe(X, Y + Dy, CeilingZ + Dz);
+							bClear = bClear && !Inside(Probe) && InSlice(Probe);
+						}
+					}
+					if (bClear)
+					{
+						CeilingRibs->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, CeilingZ - 1.0), FVector(1.0)));
+					}
+				}
+			}
+		}
+	}
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Decks, CeilingRibs })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}
