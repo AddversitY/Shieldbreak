@@ -1153,7 +1153,8 @@ void AShieldbreakArena::BuildMapArt()
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
 		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).
 		UMaterialInterface* Space = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
-		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
+		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+			? TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark") : TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
 		if (Space && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindow")))
 		{
 			auto* Mullions = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), CubeMesh);
