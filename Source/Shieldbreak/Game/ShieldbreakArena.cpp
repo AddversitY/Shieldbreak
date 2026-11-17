@@ -1264,6 +1264,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* Panels = nullptr;
 	UInstancedStaticMeshComponent* PanelsB = nullptr;
 	UInstancedStaticMeshComponent* Decks = nullptr;
+	UInstancedStaticMeshComponent* DecksPlain = nullptr;
 	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
@@ -1284,6 +1285,12 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			{
 				Decks = MakeSet(DeckMesh);
 				ApplyKitSurfaces(Decks, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				// Two tiles in three without the seam light: a light cross on every tile read as a grid of marks.
+				if (UStaticMesh* PlainMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienDeckPlain.SM_SB_Kit_AlienDeckPlain")))
+				{
+					DecksPlain = MakeSet(PlainMesh);
+					ApplyKitSurfaces(DecksPlain, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
 			}
 		}
 		// Curved coves rounding every wall top into the ceiling: opt-in (-SBKeelCoves); under the flat ceiling light they
@@ -1502,7 +1509,8 @@ bool AShieldbreakArena::BuildKeelPackKit()
 						if (Decks)
 						{
 							// The tile's base sits 2 cm under its pivot: lift it clear of the block top (plates end 3.6 cm up).
-							Decks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 2.1), FVector(StepX / 300.0, StepY / 300.0, 1.0)));
+							UInstancedStaticMeshComponent* Tiles = DecksPlain && (IX * 7 + IY * 3) % 3 != 0 ? DecksPlain : Decks;
+							Tiles->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 2.1), FVector(StepX / 300.0, StepY / 300.0, 1.0)));
 						}
 						else
 						{
@@ -1613,7 +1621,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				if (Decks && InSlice(Center))
 				{
 					// The alien deck tile on ramp tops too (the pack's pale floor panels clashed on the crane arms).
-					Decks->AddInstance(FTransform(Turn, Center + Turn.RotateVector(FVector(0.0, 0.0, 2.1)),
+					(DecksPlain ? DecksPlain : Decks)->AddInstance(FTransform(Turn, Center + Turn.RotateVector(FVector(0.0, 0.0, 2.1)),
 						FVector(Length / Count / 300.0, Ramp.Width / Across / 300.0, 1.0)));
 					continue;
 				}
@@ -1722,7 +1730,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, Decks, CeilingRibs, Coves })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, Decks, DecksPlain, CeilingRibs, Coves })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

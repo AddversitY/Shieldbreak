@@ -191,7 +191,12 @@ def slab_xy(name, loop, z0, z1, mat, bevel=0.0):
     return sb_kit._finish(sb_kit._link(name, me), mat, bevel)
 
 
-def build_deck():
+def build_deck_plain():
+    """The alien deck tile without its seam light (most tiles: a light cross on every tile read as a grid of marks)."""
+    return build_deck(seam=False)
+
+
+def build_deck(seam=True):
     """The alien deck tile (2026-11-17): 3 x 3 m, pivot at the walkable top's centre (z 0), scaled to each tile.
     A dark base 1 cm under the top, four rounded plates proud of it by 1.5 cm split by channels, and a short dim seam
     of violet light where the channels cross. Visual only: the gameplay floor is unchanged."""
@@ -200,7 +205,7 @@ def build_deck():
     for sx in (-1, 1):
         for sy in (-1, 1):
             parts.append(slab_xy('plate', rr_loop(sx * 74, sy * 74, 136, 136, 26, 4), -1.0, 1.5, 'AlienDark', bevel=0.8))
-    for horizontal in (True, False):
+    for horizontal in ((True, False) if seam else ()):
         parts.append(sb_kit.box('seam', (0, 0, -0.8), (60, 3, 0.6) if horizontal else (3, 60, 0.6), 'AlienSeam', bevel=0))
     return parts
 
@@ -252,7 +257,7 @@ def main():
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
                         ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
                         ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c),
-                        ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib),
+                        ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienDeckPlain', build_deck_plain), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib),
                         ('SM_SB_Kit_AlienWallCove', build_wall_cove)):
         obj = sb_kit.join(name, build())
         line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)

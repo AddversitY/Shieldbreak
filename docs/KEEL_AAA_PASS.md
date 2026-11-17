@@ -149,6 +149,8 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Violet volumetric haze on the alien ship (`-SBKeelNeutralHaze` for the grey haze), within FPS noise. Tried and
   dropped: curved knee braces where the ceiling ribs meet the walls (they read flat under the ceiling light, like the
   coves).
+- Two deck tiles in three are the plain `SM_SB_Kit_AlienDeckPlain` (ramps all plain): a light cross on every tile read
+  as a grid of marks.
 - Pale lavender ceiling lamps on the alien ship (`-SBKeelWhiteLamps` for the cool white).
 - Hands-through-guns self-test (known failure, not Keel): traced on 2026-11-17 with `-SBGripDebug`. Sidearm: the
   wrist-to-index-knuckle palm line cuts the top of the grip, and the ring and pinky tips wrap round to the back strap;
