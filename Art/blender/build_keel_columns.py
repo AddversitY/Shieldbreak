@@ -164,6 +164,57 @@ def portal(W, H):
     return parts
 
 
+# Space windows (height, bay width): the Breach's long window (6.2 m tall bays) and the bridges' end-wall windows (5.8 m).
+WINDOW_HEIGHTS = [620, 580]
+
+
+def extrude_x(name, points_yz, x0, x1, mat):
+    """A closed YZ profile (counter-clockwise seen from +X) extruded along X from x0 to x1."""
+    rings = []
+    bm = bmesh.new()
+    a = [bm.verts.new((x0, y, z)) for y, z in points_yz]
+    b = [bm.verts.new((x1, y, z)) for y, z in points_yz]
+    bm.faces.new(list(reversed(a)))
+    bm.faces.new(b)
+    n = len(points_yz)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((a[i], a[j], b[j], b[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    return sb_kit._finish(sb_kit._link(name, me), mat, 0.0)
+
+
+def window_mullion(H):
+    """One mullion of a space window, option B: a faceted fin standing in front of the glass (its plane is y 0, the
+    room toward -Y), 60 cm wide at the glass narrowing to a 22 cm blade 48 cm into the room, flaring wider and deeper
+    where it meets the sill and head. Pivot: the window's middle, at the glass."""
+    sb_kit.reset_scene()
+
+    def fin(w0, w1, d):
+        return [(-w0 / 2, 0.0), (-w1 / 2 - 6, -d * 0.55), (-w1 / 2, -d), (w1 / 2, -d), (w1 / 2 + 6, -d * 0.55), (w0 / 2, 0.0)]
+
+    h = H / 2.0
+    rings = [(-h - 60, fin(90, 40, 62)), (-h + 30, fin(60, 22, 48)), (h - 30, fin(60, 22, 48)), (h + 60, fin(90, 40, 62))]
+    parts = [loft('mullion', rings, 'AlienHull')]
+    # A dark spine groove down the blade.
+    parts.append(sb_kit.box('spine', (0, -49, 0), (6, 3, H - 120), 'AlienDark', bevel=0))
+    return parts
+
+
+def window_sill():
+    """The window's sill and head, option B: an 8 m run (scaled to the window's bays) of heavy angled hull that
+    frames the glass top and bottom. Built as the bottom sill; the head is the same piece turned upside down.
+    Pivot: the glass's bottom edge at its middle (y 0 glass, room -Y)."""
+    sb_kit.reset_scene()
+    profile = [(0.0, 12.0), (0.0, -70.0), (-36.0, -60.0), (-58.0, -18.0), (-46.0, 6.0), (-20.0, 12.0)]
+    parts = [extrude_x('sill', profile, -400.0, 400.0, 'AlienHull')]
+    parts.append(extrude_x('lip', [(-46.0, 6.0), (-58.0, -18.0), (-61.0, -17.0), (-49.0, 8.0)], -400.0, 400.0, 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -174,6 +225,9 @@ def build_one(name, parts, lines):
 
 def main():
     lines = []
+    for H in WINDOW_HEIGHTS:
+        build_one('SM_SB_Kit_AlienWindowMullion_%d' % H, window_mullion(H), lines)
+    build_one('SM_SB_Kit_AlienWindowSill', window_sill(), lines)
     for W, H in PORTALS:
         build_one('SM_SB_Kit_AlienPortal_%dx%d' % (W, H), portal(W, H), lines)
     for W, D, H in SIZES:

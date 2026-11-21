@@ -1,3 +1,6 @@
+SM_SB_Kit_AlienWindowMullion_620: 56 tris, X -45.0..45.0 Y -62.0..0.0 Z -370.0..370.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienWindowMullion_580: 56 tris, X -45.0..45.0 Y -62.0..0.0 Z -350.0..350.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienWindowSill: 32 tris, X -400.0..400.0 Y -61.0..0.0 Z -70.0..12.0, slots M_AlienHull, M_AlienDark
 SM_SB_Kit_AlienPortal_500x350: 158 tris, X -340.0..340.0 Y -91.0..91.0 Z 0.0..440.0, slots M_AlienHull, M_AlienDark, M_AlienRose
 SM_SB_Kit_AlienPortal_2000x450: 158 tris, X -1090.0..1090.0 Y -91.0..91.0 Z 0.0..540.0, slots M_AlienHull, M_AlienDark, M_AlienRose
 SM_SB_Kit_AlienColumn_400x500x1150: 628 tris, X -270.0..270.0 Y -320.0..320.0 Z 0.0..1150.0, slots M_AlienDark, M_AlienHull, M_AlienRose

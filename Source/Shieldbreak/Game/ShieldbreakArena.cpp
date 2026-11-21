@@ -1202,10 +1202,32 @@ void AShieldbreakArena::BuildMapArt()
 			{
 				Mullions->SetMaterial(0, Frame);
 			}
+			// Option B (2026-11-21): the alien ship frames its windows with hand-modelled faceted mullions and heavy angled
+			// sills (Art/blender/build_keel_columns.py) instead of plain bars. -SBNoKeelWindowFrames keeps the bars.
+			const bool bAlienFrames = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindowFrames"));
+			TMap<FString, UInstancedStaticMeshComponent*> FrameSets;
+			auto FrameSet = [&](const FString& Name) -> UInstancedStaticMeshComponent*
+			{
+				UInstancedStaticMeshComponent*& Set = FrameSets.FindOrAdd(Name);
+				if (!Set)
+				{
+					if (UStaticMesh* FrameMesh = ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *Name, *Name)))
+					{
+						Set = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), FrameMesh);
+						Set->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						Set->SetCastShadow(false);
+						ApplyKitSurfaces(Set, ShieldbreakMapArt::GetLook(MapId), 0.f);
+					}
+				}
+				return Set;
+			};
 			// Center on the hull face, Yaw turns the window's length from X (0) to Y (+-90); the panel's -Y face, which
 			// shows the panorama, then faces the room.
 			auto AddWindow = [&](const FVector& Center, float Yaw, double HalfLength, double Bottom, double Top)
 			{
+				const FString MullionName = FString::Printf(TEXT("SM_SB_Kit_AlienWindowMullion_%d"), FMath::RoundToInt(Top - Bottom));
+				UInstancedStaticMeshComponent* AlienMullions = bAlienFrames ? FrameSet(MullionName) : nullptr;
+				UInstancedStaticMeshComponent* AlienSills = AlienMullions ? FrameSet(TEXT("SM_SB_Kit_AlienWindowSill")) : nullptr;
 				const FRotator Turn(0.f, Yaw, 0.f);
 				const FVector Middle = Center + FVector(0.0, 0.0, Layout.FloorZ + (Bottom + Top) * 0.5);
 				const FVector Inward = Turn.RotateVector(FVector(0.0, -1.0, 0.0));
@@ -1217,6 +1239,21 @@ void AShieldbreakArena::BuildMapArt()
 				Window->SetMaterial(0, Space);
 				Window->RegisterComponent();
 				AddInstanceComponent(Window);
+				if (AlienMullions && AlienSills)
+				{
+					const FQuat Flip = Turn.Quaternion() * FQuat(FVector::YAxisVector, PI);   // the head: the sill turned over
+					for (double Along = -HalfLength; Along <= HalfLength + 1.0; Along += 800.0)
+					{
+						AlienMullions->AddInstance(FTransform(Turn, Middle + Turn.RotateVector(FVector(Along, 0.0, 0.0))));
+						if (Along + 400.0 <= HalfLength)
+						{
+							const FVector Bay = Turn.RotateVector(FVector(Along + 400.0, 0.0, 0.0));
+							AlienSills->AddInstance(FTransform(Turn, Center + FVector(0.0, 0.0, Layout.FloorZ + Bottom) + Bay));
+							AlienSills->AddInstance(FTransform(Flip, Center + FVector(0.0, 0.0, Layout.FloorZ + Top) + Bay));
+						}
+					}
+					return;
+				}
 				for (double Along = -HalfLength; Along <= HalfLength + 1.0; Along += 800.0)
 				{
 					Mullions->AddInstance(FTransform(Turn, Middle + Turn.RotateVector(FVector(Along, 0.0, 0.0)) + Inward * 15.0,
@@ -1233,6 +1270,10 @@ void AShieldbreakArena::BuildMapArt()
 			AddWindow(FVector(Layout.HalfExtent.X - 30.0, 0.0, 0.0), -90.f, 1600.0, 760.0, 1340.0);
 			Mullions->RegisterComponent();
 			AddInstanceComponent(Mullions);
+			for (const TPair<FString, UInstancedStaticMeshComponent*>& Set : FrameSets)
+			{
+				if (Set.Value) { Set.Value->RegisterComponent(); AddInstanceComponent(Set.Value); }
+			}
 		}
 		UE_LOG(LogShieldbreak, Log, TEXT("Keel landmark decals: %d."), DecalCount);
 	}

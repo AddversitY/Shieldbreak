@@ -170,6 +170,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   `_2000x450`), replacing the pack door frames: a heavy surround sloping from 58 cm proud at the opening to 30 cm (it
   must clear the wall's 27 cm panels, or they hide it), cut top corners, dark reveal, rose keystone. `-SBNoKeelPortals`.
   Import: `Tools/ImportKeelColumns.bat`. New hero views `16_hero_door`, `17_hero_mouth`.
+- Faceted alien mullions and heavy angled sills and heads on the three space windows
+  (`SM_SB_Kit_AlienWindowMullion_620` / `_580`, `SM_SB_Kit_AlienWindowSill`), replacing the plain bars.
+  `-SBNoKeelWindowFrames`. Fixed-view 169 FPS after.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
