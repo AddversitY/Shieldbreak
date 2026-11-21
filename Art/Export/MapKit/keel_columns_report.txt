@@ -1,3 +1,4 @@
+SM_SB_Kit_AlienPod: 1628 tris, X -722.0..722.0 Y -464.0..464.0 Z -2.0..1100.0, slots M_AlienHull, M_AlienDark, M_AlienRose
 SM_SB_Kit_AlienPlinth_200x150x110: 144 tris, X -112.0..112.0 Y -87.0..87.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull
 SM_SB_Kit_AlienPlinth_200x300x110: 144 tris, X -112.0..112.0 Y -162.0..162.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull
 SM_SB_Kit_AlienPlinth_200x300x130: 144 tris, X -112.0..112.0 Y -162.0..162.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull

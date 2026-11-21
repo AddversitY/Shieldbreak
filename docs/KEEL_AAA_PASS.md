@@ -176,6 +176,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Sculpted cast blocks on all low cover (crates, consoles, coolant blocks, debris; `SM_SB_Kit_AlienPlinth_<W>x<D>x<H>`,
   seven sizes): sides leaning out to a dark foot, a dark mid band, a bevelled top at the gameplay height, and no light
   line on their edges any more (BuildTrim skips Keel's low cover). `-SBNoKeelPlinths`. Fixed-view 175 FPS after.
+- The Cradle's pod as faceted alien hull (`SM_SB_Kit_AlienPod`, replaces the Cradle pod hero and its yoke in the alien
+  look; `-SBNoKeelAlienPod`): a shell narrowing to a keel underneath, dark waist band, ribs and rose plates down the
+  long sides, a dark belly plate, and four faceted hangers to the ceiling. Fixed-view 171-175 FPS after.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)

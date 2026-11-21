@@ -240,6 +240,36 @@ def plinth(W, D, H):
     return parts
 
 
+def alien_pod():
+    """The Cradle's hung pod as alien hull (option B): the 14 x 8 x 2.5 m gameplay block wrapped in a faceted shell
+    that narrows to a keel underneath, swells 10 cm past the block at its waist and closes flush with the walkable top;
+    a dark waist band, dark ribs down the long sides with rose plates between them, and a dark belly plate. The ends
+    stay within the block so the crane-arm ramps meet it cleanly. Pivot: the block's bottom centre (z 400 in Keel)."""
+    sb_kit.reset_scene()
+    hw, hd, H = 700.0, 400.0, 250.0
+    shell = [(0.0, ring(hw - 50, hd - 90, 120)), (30.0, ring(hw - 10, hd - 30, 120)), (120.0, ring(hw + 10, hd + 10, 100)),
+             (240.0, ring(hw + 6, hd + 6, 90)), (H, ring(hw, hd, 80))]
+    parts = [loft('shell', shell, 'AlienHull')]
+    parts.append(loft('waist', [(112.0, ring(hw + 22, hd + 22, 104)), (134.0, ring(hw + 22, hd + 22, 104))], 'AlienDark'))
+    parts.append(loft('belly', [(-2.0, ring(hw - 130, hd - 160, 90)), (0.5, ring(hw - 130, hd - 160, 90))], 'AlienDark'))
+    for side in (-1, 1):
+        for i in range(-3, 4):
+            x = i * 175.0
+            parts.append(sb_kit.box('rib', (x, side * (hd + 14), 185), (16, 12, 100), 'AlienDark', bevel=1.5))
+            if i < 3:
+                parts.append(sb_kit.box('plate', (x + 87.5, side * (hd + 11), 190), (120, 4, 66), 'AlienRose', bevel=2))
+    # Four hangers up to the ceiling (11 m above the pivot): faceted struts clamped to the long sides, so the pod reads
+    # as hung, not floating. Outside the walkable top.
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * 520.0, sy * (hd + 34.0)
+            def sq(r, c, x=x, y=y):
+                return [(px + x, py + y) for px, py in ring(r, r, c)]
+            parts.append(loft('clamp', [(120.0, sq(26, 10)), (230.0, sq(26, 10)), (262.0, sq(17, 6))], 'AlienDark'))
+            parts.append(loft('hanger', [(262.0, sq(15, 5)), (1060.0, sq(13, 4)), (1100.0, sq(30, 10))], 'AlienHull'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -250,6 +280,7 @@ def build_one(name, parts, lines):
 
 def main():
     lines = []
+    build_one('SM_SB_Kit_AlienPod', alien_pod(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)
     for H in WINDOW_HEIGHTS:
