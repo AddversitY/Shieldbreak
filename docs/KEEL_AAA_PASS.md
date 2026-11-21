@@ -161,6 +161,17 @@ shapes; professional free source material only, restyled; no paid tools; perform
   sidearm re-seated in the hand and the thumb pose reworked, judged on first-person shots.
 - Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
 
+## Done in pass 11 (2026-11-21): option B hand-modelled modules
+
+- Sculpted column shrouds on Keel's ten floor-to-ceiling pillars (`Art/blender/build_keel_columns.py`,
+  `SM_SB_Kit_AlienColumn_<W>x<D>x<H>`, authored at each pillar's exact size): chamfered tapering shaft 25 cm outside
+  the block, sloped skirt, flared capital into the ceiling, dark joint bands, fins and a rose inset. `-SBNoKeelColumns`.
+- Angular alien portals round the twelve deck doors and both trench mouths (`SM_SB_Kit_AlienPortal_500x350`,
+  `_2000x450`), replacing the pack door frames: a heavy surround sloping from 58 cm proud at the opening to 30 cm (it
+  must clear the wall's 27 cm panels, or they hide it), cut top corners, dark reveal, rose keystone. `-SBNoKeelPortals`.
+  Import: `Tools/ImportKeelColumns.bat`. New hero views `16_hero_door`, `17_hero_mouth`.
+- FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical

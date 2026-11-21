@@ -1141,7 +1141,46 @@ void AShieldbreakArena::BuildMapArt()
 					DoorFrames.Add(FTransform(FRotator(0.f, 90.f, 0.f), FVector(X, Side * 1550.0, 350.0), FrameScale));
 				}
 			}
-			Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
+			// Option B (2026-11-21): the alien ship gets hand-modelled angular portals (Art/blender/build_keel_columns.py)
+			// round the same doors, and round the trench mouths, instead of the pack's frames. -SBNoKeelPortals keeps them.
+			bool bPortals = false;
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPortals")))
+			{
+				UStaticMesh* DeckPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_500x350.SM_SB_Kit_AlienPortal_500x350"));
+				UStaticMesh* TrenchPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_2000x450.SM_SB_Kit_AlienPortal_2000x450"));
+				for (UStaticMesh* PortalMesh : { DeckPortal, TrenchPortal })
+				{
+					if (!PortalMesh)
+					{
+						continue;
+					}
+					auto* Portals = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPortal"), PortalMesh);
+					Portals->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					Portals->SetCastShadow(false);
+					ApplyKitSurfaces(Portals, ShieldbreakMapArt::GetLook(MapId), 0.f);
+					if (PortalMesh == DeckPortal)
+					{
+						for (const FTransform& At : DoorFrames)
+						{
+							Portals->AddInstance(FTransform(At.GetRotation(), At.GetLocation() + FVector(0.0, 0.0, Layout.FloorZ)));
+						}
+					}
+					else
+					{
+						for (const double Side : { -1.0, 1.0 })
+						{
+							Portals->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, Side * 2000.0, Layout.FloorZ)));
+						}
+					}
+					Portals->RegisterComponent();
+					AddInstanceComponent(Portals);
+					bPortals = true;
+				}
+			}
+			if (!bPortals)
+			{
+				Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
+			}
 			Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
 			Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
 			Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
@@ -1265,6 +1304,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* PanelsB = nullptr;
 	UInstancedStaticMeshComponent* Decks = nullptr;
 	UInstancedStaticMeshComponent* DecksPlain = nullptr;
+	TMap<FString, UInstancedStaticMeshComponent*> ColumnSets;
 	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
@@ -1390,6 +1430,31 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		// The Cradle pod's walls stay the hero mesh, but its wide top takes the alien deck tile in the alien look (a flat
 		// grey slab otherwise, the plainest surface in the hero shots).
 		const bool bTopOnly = Dressed(Block) && bAlienSlice && Block.Max.X - Block.Min.X > 1000.0;
+		// Option B (2026-11-21): floor-to-ceiling pillars get a hand-modelled shroud authored at their exact size
+		// (Art/blender/build_keel_columns.py: chamfered shaft, sloped skirt, flared capital) instead of wall panels.
+		// -SBNoKeelColumns keeps the panels.
+		if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelColumns")) && Block.Max.Z >= CeilingZ - 1.0
+			&& FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 150.0
+			&& Block.Max.X - Block.Min.X <= 600.0 && Block.Max.Y - Block.Min.Y <= 600.0 && InSlice((Block.Min + Block.Max) * 0.5f))
+		{
+			const FVector ColumnSize = Block.Max - Block.Min;
+			const FString ColumnName = FString::Printf(TEXT("SM_SB_Kit_AlienColumn_%dx%dx%d"), FMath::RoundToInt(ColumnSize.X),
+				FMath::RoundToInt(ColumnSize.Y), FMath::RoundToInt(ColumnSize.Z));
+			UInstancedStaticMeshComponent*& Set = ColumnSets.FindOrAdd(ColumnName);
+			if (!Set)
+			{
+				if (UStaticMesh* ColumnMesh = ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *ColumnName, *ColumnName)))
+				{
+					Set = MakeSet(ColumnMesh);
+					ApplyKitSurfaces(Set, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
+			if (Set)
+			{
+				Set->AddInstance(FTransform(FRotator::ZeroRotator, FVector((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5, Block.Min.Z)));
+				continue;
+			}
+		}
 		if ((Dressed(Block) && !bTopOnly) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
 		{
 			continue;
@@ -1734,6 +1799,15 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					}
 				}
 			}
+		}
+	}
+	for (const TPair<FString, UInstancedStaticMeshComponent*>& Column : ColumnSets)
+	{
+		if (Column.Value)
+		{
+			UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: %d x %s."), Column.Value->GetInstanceCount(), *Column.Key);
+			Column.Value->RegisterComponent();
+			AddInstanceComponent(Column.Value);
 		}
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
