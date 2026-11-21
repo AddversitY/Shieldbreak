@@ -173,6 +173,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Faceted alien mullions and heavy angled sills and heads on the three space windows
   (`SM_SB_Kit_AlienWindowMullion_620` / `_580`, `SM_SB_Kit_AlienWindowSill`), replacing the plain bars.
   `-SBNoKeelWindowFrames`. Fixed-view 169 FPS after.
+- Sculpted cast blocks on all low cover (crates, consoles, coolant blocks, debris; `SM_SB_Kit_AlienPlinth_<W>x<D>x<H>`,
+  seven sizes): sides leaning out to a dark foot, a dark mid band, a bevelled top at the gameplay height, and no light
+  line on their edges any more (BuildTrim skips Keel's low cover). `-SBNoKeelPlinths`. Fixed-view 175 FPS after.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)

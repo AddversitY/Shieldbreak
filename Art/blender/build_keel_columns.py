@@ -215,6 +215,31 @@ def window_sill():
     return parts
 
 
+# Low cover on Keel (W x D x H): crates, consoles, coolant blocks and hull debris, each authored at its exact size.
+PLINTHS = [(200, 150, 110), (200, 300, 110), (200, 300, 130), (200, 400, 130), (300, 100, 130), (300, 300, 130), (400, 200, 130)]
+
+
+def plinth(W, D, H):
+    """Sculpted alien cover (option B): a cast block whose sides lean out to a dark foot 12 cm beyond the gameplay
+    block, a proud dark band at half height, and a top bevelled 8 cm in, so the walkable top stays at the block's
+    height. Pivot: the block's bottom centre."""
+    sb_kit.reset_scene()
+    hw, hd = W / 2.0, D / 2.0
+
+    def at(o, c):
+        return ring(hw + o, hd + o, max(4.0, min(c, hw + o - 2.0, hd + o - 2.0)))
+
+    mid = H * 0.5
+    parts = [
+        loft('foot', [(0.0, at(12, 22)), (16.0, at(12, 22)), (22.0, at(6, 18))], 'AlienDark'),
+        loft('body', [(22.0, at(6, 18)), (H - 14.0, at(1, 14)), (H, at(-8, 16))], 'AlienHull'),
+        loft('band', [(mid - 9.0, at(6, 18)), (mid + 9.0, at(5, 17))], 'AlienDark'),
+    ]
+    # A dark recessed top plate.
+    parts.append(loft('top', [(H - 0.5, at(-14, 12)), (H + 0.6, at(-14, 12))], 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -225,6 +250,8 @@ def build_one(name, parts, lines):
 
 def main():
     lines = []
+    for W, D, H in PLINTHS:
+        build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)
     for H in WINDOW_HEIGHTS:
         build_one('SM_SB_Kit_AlienWindowMullion_%d' % H, window_mullion(H), lines)
     build_one('SM_SB_Kit_AlienWindowSill', window_sill(), lines)

@@ -531,6 +531,12 @@ void AShieldbreakArena::BuildTrim()
 			}
 			continue;
 		}
+		// Keel's alien ship (option B): low cover is a sculpted cast block (SM_SB_Kit_AlienPlinth_*) with no light line.
+		if (MapId == FName(TEXT("Keel")) && Size.Z <= 160.f && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPlinths")))
+		{
+			continue;
+		}
 		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bTerrainHidesPerimeter && ShieldbreakScanPrivate::IsPerimeter(Layout, Block))
 			|| (bCarvedStone && (ShieldbreakScanPrivate::IsPerimeter(Layout, Block)
 			|| ShieldbreakScanPrivate::AltarFor(Layout, Block))))
@@ -1474,12 +1480,17 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		// Option B (2026-11-21): floor-to-ceiling pillars get a hand-modelled shroud authored at their exact size
 		// (Art/blender/build_keel_columns.py: chamfered shaft, sloped skirt, flared capital) instead of wall panels.
 		// -SBNoKeelColumns keeps the panels.
-		if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelColumns")) && Block.Max.Z >= CeilingZ - 1.0
-			&& FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 150.0
+		// Low cover (crates, consoles, coolant blocks, debris) likewise gets a sculpted cast block at its exact size
+		// (SM_SB_Kit_AlienPlinth_*); -SBNoKeelPlinths keeps the panels.
+		const bool bColumn = Block.Max.Z >= CeilingZ - 1.0 && FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 150.0
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelColumns"));
+		const bool bPlinth = Block.Max.Z - Block.Min.Z <= 160.0 && FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 50.0
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPlinths"));
+		if (bAlienSlice && (bColumn || bPlinth)
 			&& Block.Max.X - Block.Min.X <= 600.0 && Block.Max.Y - Block.Min.Y <= 600.0 && InSlice((Block.Min + Block.Max) * 0.5f))
 		{
 			const FVector ColumnSize = Block.Max - Block.Min;
-			const FString ColumnName = FString::Printf(TEXT("SM_SB_Kit_AlienColumn_%dx%dx%d"), FMath::RoundToInt(ColumnSize.X),
+			const FString ColumnName = FString(bColumn ? TEXT("SM_SB_Kit_AlienColumn_") : TEXT("SM_SB_Kit_AlienPlinth_")) + FString::Printf(TEXT("%dx%dx%d"), FMath::RoundToInt(ColumnSize.X),
 				FMath::RoundToInt(ColumnSize.Y), FMath::RoundToInt(ColumnSize.Z));
 			UInstancedStaticMeshComponent*& Set = ColumnSets.FindOrAdd(ColumnName);
 			if (!Set)
