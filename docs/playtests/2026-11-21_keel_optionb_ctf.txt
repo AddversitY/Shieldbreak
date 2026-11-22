@@ -1,0 +1,116 @@
+Shieldbreak self-test, 2026.11.21-20.02.35
+-- Settle
+-- Front end and match capacity
+PASS  Session capacity is eight players
+PASS  Every combat sound bank is imported  -- 173 variations loaded
+PASS  Runtime session enforces eight players
+PASS  Configured game instance preserves connection recovery across travel
+PASS  Direct join accepts IPv4 and hostnames
+PASS  Direct join rejects invalid ports and travel options
+-- Arena movement-base network references
+PASS  Arena has a stable network path
+PASS  All arena collision pieces have stable network paths  -- 200 pieces
+-- Original art is in place
+PASS  Weapon_BattleRifle uses its own model  -- SM_SB_BattleRifle
+PASS  Weapon_Sidearm uses its own model  -- SM_SB_Sidearm
+PASS  Weapon_SniperRifle uses its own model  -- SM_SB_Sniper
+PASS  Weapon_RocketLauncher uses its own model  -- SM_SB_RocketLauncher
+PASS  Weapon_RailLance uses its own model  -- SM_SB_RailLance
+PASS  Soldiers wear the armor set  -- skinned suit SK_SB_Soldier
+PASS  ...over a matte suit (MI_SBC_Polymer, not the mannequin's material)  -- MI_SBC_Polymer
+PASS  Soldier bodies blend their animation (native anim instance)  -- aim pitch 0.0
+-- First-person arms hold the gun
+PASS  The local player has first-person arms
+PASS  ...and the gun is in their hand  -- FirstPersonArms
+PASS  ...with the index finger on the trigger  -- finger pad 0.00 cm from the trigger (Weapon_BattleRifle_1; hand space: trigger (-6.0,-1.0,-0.1) pad (-6.2,-3.1,-0.4) index_01 (-9.3,-0.4,2.9); gun space: trigger (0.0,3.7,-7.0) pad (0.0,5.8,-7.0) index_01 (3.0,2.9,-3.8) hand_r (-5.9,2.3,-7.8) middle_01 (3.4,3.9,-6.4) pinky_01 (2.4,3.1,-10.8) thumb_03 (1.9,-2.9,-3.0))
+PASS  ...and on a rifle the left hand holds the forend  -- left wrist 0.43 cm from SupportHand (Weapon_BattleRifle_1)
+-- Scope overlays
+INFO  screenshot keel_shot_fp_br_hip
+INFO  screenshot keel_shot_fp_br_ads_in
+PASS  Zooming the Battle Rifle brings up its Marksman scope and hides the gun  -- Weapon_BattleRifle_2, blend 1.00, gun hidden 1
+INFO  screenshot keel_shot_scope_marksman
+PASS  ...and zoomed out the gun is back  -- Weapon_SniperRifle_0
+INFO  screenshot keel_shot_fp_sniper_idle
+INFO  screenshot keel_shot_scope_sniper_1
+PASS  The Sniper's LongRange scope has a second, closer zoom  -- Weapon_SniperRifle_0, level 2, FOV 7.0
+INFO  screenshot keel_shot_scope_sniper_2
+PASS  ...and a third press zooms out
+-- First-person moves
+PASS  A first-person reload plays the hand-keyed move, not the third-person clip  -- move 1, progress 0.30, hand weight 1.00, gun roll 18.6
+PASS  ...the magazine comes out of the gun with the left hand  -- 15.8 cm from its socket
+INFO  screenshot keel_shot_fp_reload_mag_out
+PASS  The extracted magazine releases before a fresh one is brought up  -- observed falling after the strip
+PASS  A fresh magazine is carried after the old one releases  -- fresh grasp
+PASS  The reload wrist turns into a side grasp  -- 65.2 degrees relative to idle in gun space
+PASS  The fresh magazine is held with a curled middle finger  -- 50.4 degrees at the evaluated middle joint
+PASS  The reload keeps the carried magazine and palm in frame  -- palm 583,650; magazine 672,649; viewport 1280x720
+INFO  screenshot keel_shot_fp_reload_carry
+PASS  The carried magazine stays fixed in the evaluated palm  -- maximum grip drift 0.000 cm
+INFO  screenshot keel_shot_fp_reload_insert
+INFO  screenshot keel_shot_fp_reload_charge
+PASS  ...and ends with the magazine seated and the left hand back on the forend  -- magazine 0.00 cm off, support hand 0.00 cm (before 0.00)
+PASS  A first-person melee chops the gun down and in  -- gun 2.8 cm forward, pitch -8.9, yaw -7.7
+INFO  screenshot keel_shot_fp_melee
+PASS  A weapon swap brings the new gun up with the hand-keyed draw  -- draw began 0.31 s after the swap
+INFO  screenshot keel_shot_fp_draw
+INFO  screenshot keel_shot_fp_pistol_drop
+PASS  The sidearm reload brings the left arm in with a fresh magazine  -- move 1, progress 0.50
+INFO  screenshot keel_shot_fp_pistol_fresh
+PASS  ...and puts it away again
+-- Hands never pass through guns
+INFO  grip Weapon_BattleRifle: 0 (none); support error 0.00 cm; hand space: trigger (-6.0,-1.0,-0.1) pad (-6.2,-3.1,-0.5) index_01 (-9.3,-0.4,2.9); gun space: trigger (0.0,3.7,-7.0) pad (0.0,5.8,-7.0) index_01 (3.0,2.9,-3.8) hand_r (-5.9,2.3,-7.7) middle_01 (3.4,3.9,-6.3) pinky_01 (2.4,3.1,-10.8) thumb_03 (1.9,-2.8,-2.9)
+INFO  trigger hand FP Weapon_BattleRifle: 0.33 cm (SM_SB_BattleRifle_NoMag: grip surface 0.3 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.3 cm off that line across the grip and 0.4 cm along it, 4.6 cm out (half width 1.7), gun offset V(X=-2.09, Y=0.15, Z=8.35))
+INFO  screenshot keel_shot_grip_Weapon_BattleRifle
+INFO  grip Weapon_SniperRifle: 1 (index_03_l); support error 0.00 cm; hand space: trigger (-6.1,-1.3,0.7) pad (-6.3,-3.4,0.3) index_01 (-9.3,-0.4,2.9); gun space: trigger (-0.0,3.7,-7.0) pad (0.0,5.9,-7.0) index_01 (3.0,2.7,-4.6) hand_r (-5.9,2.1,-8.6) middle_01 (3.4,3.8,-7.2) pinky_01 (2.4,2.9,-11.6) thumb_03 (2.0,-3.0,-3.8)
+INFO  trigger hand FP Weapon_SniperRifle: 0.67 cm (SM_SB_Sniper_NoMag: grip surface 0.1 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.7 cm off that line across the grip and 0.8 cm along it, 3.9 cm out (half width 1.8), gun offset V(X=-2.13, Y=0.30, Z=9.12))
+INFO  screenshot keel_shot_grip_Weapon_SniperRifle
+INFO  grip Weapon_Sidearm: 3 (palm>index_01_r ring_03_r pinky_02_r); support error -1.00 cm; hand space: trigger (-6.4,-0.9,0.3) pad (-6.7,-2.8,0.2) index_01 (-9.3,-0.4,2.9); gun space: trigger (-0.0,2.4,-4.8) pad (-0.0,4.3,-4.8) index_01 (2.8,2.3,-2.1) hand_r (-6.1,0.5,-5.5) middle_01 (3.0,3.0,-4.8) pinky_01 (2.0,1.6,-9.0) thumb_03 (-2.2,2.3,3.6)
+INFO  trigger hand FP Weapon_Sidearm: 0.35 cm (SM_SB_Sidearm_NoMag: grip surface 0.5 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.3 cm off that line across the grip and 0.5 cm along it, 4.9 cm out (half width 1.6), gun offset V(X=-1.43, Y=1.23, Z=4.96))
+INFO  screenshot keel_shot_grip_Weapon_Sidearm
+INFO  grip Weapon_RailLance: 0 (none); support error 0.00 cm; hand space: trigger (-6.1,-1.3,0.8) pad (-6.2,-3.4,0.4) index_01 (-9.3,-0.4,2.9); gun space: trigger (-0.0,3.7,-7.0) pad (-0.0,5.8,-7.0) index_01 (3.1,2.7,-4.7) hand_r (-5.8,2.1,-8.6) middle_01 (3.4,3.7,-7.3) pinky_01 (2.5,2.9,-11.7) thumb_03 (2.0,-3.1,-3.9)
+INFO  trigger hand FP Weapon_RailLance: 0.72 cm (SM_SB_RailLance: grip surface 0.2 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.7 cm off that line across the grip and 0.9 cm along it, 3.9 cm out (half width 1.7), gun offset V(X=-2.16, Y=0.33, Z=9.26))
+INFO  screenshot keel_shot_grip_Weapon_RailLance
+INFO  grip Weapon_RocketLauncher: 0 (none); support error 0.00 cm; hand space: trigger (-6.0,-1.1,0.2) pad (-6.1,-3.1,-0.2) index_01 (-9.3,-0.4,2.9); gun space: trigger (0.0,3.7,-4.6) pad (-0.0,5.8,-4.6) index_01 (3.1,2.8,-1.7) hand_r (-5.8,2.3,-5.7) middle_01 (3.5,3.9,-4.3) pinky_01 (2.5,3.1,-8.7) thumb_03 (2.0,-2.9,-0.9)
+INFO  trigger hand FP Weapon_RocketLauncher: 0.44 cm (SM_SB_RocketLauncher: grip surface 0.3 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.4 cm off that line across the grip and 0.5 cm along it, 4.2 cm out (half width 1.8), gun offset V(X=-2.19, Y=0.17, Z=6.24))
+INFO  screenshot keel_shot_grip_Weapon_RocketLauncher
+INFO  trigger hand third-person BR: 0.70 cm (SM_SB_BattleRifle: grip surface 1.2 cm out from the palm joints along the palm normal (0 to 3 is a hold), grip centre 0.7 cm off that line across the grip and 0.9 cm along it, 2.4 cm out (half width 1.7), gun offset V(X=-0.53, Y=0.19, Z=10.08))
+INFO  screenshot keel_shot_tp_grip_br
+INFO  screenshot keel_shot_tp_grip_br_right
+INFO  screenshot keel_shot_tp_grip_br_left
+FAIL  Hands never pass through guns (first person, reload, third person)  -- Weapon_SniperRifle: 1 (index_03_l); Weapon_Sidearm: 3 (palm>index_01_r ring_03_r pinky_02_r); third-person BR: 1 (thumb_01_r)
+PASS  Every gun's pistol grip sits in the trigger hand's palm (first and third person)  -- all within 2 cm
+-- Death camera
+INFO  screenshot keel_shot_death_camera
+PASS  The death camera watches the body from outside it  -- camera 310.05 cm from the pelvis, view target CameraActor_2, death camera CameraActor_2, overview CameraActor_0, alive 0
+-- Controller aim assist tracks a nearby enemy
+PASS  Controller aim assist tracks a nearby enemy  -- yaw error 2.29 -> 0.00 deg, strength 1.00
+-- Soldier bodies bend to the aim pitch
+PASS  Aim pitch raises the gun hand  -- aim pitch 45.0, hand 45.7 -> 55.7
+-- Keel: spawns and pickups
+PASS  Keel: all 10 spawns stand on floor, inside the map, with headroom
+PASS  Keel: every weapon pickup and power-up spawns  -- weapons 2/2, power-ups 4/4
+INFO  Keel waypoint graph: 842 nodes
+-- Keel: gravity lifts
+PASS  Keel: lift 1 lands you on its target  -- pad (0, 1700, 0) -> target (0, 250, 650), landed (0, 225, 652): 25 uu off, dz 2
+PASS  Keel: lift 2 lands you on its target  -- pad (0, -1700, 0) -> target (0, -250, 650), landed (0, -225, 652): 25 uu off, dz 2
+-- CTF: take and capture
+PASS  Both flags spawn at home
+PASS  Walking over the enemy flag takes it
+PASS  ...the carrier switches to the sidearm  -- Weapon_Sidearm_15
+PASS  ...and the sidearm may fire
+PASS  Bringing it to your home flag captures (+1)  -- red 0.00 -> 1
+PASS  ...and the captured flag goes home
+-- CTF: drop, return and auto-return
+PASS  (carrier still has the flag)
+PASS  Dying drops the flag  -- home 0 carrier None
+PASS  A defender touching the dropped flag returns it
+PASS  A dropped flag returns on its own after ~15 s  -- home 1 after 15.00 s
+-- Bot match sanity (75 s)
+INFO  3 third-person screenshots in Saved/Screenshots/SelfTest
+INFO  Keel-CTF team score after the bot match: red 1, blue 0
+PASS  No bot stays stuck in one spot for 20 s  -- 0 stuck: 
+INFO  average 171.6 FPS over 74 real seconds with 4 bots
+PASS  4 bots joined  -- 4 bots
+PASS  Bots find and fight each other  -- 14 kills+deaths in 75 s
+PASS  The camera never sits inside a character or draws the viewer's own body  -- checked every frame
+RESULT 59 passed, 1 failed

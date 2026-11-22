@@ -200,6 +200,13 @@ shapes; professional free source material only, restyled; no paid tools; perform
   160.8 / 175.7, off 170.1 / 163.5, no measurable cost.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
+- Every option B module together (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
+  -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges -SBNoKeelAlienPylons -SBNoKeelVault -SBKeelBusyPanels
+  -SBNoKeelCoffers` for all off), three interleaved pairs: on 168.2 / 165.0 / 163.2, off 174.0 / 171.8 / 167.7, so
+  about 3% (5-6 FPS) in the fixed view, consistent in all three pairs. Isolated: the vault about 1.5% (on 169.8 /
+  175.3, vault off 172.0 / 177.7); the coffers and the rest within noise. Self-test 177/178 (known hands check),
+  Keel CTF with four bots 59/60, 171.6 FPS. Tour `docs/playtests/2026-11-21_keel_optionb_tour.jpg`.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
