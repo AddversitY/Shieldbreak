@@ -179,6 +179,12 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - The Cradle's pod as faceted alien hull (`SM_SB_Kit_AlienPod`, replaces the Cradle pod hero and its yoke in the alien
   look; `-SBNoKeelAlienPod`): a shell narrowing to a keel underneath, dark waist band, ribs and rose plates down the
   long sides, a dark belly plate, and four faceted hangers to the ceiling. Fixed-view 171-175 FPS after.
+- Faceted hull fascia with a low curb along both sides of every ramp and every walkable ledge that drops a metre or
+  more (`SM_SB_Kit_AlienRampEdge`; `-SBNoKeelRampEdges`, `-SBNoKeelLedges`).
+- FPS, every option B module on vs all off (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
+  -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges`): first 168 vs 176 (two pairs); bisected to the portals and
+  window frames, which were feeding Lumen's distance fields. With `bAffectDistanceFieldLighting` off on them: on
+  160.8 / 175.7, off 170.1 / 163.5, no measurable cost.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)

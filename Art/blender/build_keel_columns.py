@@ -270,6 +270,17 @@ def alien_pod():
     return parts
 
 
+def ramp_edge():
+    """The ramps' edge fascia (option B): a 1 m run (scaled along each ramp) of heavy hull lining the ramp's side, with a
+    9 cm curb over the walking surface's edge and a faceted face down 62 cm below it, a dark band along it. Pivot: the
+    walking surface's edge line (y 0), the ramp's inside toward -Y, outside +Y."""
+    sb_kit.reset_scene()
+    body = [(-6.0, 9.0), (-6.0, -62.0), (10.0, -62.0), (19.0, -30.0), (16.0, 0.0), (10.0, 9.0)]
+    parts = [extrude_x('edge', body, -50.0, 50.0, 'AlienHull')]
+    parts.append(extrude_x('band', [(17.5, -26.0), (19.5, -38.0), (21.5, -38.0), (19.5, -26.0)], -50.0, 50.0, 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -281,6 +292,7 @@ def build_one(name, parts, lines):
 def main():
     lines = []
     build_one('SM_SB_Kit_AlienPod', alien_pod(), lines)
+    build_one('SM_SB_Kit_AlienRampEdge', ramp_edge(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)
     for H in WINDOW_HEIGHTS:

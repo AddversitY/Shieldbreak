@@ -1163,6 +1163,7 @@ void AShieldbreakArena::BuildMapArt()
 					auto* Portals = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPortal"), PortalMesh);
 					Portals->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 					Portals->SetCastShadow(false);
+					Portals->bAffectDistanceFieldLighting = false;
 					ApplyKitSurfaces(Portals, ShieldbreakMapArt::GetLook(MapId), 0.f);
 					if (PortalMesh == DeckPortal)
 					{
@@ -1222,6 +1223,7 @@ void AShieldbreakArena::BuildMapArt()
 						Set = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), FrameMesh);
 						Set->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 						Set->SetCastShadow(false);
+						Set->bAffectDistanceFieldLighting = false;
 						ApplyKitSurfaces(Set, ShieldbreakMapArt::GetLook(MapId), 0.f);
 					}
 				}
@@ -1352,6 +1354,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* Decks = nullptr;
 	UInstancedStaticMeshComponent* DecksPlain = nullptr;
 	TMap<FString, UInstancedStaticMeshComponent*> ColumnSets;
+	UInstancedStaticMeshComponent* LedgeEdges = nullptr;
 	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
@@ -1562,6 +1565,25 @@ bool AShieldbreakArena::BuildKeelPackKit()
 								((Column / 5 + Row + Rows) % 3 == 0 && CircuitsWarm ? CircuitsWarm : Circuits)->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
 									FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
 							}
+							// Ledges (option B): the ramps' faceted fascia and curb along every walkable top edge that drops a
+							// metre or more (decks, overwatches, the catwalk). -SBNoKeelLedges turns it off.
+							if (Row == Rows - 1 && Block.Max.Z < CeilingZ - 100.0 && Block.Max.Z - Block.Min.Z >= 100.0
+								&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelLedges")))
+							{
+								if (!LedgeEdges)
+								{
+									if (UStaticMesh* EdgeMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienRampEdge.SM_SB_Kit_AlienRampEdge")))
+									{
+										LedgeEdges = MakeSet(EdgeMesh);
+										ApplyKitSurfaces(LedgeEdges, ShieldbreakMapArt::GetLook(MapId), 0.f);
+									}
+								}
+								if (LedgeEdges && !Inside(FVector(OnFace.X, OnFace.Y, Block.Max.Z + 20.0) + Face.Normal * 40.0))
+								{
+									LedgeEdges->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Block.Max.Z) + Face.Normal * 1.0,
+										FVector(Width / 100.0, 1.0, 1.0)));
+								}
+							}
 							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
 							{
 								Coves->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, CeilingZ - 1.0) + Face.Normal * 1.0,
@@ -1697,6 +1719,17 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		}
 	}
 	int32 StairCount = 0;
+	// Option B (2026-11-21): a faceted hull fascia with a low curb lines both sides of every ramp in the alien ship
+	// (SM_SB_Kit_AlienRampEdge). -SBNoKeelRampEdges turns it off.
+	UInstancedStaticMeshComponent* RampEdges = nullptr;
+	if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelRampEdges")))
+	{
+		if (UStaticMesh* EdgeMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienRampEdge.SM_SB_Kit_AlienRampEdge")))
+		{
+			RampEdges = MakeSet(EdgeMesh);
+			ApplyKitSurfaces(RampEdges, ShieldbreakMapArt::GetLook(MapId), 0.f);
+		}
+	}
 	// Ramps: floor tiles laid along the slope, flush with the walking surface.
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
@@ -1705,6 +1738,14 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		if (Length < 50.0)
 		{
 			continue;
+		}
+		if (RampEdges && InSlice((Ramp.Start + Ramp.End) * 0.5))
+		{
+			const FQuat Along = Run.Rotation().Quaternion();
+			const FVector Middle = (Ramp.Start + Ramp.End) * 0.5;
+			const FVector Side = Along.RotateVector(FVector(0.0, Ramp.Width * 0.5, 0.0));
+			RampEdges->AddInstance(FTransform(Along, Middle + Side, FVector(Length / 100.0, 1.0, 1.0)));
+			RampEdges->AddInstance(FTransform(Along * FQuat(FVector::UpVector, PI), Middle - Side, FVector(Length / 100.0, 1.0, 1.0)));
 		}
 		// Sloped walkways (the "ramp" style, steeper than 8 degrees) become flights of the pack's step piece: one tread
 		// every 15 cm of rise, each touching the collision slope at its back edge, so the walking surface stays the
@@ -1864,7 +1905,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}
@@ -1896,6 +1937,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		AddInstanceComponent(Set);
 	}
 	if (Stairs) { Stairs->RegisterComponent(); AddInstanceComponent(Stairs); }
+	if (RampEdges) { RampEdges->RegisterComponent(); AddInstanceComponent(RampEdges); }
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles, %d stair treads (visual only)."), WallCount, FloorCount, StairCount);
 	return true;
 }
