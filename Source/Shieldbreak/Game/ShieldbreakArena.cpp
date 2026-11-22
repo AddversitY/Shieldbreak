@@ -1357,6 +1357,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* DecksPlain = nullptr;
 	TMap<FString, UInstancedStaticMeshComponent*> ColumnSets;
 	UInstancedStaticMeshComponent* LedgeEdges = nullptr;
+	UInstancedStaticMeshComponent* VaultPlates = nullptr;
 	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
@@ -1586,6 +1587,31 @@ bool AShieldbreakArena::BuildKeelPackKit()
 										FVector(Width / 100.0, 1.0, 1.0)));
 								}
 							}
+							// The vault (option B, Midship's trapezoid hull section): on every long full-height wall, the top 5 m
+							// lean 1.5 m into the room as heavy hull plates, well above any jump. Not over the windows (the Breach's
+							// north hull, the bridges' end walls and window walls) or the 01 / 02 stencils. -SBNoKeelVault.
+							const double VaultFoot = CeilingZ - 500.0;
+							const bool bWindowWall = (FMath::Abs(OnFace.Y) > Half.Y - 200.0 && FMath::Abs(OnFace.X) < 3400.0)
+								|| (FMath::Abs(OnFace.X) > Half.X - 200.0 && FMath::Abs(OnFace.Y) < 1800.0)
+								|| (FMath::Abs(FMath::Abs(OnFace.X) - 3900.0) < 100.0 && FMath::Abs(OnFace.Y) < 1100.0);
+							const bool bVaultFace = Block.Max.Z >= CeilingZ - 5.0 && Span >= 1200.0 && !bWindowWall
+								&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelVault"));
+							// Cells wholly behind the vault are hidden: no panel there (it cost frame time for nothing).
+							const bool bUnderVault = bVaultFace && Z0 + Row * RowHeight >= VaultFoot - 1.0;
+							if (bVaultFace && Z0 + Row * RowHeight <= VaultFoot + 1.0 && Z0 + (Row + 1) * RowHeight > VaultFoot)
+							{
+								if (!VaultPlates)
+								{
+									if (UStaticMesh* VaultMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienVaultPlate.SM_SB_Kit_AlienVaultPlate")))
+									{
+										VaultPlates = MakeSet(VaultMesh);
+										ApplyKitSurfaces(VaultPlates, ShieldbreakMapArt::GetLook(MapId), 0.f);									}
+								}
+								if (VaultPlates)
+								{
+									VaultPlates->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, VaultFoot) + Face.Normal * 26.0, FVector(Width / 400.0, 1.0, 1.0)));
+								}
+							}
 							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
 							{
 								Coves->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, CeilingZ - 1.0) + Face.Normal * 1.0,
@@ -1593,7 +1619,11 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							}
 							const int32 Variant = bGlyphCell ? 0 : (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 5;
 							UInstancedStaticMeshComponent* PanelSet = Variant == 4 && PanelsC ? PanelsC : (Variant == 2 || Variant == 3) && PanelsB ? PanelsB : Panels;
-							if (PanelSet)
+							if (bUnderVault)
+							{
+								// hidden behind the vault plate
+							}
+							else if (PanelSet)
 							{
 								// The variants are deeper (30 and 39 cm); squash them to panel A's 27 cm so none pokes through the
 								// space windows set into the wall.
@@ -1907,7 +1937,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

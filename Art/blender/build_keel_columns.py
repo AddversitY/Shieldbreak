@@ -312,6 +312,22 @@ def alien_pylon():
     return parts
 
 
+def vault_plate():
+    """Leaning upper wall (option B, Midship's trapezoid hull section): a 4 m wide hull plate (scaled to each wall cell)
+    that leans from the wall 5 m under the ceiling up and 1.5 m into the room where it meets the ceiling, 20 cm thick,
+    with a heavy dark lip along its foot and a raised spine up its middle. Pivot: the wall's face at the plate's foot
+    (y 0 the wall, room +Y, z 0 the foot, z 500 the ceiling)."""
+    sb_kit.reset_scene()
+    # Plate (YZ profile): its room-side face leans from (22, 0) to (165, 476); the wedge behind it is closed to the wall.
+    plate = [(0.0, -24.0), (22.0, -24.0), (22.0, 0.0), (165.0, 476.0), (165.0, 500.0), (0.0, 500.0)]
+    parts = [extrude_x('plate', plate, -200.0, 200.0, 'AlienHull')]
+    parts.append(extrude_x('lip', [(0.0, -46.0), (34.0, -46.0), (40.0, -20.0), (26.0, 4.0), (0.0, 4.0)], -200.0, 200.0, 'AlienDark'))
+    # Spine: a raised rib up the plate's face, following the lean (0.3 cm out per cm up).
+    parts.append(loft('spine', [(z, [(px, py) for px, py in [(-9.0, 22.0 + 0.3 * z), (9.0, 22.0 + 0.3 * z), (9.0, 34.0 + 0.3 * z), (-9.0, 34.0 + 0.3 * z)]])
+                                for z in (12.0, 486.0)], 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -324,6 +340,7 @@ def main():
     lines = []
     build_one('SM_SB_Kit_AlienPod', alien_pod(), lines)
     build_one('SM_SB_Kit_AlienPylon', alien_pylon(), lines)
+    build_one('SM_SB_Kit_AlienVaultPlate', vault_plate(), lines)
     build_one('SM_SB_Kit_AlienRampEdge', ramp_edge(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)
