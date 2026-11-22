@@ -191,6 +191,20 @@ def slab_xy(name, loop, z0, z1, mat, bevel=0.0):
     return sb_kit._finish(sb_kit._link(name, me), mat, bevel)
 
 
+def build_panel_d():
+    """Wall panel variant D (option B, 2026-11-21): a large, calm hull plate in Midship's manner instead of the busy
+    rounded tiles: one faceted plate (corners cut at 45 degrees, not rounded) nearly filling the cell, 22 cm proud,
+    a recessed dark trim band across it at 1.2 m and a short offset vertical seam. Same cell and pivot as build_panel."""
+    sb_kit.reset_scene()
+    parts = [sb_kit.box('backing', (0, 4, 200), (400, 8, 400), 'AlienDark', bevel=0)]
+    c = 34.0
+    plate = [(-196 + c, 4), (196 - c, 4), (196, 4 + c), (196, 396 - c), (196 - c, 396), (-196 + c, 396), (-196, 396 - c), (-196, 4 + c)]
+    parts.append(kit.prism_xz('plate', plate, 8, 22, 'AlienHull', bevel=3))
+    parts.append(sb_kit.box('trim', (0, 22.5, 120), (392, 3, 14), 'AlienDark', bevel=0))
+    parts.append(sb_kit.box('seam', (-70, 22.5, 260), (4, 3, 200), 'AlienDark', bevel=0))
+    return parts
+
+
 def build_deck_plain():
     """The alien deck tile without its seam light (most tiles: a light cross on every tile read as a grid of marks)."""
     return build_deck(seam=False)
@@ -256,7 +270,7 @@ def main():
     lines = []
     for name, build in (('SM_SB_Kit_AlienRib', build_rib), ('SM_SB_Kit_AlienCove', build_cove),
                         ('SM_SB_Kit_AlienBridge', build_bridge), ('SM_SB_Kit_AlienPanel', build_panel),
-                        ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c),
+                        ('SM_SB_Kit_AlienPanelB', build_panel_b), ('SM_SB_Kit_AlienPanelC', build_panel_c), ('SM_SB_Kit_AlienPanelD', build_panel_d),
                         ('SM_SB_Kit_AlienDeck', build_deck), ('SM_SB_Kit_AlienDeckPlain', build_deck_plain), ('SM_SB_Kit_AlienCeilingRib', build_ceiling_rib),
                         ('SM_SB_Kit_AlienWallCove', build_wall_cove)):
         obj = sb_kit.join(name, build())

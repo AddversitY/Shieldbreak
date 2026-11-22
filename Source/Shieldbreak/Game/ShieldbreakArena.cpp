@@ -1360,6 +1360,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* VaultPlates = nullptr;
 	UInstancedStaticMeshComponent* Coves = nullptr;
 	UInstancedStaticMeshComponent* PanelsC = nullptr;
+	UInstancedStaticMeshComponent* PanelsD = nullptr;
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	UInstancedStaticMeshComponent* Circuits = nullptr;
 	UInstancedStaticMeshComponent* CircuitsWarm = nullptr;
@@ -1409,6 +1410,16 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			{
 				PanelsC = MakeSet(C);
 				ApplyKitSurfaces(PanelsC, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+			// Option B: most cells take the large calm plate D (Midship's big hull plates); A, B and C become accents.
+			// -SBKeelBusyPanels keeps the old mix.
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelBusyPanels")))
+			{
+				if (UStaticMesh* D = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelD.SM_SB_Kit_AlienPanelD")))
+				{
+					PanelsD = MakeSet(D);
+					ApplyKitSurfaces(PanelsD, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
 			}
 		}
 		if (UMaterialInterface* GlyphMaterial = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelGlyph.M_SB_KeelGlyph")))
@@ -1619,6 +1630,11 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							}
 							const int32 Variant = bGlyphCell ? 0 : (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 5;
 							UInstancedStaticMeshComponent* PanelSet = Variant == 4 && PanelsC ? PanelsC : (Variant == 2 || Variant == 3) && PanelsB ? PanelsB : Panels;
+							if (PanelsD && !bGlyphCell)
+							{
+								const int32 Mix = (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 10;
+								PanelSet = Mix < 6 ? PanelsD : Mix < 8 ? Panels : Mix == 8 && PanelsB ? PanelsB : PanelsC ? PanelsC : Panels;
+							}
 							if (bUnderVault)
 							{
 								// hidden behind the vault plate
@@ -1937,7 +1953,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, PanelsD, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
 	}

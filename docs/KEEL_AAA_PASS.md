@@ -188,6 +188,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   (`SM_SB_Kit_AlienVaultPlate`; `-SBNoKeelVault`), Midship's trapezoid hull section, kept off the windows and the
   01 / 02 stencils; the wall panels behind them are skipped. FPS (fixed view, noisy tonight): on 162, 162, 162, 162,
   176, 172 (mean 166); off 171, 171, 169, 168 (mean 170): up to ~2-3%, the one module with a cost I could not rule out.
+- Calmer walls: six cells in ten take the large faceted hull plate `SM_SB_Kit_AlienPanelD` (corners cut at 45 degrees,
+  a recessed trim band, a short seam) and the rounded tiles A, B, C become accents (`-SBKeelBusyPanels` for the old
+  mix). Fixed-view 169 FPS after.
 - FPS, every option B module on vs all off (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
   -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges`): first 168 vs 176 (two pairs); bisected to the portals and
   window frames, which were feeding Lumen's distance fields. With `bAffectDistanceFieldLighting` off on them: on
