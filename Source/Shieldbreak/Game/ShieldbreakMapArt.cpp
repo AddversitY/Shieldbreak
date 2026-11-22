@@ -748,10 +748,14 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				Group(Groups, bAlienPod ? TEXT("AlienPod") : TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
 				// The Galleries' second set piece: the six reactor pylon blocks round the Camo (x +-500 / +-250,
 				// y -2367..-3233) dressed as reactor pylons, each throwing a light column up to the ceiling.
+				// Option B (2026-11-21): sculpted alien obelisks with one dim slot per face instead of the light-column
+				// pylons (the biggest neon wash left). -SBNoKeelAlienPylons keeps the pylons.
+				const bool bAlienPylons = bAlienPod && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienPylons"))
+					&& FPackageName::DoesPackageExist(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPylon"));
 				for (const FVector2D& At : { FVector2D(500.0, -2800.0), FVector2D(250.0, -2367.0), FVector2D(-250.0, -2367.0),
 					FVector2D(-500.0, -2800.0), FVector2D(-250.0, -3233.0), FVector2D(250.0, -3233.0) })
 				{
-					Group(Groups, TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
+					Group(Groups, bAlienPylons ? TEXT("AlienPylon") : TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
 				}
 				// Structure overhead: I-beams across the ship under the ceiling, clear of the lamp rows (x +-1300, +-3900) and
 				// the pod's yoke; hull pipework at 12.5 m along the Galleries' hull and both faces of the band walls (y +-2000).

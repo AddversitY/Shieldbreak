@@ -181,6 +181,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
   long sides, a dark belly plate, and four faceted hangers to the ceiling. Fixed-view 171-175 FPS after.
 - Faceted hull fascia with a low curb along both sides of every ramp and every walkable ledge that drops a metre or
   more (`SM_SB_Kit_AlienRampEdge`; `-SBNoKeelRampEdges`, `-SBNoKeelLedges`).
+- The Galleries' reactor pylons as sculpted alien obelisks (`SM_SB_Kit_AlienPylon`; `-SBNoKeelAlienPylons`): flared
+  foot and crown, a faceted shaft that fully encloses the 2 x 2 m block, one dim violet slot per face, and no light
+  beams to the ceiling; the reactor zone light goes dimmer violet. Fixed-view 170-176 FPS after.
 - FPS, every option B module on vs all off (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
   -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges`): first 168 vs 176 (two pairs); bisected to the portals and
   window frames, which were feeding Lumen's distance fields. With `bAffectDistanceFieldLighting` off on them: on

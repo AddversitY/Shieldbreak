@@ -6,7 +6,7 @@ setlocal
 set "UE=%USERPROFILE%\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 set "PROJ=%~dp0..\Shieldbreak.uproject"
 if not exist "%~dp0..\Saved\Logs" mkdir "%~dp0..\Saved\Logs"
-for %%P in (AlienColumn AlienPortal AlienWindow AlienPlinth AlienPod AlienRampEdge) do (
+for %%P in (AlienColumn AlienPortal AlienWindow AlienPlinth AlienPod AlienRampEdge AlienPylon) do (
   "%UE%" "%PROJ%" -run=pythonscript -script="%~dp0import_map_art.py" -SBMapArtPrefix=SM_SB_Kit_%%P -unattended -nosplash -nullrhi -stdout > "%~dp0..\Saved\Logs\Keel%%PImport.log" 2>&1
 )
 exit /b %ERRORLEVEL%

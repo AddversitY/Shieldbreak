@@ -31,6 +31,7 @@ PALETTE = {
     'AlienHull': ((0.08, 0.03, 0.14), 0.85, 0.22, 0.0),
     'AlienDark': ((0.03, 0.02, 0.04), 0.6, 0.3, 0.0),
     'AlienRose': ((0.22, 0.08, 0.15), 0.8, 0.28, 0.0),
+    'AlienSeam': ((0.45, 0.15, 0.85), 0.0, 0.4, 1.4),
 }
 sb_kit.PALETTE.update(PALETTE)
 
@@ -281,6 +282,36 @@ def ramp_edge():
     return parts
 
 
+def alien_pylon():
+    """The Galleries' reactor pylons as sculpted alien obelisks (option B, replacing the light-column pylons): a dark
+    flared foot, a faceted shaft tapering from 124 to 114 cm half width, a flared crown with a dark cap, and one thin
+    dim violet slot set into each face (no light beam). Pivot: the 2 x 2 x 6 m block's bottom centre."""
+    sb_kit.reset_scene()
+    H = 600.0
+    # The shaft must stay outside the 2 x 2 m gameplay block, corners included (cut line 2w - ch >= 200).
+    w0, w1, z0, z1 = 124.0, 114.0, 60.0, 520.0
+    parts = [
+        loft('foot', [(0.0, ring(146, 146, 50)), (30.0, ring(146, 146, 50)), (60.0, ring(w0, w0, 40))], 'AlienDark'),
+        loft('shaft', [(60.0, ring(w0, w0, 40)), (z1, ring(w1, w1, 26))], 'AlienHull'),
+        loft('crown', [(z1, ring(w1, w1, 26)), (588.0, ring(140, 140, 56)), (H, ring(124, 124, 44))], 'AlienHull'),
+        loft('cap', [(H - 0.5, ring(106, 106, 12)), (H + 1.0, ring(106, 106, 12))], 'AlienDark'),
+        loft('band', [(150.0, ring(128, 128, 44)), (168.0, ring(127, 127, 43))], 'AlienDark'),
+    ]
+
+    def half(z):
+        return w0 + (w1 - w0) * (z - z0) / (z1 - z0)
+
+    za, zb = 190.0, 470.0
+    for k in range(4):
+        def turn(x, y, z, k=k):
+            return [(x, y, z), (-y, x, z), (-x, -y, z), (y, -x, z)][k]
+        a = [turn(-7.0, half(za) + 0.6, za), turn(-7.0, half(zb) + 0.6, zb)]
+        b = [turn(7.0, half(za) + 0.6, za), turn(7.0, half(zb) + 0.6, zb)]
+        n = turn(0.0, 1.0, 0.0)
+        parts.append(strip('slot', a, b, 'AlienSeam', lambda p, n=n: n))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -292,6 +323,7 @@ def build_one(name, parts, lines):
 def main():
     lines = []
     build_one('SM_SB_Kit_AlienPod', alien_pod(), lines)
+    build_one('SM_SB_Kit_AlienPylon', alien_pylon(), lines)
     build_one('SM_SB_Kit_AlienRampEdge', ramp_edge(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)

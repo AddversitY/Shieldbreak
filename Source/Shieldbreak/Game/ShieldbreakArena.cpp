@@ -1029,15 +1029,17 @@ void AShieldbreakArena::BuildMapArt()
 				Light->RegisterComponent();
 			};
 			const FLinearColor Starlight(0.55f, 0.68f, 1.f), ReactorGlow(0.45f, 0.95f, 1.f);
+			// The alien look trades the amber for rose and violet.
+			const bool bAlienLights = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
 			for (const double X : { -2400.0, 0.0, 2400.0 })
 			{
 				AddZoneLight(FVector(X, Layout.HalfExtent.Y - 300.0, 1050.0), Starlight, 70.f, 1900.f);
 			}
-			AddZoneLight(FVector(0.0, -2800.0, 900.0), ReactorGlow, 170.f, 1700.f);
+			// The alien ship's reactor (sculpted obelisks, no light columns): a dimmer violet glow over the ring.
+			AddZoneLight(FVector(0.0, -2800.0, 900.0), bAlienLights ? FLinearColor(0.6f, 0.4f, 1.f) : ReactorGlow, bAlienLights ? 110.f : 170.f, 1700.f);
 			// Spawn rooms: a faint team hint in each bridge (warm on red, cool on blue). The trench: low amber work lamps
 			// on its walls, against the cold under-glow of the pod above.
-			// The alien look trades the amber for rose and violet.
-			const bool bAlienLights = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
+
 			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.6f, 0.8f) : FLinearColor(1.f, 0.72f, 0.55f), bAlienLights ? 60.f : 90.f, 1600.f);
 			AddZoneLight(FVector(4500.0, 0.0, 1100.0), FLinearColor(0.62f, 0.75f, 1.f), 90.f, 1600.f);
 			for (const double X : { -1150.0, 1150.0 })
