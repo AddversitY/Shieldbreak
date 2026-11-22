@@ -1,0 +1,22 @@
+SM_SB_Kit_AlienPod: 1628 tris, X -722.0..722.0 Y -464.0..464.0 Z -2.0..1100.0, slots M_AlienHull, M_AlienDark, M_AlienRose
+SM_SB_Kit_AlienPylon: 180 tris, X -146.0..146.0 Y -146.0..146.0 Z 0.0..601.0, slots M_AlienDark, M_AlienHull, M_AlienSeam
+SM_SB_Kit_AlienVaultPlate: 48 tris, X -200.0..200.0 Y 0.0..179.8 Z -46.0..500.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienCoffer: 76 tris, X -250.0..250.0 Y -190.0..190.0 Z -16.0..0.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienStep: 60 tris, X -50.0..50.0 Y -50.0..52.0 Z 0.0..102.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienRampEdge: 32 tris, X -50.0..50.0 Y -6.0..21.5 Z -62.0..9.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienPlinth_200x150x110: 144 tris, X -112.0..112.0 Y -87.0..87.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_200x300x110: 144 tris, X -112.0..112.0 Y -162.0..162.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_200x300x130: 144 tris, X -112.0..112.0 Y -162.0..162.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_200x400x130: 144 tris, X -112.0..112.0 Y -212.0..212.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_300x100x130: 144 tris, X -162.0..162.0 Y -62.0..62.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_300x300x130: 144 tris, X -162.0..162.0 Y -162.0..162.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienPlinth_400x200x130: 144 tris, X -212.0..212.0 Y -112.0..112.0 Z 0.0..130.6, slots M_AlienDark, M_AlienHull
+SM_SB_Kit_AlienWindowMullion_620: 56 tris, X -45.0..45.0 Y -62.0..0.0 Z -370.0..370.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienWindowMullion_580: 56 tris, X -45.0..45.0 Y -62.0..0.0 Z -350.0..350.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienWindowSill: 32 tris, X -400.0..400.0 Y -61.0..0.0 Z -70.0..12.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienPortal_500x350: 158 tris, X -340.0..340.0 Y -91.0..91.0 Z 0.0..440.0, slots M_AlienHull, M_AlienDark, M_AlienRose
+SM_SB_Kit_AlienPortal_2000x450: 158 tris, X -1090.0..1090.0 Y -91.0..91.0 Z 0.0..540.0, slots M_AlienHull, M_AlienDark, M_AlienRose
+SM_SB_Kit_AlienColumn_400x500x1150: 628 tris, X -270.0..270.0 Y -320.0..320.0 Z 0.0..1150.0, slots M_AlienDark, M_AlienHull, M_AlienRose
+SM_SB_Kit_AlienColumn_400x300x1500: 628 tris, X -270.0..270.0 Y -220.0..220.0 Z 0.0..1500.0, slots M_AlienDark, M_AlienHull, M_AlienRose
+SM_SB_Kit_AlienColumn_400x200x1500: 628 tris, X -270.0..270.0 Y -170.0..170.0 Z 0.0..1500.0, slots M_AlienDark, M_AlienHull, M_AlienRose
+SM_SB_Kit_AlienColumn_300x300x1500: 628 tris, X -220.0..220.0 Y -220.0..220.0 Z 0.0..1500.0, slots M_AlienDark, M_AlienHull, M_AlienRose

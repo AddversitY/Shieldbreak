@@ -1,3 +1,35 @@
+**Hands prototype done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:30-22:00 local, branch `claude/project-thread-kwjmqj`).** `sb.GripFitWide 1` (off by default): sidearm no longer clips; third-person rifle thumb and the intermittent sniper left index remain. Default framing unchanged; self-test 177/178 either way.
+
+**Keel sculpt pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:15-22:10 local, branch `claude/project-thread-kwjmqj`).** Hand-modelled stair treads on Keel; hands-through-guns prototype behind `sb.GripFitWide` (off by default, findings in docs/KEEL_AAA_PASS.md). Self-test 177/178 (known hands check), default framing unchanged.
+
+**Keel lighting and FPS pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 20:45-21:25 local, branch `claude/project-thread-kwjmqj`).** No volumetric haze on Keel, near-neutral lamps, calmer glows, glossier hull plates and darker trims (docs/KEEL_AAA_PASS.md pass 12). Tonight's Keel 168/177 FPS vs before tonight 168/147. Self-test 177/178 (known hands check).
+
+**Keel option B modules done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 18:00-20:55 local, branch `claude/project-thread-kwjmqj`).** Hand-modelled alien modules across Keel (`Art/blender/build_keel_columns.py`, `Tools/ImportKeelColumns.bat`): column shrouds, door portals, window frames, cast-block cover, alien pod, ramp and ledge fascia, reactor obelisks, leaning vault plates, calm wall plates, coffered ceiling; human consoles and pipes dropped. All modules on vs off: about 3% fixed-view FPS (vault ~1.5%), see docs/KEEL_AAA_PASS.md pass 11. Self-test 177/178 (known hands check), Keel CTF 59/60 with 4 bots, 171.6 FPS.
+
+**Keel alien pass 4 done, desktop released, paused at Vincent's request (Claude, desktop PC, 2026-11-17 00:30-01:25 local, branch `claude/project-thread-kwjmqj`).** Violet haze, lavender lamps, quieter floors and amber circuit glass on Keel; hands-through-guns traced but not fixed (findings in docs/KEEL_AAA_PASS.md). Fixed-view 162-177 FPS; Keel CTF tour with 4 bots 59/60 (known hands check only), no stuck bots, 162.4 FPS. Self-test 177 passed, 1 known failure.
+
+**Keel alien pass 3 done, desktop released (Claude, desktop PC, 2026-11-16 evening to 2026-11-17 00:30 local, branch `claude/project-thread-kwjmqj`).** Wall panel variants, alien deck tiles, ceiling ribs, light seams, restyled props and window frames across Keel (see docs/KEEL_AAA_PASS.md pass 10). Then a Midship mood pass: dustier hull, teal circuit glass. Fixed-view 161-176 FPS. Self-test 177 passed, 1 known failure (hands through guns).
+
+**Keel alien pass 2 done, desktop released (Claude, desktop PC, 2026-11-16 from 22:20 local, branch `claude/project-thread-kwjmqj`).** Sculpted alien panels, glyph plaques and mauve hull across the whole of Keel (`-SBKeelAlienBridgesOnly` for bridges only, `-SBNoKeelAlienSlice` for off). Fixed-view 175.8 FPS. Self-test 177 passed, 1 known failure (hands through guns).
+
+**Keel alien slice done, desktop released (Claude, desktop PC, 2026-11-16 15:00-16:00 local, branch `claude/project-thread-kwjmqj`).** Mauve alien hull in both bridges (`-SBNoKeelAlienSlice`). Fixed-view 155 FPS.
+
+**Keel look review done, desktop released (Claude, desktop PC, 2026-11-16 12:25-12:45 local).** Shots only, no code change.
+
+**Keel alien bridge done, desktop released (Claude, desktop PC, 2026-11-16 12:10-13:10 local, branch `claude/project-thread-kwjmqj`).** Original alien kit on both bridges (`SM_SB_Kit_Alien*`, `-SBNoKeelAlien`). Fixed-view 141.6 FPS. Self-test in `Saved/Logs/SelfTest.txt`.
+
+**Keel floors done, desktop released (Claude, desktop PC, 2026-11-16 03:45-04:20 local, branch `claude/project-thread-kwjmqj`).** Season 1 interior deck panels on Keel's floors and ramps (`-SBKeelMechFloors` for the old). Fixed-view 128.3 FPS.
+
+**Keel wall colour done, desktop released (Claude, desktop PC, 2026-11-16 00:30-01:10 local, branch `claude/project-thread-kwjmqj`).** Two-tone alien wall colours on the pack walls (`-SBKeelGrayWalls` for grey). Build PASS; self-test in `Saved/Logs/SelfTest.txt`. Fixed-view Keel 130.1 FPS.
+
+**Keel alien look done, desktop released (Claude, desktop PC, 2026-11-15 20:20-21:00 local, branch `claude/project-thread-kwjmqj`).** Teal trim, violet lamps/haze, saturated grade, dark tread floors under the pack markings (`-SBKeelPlainLook`, `-SBKeelPaleFloors`). Build PASS, gameplay **177/178** (known hands check). Fixed-view Keel 129.9 FPS.
+
+**Keel stairs done, desktop released (Claude, desktop PC, 2026-11-15 19:30-20:00 local, branch `claude/project-thread-kwjmqj`).** Ramps dressed as pack stair flights over the unchanged ramp collision (472 treads, `-SBNoKeelStairs`). See the commit for test results.
+
+**Keel pack polish done, desktop released (Claude, desktop PC, 2026-11-15 18:50-19:40 local, branch `claude/project-thread-kwjmqj` restarted from main `d4f2b7f`).** Corner posts on Keel's pack grid (196). Darker pack floors tried two ways without effect; floors unchanged. Build PASS; gameplay result in `Saved/Logs/SelfTest.txt`.
+
+*Keel pack polish holding the desktop (Claude, desktop PC, started 2026-11-15 18:50 local, branch `claude/project-thread-kwjmqj`).** Other threads: please wait for "Keel pack polish done, desktop released".
+
 **Keel pack-grid rebuild done, desktop released (Claude, desktop PC, 2026-11-15 17:50-18:40 local, branch `claude/project-thread-kwjmqj`).** Keel is clad in Fab Mechanic Base walls and floors at full size (local pack, code only; `-SBNoKeelPackKit` for the hull kit). Build PASS, gameplay **177/178**, Keel CTF 59/60 with 4 bots (known hands check only), no stuck bots. Fixed-view 126-132 with, 129 without. Notes `docs/KEEL_AAA_PASS.md`.
 
 **Keel pass 8 (Fab packs) done, desktop released (Claude, desktop PC, 2026-11-15 16:30-17:30 local, branch `claude/project-thread-kwjmqj`).** Mechanic Base and Season 1 copied from WraithStaging into `Content/Modular_Scifi_Mechanic_Base` and `Content/StarterBundle` (git-ignored, local only). Keel uses Mechanic Base pieces by path, visual only (`-SBNoKeelPacks` off): coffered ceiling, pack lamps, trays, strip lights, cables, junction boxes, door frames. Build PASS, gameplay **177/178** (known hands check). Fixed-view Keel 126-134 with the pack, 131-135 without. Notes and restore steps `docs/KEEL_AAA_PASS.md`.

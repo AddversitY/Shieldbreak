@@ -304,14 +304,18 @@ UMaterialInstanceDynamic* AShieldbreakArena::ApplySurface(UMeshComponent* Mesh, 
 		// With the Fab pack grid on (pack tiles on the ramp tops), the ramp slabs' sides and undersides go dark steel.
 		const bool bPackRamps = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPacks")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPackKit"))
 			&& FPackageName::DoesPackageExist(TEXT("/Game/Modular_Scifi_Mechanic_Base/Mesh/SM/SRTUCTURE/FLOOR/SM_FLOOR_08"));
-		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? (bPackRamps ? TEXT("Frame") : TEXT("Hazard"))
+		const TCHAR* Kind = Name == TEXT("floor") ? TEXT("Deck") : (Name == TEXT("ramp") || Name == TEXT("slide")) ? (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) ? TEXT("MauveDark") : bPackRamps ? TEXT("Frame") : TEXT("Hazard"))
 			: (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("wall") || Name == TEXT("metal") || Name == TEXT("bridge")
 				|| Name == TEXT("dark") || Name == TEXT("cover")) ? TEXT("Plate") : nullptr;
+		if (Kind && FCString::Strcmp(Kind, TEXT("Plate")) == 0 && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+		{
+			Kind = (Name == TEXT("bridge") || Name == TEXT("cover") || Name == TEXT("metal")) ? TEXT("MauveDark") : TEXT("Mauve");
+		}
 		if (UMaterialInterface* Hull = Kind ? ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
 			TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind)) : nullptr)
 		{
 			Mesh->SetMaterial(0, Hull);
-			if (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("dark") || Name == TEXT("wall"))
+			if (FCString::Strcmp(Kind, TEXT("Plate")) == 0 && (Name == TEXT("red") || Name == TEXT("blue") || Name == TEXT("dark") || Name == TEXT("wall")))
 			{
 				if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(0))
 				{
@@ -527,6 +531,12 @@ void AShieldbreakArena::BuildTrim()
 			}
 			continue;
 		}
+		// Keel's alien ship (option B): low cover is a sculpted cast block (SM_SB_Kit_AlienPlinth_*) with no light line.
+		if (MapId == FName(TEXT("Keel")) && Size.Z <= 160.f && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPlinths")))
+		{
+			continue;
+		}
 		if (!HasTrim(Block.Style) || Size.Z < 120.f || (bTerrainHidesPerimeter && ShieldbreakScanPrivate::IsPerimeter(Layout, Block))
 			|| (bCarvedStone && (ShieldbreakScanPrivate::IsPerimeter(Layout, Block)
 			|| ShieldbreakScanPrivate::AltarFor(Layout, Block))))
@@ -708,13 +718,18 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 		if (bKeelScanHull)
 		{
 			const TCHAR* HullKinds[] = { TEXT("Plate"), TEXT("Deck"), TEXT("Frame"), TEXT("Hazard") };
+			const bool bAlienHazard = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
 			UMaterialInterface* Scanned = nullptr;
 			for (const TCHAR* Kind : HullKinds)
 			{
 				if (Slot.StartsWith(FString(TEXT("M_Hull")) + Kind))
 				{
+					// The alien look: plates go mauve, frames and hazard paint dark mauve, so no grey or orange human hull is left.
+					const TCHAR* Use = !bAlienHazard ? Kind : FCString::Strcmp(Kind, TEXT("Plate")) == 0 ? TEXT("Mauve")
+						: (FCString::Strcmp(Kind, TEXT("Frame")) == 0 || FCString::Strcmp(Kind, TEXT("Hazard")) == 0
+							|| FCString::Strcmp(Kind, TEXT("Deck")) == 0) ? TEXT("MauveDark") : Kind;
 					Scanned = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
-						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Kind, Kind));
+						TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Use, Use));
 					break;
 				}
 			}
@@ -726,6 +741,42 @@ void AShieldbreakArena::ApplyKitSurfaces(UMeshComponent* Mesh, const FShieldbrea
 				&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPulse")))
 			{
 				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPulse.MI_SB_KeelPulse"));
+				if (Scanned && bAlienHazard)
+				{
+					Mesh->SetMaterial(Index, Scanned);
+					if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+					{
+						MID->SetVectorParameterValue(TEXT("EmissiveColor"), FLinearColor(0.55f, 0.18f, 1.0f));
+					}
+					continue;
+				}
+			}
+			// Other light and amber accents glow violet in the alien look.
+			if (!Scanned && bAlienHazard && (Slot.StartsWith(TEXT("M_HullLight")) || Slot.StartsWith(TEXT("M_HullAmber"))))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Materials/MI_SB_AlienViolet.MI_SB_AlienViolet"));
+			}
+			// The alien kit's hull: iridescent violet-teal gloss (Tools/create_keel_alien_material.py).
+			if (!Scanned && Slot.StartsWith(TEXT("M_AlienDark")))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark"));
+			}
+			// Rose accents on the alien panels: the mauve hull, tinted warmer.
+			if (!Scanned && Slot.StartsWith(TEXT("M_AlienRose")) && FParse::Param(FCommandLine::Get(), TEXT("SBKeelRoseScan")))
+			{
+				if (UMaterialInterface* Rose = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve")))
+				{
+					Mesh->SetMaterial(Index, Rose);
+					if (UMaterialInstanceDynamic* MID = Mesh->CreateDynamicMaterialInstance(Index))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.15f, 0.055f, 0.10f));
+					}
+					continue;
+				}
+			}
+			if (!Scanned && Slot.StartsWith(TEXT("M_AlienHull")))
+			{
+				Scanned = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve"));
 			}
 			if (!Scanned && Slot.StartsWith(TEXT("M_HullAmber")) && Asset->GetName().StartsWith(TEXT("SM_H_WallPlate")))
 			{
@@ -903,6 +954,10 @@ void AShieldbreakArena::BuildMapArt()
 		int32 DecalCount = 0;
 		for (const FKeelDecal& Decal : Decals)
 		{
+			if (FCString::Strcmp(Decal.Material, TEXT("Chevrons")) == 0 && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+			{
+				continue;   // hazard chevrons are human paint; the alien look leaves them off
+			}
 			UMaterialInterface* Paint = ShieldbreakArt::Load<UMaterialInterface>(*FString::Printf(
 				TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_Keel%s.MI_SB_Keel%s"), Decal.Material, Decal.Material));
 			if (!Paint)
@@ -974,20 +1029,24 @@ void AShieldbreakArena::BuildMapArt()
 				Light->RegisterComponent();
 			};
 			const FLinearColor Starlight(0.55f, 0.68f, 1.f), ReactorGlow(0.45f, 0.95f, 1.f);
+			// The alien look trades the amber for rose and violet.
+			const bool bAlienLights = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"));
 			for (const double X : { -2400.0, 0.0, 2400.0 })
 			{
 				AddZoneLight(FVector(X, Layout.HalfExtent.Y - 300.0, 1050.0), Starlight, 70.f, 1900.f);
 			}
-			AddZoneLight(FVector(0.0, -2800.0, 900.0), ReactorGlow, 170.f, 1700.f);
+			// The alien ship's reactor (sculpted obelisks, no light columns): a dimmer violet glow over the ring.
+			AddZoneLight(FVector(0.0, -2800.0, 900.0), bAlienLights ? FLinearColor(0.6f, 0.4f, 1.f) : ReactorGlow, bAlienLights ? 110.f : 170.f, 1700.f);
 			// Spawn rooms: a faint team hint in each bridge (warm on red, cool on blue). The trench: low amber work lamps
 			// on its walls, against the cold under-glow of the pod above.
-			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), FLinearColor(1.f, 0.72f, 0.55f), 90.f, 1600.f);
+
+			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.6f, 0.8f) : FLinearColor(1.f, 0.72f, 0.55f), bAlienLights ? 35.f : 90.f, 1600.f);
 			AddZoneLight(FVector(4500.0, 0.0, 1100.0), FLinearColor(0.62f, 0.75f, 1.f), 90.f, 1600.f);
 			for (const double X : { -1150.0, 1150.0 })
 			{
 				for (const double Y : { -700.0, 700.0 })
 				{
-					AddZoneLight(FVector(X, Y, 420.0), FLinearColor(1.f, 0.62f, 0.28f), 22.f, 1100.f);
+					AddZoneLight(FVector(X, Y, 420.0), bAlienLights ? FLinearColor(0.8f, 0.4f, 1.f) : FLinearColor(1.f, 0.62f, 0.28f), bAlienLights ? 14.f : 22.f, 1100.f);
 				}
 			}
 		}
@@ -1010,6 +1069,23 @@ void AShieldbreakArena::BuildMapArt()
 				Instances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				Instances->SetCastShadow(false);
 				Instances->SetCullDistances(0, CullDistance);
+				// The alien look: the pack's grey steel goes dark mauve (door frames, trays, boxes, panels); lamps and their
+				// glowing slots keep the pack's materials.
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !Name.Contains(TEXT("LAMP")))
+				{
+					if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
+					{
+						for (int32 Slot = 0; Slot < Mesh->GetStaticMaterials().Num(); ++Slot)
+						{
+							const UMaterialInterface* Own = Mesh->GetMaterial(Slot);
+							const FString Kind = Own ? Own->GetName() : FString();
+							if (!Kind.Contains(TEXT("Emis")) && !Kind.Contains(TEXT("Light")) && !Kind.Contains(TEXT("Glow")) && !Kind.Contains(TEXT("Screen")))
+							{
+								Instances->SetMaterial(Slot, Dark);
+							}
+						}
+					}
+				}
 				for (const FTransform& At : Where)
 				{
 					Instances->AddInstance(FTransform(At.GetRotation(), At.GetLocation() + FVector(0.0, 0.0, Layout.FloorZ), At.GetScale3D()));
@@ -1050,6 +1126,10 @@ void AShieldbreakArena::BuildMapArt()
 			{
 				for (double Y = -3500.0; Y <= 3500.0 + 1.0; Y += 700.0)
 				{
+					if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienBridgesOnly")) || (FMath::Abs(X) > 3860.0 && FMath::Abs(Y) < 2000.0)))
+					{
+						continue;   // the alien slice's bridges get their own mauve ceiling (BuildKeelPackKit)
+					}
 					Tiles.Add(FTransform(FRotator::ZeroRotator, FVector(X, Y, (Ceiling ? (Ceiling->Bounds.GetBox().Min.Z - GetActorLocation().Z) : 1500.0) - Layout.FloorZ)));
 				}
 			}
@@ -1069,7 +1149,47 @@ void AShieldbreakArena::BuildMapArt()
 					DoorFrames.Add(FTransform(FRotator(0.f, 90.f, 0.f), FVector(X, Side * 1550.0, 350.0), FrameScale));
 				}
 			}
-			Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
+			// Option B (2026-11-21): the alien ship gets hand-modelled angular portals (Art/blender/build_keel_columns.py)
+			// round the same doors, and round the trench mouths, instead of the pack's frames. -SBNoKeelPortals keeps them.
+			bool bPortals = false;
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPortals")))
+			{
+				UStaticMesh* DeckPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_500x350.SM_SB_Kit_AlienPortal_500x350"));
+				UStaticMesh* TrenchPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_2000x450.SM_SB_Kit_AlienPortal_2000x450"));
+				for (UStaticMesh* PortalMesh : { DeckPortal, TrenchPortal })
+				{
+					if (!PortalMesh)
+					{
+						continue;
+					}
+					auto* Portals = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelPortal"), PortalMesh);
+					Portals->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					Portals->SetCastShadow(false);
+					Portals->bAffectDistanceFieldLighting = false;
+					ApplyKitSurfaces(Portals, ShieldbreakMapArt::GetLook(MapId), 0.f);
+					if (PortalMesh == DeckPortal)
+					{
+						for (const FTransform& At : DoorFrames)
+						{
+							Portals->AddInstance(FTransform(At.GetRotation(), At.GetLocation() + FVector(0.0, 0.0, Layout.FloorZ)));
+						}
+					}
+					else
+					{
+						for (const double Side : { -1.0, 1.0 })
+						{
+							Portals->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, Side * 2000.0, Layout.FloorZ)));
+						}
+					}
+					Portals->RegisterComponent();
+					AddInstanceComponent(Portals);
+					bPortals = true;
+				}
+			}
+			if (!bPortals)
+			{
+				Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
+			}
 			Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
 			Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
 			Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
@@ -1081,7 +1201,8 @@ void AShieldbreakArena::BuildMapArt()
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
 		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).
 		UMaterialInterface* Space = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
-		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
+		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+			? TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark") : TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
 		if (Space && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindow")))
 		{
 			auto* Mullions = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), CubeMesh);
@@ -1090,10 +1211,33 @@ void AShieldbreakArena::BuildMapArt()
 			{
 				Mullions->SetMaterial(0, Frame);
 			}
+			// Option B (2026-11-21): the alien ship frames its windows with hand-modelled faceted mullions and heavy angled
+			// sills (Art/blender/build_keel_columns.py) instead of plain bars. -SBNoKeelWindowFrames keeps the bars.
+			const bool bAlienFrames = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindowFrames"));
+			TMap<FString, UInstancedStaticMeshComponent*> FrameSets;
+			auto FrameSet = [&](const FString& Name) -> UInstancedStaticMeshComponent*
+			{
+				UInstancedStaticMeshComponent*& Set = FrameSets.FindOrAdd(Name);
+				if (!Set)
+				{
+					if (UStaticMesh* FrameMesh = ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *Name, *Name)))
+					{
+						Set = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelWindowFrame"), FrameMesh);
+						Set->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+						Set->SetCastShadow(false);
+						Set->bAffectDistanceFieldLighting = false;
+						ApplyKitSurfaces(Set, ShieldbreakMapArt::GetLook(MapId), 0.f);
+					}
+				}
+				return Set;
+			};
 			// Center on the hull face, Yaw turns the window's length from X (0) to Y (+-90); the panel's -Y face, which
 			// shows the panorama, then faces the room.
 			auto AddWindow = [&](const FVector& Center, float Yaw, double HalfLength, double Bottom, double Top)
 			{
+				const FString MullionName = FString::Printf(TEXT("SM_SB_Kit_AlienWindowMullion_%d"), FMath::RoundToInt(Top - Bottom));
+				UInstancedStaticMeshComponent* AlienMullions = bAlienFrames ? FrameSet(MullionName) : nullptr;
+				UInstancedStaticMeshComponent* AlienSills = AlienMullions ? FrameSet(TEXT("SM_SB_Kit_AlienWindowSill")) : nullptr;
 				const FRotator Turn(0.f, Yaw, 0.f);
 				const FVector Middle = Center + FVector(0.0, 0.0, Layout.FloorZ + (Bottom + Top) * 0.5);
 				const FVector Inward = Turn.RotateVector(FVector(0.0, -1.0, 0.0));
@@ -1105,6 +1249,21 @@ void AShieldbreakArena::BuildMapArt()
 				Window->SetMaterial(0, Space);
 				Window->RegisterComponent();
 				AddInstanceComponent(Window);
+				if (AlienMullions && AlienSills)
+				{
+					const FQuat Flip = Turn.Quaternion() * FQuat(FVector::YAxisVector, PI);   // the head: the sill turned over
+					for (double Along = -HalfLength; Along <= HalfLength + 1.0; Along += 800.0)
+					{
+						AlienMullions->AddInstance(FTransform(Turn, Middle + Turn.RotateVector(FVector(Along, 0.0, 0.0))));
+						if (Along + 400.0 <= HalfLength)
+						{
+							const FVector Bay = Turn.RotateVector(FVector(Along + 400.0, 0.0, 0.0));
+							AlienSills->AddInstance(FTransform(Turn, Center + FVector(0.0, 0.0, Layout.FloorZ + Bottom) + Bay));
+							AlienSills->AddInstance(FTransform(Flip, Center + FVector(0.0, 0.0, Layout.FloorZ + Top) + Bay));
+						}
+					}
+					return;
+				}
 				for (double Along = -HalfLength; Along <= HalfLength + 1.0; Along += 800.0)
 				{
 					Mullions->AddInstance(FTransform(Turn, Middle + Turn.RotateVector(FVector(Along, 0.0, 0.0)) + Inward * 15.0,
@@ -1121,6 +1280,10 @@ void AShieldbreakArena::BuildMapArt()
 			AddWindow(FVector(Layout.HalfExtent.X - 30.0, 0.0, 0.0), -90.f, 1600.0, 760.0, 1340.0);
 			Mullions->RegisterComponent();
 			AddInstanceComponent(Mullions);
+			for (const TPair<FString, UInstancedStaticMeshComponent*>& Set : FrameSets)
+			{
+				if (Set.Value) { Set.Value->RegisterComponent(); AddInstanceComponent(Set.Value); }
+			}
 		}
 		UE_LOG(LogShieldbreak, Log, TEXT("Keel landmark decals: %d."), DecalCount);
 	}
@@ -1145,7 +1308,23 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		TEXT("SRTUCTURE/FLOOR/SM_FLOOR_05") };
 	TArray<UStaticMesh*> Walls, Floors;
 	for (const TCHAR* Path : WallPaths) { if (UStaticMesh* Mesh = Load(Path)) Walls.Add(Mesh); }
-	for (const TCHAR* Path : FloorPaths) { if (UStaticMesh* Mesh = Load(Path)) Floors.Add(Mesh); }
+	// Floors (2026-11-16, Vincent: "make the floor completely different"): the Modular SciFi Season 1 interior deck
+	// panels (Content/StarterBundle, local only) with their own dark plating and inlays, so the floor no longer echoes
+	// the Mechanic Base walls. Falls back to the Mechanic Base tiles without that pack (or -SBKeelMechFloors).
+	const bool bSeasonFloors = !FParse::Param(FCommandLine::Get(), TEXT("SBKeelMechFloors"));
+	const TCHAR* SeasonFloors[] = { TEXT("ModularSci_Int/Meshes/SM_FloorPanel_D"), TEXT("ModularSci_Int/Meshes/SM_FloorPanel_A_2"),
+		TEXT("ModularScifiProps/Meshes/SM_Floor_B") };
+	for (const TCHAR* Path : SeasonFloors)
+	{
+		const FString Name = FPaths::GetBaseFilename(Path);
+		UStaticMesh* Mesh = bSeasonFloors ? ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/StarterBundle/%s.%s"), Path, *Name)) : nullptr;
+		if (Mesh) Floors.Add(Mesh);
+	}
+	const bool bUsingSeasonFloors = Floors.Num() > 0;
+	if (!bUsingSeasonFloors)
+	{
+		for (const TCHAR* Path : FloorPaths) { if (UStaticMesh* Mesh = Load(Path)) Floors.Add(Mesh); }
+	}
 	if (Walls.Num() == 0 || Floors.Num() == 0)
 	{
 		return false;
@@ -1161,6 +1340,141 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	};
 	for (UStaticMesh* Mesh : Walls) WallSets.Add(MakeSet(Mesh));
 	for (UStaticMesh* Mesh : Floors) FloorSets.Add(MakeSet(Mesh));
+	// Alien vertical slice (2026-11-16, Vincent chose a true alien ship, reference: his Midship video): inside both
+	// bridges the pack modules give way to smooth mottled mauve hull (Art/textures/make_keel_alien_surfaces.py) on
+	// every face, dark mauve decks, and thin purple under-glow strips along the foot of each wall. -SBNoKeelAlienSlice
+	// keeps the pack there.
+	const bool bAlienSlice = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && CubeMesh;
+	// 2026-11-17: the look now covers the whole ship (-SBKeelAlienBridgesOnly keeps it to the two bridges).
+	const bool bBridgesOnly = FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienBridgesOnly"));
+	auto InSlice = [bAlienSlice, bBridgesOnly](const FVector& P) { return bAlienSlice && (!bBridgesOnly || (FMath::Abs(P.X) > 3860.0 && FMath::Abs(P.Y) < 2000.0)); };
+	UInstancedStaticMeshComponent* SkinWalls = nullptr;
+	UInstancedStaticMeshComponent* SkinDecks = nullptr;
+	UInstancedStaticMeshComponent* Underglow = nullptr;
+	UInstancedStaticMeshComponent* Panels = nullptr;
+	UInstancedStaticMeshComponent* PanelsB = nullptr;
+	UInstancedStaticMeshComponent* Decks = nullptr;
+	UInstancedStaticMeshComponent* DecksPlain = nullptr;
+	TMap<FString, UInstancedStaticMeshComponent*> ColumnSets;
+	UInstancedStaticMeshComponent* LedgeEdges = nullptr;
+	UInstancedStaticMeshComponent* VaultPlates = nullptr;
+	UInstancedStaticMeshComponent* Coves = nullptr;
+	UInstancedStaticMeshComponent* PanelsC = nullptr;
+	UInstancedStaticMeshComponent* PanelsD = nullptr;
+	UInstancedStaticMeshComponent* Glyphs = nullptr;
+	UInstancedStaticMeshComponent* Circuits = nullptr;
+	UInstancedStaticMeshComponent* CircuitsWarm = nullptr;
+	if (bAlienSlice)
+	{
+		// The sculpted alien wall panel (Art/blender/build_keel_alien.py) on every wall cell, glowing glyph plaques
+		// (Art/textures/make_keel_glyphs.py) on some of them.
+		if (UStaticMesh* PanelMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanel.SM_SB_Kit_AlienPanel")))
+		{
+			Panels = MakeSet(PanelMesh);
+			ApplyKitSurfaces(Panels, ShieldbreakMapArt::GetLook(MapId), 0.f);
+		}
+		// The sculpted deck tile (rounded plates, dim violet seams) on the walkable tops; -SBKeelFlatDecks keeps the skin.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelFlatDecks")))
+		{
+			if (UStaticMesh* DeckMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienDeck.SM_SB_Kit_AlienDeck")))
+			{
+				Decks = MakeSet(DeckMesh);
+				ApplyKitSurfaces(Decks, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				// Two tiles in three without the seam light: a light cross on every tile read as a grid of marks.
+				if (UStaticMesh* PlainMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienDeckPlain.SM_SB_Kit_AlienDeckPlain")))
+				{
+					DecksPlain = MakeSet(PlainMesh);
+					ApplyKitSurfaces(DecksPlain, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
+		}
+		// Curved coves rounding every wall top into the ceiling: opt-in (-SBKeelCoves); under the flat ceiling light they
+		// barely read (sl20 shots), so they are not worth the instances by default.
+		if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelCoves")))
+		{
+			if (UStaticMesh* CoveMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienWallCove.SM_SB_Kit_AlienWallCove")))
+			{
+				Coves = MakeSet(CoveMesh);
+				ApplyKitSurfaces(Coves, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+		}
+		// Two variants break up the repeat (-SBKeelOnePanel keeps one): stacked plates with vents, and a rose inset.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelOnePanel")))
+		{
+			if (UStaticMesh* B = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelB.SM_SB_Kit_AlienPanelB")))
+			{
+				PanelsB = MakeSet(B);
+				ApplyKitSurfaces(PanelsB, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+			if (UStaticMesh* C = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelC.SM_SB_Kit_AlienPanelC")))
+			{
+				PanelsC = MakeSet(C);
+				ApplyKitSurfaces(PanelsC, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			}
+			// Option B: most cells take the large calm plate D (Midship's big hull plates); A, B and C become accents.
+			// -SBKeelBusyPanels keeps the old mix.
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelBusyPanels")))
+			{
+				if (UStaticMesh* D = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPanelD.SM_SB_Kit_AlienPanelD")))
+				{
+					PanelsD = MakeSet(D);
+					ApplyKitSurfaces(PanelsD, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
+		}
+		if (UMaterialInterface* GlyphMaterial = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelGlyph.M_SB_KeelGlyph")))
+		{
+			Glyphs = MakeSet(CubeMesh);
+			Glyphs->SetMaterial(0, GlyphMaterial);
+			// Hull pass: the plaques at strength 8 bounced bright pink pools onto the lower walls; 3.5 keeps them legible.
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelBrightGlows")))
+			{
+				if (UMaterialInstanceDynamic* MID = Glyphs->CreateDynamicMaterialInstance(0))
+				{
+					MID->SetScalarParameterValue(TEXT("Strength"), 3.5f);
+				}
+			}
+		}
+		// Teal circuit-glass panels high on the walls (Art/textures/make_keel_circuits.py), Midship's glowing glass.
+		// -SBNoKeelCircuits turns them off.
+		UMaterialInterface* CircuitMaterial = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCircuits")) ? nullptr
+			: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelCircuit.M_SB_KeelCircuit"));
+		if (CircuitMaterial)
+		{
+			Circuits = MakeSet(CubeMesh);
+			Circuits->SetMaterial(0, CircuitMaterial);
+			// Every third panel glows amber instead (Midship's glass mixes teal with warm orange traces).
+			CircuitsWarm = MakeSet(CubeMesh);
+			CircuitsWarm->SetMaterial(0, CircuitMaterial);
+			if (UMaterialInstanceDynamic* MID = CircuitsWarm->CreateDynamicMaterialInstance(0))
+			{
+				MID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor(1.0f, 0.42f, 0.08f));
+			}
+		}
+		SkinWalls = MakeSet(CubeMesh);
+		SkinDecks = MakeSet(CubeMesh);
+		Underglow = MakeSet(CubeMesh);
+		if (UMaterialInterface* Mauve = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauve.MI_SB_KeelMauve")))
+		{
+			SkinWalls->SetMaterial(0, Mauve);
+		}
+		if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
+		{
+			SkinDecks->SetMaterial(0, Dark);
+		}
+		if (GlowMaterial)
+		{
+			Underglow->SetMaterial(0, GlowMaterial);
+			if (UMaterialInstanceDynamic* MID = Underglow->CreateDynamicMaterialInstance(0))
+			{
+				const FLinearColor Purple(0.62f, 0.22f, 1.0f);
+				MID->SetVectorParameterValue(TEXT("BaseColor"), Purple * 0.2f);
+				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Purple);
+				// Hull pass (2026-11-21): 6 lit pink pools on the walls round every strip; 4 keeps the line, not the wash.
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), FParse::Param(FCommandLine::Get(), TEXT("SBKeelBrightGlows")) ? 6.f : 4.f);
+			}
+		}
+	}
 
 	// Blocks the hero set pieces already dress (the Cradle pod, the six reactor pylons) stay as they are.
 	auto Dressed = [](const FShieldbreakMapBlock& Block)
@@ -1186,7 +1500,40 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	struct FFace { FVector Normal; double Plane; double A0, A1; double Thickness; bool bAlongX; };
 	for (const FShieldbreakMapBlock& Block : Layout.Blocks)
 	{
-		if (Dressed(Block) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
+		// The Cradle pod's walls stay the hero mesh, but its wide top takes the alien deck tile in the alien look (a flat
+		// grey slab otherwise, the plainest surface in the hero shots).
+		const bool bTopOnly = Dressed(Block) && bAlienSlice && Block.Max.X - Block.Min.X > 1000.0;
+		// Option B (2026-11-21): floor-to-ceiling pillars get a hand-modelled shroud authored at their exact size
+		// (Art/blender/build_keel_columns.py: chamfered shaft, sloped skirt, flared capital) instead of wall panels.
+		// -SBNoKeelColumns keeps the panels.
+		// Low cover (crates, consoles, coolant blocks, debris) likewise gets a sculpted cast block at its exact size
+		// (SM_SB_Kit_AlienPlinth_*); -SBNoKeelPlinths keeps the panels.
+		const bool bColumn = Block.Max.Z >= CeilingZ - 1.0 && FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 150.0
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelColumns"));
+		const bool bPlinth = Block.Max.Z - Block.Min.Z <= 160.0 && FMath::Min(Block.Max.X - Block.Min.X, Block.Max.Y - Block.Min.Y) >= 50.0
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPlinths"));
+		if (bAlienSlice && (bColumn || bPlinth)
+			&& Block.Max.X - Block.Min.X <= 600.0 && Block.Max.Y - Block.Min.Y <= 600.0 && InSlice((Block.Min + Block.Max) * 0.5f))
+		{
+			const FVector ColumnSize = Block.Max - Block.Min;
+			const FString ColumnName = FString(bColumn ? TEXT("SM_SB_Kit_AlienColumn_") : TEXT("SM_SB_Kit_AlienPlinth_")) + FString::Printf(TEXT("%dx%dx%d"), FMath::RoundToInt(ColumnSize.X),
+				FMath::RoundToInt(ColumnSize.Y), FMath::RoundToInt(ColumnSize.Z));
+			UInstancedStaticMeshComponent*& Set = ColumnSets.FindOrAdd(ColumnName);
+			if (!Set)
+			{
+				if (UStaticMesh* ColumnMesh = ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/%s.%s"), *ColumnName, *ColumnName)))
+				{
+					Set = MakeSet(ColumnMesh);
+					ApplyKitSurfaces(Set, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
+			if (Set)
+			{
+				Set->AddInstance(FTransform(FRotator::ZeroRotator, FVector((Block.Min.X + Block.Max.X) * 0.5, (Block.Min.Y + Block.Max.Y) * 0.5, Block.Min.Z)));
+				continue;
+			}
+		}
+		if ((Dressed(Block) && !bTopOnly) || Block.Min.Z >= CeilingZ - 1.0 || Block.Style == FName(TEXT("glow")))
 		{
 			continue;
 		}
@@ -1197,7 +1544,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			{ FVector(0, 1, 0), Block.Max.Y, Block.Min.X, Block.Max.X, Size.Y, true },
 			{ FVector(0, -1, 0), Block.Min.Y, Block.Min.X, Block.Max.X, Size.Y, true } };
 		const double Z0 = Block.Min.Z, Z1 = FMath::Min<double>(Block.Max.Z, CeilingZ);
-		if (Z1 - Z0 >= 20.0)
+		if (Z1 - Z0 >= 20.0 && !bTopOnly)
 		{
 			for (const FFace& Face : Faces)
 			{
@@ -1219,6 +1566,117 @@ bool AShieldbreakArena::BuildKeelPackKit()
 						if (Inside(Probe) || FMath::Abs(Probe.X) > Half.X || FMath::Abs(Probe.Y) > Half.Y)
 						{
 							continue;   // covered by a neighbour, or the outside of the hull
+						}
+						if (InSlice(OnFace))
+						{
+							// A smooth mauve skin over this cell (the cube is 100 cm), 1 cm proud of the face.
+							const FRotator Skin(0.f, Yaw, 0.f);
+							const FVector CellBase(OnFace.X, OnFace.Y, Z0 + Row * RowHeight);
+							const bool bGlyphCell = Row == 0 && RowHeight > 250.0 && (Column % 3) == 1;
+							// Light seams: a thin violet slit glowing in the gap between two panels, every fourth column, floor to
+							// ceiling (Midship's vertical light lines). -SBNoKeelLightSeams turns them off.
+							if (Underglow && Column % 4 == 3 && Column + 1 < Columns && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelLightSeams")))
+							{
+								const FVector AlongDir = Face.bAlongX ? FVector(1.0, 0.0, 0.0) : FVector(0.0, 1.0, 0.0);
+								Underglow->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight)
+									+ AlongDir * (Width * 0.5) + Face.Normal * 9.0, FVector(0.04, 0.02, RowHeight * 0.86 / 100.0)));
+							}
+							// (Not over the 01 / 02 bridge stencils, which sit high on the window walls at x = +-3870, y = 0.)
+							if (Circuits && Row == 1 && Rows >= 2 && RowHeight > 250.0 && (Column % 5) == 2
+								&& !(FMath::Abs(FMath::Abs(OnFace.X) - 3870.0) < 150.0 && FMath::Abs(OnFace.Y) < 600.0))
+							{
+								((Column / 5 + Row + Rows) % 3 == 0 && CircuitsWarm ? CircuitsWarm : Circuits)->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
+									FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
+							}
+							// Ledges (option B): the ramps' faceted fascia and curb along every walkable top edge that drops a
+							// metre or more (decks, overwatches, the catwalk). -SBNoKeelLedges turns it off.
+							if (Row == Rows - 1 && Block.Max.Z < CeilingZ - 100.0 && Block.Max.Z - Block.Min.Z >= 100.0
+								&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelLedges")))
+							{
+								if (!LedgeEdges)
+								{
+									if (UStaticMesh* EdgeMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienRampEdge.SM_SB_Kit_AlienRampEdge")))
+									{
+										LedgeEdges = MakeSet(EdgeMesh);
+										ApplyKitSurfaces(LedgeEdges, ShieldbreakMapArt::GetLook(MapId), 0.f);
+									}
+								}
+								if (LedgeEdges && !Inside(FVector(OnFace.X, OnFace.Y, Block.Max.Z + 20.0) + Face.Normal * 40.0))
+								{
+									LedgeEdges->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Block.Max.Z) + Face.Normal * 1.0,
+										FVector(Width / 100.0, 1.0, 1.0)));
+								}
+							}
+							// The vault (option B, Midship's trapezoid hull section): on every long full-height wall, the top 5 m
+							// lean 1.5 m into the room as heavy hull plates, well above any jump. Not over the windows (the Breach's
+							// north hull, the bridges' end walls and window walls) or the 01 / 02 stencils. -SBNoKeelVault.
+							const double VaultFoot = CeilingZ - 500.0;
+							const bool bWindowWall = (FMath::Abs(OnFace.Y) > Half.Y - 200.0 && FMath::Abs(OnFace.X) < 3400.0)
+								|| (FMath::Abs(OnFace.X) > Half.X - 200.0 && FMath::Abs(OnFace.Y) < 1800.0)
+								|| (FMath::Abs(FMath::Abs(OnFace.X) - 3900.0) < 100.0 && FMath::Abs(OnFace.Y) < 1100.0);
+							const bool bVaultFace = Block.Max.Z >= CeilingZ - 5.0 && Span >= 1200.0 && !bWindowWall
+								&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelVault"));
+							// Cells wholly behind the vault are hidden: no panel there (it cost frame time for nothing).
+							const bool bUnderVault = bVaultFace && Z0 + Row * RowHeight >= VaultFoot - 1.0;
+							if (bVaultFace && Z0 + Row * RowHeight <= VaultFoot + 1.0 && Z0 + (Row + 1) * RowHeight > VaultFoot)
+							{
+								if (!VaultPlates)
+								{
+									if (UStaticMesh* VaultMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienVaultPlate.SM_SB_Kit_AlienVaultPlate")))
+									{
+										VaultPlates = MakeSet(VaultMesh);
+										ApplyKitSurfaces(VaultPlates, ShieldbreakMapArt::GetLook(MapId), 0.f);									}
+								}
+								if (VaultPlates)
+								{
+									VaultPlates->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, VaultFoot) + Face.Normal * 26.0, FVector(Width / 400.0, 1.0, 1.0)));
+								}
+							}
+							if (Coves && Row == Rows - 1 && Block.Max.Z >= CeilingZ - 5.0 && RowHeight > 200.0)
+							{
+								Coves->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, CeilingZ - 1.0) + Face.Normal * 1.0,
+									FVector(Width / 400.0, 1.0, 1.0)));
+							}
+							const int32 Variant = bGlyphCell ? 0 : (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 5;
+							UInstancedStaticMeshComponent* PanelSet = Variant == 4 && PanelsC ? PanelsC : (Variant == 2 || Variant == 3) && PanelsB ? PanelsB : Panels;
+							if (PanelsD && !bGlyphCell)
+							{
+								const int32 Mix = (Column * 7 + Row * 3 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0))) % 10;
+								PanelSet = Mix < 6 ? PanelsD : Mix < 8 ? Panels : Mix == 8 && PanelsB ? PanelsB : PanelsC ? PanelsC : Panels;
+							}
+							if (bUnderVault)
+							{
+								// hidden behind the vault plate
+							}
+							else if (PanelSet)
+							{
+								// The variants are deeper (30 and 39 cm); squash them to panel A's 27 cm so none pokes through the
+								// space windows set into the wall.
+								const double Depth = PanelSet == PanelsC ? 27.0 / 39.0 : PanelSet == PanelsB ? 27.0 / 30.0 : 1.0;
+								PanelSet->AddInstance(FTransform(Skin, CellBase + Face.Normal * 1.0, FVector(Width / 400.0, Depth, RowHeight / 400.0)));
+							}
+							else
+							{
+								SkinWalls->AddInstance(FTransform(Skin, OnFace + Face.Normal * 1.5, FVector(Width / 100.0, 0.02, RowHeight / 100.0)));
+							}
+							if (Glyphs && Row == 0 && RowHeight > 250.0 && (Column % 3) == 1)
+							{
+								Glyphs->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + RowHeight * 0.55) + Face.Normal * 28.0,
+									FVector(Width * 0.42 / 100.0, 0.02, RowHeight * 0.6 / 100.0)));
+							}
+							if (Row == 0)
+							{
+								// A leaning dark skirting slab along the foot of the wall (tilted 22 degrees out, 25 cm at the
+								// floor), the angled lower walls of the reference; the glow strip runs along its top edge.
+								const FVector Out = Face.Normal;
+								const FRotator Lean = FRotator(0.f, Yaw, 0.f);
+								const FQuat Tilt = FQuat(Lean.RotateVector(FVector(1.0, 0.0, 0.0)), FMath::DegreesToRadians(22.0));
+								SkinDecks->AddInstance(FTransform(Tilt * Lean.Quaternion(), FVector(OnFace.X, OnFace.Y, Z0 + 60.0) + Out * 14.0,
+									FVector(Width / 100.0, 0.06, 1.25)));
+								Underglow->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + 118.0) + Face.Normal * 4.0,
+									FVector(Width / 100.0, 0.03, 0.03)));
+							}
+							continue;
 						}
 						Hash = Hash * 31u + static_cast<uint32>(Column * 7 + Row * 13 + FMath::Abs(static_cast<int32>(Along)));
 						const int32 Pick = static_cast<int32>(Hash % static_cast<uint32>(Walls.Num()));
@@ -1250,6 +1708,20 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					{
 						continue;
 					}
+					if (InSlice(Top))
+					{
+						if (Decks)
+						{
+							// The tile's base sits 2 cm under its pivot: lift it clear of the block top (plates end 3.6 cm up).
+							UInstancedStaticMeshComponent* Tiles = DecksPlain && (IX * 7 + IY * 3) % 3 != 0 ? DecksPlain : Decks;
+							Tiles->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 2.1), FVector(StepX / 300.0, StepY / 300.0, 1.0)));
+						}
+						else
+						{
+							SkinDecks->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 0.5), FVector(StepX / 100.0, StepY / 100.0, 0.01)));
+						}
+						continue;
+					}
 					const int32 Pick = (IX * 3 + IY * 5) % Floors.Num();
 					const FBox Bounds = Floors[Pick]->GetBoundingBox();
 					FloorSets[Pick]->AddInstance(FTransform(FRotator::ZeroRotator, Top - FVector(0.0, 0.0, Bounds.Max.Z - 0.6),
@@ -1259,6 +1731,77 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			}
 		}
 	}
+	// Corner posts: the pack's convex corner piece, thinned to 30 cm, on every vertical block edge where both faces
+	// show, so the wall modules meet at a capped corner instead of a raw seam.
+	if (UStaticMesh* CornerMesh = Load(TEXT("SRTUCTURE/WALL/SM_WALL_03_CORNER_CONVEX")))
+	{
+		auto* Corners = MakeSet(CornerMesh);
+		const FBox CornerBounds = CornerMesh->GetBoundingBox();
+		int32 CornerCount = 0;
+		for (const FShieldbreakMapBlock& Block : Layout.Blocks)
+		{
+			const double Z0 = Block.Min.Z, Z1 = FMath::Min<double>(Block.Max.Z, CeilingZ);
+			if (Dressed(Block) || Z1 - Z0 < 150.0 || Block.Style == FName(TEXT("glow")) || InSlice((Block.Min + Block.Max) * 0.5f))
+			{
+				continue;
+			}
+			for (int32 Corner = 0; Corner < 4; ++Corner)
+			{
+				const double SX = (Corner & 1) ? 1.0 : -1.0, SY = (Corner & 2) ? 1.0 : -1.0;
+				const FVector Edge(SX > 0 ? Block.Max.X : Block.Min.X, SY > 0 ? Block.Max.Y : Block.Min.Y, (Z0 + Z1) * 0.5);
+				if (Inside(Edge + FVector(SX * 15.0, 0.0, 0.0)) || Inside(Edge + FVector(0.0, SY * 15.0, 0.0))
+					|| Inside(Edge + FVector(SX * 15.0, SY * 15.0, 0.0)) || FMath::Abs(Edge.X) >= Half.X - 1.0 || FMath::Abs(Edge.Y) >= Half.Y - 1.0)
+				{
+					continue;
+				}
+				// The piece spans +X/+Y from its pivot: mirror it into this corner's quadrant with the scale signs.
+				const FVector Scale(SX * 0.3, SY * 0.3, (Z1 - Z0) / CornerBounds.GetSize().Z);
+				const FVector Pivot(Edge.X - SX * 18.0, Edge.Y - SY * 18.0, Z0);
+				Corners->AddInstance(FTransform(FRotator::ZeroRotator, Pivot, Scale));
+				++CornerCount;
+			}
+		}
+		Corners->RegisterComponent();
+		AddInstanceComponent(Corners);
+		UE_LOG(LogShieldbreak, Log, TEXT("Keel pack grid: %d corner posts."), CornerCount);
+	}
+	UStaticMesh* StairMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelStairs")) ? nullptr : Load(TEXT("PROP/STAIRS/SM_STAIRS_01"));
+	// Option B: the alien ship's flights use a hand-modelled chamfered tread instead of the pack's step piece
+	// (-SBKeelPackStairs keeps the pack's).
+	bool bAlienSteps = false;
+	if (StairMesh && bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPackStairs")))
+	{
+		if (UStaticMesh* StepMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienStep.SM_SB_Kit_AlienStep")))
+		{
+			StairMesh = StepMesh;
+			bAlienSteps = true;
+		}
+	}
+	UInstancedStaticMeshComponent* Stairs = StairMesh ? MakeSet(StairMesh) : nullptr;
+	if (Stairs && bAlienSteps)
+	{
+		ApplyKitSurfaces(Stairs, ShieldbreakMapArt::GetLook(MapId), 0.f);
+	}
+	else if (Stairs && bAlienSlice)
+	{
+		// The step treads in the alien hull's dark mauve.
+		if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
+		{
+			for (int32 Slot = 0; Slot < Stairs->GetNumMaterials(); ++Slot) { Stairs->SetMaterial(Slot, Dark); }
+		}
+	}
+	int32 StairCount = 0;
+	// Option B (2026-11-21): a faceted hull fascia with a low curb lines both sides of every ramp in the alien ship
+	// (SM_SB_Kit_AlienRampEdge). -SBNoKeelRampEdges turns it off.
+	UInstancedStaticMeshComponent* RampEdges = nullptr;
+	if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelRampEdges")))
+	{
+		if (UStaticMesh* EdgeMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienRampEdge.SM_SB_Kit_AlienRampEdge")))
+		{
+			RampEdges = MakeSet(EdgeMesh);
+			ApplyKitSurfaces(RampEdges, ShieldbreakMapArt::GetLook(MapId), 0.f);
+		}
+	}
 	// Ramps: floor tiles laid along the slope, flush with the walking surface.
 	for (const FShieldbreakMapRamp& Ramp : Layout.Ramps)
 	{
@@ -1266,6 +1809,40 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		const double Length = Run.Size();
 		if (Length < 50.0)
 		{
+			continue;
+		}
+		if (RampEdges && InSlice((Ramp.Start + Ramp.End) * 0.5))
+		{
+			const FQuat Along = Run.Rotation().Quaternion();
+			const FVector Middle = (Ramp.Start + Ramp.End) * 0.5;
+			const FVector Side = Along.RotateVector(FVector(0.0, Ramp.Width * 0.5, 0.0));
+			RampEdges->AddInstance(FTransform(Along, Middle + Side, FVector(Length / 100.0, 1.0, 1.0)));
+			RampEdges->AddInstance(FTransform(Along * FQuat(FVector::UpVector, PI), Middle - Side, FVector(Length / 100.0, 1.0, 1.0)));
+		}
+		// Sloped walkways (the "ramp" style, steeper than 8 degrees) become flights of the pack's step piece: one tread
+		// every 15 cm of rise, each touching the collision slope at its back edge, so the walking surface stays the
+		// smooth ramp (bots, sliding and movement unchanged) and the eye sees stairs. -SBNoKeelStairs keeps tiles.
+		const double Rise = Ramp.End.Z - Ramp.Start.Z, Flat = FVector2D(Run.X, Run.Y).Size();
+		if (StairMesh && Ramp.Style == FName(TEXT("ramp")) && Flat > 1.0 && FMath::Abs(Rise) / Flat > FMath::Tan(FMath::DegreesToRadians(8.0)))
+		{
+			const bool bUp = Rise > 0.0;
+			const FVector Low = bUp ? Ramp.Start : Ramp.End, High = bUp ? Ramp.End : Ramp.Start;
+			const FVector Climb = High - Low;
+			const FVector2D Dir = FVector2D(Climb.X, Climb.Y).GetSafeNormal();
+			const int32 Steps = FMath::Max(2, FMath::CeilToInt(FMath::Abs(Rise) / 15.0));
+			const double Tread = Flat / Steps, Riser = FMath::Abs(Rise) / Steps;
+			const FBox StepBounds = StairMesh->GetBoundingBox();
+			const FRotator Across(0.f, FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)) + 90.f, 0.f);
+			const FVector Scale(Ramp.Width / StepBounds.GetSize().X, Tread / StepBounds.GetSize().Y, Riser / StepBounds.GetSize().Z);
+			for (int32 Step = 0; Step < Steps; ++Step)
+			{
+				const double Mid = (Step + 0.5) * Tread;
+				const double TopZ = Low.Z + (Step + 1) * Riser + 0.5;
+				const FVector At(Low.X + Dir.X * Mid, Low.Y + Dir.Y * Mid, TopZ - StepBounds.Max.Z * Scale.Z);
+				Stairs->AddInstance(FTransform(Across, At - Across.RotateVector(FVector(StepBounds.GetCenter().X * Scale.X,
+					StepBounds.GetCenter().Y * Scale.Y, 0.0)), Scale));
+				++StairCount;
+			}
 			continue;
 		}
 		const FRotator Turn = Run.Rotation();
@@ -1279,6 +1856,13 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				const FBox Bounds = Floors[Pick]->GetBoundingBox();
 				const FVector Center = Ramp.Start + Run * ((Index + 0.5) / Count)
 					+ Turn.RotateVector(FVector(0.0, (Lane + 0.5) * Ramp.Width / Across - Ramp.Width * 0.5, 0.0));
+				if (Decks && InSlice(Center))
+				{
+					// The alien deck tile on ramp tops too (the pack's pale floor panels clashed on the crane arms).
+					(DecksPlain ? DecksPlain : Decks)->AddInstance(FTransform(Turn, Center + Turn.RotateVector(FVector(0.0, 0.0, 2.1)),
+						FVector(Length / Count / 300.0, Ramp.Width / Across / 300.0, 1.0)));
+					continue;
+				}
 				const FVector Down = Turn.RotateVector(FVector(0.0, 0.0, 0.8 - Bounds.Max.Z));
 				FloorSets[Pick]->AddInstance(FTransform(Turn, Center + Down,
 					FVector(Length / Count / Bounds.GetSize().X, Ramp.Width / Across / Bounds.GetSize().Y, 1.0)));
@@ -1286,9 +1870,176 @@ bool AShieldbreakArena::BuildKeelPackKit()
 			}
 		}
 	}
+	// Wall colour (2026-11-16, Vincent: "wish the walls weren't a full gray"): each of the four wall modules takes its
+	// own two-tone scheme on Keel's scanned hull materials: the main panels a deep alien tint (violet, teal, plum or
+	// midnight), the big insets another of those tints, and the frames dark teal-steel. The pack's decal
+	// sheets stay. -SBKeelGrayWalls keeps the pack's own grey metals.
+	if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelGrayWalls")))
+	{
+		UMaterialInterface* Plate = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelPlate.MI_SB_KeelPlate"));
+		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
+		const FLinearColor PanelTints[] = { FLinearColor(0.11f, 0.055f, 0.17f), FLinearColor(0.03f, 0.10f, 0.11f),
+			FLinearColor(0.13f, 0.045f, 0.10f), FLinearColor(0.045f, 0.055f, 0.13f) };
+		const FLinearColor Trim(0.035f, 0.075f, 0.085f);
+		for (int32 Index = 0; Plate && Frame && Index < WallSets.Num(); ++Index)
+		{
+			UInstancedStaticMeshComponent* Set = WallSets[Index];
+			for (int32 Slot = 0; Slot < Set->GetNumMaterials(); ++Slot)
+			{
+				const UMaterialInterface* Current = Set->GetMaterial(Slot);
+				const FString Name = Current ? Current->GetName() : FString();
+				if (Name.Contains(TEXT("DECALS")) || !Name.StartsWith(TEXT("MI_Metal")))
+				{
+					continue;
+				}
+				if (Name == TEXT("MI_Metal_01"))
+				{
+					Set->SetMaterial(Slot, Plate);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), PanelTints[Index % UE_ARRAY_COUNT(PanelTints)]);
+					}
+				}
+				else if (Name == TEXT("MI_Metal_04"))
+				{
+					// The big inset panels: another scheme's tint, so every module is two-tone (no glow: as emissive they
+					// lit whole walls and blew the frames out, c1 shots).
+					Set->SetMaterial(Slot, Plate);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), PanelTints[(Index + 2) % UE_ARRAY_COUNT(PanelTints)] * 0.8f);
+					}
+				}
+				else
+				{
+					Set->SetMaterial(Slot, Frame);
+					if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+					{
+						MID->SetVectorParameterValue(TEXT("BaseColor"), Trim);
+					}
+				}
+			}
+		}
+	}
+	if (SkinWalls)
+	{
+		// The bridges' ceilings: one smooth mauve skin under each (the pack tiles skip the slice).
+		if (bBridgesOnly)
+		{
+			for (const double Side : { -1.0, 1.0 })
+			{
+				SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(Side * 4550.0, 0.0, CeilingZ - 1.5), FVector(13.0, 40.0, 0.02)));
+			}
+		}
+		else
+		{
+			SkinWalls->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, CeilingZ - 1.5), FVector(Half.X / 50.0, Half.Y / 50.0, 0.02)));
+		}
+	}
+	// Thick hull ribs across the ceiling every 6 m (Midship's heavy curved structure), 4 m segments wherever the ceiling
+	// is open above a room. -SBNoKeelCeilingRibs turns them off.
+	UInstancedStaticMeshComponent* CeilingRibs = nullptr;
+	if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCeilingRibs")))
+	{
+		if (UStaticMesh* RibMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienCeilingRib.SM_SB_Kit_AlienCeilingRib")))
+		{
+			CeilingRibs = MakeSet(RibMesh);
+			ApplyKitSurfaces(CeilingRibs, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			UInstancedStaticMeshComponent* Coffers = nullptr;
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCoffers")))
+			{
+				if (UStaticMesh* CofferMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienCoffer.SM_SB_Kit_AlienCoffer")))
+				{
+					Coffers = MakeSet(CofferMesh);
+					ApplyKitSurfaces(Coffers, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
+			for (double X = -Half.X + 300.0; X < Half.X - 100.0; X += 600.0)
+			{
+				for (double Y = -Half.Y + 200.0; Y < Half.Y - 100.0; Y += 400.0)
+				{
+					bool bClear = true;
+					for (const double Dy : { -180.0, 0.0, 180.0 })
+					{
+						for (const double Dz : { -20.0, -60.0 })
+						{
+							const FVector Probe(X, Y + Dy, CeilingZ + Dz);
+							bClear = bClear && !Inside(Probe) && InSlice(Probe);
+						}
+					}
+					if (bClear)
+					{
+						CeilingRibs->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, CeilingZ - 1.0), FVector(1.0)));
+					}
+					// Option B: a dark coffer in the bay between this rib and the next, where the whole bay is open
+					// ceiling (SM_SB_Kit_AlienCoffer). -SBNoKeelCoffers turns them off.
+					bool bBay = bClear && Coffers != nullptr;
+					for (const double Dx : { 60.0, 300.0, 540.0 })
+					{
+						for (const double Dy : { -170.0, 170.0 })
+						{
+							const FVector Probe(X + Dx, Y + Dy, CeilingZ - 40.0);
+							bBay = bBay && !Inside(Probe) && InSlice(Probe) && FMath::Abs(Probe.X) < Half.X - 20.0;
+						}
+					}
+					if (bBay)
+					{
+						Coffers->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X + 300.0, Y, CeilingZ - 1.0), FVector(1.0)));
+					}
+				}
+			}
+			if (Coffers)
+			{
+				Coffers->RegisterComponent();
+				AddInstanceComponent(Coffers);
+			}
+		}
+	}
+	for (const TPair<FString, UInstancedStaticMeshComponent*>& Column : ColumnSets)
+	{
+		if (Column.Value)
+		{
+			UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: %d x %s."), Column.Value->GetInstanceCount(), *Column.Key);
+			Column.Value->RegisterComponent();
+			AddInstanceComponent(Column.Value);
+		}
+	}
+	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
+		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, PanelsD, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
+	{
+		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	}
+	for (UInstancedStaticMeshComponent* Set : { SkinWalls, SkinDecks, Underglow })
+	{
+		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	}
 	for (UInstancedStaticMeshComponent* Set : WallSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
-	for (UInstancedStaticMeshComponent* Set : FloorSets) { Set->RegisterComponent(); AddInstanceComponent(Set); }
-	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles (visual only)."), WallCount, FloorCount);
+	// The pack's floor metals read pale under Keel's lamps (their colour parameters had no visible effect): the floor
+	// tiles keep their shapes but take the scanned tread deck, tinted dark violet steel. -SBKeelPaleFloors keeps them.
+	UMaterialInterface* Deck = (bUsingSeasonFloors || FParse::Param(FCommandLine::Get(), TEXT("SBKeelPaleFloors"))) ? nullptr
+		: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelDeck.MI_SB_KeelDeck"));
+	for (UInstancedStaticMeshComponent* Set : FloorSets)
+	{
+		for (int32 Slot = 0; Deck && Slot < Set->GetNumMaterials(); ++Slot)
+		{
+			const UMaterialInterface* Current = Set->GetMaterial(Slot);
+			if (Current && Current->GetName().Contains(TEXT("DECALS")))
+			{
+				continue;   // keep the pack's floor markings
+			}
+			Set->SetMaterial(Slot, Deck);
+			if (UMaterialInstanceDynamic* MID = Set->CreateDynamicMaterialInstance(Slot))
+			{
+				MID->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(0.055f, 0.05f, 0.075f));
+			}
+		}
+		Set->RegisterComponent();
+		AddInstanceComponent(Set);
+	}
+	if (Stairs) { Stairs->RegisterComponent(); AddInstanceComponent(Stairs); }
+	if (RampEdges) { RampEdges->RegisterComponent(); AddInstanceComponent(RampEdges); }
+	UE_LOG(LogShieldbreak, Log, TEXT("Keel on the Fab pack grid: %d wall modules, %d floor tiles, %d stair treads (visual only)."), WallCount, FloorCount, StairCount);
 	return true;
 }
 
@@ -1800,6 +2551,11 @@ void AShieldbreakArena::SpawnLighting()
 	// the sun itself, so the fill light goes and the sky light drops to a natural level.
 	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
 	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 3.f : 6.f;
+	// Keel's alien look: a dimmer sky light, so the rooms get depth from their own lamps and glows (lx1 comparison).
+	if (MapId == FName(TEXT("Keel")) && bLumen && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+	{
+		SkyIntensity = 1.5f;
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBSky="), SkyIntensity);
@@ -1952,6 +2708,16 @@ void AShieldbreakArena::SpawnLighting()
 				// Neutral, dim haze: the map's warm outdoor haze colour tinted every surface orange from start 0.
 				FogComponent->SetFogInscatteringColor(FLinearColor(0.05f, 0.055f, 0.065f));
 				FogComponent->SetVolumetricFogAlbedo(FColor(200, 205, 215));
+				// The alien ship (default) also takes the violet haze: the glows and lamp cones read as purple air, as in
+				// Midship. -SBKeelNeutralHaze keeps the grey haze.
+				if (MapId == FName(TEXT("Keel")) && (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook"))
+					|| (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelNeutralHaze")))))
+				{
+					// Alien look: a violet haze that catches the teal lamps and the reactor glow as shafts.
+					FogComponent->SetFogInscatteringColor(FLinearColor(0.045f, 0.02f, 0.07f));
+					FogComponent->SetVolumetricFogAlbedo(FColor(185, 140, 235));
+					FogComponent->SetVolumetricFogExtinctionScale(1.6f);
+				}
 				FogComponent->SetVolumetricFog(true);
 				FogComponent->SetVolumetricFogScatteringDistribution(0.5f);
 				FogComponent->SetVolumetricFogExtinctionScale(1.f);
@@ -1959,6 +2725,17 @@ void AShieldbreakArena::SpawnLighting()
 				FogComponent->SetStartDistance(0.f);
 				FogComponent->SetFogDensity(Layout.FogDensity * 1.5f);
 				FogComponent->SetFogHeightFalloff(0.001f);
+				// Keel's hull pass (2026-11-21): no volumetric haze on the alien ship. The purple air washed out the new
+				// hull's contrast (a neon wash) and cost ~3% of the frame; a thin height fog keeps the depth.
+				// -SBKeelVolumetricHaze brings it back.
+				if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+					&& !FParse::Param(FCommandLine::Get(), TEXT("SBKeelVolumetricHaze")))
+				{
+					FogComponent->SetVolumetricFog(false);
+					FogComponent->SetFogDensity(Layout.FogDensity * 0.8f);
+					FogComponent->SetFogInscatteringColor(FLinearColor(0.02f, 0.012f, 0.03f));
+					FogComponent->SetStartDistance(1500.f);
+				}
 			}
 		}
 	}
@@ -1998,9 +2775,25 @@ void AShieldbreakArena::SpawnLighting()
 			Settings.ColorContrast = FVector4(1.06f, 1.06f, 1.06f, 1.f);
 			Settings.bOverride_VignetteIntensity = true;
 			Settings.VignetteIntensity = 0.35f;
+			if (MapId == FName(TEXT("Keel")) && FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))
+			{
+				// Alien look: saturated and contrasty, shadows pushed toward violet and teal, highlights a touch warm,
+				// and more bloom so the trim and glow read as light sources.
+				Settings.ColorSaturation = FVector4(1.35f, 1.35f, 1.35f, 1.f);
+				Settings.ColorContrast = FVector4(1.18f, 1.18f, 1.18f, 1.f);
+				Settings.bOverride_ColorGammaShadows = true;
+				Settings.ColorGammaShadows = FVector4(0.94f, 0.96f, 1.12f, 1.f);
+				Settings.bOverride_ColorGainShadows = true;
+				Settings.ColorGainShadows = FVector4(0.85f, 0.85f, 1.05f, 1.f);
+				Settings.bOverride_ColorGainHighlights = true;
+				Settings.ColorGainHighlights = FVector4(1.04f, 1.0f, 0.98f, 1.f);
+				Settings.BloomIntensity = 1.4f;
+				Settings.BloomThreshold = 0.8f;
+				Settings.VignetteIntensity = 0.45f;
+			}
 			// The first shots read washed out (pale walls and floors in full sun): pull exposure down a little.
 			// -SBExposure=<stops> overrides it for comparisons.
-			float ExposureBias = -0.4f;
+			float ExposureBias = MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) ? -1.1f : -0.4f;
 			FParse::Value(FCommandLine::Get(), TEXT("SBExposure="), ExposureBias);
 			Settings.bOverride_AutoExposureBias = true;
 			Settings.AutoExposureBias = ExposureBias;

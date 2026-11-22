@@ -126,6 +126,124 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Next: floors read pale (the pack's own floor material); darker floor variants or a tint, corner pieces at block
   corners, pack stairs on the steeper ramps.
 
+## Done in pass 10 (2026-11-16): the alien ship (Vincent picked direction B from his Midship video)
+
+- Original sculpted wall panel `SM_SB_Kit_AlienPanel` (Art/blender/build_keel_alien.py) on every wall cell, mottled
+  mauve hull (`MI_SB_KeelMauve`, `MI_SB_KeelMauveDark`), a mauve ceiling skin, dark decks, leaning skirting with a
+  purple under-glow, and glowing glyph plaques from an original procedural script (Art/textures/make_keel_glyphs.py).
+- The human hull is restyled in this look: plate slots go mauve, frame and hazard slots dark mauve, light and amber
+  accents violet, the reactor pylons pulse violet, chevron decals are off, and the amber lamps are rose and violet.
+- Flags: `-SBNoKeelAlienSlice` (old look), `-SBKeelAlienBridgesOnly` (bridges only).
+- Walls mix three sculpted panel types (`SM_SB_Kit_AlienPanel`, `B` with vents, `C` with a rose inset;
+  `-SBKeelOnePanel` for one). Walkable tops get the alien deck tile `SM_SB_Kit_AlienDeck` (rounded plates, dim violet
+  seams; `-SBKeelFlatDecks` for the flat skin). A/B runs: both within FPS noise (2-3%).
+- Heavy hull ribs across the ceiling every 6 m (`SM_SB_Kit_AlienCeilingRib`, `-SBNoKeelCeilingRibs`), within FPS noise.
+- The pack's door frames, trays, boxes and panels take the dark mauve hull in the alien look (lamps keep theirs); ramp
+  tops get the alien deck tile. Wall-to-ceiling coves exist (`SM_SB_Kit_AlienWallCove`) but are opt-in
+  (`-SBKeelCoves`): under the flat ceiling light they barely read.
+- Vertical violet light seams in the panel gaps every fourth column (`-SBNoKeelLightSeams`), and a dimmer sky light on
+  Keel (1.5 instead of 3) so the rooms take depth from their lamps and glows.
+- Midship comparison (2026-11-17): darker, dustier, more mottled mauve hull so the glows carry the mood, and teal
+  circuit-glass panels high on the walls (original trace pattern, Art/textures/make_keel_circuits.py,
+  `M_SB_KeelCircuit`; `-SBNoKeelCircuits`), within FPS noise.
+- Violet volumetric haze on the alien ship (`-SBKeelNeutralHaze` for the grey haze), within FPS noise. Tried and
+  dropped: curved knee braces where the ceiling ribs meet the walls (they read flat under the ceiling light, like the
+  coves).
+- Two deck tiles in three are the plain `SM_SB_Kit_AlienDeckPlain` (ramps all plain): a light cross on every tile read
+  as a grid of marks.
+- One circuit-glass panel in three glows amber (Midship mixes teal with warm traces).
+- Pale lavender ceiling lamps on the alien ship (`-SBKeelWhiteLamps` for the cool white).
+- Hands-through-guns self-test (known failure, not Keel): traced on 2026-11-17 with `-SBGripDebug`. Sidearm: the
+  wrist-to-index-knuckle palm line cuts the top of the grip, and the ring and pinky tips wrap round to the back strap;
+  sniper: left index tip (intermittent); third-person BR: the right thumb's first bone. (Finger order in
+  ShieldbreakGrip::RightBones is index, middle, ring, pinky, thumb: the servo's skipped right finger 0 is the trigger
+  index, not the thumb.) Opening stuck fingers in the servo made the sidearm worse (reverted). A real fix needs the
+  sidearm re-seated in the hand and the thumb pose reworked, judged on first-person shots.
+- Fixed-view FPS: 176-179 with the alien look, 155 without (the panels replace heavier pack walls).
+
+## Done in pass 11 (2026-11-21): option B hand-modelled modules
+
+- Sculpted column shrouds on Keel's ten floor-to-ceiling pillars (`Art/blender/build_keel_columns.py`,
+  `SM_SB_Kit_AlienColumn_<W>x<D>x<H>`, authored at each pillar's exact size): chamfered tapering shaft 25 cm outside
+  the block, sloped skirt, flared capital into the ceiling, dark joint bands, fins and a rose inset. `-SBNoKeelColumns`.
+- Angular alien portals round the twelve deck doors and both trench mouths (`SM_SB_Kit_AlienPortal_500x350`,
+  `_2000x450`), replacing the pack door frames: a heavy surround sloping from 58 cm proud at the opening to 30 cm (it
+  must clear the wall's 27 cm panels, or they hide it), cut top corners, dark reveal, rose keystone. `-SBNoKeelPortals`.
+  Import: `Tools/ImportKeelColumns.bat`. New hero views `16_hero_door`, `17_hero_mouth`.
+- Faceted alien mullions and heavy angled sills and heads on the three space windows
+  (`SM_SB_Kit_AlienWindowMullion_620` / `_580`, `SM_SB_Kit_AlienWindowSill`), replacing the plain bars.
+  `-SBNoKeelWindowFrames`. Fixed-view 169 FPS after.
+- Sculpted cast blocks on all low cover (crates, consoles, coolant blocks, debris; `SM_SB_Kit_AlienPlinth_<W>x<D>x<H>`,
+  seven sizes): sides leaning out to a dark foot, a dark mid band, a bevelled top at the gameplay height, and no light
+  line on their edges any more (BuildTrim skips Keel's low cover). `-SBNoKeelPlinths`. Fixed-view 175 FPS after.
+- The Cradle's pod as faceted alien hull (`SM_SB_Kit_AlienPod`, replaces the Cradle pod hero and its yoke in the alien
+  look; `-SBNoKeelAlienPod`): a shell narrowing to a keel underneath, dark waist band, ribs and rose plates down the
+  long sides, a dark belly plate, and four faceted hangers to the ceiling. Fixed-view 171-175 FPS after.
+- Faceted hull fascia with a low curb along both sides of every ramp and every walkable ledge that drops a metre or
+  more (`SM_SB_Kit_AlienRampEdge`; `-SBNoKeelRampEdges`, `-SBNoKeelLedges`).
+- The Galleries' reactor pylons as sculpted alien obelisks (`SM_SB_Kit_AlienPylon`; `-SBNoKeelAlienPylons`): flared
+  foot and crown, a faceted shaft that fully encloses the 2 x 2 m block, one dim violet slot per face, and no light
+  beams to the ceiling; the reactor zone light goes dimmer violet. Fixed-view 170-176 FPS after.
+- The vault: on every long full-height wall the top 5 m lean 1.5 m into the room as heavy hull plates
+  (`SM_SB_Kit_AlienVaultPlate`; `-SBNoKeelVault`), Midship's trapezoid hull section, kept off the windows and the
+  01 / 02 stencils; the wall panels behind them are skipped. FPS (fixed view, noisy tonight): on 162, 162, 162, 162,
+  176, 172 (mean 166); off 171, 171, 169, 168 (mean 170): up to ~2-3%, the one module with a cost I could not rule out.
+- Calmer walls: six cells in ten take the large faceted hull plate `SM_SB_Kit_AlienPanelD` (corners cut at 45 degrees,
+  a recessed trim band, a short seam) and the rounded tiles A, B, C become accents (`-SBKeelBusyPanels` for the old
+  mix). Fixed-view 169 FPS after.
+- Coffered ceiling: every open 6 x 4 m bay between ceiling ribs gets a dark recessed panel in a faceted hull frame
+  (`SM_SB_Kit_AlienCoffer`; `-SBNoKeelCoffers`). Fixed-view 170 FPS after. Keel CTF with four bots (before the
+  coffers): 59/60 (known hands check only), no stuck bots, 171.6 FPS.
+- FPS, every option B module on vs all off (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
+  -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges`): first 168 vs 176 (two pairs); bisected to the portals and
+  window frames, which were feeding Lumen's distance fields. With `bAffectDistanceFieldLighting` off on them: on
+  160.8 / 175.7, off 170.1 / 163.5, no measurable cost.
+- FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
+
+- The alien ship drops the human fittings: the bridges' cyan-screen wall consoles and the steel hull pipework (which
+  ran inside the vault plates). `-SBKeelHumanFittings` keeps them. Fixed-view 174 FPS after.
+- Every option B module together (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
+  -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges -SBNoKeelAlienPylons -SBNoKeelVault -SBKeelBusyPanels
+  -SBNoKeelCoffers` for all off), three interleaved pairs: on 168.2 / 165.0 / 163.2, off 174.0 / 171.8 / 167.7, so
+  about 3% (5-6 FPS) in the fixed view, consistent in all three pairs. Isolated: the vault about 1.5% (on 169.8 /
+  175.3, vault off 172.0 / 177.7); the coffers and the rest within noise. Self-test 177/178 (known hands check),
+  Keel CTF with four bots 59/60, 171.6 FPS. Tour `docs/playtests/2026-11-21_keel_optionb_tour.jpg`.
+
+## Done in pass 12 (2026-11-21): lighting and materials for the new hull, FPS won back
+
+- No volumetric haze on the alien ship (`-SBKeelVolumetricHaze` brings it back): the purple air washed the hull's
+  contrast out and cost about 3% (switch-off test 176.9 / 168.9 vs fog off 181.5 / 175.5); a thin violet height fog
+  from 15 m keeps the depth.
+- Near-neutral cool lamps (0.88, 0.89, 1.0; `-SBKeelLavenderLamps` for the lavender) so the mauve and rose read as
+  material; glyph plaques at strength 3.5 (from 8) and wall strips at 4 (from 6), which had bounced pink pools onto
+  the lower walls (`-SBKeelBrightGlows`); the bridge's rose light 35 cd (from 60), the trench's violet lamps 14 (22).
+- Hull materials: plates more metallic and glossier (metal .70, roughness .20-.58), trims and decks darker
+  (`Tools/create_keel_surfaces.py`), so the plates catch the lamps against dark seams. Self-test 177/178.
+- Stair flights use a hand-modelled chamfered tread with a dark band and end caps (`SM_SB_Kit_AlienStep`) instead of
+  the pack step (`-SBKeelPackStairs`). Fixed-view 167 FPS after.
+- FPS, tonight's whole Keel vs the state before tonight (all option B modules off plus `-SBKeelVolumetricHaze
+  -SBKeelLavenderLamps -SBKeelBrightGlows`): 168.3 / 177.3 against 168.4 / 146.7, so the 3% is back or better.
+
+## Hands-through-guns prototype (2026-11-21, off by default)
+
+`sb.GripFitWide 1` (e.g. `-ExecCmds="sb.GripFitWide 1"`): the trigger-hand fit also clears the fingers' middle and
+tip bones (not the trigger finger) and searches up to 3 cm out and 3 cm along the grip. Default framing unchanged.
+Hands step only (`-SBTestFilter="Hands never"`), off vs on:
+- off: sidearm 3 (palm>index_01_r ring_03_r pinky_02_r), third-person BR 1 (thumb_01_r);
+- on, two runs: sidearm 1 (ring_03_r), third-person BR 0 then 1 (thumb_01_r), but the rocket launcher's left hand
+  now crosses (2-3: palm>pinky_01_l, pinky_01_l, middle_02_l) because the launcher shifts in the hand.
+- A wider 8 cm search fixed the thumb but put the third-person rifle 9 cm off the palm (fails the hold check).
+Shots: `docs/playtests/2026-11-21_hands_prototype_before_after.jpg` (near-identical on screen).
+Version 2 (same flag): the wide fit applies only to pistols and third-person bodies (first-person rifles and the
+launcher keep their fit, so the launcher no longer moves), and on the pistol the ring and pinky middle and tip joints
+close at least 25 degrees (opening them 20 made it worse). Hands step with the flag on, four runs: sidearm clean in
+all four; only the third-person BR thumb_01_r remains (closing or opening its base 20 degrees did not help; the 8 cm
+search clears it but breaks the hold). Full self-test, flag on: 177/178, the failure now only sniper index_03_l
+(intermittent) and the third-person thumb; flag off (default) 177/178 as before. Shots
+`docs/playtests/2026-11-21_hands_prototype_v2.jpg`.
+ Not a fix yet: the
+sidearm's ring tip needs a pose change, and the fit must not move the launcher.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical

@@ -529,6 +529,23 @@ const FShieldbreakMapLook& ShieldbreakMapArt::GetLook(FName MapId)
 		// Cool white work lamps, so the hull reads as gunmetal in pools of light and the amber trim and hazard ramps
 		// carry the warmth (sodium-orange lamps turned every surface the same orange).
 		Keel.InteriorLight = FLinearColor(0.86f, 0.9f, 1.f);
+		// The alien ship (default since 2026-11-16, -SBNoKeelAlienSlice for the old look): lamps a pale lavender, so the
+		// pools of light belong to the purple ship instead of reading as a human work-lamp white.
+		if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelWhiteLamps")))
+		{
+			// Hull pass (2026-11-21): near-neutral, slightly cool lamps so the hull's own mauve and rose read as material
+			// and the colour comes from the glows, instead of a violet light wash over everything.
+			Keel.InteriorLight = FParse::Param(FCommandLine::Get(), TEXT("SBKeelLavenderLamps")) ? FLinearColor(0.84f, 0.74f, 1.f) : FLinearColor(0.88f, 0.89f, 1.f);
+		}
+		// 2026-11-16, Vincent: "make it look like the inside of an alien spaceship". The alien look (on unless
+		// off by default since 2026-11-16, -SBKeelAlienLook): teal trim, violet lamps, kit glow and haze.
+		if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienLook")))
+		{
+			Keel.Trim = FLinearColor(0.10f, 1.0f, 0.82f);
+			Keel.KitGlow = FLinearColor(0.62f, 0.28f, 1.0f);
+			Keel.InteriorLight = FLinearColor(0.72f, 0.55f, 1.0f);   // violet-white lamps against the teal trim
+			Keel.Haze = FLinearColor(0.20f, 0.10f, 0.32f);
+		}
 		// Bastion: a snowbound fortress at dusk. Snow-pale ground and stone, dark rock, lavender-orange dusk haze.
 		FShieldbreakMapLook& Bastion = Out.Add(FName(TEXT("Bastion")));
 		Bastion.GroundStyle = TEXT("stone");
@@ -726,13 +743,21 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 			}
 			else
 			{
-				Group(Groups, TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
+				// Option B (2026-11-21): the alien ship hangs a faceted alien-hull pod instead (Art/blender/build_keel_columns.py).
+				// -SBNoKeelAlienPod keeps the Cradle pod.
+				const bool bAlienPod = !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienPod"))
+					&& FPackageName::DoesPackageExist(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPod"));
+				Group(Groups, bAlienPod ? TEXT("AlienPod") : TEXT("CradlePod")).Add(FTransform(FRotator::ZeroRotator, FVector(0.0, 0.0, Layout.FloorZ + 400.0), FVector(1.f)));
 				// The Galleries' second set piece: the six reactor pylon blocks round the Camo (x +-500 / +-250,
 				// y -2367..-3233) dressed as reactor pylons, each throwing a light column up to the ceiling.
+				// Option B (2026-11-21): sculpted alien obelisks with one dim slot per face instead of the light-column
+				// pylons (the biggest neon wash left). -SBNoKeelAlienPylons keeps the pylons.
+				const bool bAlienPylons = bAlienPod && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienPylons"))
+					&& FPackageName::DoesPackageExist(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPylon"));
 				for (const FVector2D& At : { FVector2D(500.0, -2800.0), FVector2D(250.0, -2367.0), FVector2D(-250.0, -2367.0),
 					FVector2D(-500.0, -2800.0), FVector2D(-250.0, -3233.0), FVector2D(250.0, -3233.0) })
 				{
-					Group(Groups, TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
+					Group(Groups, bAlienPylons ? TEXT("AlienPylon") : TEXT("ReactorPylon")).Add(FTransform(FRotator::ZeroRotator, FVector(At.X, At.Y, Layout.FloorZ), FVector(1.f)));
 				}
 				// Structure overhead: I-beams across the ship under the ceiling, clear of the lamp rows (x +-1300, +-3900) and
 				// the pod's yoke; hull pipework at 12.5 m along the Galleries' hull and both faces of the band walls (y +-2000).
@@ -744,17 +769,47 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 				{
 					Group(Groups, TEXT("CeilingBeam")).Add(FTransform(FRotator::ZeroRotator, FVector(X, 0.0, CeilingZ - (bPackCeiling ? 55.0 : 0.0)), FVector(1.f)));
 				}
-				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.
+				// The alien bridge kit (Art/blender/build_keel_alien.py, 2026-11-16): vault ribs every 3 m, curved coves
+				// between them, rounded portal rims round the window and doors, a cowl lip on the overwatch and glowing deck
+				// channels. Pivot on each bridge's window-wall line, the blue side turned round. -SBNoKeelAlien leaves it off.
+				if (FParse::Param(FCommandLine::Get(), TEXT("SBKeelAlienKit")))
+				{
+					for (const double Side : { -1.0, 1.0 })
+					{
+						const FRotator Turn(0.f, Side < 0.0 ? 0.f : 180.f, 0.f);
+						for (double Y = -1500.0; Y <= 1500.0 + 1.0; Y += 300.0)
+						{
+							Group(Groups, TEXT("AlienRib")).Add(FTransform(Turn, FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
+						}
+
+						Group(Groups, TEXT("AlienBridge")).Add(FTransform(Turn, FVector(Side * 3900.0, 0.0, Layout.FloorZ), FVector(1.f)));
+					}
+				}
+				// The alien slice's curved wall-to-ceiling coves in both bridges (mauve hull), on unless -SBNoKeelAlienSlice.
+				if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
+				{
+					for (const double Side : { -1.0, 1.0 })
+					{
+						for (double Y = -1950.0 + 137.5; Y <= 1950.0 - 137.5 + 1.0; Y += 275.0)
+						{
+							Group(Groups, TEXT("AlienCove")).Add(FTransform(FRotator(0.f, Side < 0.0 ? 0.f : 180.f, 0.f), FVector(Side * 3900.0, Y, Layout.FloorZ), FVector(1.f)));
+						}
+					}
+				}
+				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height. The
+				// alien ship (option B) drops them and the hull pipework: their cyan screens and steel pipes read as a human
+				// ship, and the pipes ran inside the new leaning vault plates. -SBKeelHumanFittings keeps both.
+				const bool bHumanFittings = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) || FParse::Param(FCommandLine::Get(), TEXT("SBKeelHumanFittings"));
 				for (const double X : { -4950.0, -4050.0, 4050.0, 4950.0 })
 				{
 					for (const double Side : { -1.0, 1.0 })
 					{
-						Group(Groups, TEXT("WallConsole")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f),
+						if (bHumanFittings) Group(Groups, TEXT("WallConsole")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f),
 							FVector(X, Side * 1950.0, Layout.FloorZ + 560.0), FVector(1.f)));
 					}
 				}
 				const double PipeZ = Layout.FloorZ + 1250.0;
-				for (double X = -4400.0; X <= 4400.0 + 1.0; X += 800.0)
+				for (double X = -4400.0; X <= 4400.0 + 1.0 && bHumanFittings; X += 800.0)
 				{
 					Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, 180.f, 0.f), FVector(X, -Layout.HalfExtent.Y + 25.0, PipeZ), FVector(1.f)));
 					for (const double Side : { -1.0, 1.0 })

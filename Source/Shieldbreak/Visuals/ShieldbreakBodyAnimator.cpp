@@ -1588,6 +1588,7 @@ namespace ShieldbreakBodyAnimatorPrivate
 {
 	TAutoConsoleVariable<int32> CVarFitTriggerHand(TEXT("sb.FitTriggerHand"), 1, TEXT("1: the gun is placed in the right hand by measuring its pistol grip against the palm (socket-based, cached per hand and gun mesh)."));
 	TAutoConsoleVariable<int32> CVarFitTriggerHandRotate(TEXT("sb.FitTriggerHandRotate"), 1, TEXT("1: third-person bodies also turn the gun in the hand so the barrel points the way the hand does (new fits)."));
+	TAutoConsoleVariable<int32> CVarGripFitWide(TEXT("sb.GripFitWide"), 0, TEXT("Prototype (off by default, 2026-11-21): the trigger-hand fit also clears the fingers' middle and tip bones (not the trigger finger) and searches up to 3 cm out and 3 cm along the grip, for the hands-through-guns check."));
 	TAutoConsoleVariable<float> CVarPalmGap(TEXT("sb.GripPalmGap"), 1.6f, TEXT("cm from the palm's joints to its skin: the grip surface sits this far along the palm normal."));
 
 	/** The pistol grip in the gun mesh's own space: centre at middle-finger height and half its width across. */
@@ -1772,6 +1773,7 @@ void UShieldbreakBodyAnimator::FitTriggerHand(USkeletalMeshComponent* Mesh)
 		if (!FingerPoints(Mesh, ShieldbreakGrip::RightBones, Finger, P)) { continue; }
 		Segments.Add({ Wrist, P[0] });
 		if (Finger != 0) { Segments.Add({ P[0], P[1] }); } // the index finger is the trigger IK's
+		if (Finger != 0 && CVarGripFitWide.GetValueOnGameThread() != 0 && (Mesh != FirstPersonArms || Weapon->GetStats().bPistolAnimations)) { Segments.Add({ P[1], P[2] }); Segments.Add({ P[2], P[3] }); }
 	}
 	auto CountBlocked = [&](const FVector& Offset)
 	{
@@ -1785,10 +1787,15 @@ void UShieldbreakBodyAnimator::FitTriggerHand(USkeletalMeshComponent* Mesh)
 	const FVector GripAxis = Gun->GetComponentTransform().GetUnitAxis(EAxis::Z);
 	FVector BestNudge = FVector::ZeroVector;
 	int32 BestBlocked = MAX_int32;
-	for (float Out = 0.f; Out <= 4.01f && BestBlocked > 0; Out += 0.25f)
+	// Wide fit only for pistols and third-person bodies: on first-person rifles and launchers it moved the gun in the
+	// hand and the support hand then clipped (the rocket launcher's left pinky).
+	const bool bWideFit = CVarGripFitWide.GetValueOnGameThread() != 0 && (Mesh != FirstPersonArms || Weapon->GetStats().bPistolAnimations);
+	const float MaxOut = bWideFit ? 3.01f : 4.01f;   // wide: a hold stays within 3 cm (8 put the third-person rifle 9 cm off the palm)
+	for (float Out = 0.f; Out <= MaxOut && BestBlocked > 0; Out += 0.25f)
 	{
-		for (const float Axial : { 0.f, -0.75f, 0.75f, -1.5f, 1.5f })
+		for (const float Axial : { 0.f, -0.75f, 0.75f, -1.5f, 1.5f, -2.25f, 2.25f, -3.f, 3.f })
 		{
+			if (!bWideFit && FMath::Abs(Axial) > 1.6f) { continue; }
 			const FVector Nudge = Normal * Out + GripAxis * Axial;
 			const int32 Blocked = CountBlocked(Nudge);
 			if (Blocked < BestBlocked) { BestBlocked = Blocked; BestNudge = Nudge; }
@@ -1940,6 +1947,19 @@ void UShieldbreakBodyAnimator::UpdateFirstPersonRightGrip(UShieldbreakBodyAnimIn
 	{
 		GripParts(Weapon, Parts);
 		SolveGripContact(FirstPersonArms, Parts, false, FPRightGrip, -50.f, RightMaxCurls(), DeltaSeconds);
+		// Prototype (sb.GripFitWide): on the slim pistol grip the ring and pinky tips wrapped round to the back strap;
+		// their middle and tip joints close at least 25 degrees past the authored curl (opening them made it worse).
+		if (CVarGripFitWide.GetValueOnGameThread() != 0 && Weapon->GetStats().bPistolAnimations)
+		{
+			for (const int32 Finger : { 2, 3 })
+			{
+				for (const int32 Joint : { 1, 2 })
+				{
+					float& Curl = FPRightGrip[Finger * 3 + Joint];
+					Curl = FMath::Max(Curl, 25.f);
+				}
+			}
+		}
 	}
 	FPRightGripWeight = FMath::FInterpConstantTo(FPRightGripWeight, bActive ? 1.f : 0.f, DeltaSeconds, 1.f / 0.15f);
 	if (FPRightGripWeight <= 0.f)
