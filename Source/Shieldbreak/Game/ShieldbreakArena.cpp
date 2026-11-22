@@ -1040,13 +1040,13 @@ void AShieldbreakArena::BuildMapArt()
 			// Spawn rooms: a faint team hint in each bridge (warm on red, cool on blue). The trench: low amber work lamps
 			// on its walls, against the cold under-glow of the pod above.
 
-			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.6f, 0.8f) : FLinearColor(1.f, 0.72f, 0.55f), bAlienLights ? 60.f : 90.f, 1600.f);
+			AddZoneLight(FVector(-4500.0, 0.0, 1100.0), bAlienLights ? FLinearColor(1.f, 0.6f, 0.8f) : FLinearColor(1.f, 0.72f, 0.55f), bAlienLights ? 35.f : 90.f, 1600.f);
 			AddZoneLight(FVector(4500.0, 0.0, 1100.0), FLinearColor(0.62f, 0.75f, 1.f), 90.f, 1600.f);
 			for (const double X : { -1150.0, 1150.0 })
 			{
 				for (const double Y : { -700.0, 700.0 })
 				{
-					AddZoneLight(FVector(X, Y, 420.0), bAlienLights ? FLinearColor(0.8f, 0.4f, 1.f) : FLinearColor(1.f, 0.62f, 0.28f), 22.f, 1100.f);
+					AddZoneLight(FVector(X, Y, 420.0), bAlienLights ? FLinearColor(0.8f, 0.4f, 1.f) : FLinearColor(1.f, 0.62f, 0.28f), bAlienLights ? 14.f : 22.f, 1100.f);
 				}
 			}
 		}
@@ -1426,6 +1426,14 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		{
 			Glyphs = MakeSet(CubeMesh);
 			Glyphs->SetMaterial(0, GlyphMaterial);
+			// Hull pass: the plaques at strength 8 bounced bright pink pools onto the lower walls; 3.5 keeps them legible.
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBKeelBrightGlows")))
+			{
+				if (UMaterialInstanceDynamic* MID = Glyphs->CreateDynamicMaterialInstance(0))
+				{
+					MID->SetScalarParameterValue(TEXT("Strength"), 3.5f);
+				}
+			}
 		}
 		// Teal circuit-glass panels high on the walls (Art/textures/make_keel_circuits.py), Midship's glowing glass.
 		// -SBNoKeelCircuits turns them off.
@@ -1462,7 +1470,8 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				const FLinearColor Purple(0.62f, 0.22f, 1.0f);
 				MID->SetVectorParameterValue(TEXT("BaseColor"), Purple * 0.2f);
 				MID->SetVectorParameterValue(TEXT("EmissiveColor"), Purple);
-				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), 6.f);
+				// Hull pass (2026-11-21): 6 lit pink pools on the walls round every strip; 4 keeps the line, not the wash.
+				MID->SetScalarParameterValue(TEXT("EmissiveStrength"), FParse::Param(FCommandLine::Get(), TEXT("SBKeelBrightGlows")) ? 6.f : 4.f);
 			}
 		}
 	}
@@ -2701,6 +2710,17 @@ void AShieldbreakArena::SpawnLighting()
 				FogComponent->SetStartDistance(0.f);
 				FogComponent->SetFogDensity(Layout.FogDensity * 1.5f);
 				FogComponent->SetFogHeightFalloff(0.001f);
+				// Keel's hull pass (2026-11-21): no volumetric haze on the alien ship. The purple air washed out the new
+				// hull's contrast (a neon wash) and cost ~3% of the frame; a thin height fog keeps the depth.
+				// -SBKeelVolumetricHaze brings it back.
+				if (MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
+					&& !FParse::Param(FCommandLine::Get(), TEXT("SBKeelVolumetricHaze")))
+				{
+					FogComponent->SetVolumetricFog(false);
+					FogComponent->SetFogDensity(Layout.FogDensity * 0.8f);
+					FogComponent->SetFogInscatteringColor(FLinearColor(0.02f, 0.012f, 0.03f));
+					FogComponent->SetStartDistance(1500.f);
+				}
 			}
 		}
 	}

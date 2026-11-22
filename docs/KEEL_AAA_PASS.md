@@ -209,6 +209,17 @@ shapes; professional free source material only, restyled; no paid tools; perform
   175.3, vault off 172.0 / 177.7); the coffers and the rest within noise. Self-test 177/178 (known hands check),
   Keel CTF with four bots 59/60, 171.6 FPS. Tour `docs/playtests/2026-11-21_keel_optionb_tour.jpg`.
 
+## Done in pass 12 (2026-11-21): lighting and materials for the new hull, FPS won back
+
+- No volumetric haze on the alien ship (`-SBKeelVolumetricHaze` brings it back): the purple air washed the hull's
+  contrast out and cost about 3% (switch-off test 176.9 / 168.9 vs fog off 181.5 / 175.5); a thin violet height fog
+  from 15 m keeps the depth.
+- Near-neutral cool lamps (0.88, 0.89, 1.0; `-SBKeelLavenderLamps` for the lavender) so the mauve and rose read as
+  material; glyph plaques at strength 3.5 (from 8) and wall strips at 4 (from 6), which had bounced pink pools onto
+  the lower walls (`-SBKeelBrightGlows`); the bridge's rose light 35 cd (from 60), the trench's violet lamps 14 (22).
+- FPS, tonight's whole Keel vs the state before tonight (all option B modules off plus `-SBKeelVolumetricHaze
+  -SBKeelLavenderLamps -SBKeelBrightGlows`): 168.3 / 177.3 against 168.4 / 146.7, so the 3% is back or better.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
