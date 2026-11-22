@@ -1,4 +1,4 @@
-**Keel sculpt pass holding the desktop (Claude, DESKTOP-888HMR5, started 2026-11-21 21:15 local, branch `claude/project-thread-kwjmqj`).** Other threads: please wait for "Keel sculpt pass done, desktop released".
+**Keel sculpt pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:15-22:10 local, branch `claude/project-thread-kwjmqj`).** Hand-modelled stair treads on Keel; hands-through-guns prototype behind `sb.GripFitWide` (off by default, findings in docs/KEEL_AAA_PASS.md). Self-test 177/178 (known hands check), default framing unchanged.
 
 **Keel lighting and FPS pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 20:45-21:25 local, branch `claude/project-thread-kwjmqj`).** No volumetric haze on Keel, near-neutral lamps, calmer glows, glossier hull plates and darker trims (docs/KEEL_AAA_PASS.md pass 12). Tonight's Keel 168/177 FPS vs before tonight 168/147. Self-test 177/178 (known hands check).
 

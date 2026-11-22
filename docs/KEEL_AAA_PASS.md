@@ -224,6 +224,18 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - FPS, tonight's whole Keel vs the state before tonight (all option B modules off plus `-SBKeelVolumetricHaze
   -SBKeelLavenderLamps -SBKeelBrightGlows`): 168.3 / 177.3 against 168.4 / 146.7, so the 3% is back or better.
 
+## Hands-through-guns prototype (2026-11-21, off by default)
+
+`sb.GripFitWide 1` (e.g. `-ExecCmds="sb.GripFitWide 1"`): the trigger-hand fit also clears the fingers' middle and
+tip bones (not the trigger finger) and searches up to 3 cm out and 3 cm along the grip. Default framing unchanged.
+Hands step only (`-SBTestFilter="Hands never"`), off vs on:
+- off: sidearm 3 (palm>index_01_r ring_03_r pinky_02_r), third-person BR 1 (thumb_01_r);
+- on, two runs: sidearm 1 (ring_03_r), third-person BR 0 then 1 (thumb_01_r), but the rocket launcher's left hand
+  now crosses (2-3: palm>pinky_01_l, pinky_01_l, middle_02_l) because the launcher shifts in the hand.
+- A wider 8 cm search fixed the thumb but put the third-person rifle 9 cm off the palm (fails the hold check).
+Shots: `docs/playtests/2026-11-21_hands_prototype_before_after.jpg` (near-identical on screen). Not a fix yet: the
+sidearm's ring tip needs a pose change, and the fit must not move the launcher.
+
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
 
 Baseline 156.5 FPS. Materials 153.6 / 159.5; hazard 152.6; pod 158.9 / 172.2 / 185.4; final (scanned block faces) 181.8. The spread between identical
