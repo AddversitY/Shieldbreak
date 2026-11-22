@@ -217,6 +217,8 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Near-neutral cool lamps (0.88, 0.89, 1.0; `-SBKeelLavenderLamps` for the lavender) so the mauve and rose read as
   material; glyph plaques at strength 3.5 (from 8) and wall strips at 4 (from 6), which had bounced pink pools onto
   the lower walls (`-SBKeelBrightGlows`); the bridge's rose light 35 cd (from 60), the trench's violet lamps 14 (22).
+- Hull materials: plates more metallic and glossier (metal .70, roughness .20-.58), trims and decks darker
+  (`Tools/create_keel_surfaces.py`), so the plates catch the lamps against dark seams. Self-test 177/178.
 - FPS, tonight's whole Keel vs the state before tonight (all option B modules off plus `-SBKeelVolumetricHaze
   -SBKeelLavenderLamps -SBKeelBrightGlows`): 168.3 / 177.3 against 168.4 / 146.7, so the 3% is back or better.
 
