@@ -1,4 +1,4 @@
-**Hands prototype holding the desktop (Claude, DESKTOP-888HMR5, started 2026-11-21 21:30 local, branch `claude/project-thread-kwjmqj`).** Other threads: please wait for "Hands prototype done, desktop released".
+**Hands prototype done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:30-22:00 local, branch `claude/project-thread-kwjmqj`).** `sb.GripFitWide 1` (off by default): sidearm no longer clips; third-person rifle thumb and the intermittent sniper left index remain. Default framing unchanged; self-test 177/178 either way.
 
 **Keel sculpt pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:15-22:10 local, branch `claude/project-thread-kwjmqj`).** Hand-modelled stair treads on Keel; hands-through-guns prototype behind `sb.GripFitWide` (off by default, findings in docs/KEEL_AAA_PASS.md). Self-test 177/178 (known hands check), default framing unchanged.
 

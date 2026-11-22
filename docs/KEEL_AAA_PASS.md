@@ -233,7 +233,15 @@ Hands step only (`-SBTestFilter="Hands never"`), off vs on:
 - on, two runs: sidearm 1 (ring_03_r), third-person BR 0 then 1 (thumb_01_r), but the rocket launcher's left hand
   now crosses (2-3: palm>pinky_01_l, pinky_01_l, middle_02_l) because the launcher shifts in the hand.
 - A wider 8 cm search fixed the thumb but put the third-person rifle 9 cm off the palm (fails the hold check).
-Shots: `docs/playtests/2026-11-21_hands_prototype_before_after.jpg` (near-identical on screen). Not a fix yet: the
+Shots: `docs/playtests/2026-11-21_hands_prototype_before_after.jpg` (near-identical on screen).
+Version 2 (same flag): the wide fit applies only to pistols and third-person bodies (first-person rifles and the
+launcher keep their fit, so the launcher no longer moves), and on the pistol the ring and pinky middle and tip joints
+close at least 25 degrees (opening them 20 made it worse). Hands step with the flag on, four runs: sidearm clean in
+all four; only the third-person BR thumb_01_r remains (closing or opening its base 20 degrees did not help; the 8 cm
+search clears it but breaks the hold). Full self-test, flag on: 177/178, the failure now only sniper index_03_l
+(intermittent) and the third-person thumb; flag off (default) 177/178 as before. Shots
+`docs/playtests/2026-11-21_hands_prototype_v2.jpg`.
+ Not a fix yet: the
 sidearm's ring tip needs a pose change, and the fit must not move the launcher.
 
 ## Performance (fixed-view Keel, 1280x720, no bots, single runs)
