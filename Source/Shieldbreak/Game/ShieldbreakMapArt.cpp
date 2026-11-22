@@ -794,17 +794,20 @@ TArray<FShieldbreakArtGroup> ShieldbreakMapArt::Plan(FName MapId, const FShieldb
 						}
 					}
 				}
-				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height.
+				// Bridge wall consoles (9 cm deep, no cover): two on each side wall of each bridge, at deck eye height. The
+				// alien ship (option B) drops them and the hull pipework: their cyan screens and steel pipes read as a human
+				// ship, and the pipes ran inside the new leaning vault plates. -SBKeelHumanFittings keeps both.
+				const bool bHumanFittings = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) || FParse::Param(FCommandLine::Get(), TEXT("SBKeelHumanFittings"));
 				for (const double X : { -4950.0, -4050.0, 4050.0, 4950.0 })
 				{
 					for (const double Side : { -1.0, 1.0 })
 					{
-						Group(Groups, TEXT("WallConsole")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f),
+						if (bHumanFittings) Group(Groups, TEXT("WallConsole")).Add(FTransform(FRotator(0.f, Side > 0.0 ? 0.f : 180.f, 0.f),
 							FVector(X, Side * 1950.0, Layout.FloorZ + 560.0), FVector(1.f)));
 					}
 				}
 				const double PipeZ = Layout.FloorZ + 1250.0;
-				for (double X = -4400.0; X <= 4400.0 + 1.0; X += 800.0)
+				for (double X = -4400.0; X <= 4400.0 + 1.0 && bHumanFittings; X += 800.0)
 				{
 					Group(Groups, TEXT("PipeRun")).Add(FTransform(FRotator(0.f, 180.f, 0.f), FVector(X, -Layout.HalfExtent.Y + 25.0, PipeZ), FVector(1.f)));
 					for (const double Side : { -1.0, 1.0 })

@@ -200,6 +200,8 @@ shapes; professional free source material only, restyled; no paid tools; perform
   160.8 / 175.7, off 170.1 / 163.5, no measurable cost.
 - FPS A/B (desktop busier today, all runs lower): 134/141 with, 138/123 without; no measurable cost.
 
+- The alien ship drops the human fittings: the bridges' cyan-screen wall consoles and the steel hull pipework (which
+  ran inside the vault plates). `-SBKeelHumanFittings` keeps them. Fixed-view 174 FPS after.
 - Every option B module together (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
   -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges -SBNoKeelAlienPylons -SBNoKeelVault -SBKeelBusyPanels
   -SBNoKeelCoffers` for all off), three interleaved pairs: on 168.2 / 165.0 / 163.2, off 174.0 / 171.8 / 167.7, so
