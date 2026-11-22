@@ -351,6 +351,19 @@ def ceiling_coffer():
     return parts
 
 
+def alien_step():
+    """A stair tread (option B), replacing the pack's step piece: a unit block (100 x 100 x 100, scaled per flight like
+    the pack piece) whose nose (+Y, the downhill side) is chamfered back 30 % of its height, with a dark recessed band
+    under the chamfer and dark end caps. Pivot: bottom centre."""
+    sb_kit.reset_scene()
+    body = [(-50.0, 0.0), (50.0, 0.0), (50.0, 62.0), (34.0, 100.0), (-50.0, 100.0)]
+    parts = [extrude_x('tread', body, -46.0, 46.0, 'AlienHull')]
+    parts.append(extrude_x('band', [(49.0, 30.0), (52.0, 30.0), (52.0, 52.0), (49.0, 52.0)], -46.0, 46.0, 'AlienDark'))
+    for x0, x1 in ((-50.0, -46.0), (46.0, 50.0)):
+        parts.append(extrude_x('cap', [(-50.0, 0.0), (50.0, 0.0), (50.0, 66.0), (36.0, 102.0), (-50.0, 102.0)], x0, x1, 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -365,6 +378,7 @@ def main():
     build_one('SM_SB_Kit_AlienPylon', alien_pylon(), lines)
     build_one('SM_SB_Kit_AlienVaultPlate', vault_plate(), lines)
     build_one('SM_SB_Kit_AlienCoffer', ceiling_coffer(), lines)
+    build_one('SM_SB_Kit_AlienStep', alien_step(), lines)
     build_one('SM_SB_Kit_AlienRampEdge', ramp_edge(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)

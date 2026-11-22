@@ -219,6 +219,8 @@ shapes; professional free source material only, restyled; no paid tools; perform
   the lower walls (`-SBKeelBrightGlows`); the bridge's rose light 35 cd (from 60), the trench's violet lamps 14 (22).
 - Hull materials: plates more metallic and glossier (metal .70, roughness .20-.58), trims and decks darker
   (`Tools/create_keel_surfaces.py`), so the plates catch the lamps against dark seams. Self-test 177/178.
+- Stair flights use a hand-modelled chamfered tread with a dark band and end caps (`SM_SB_Kit_AlienStep`) instead of
+  the pack step (`-SBKeelPackStairs`). Fixed-view 167 FPS after.
 - FPS, tonight's whole Keel vs the state before tonight (all option B modules off plus `-SBKeelVolumetricHaze
   -SBKeelLavenderLamps -SBKeelBrightGlows`): 168.3 / 177.3 against 168.4 / 146.7, so the 3% is back or better.
 

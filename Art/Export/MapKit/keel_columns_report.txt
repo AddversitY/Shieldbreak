@@ -2,6 +2,7 @@ SM_SB_Kit_AlienPod: 1628 tris, X -722.0..722.0 Y -464.0..464.0 Z -2.0..1100.0, s
 SM_SB_Kit_AlienPylon: 180 tris, X -146.0..146.0 Y -146.0..146.0 Z 0.0..601.0, slots M_AlienDark, M_AlienHull, M_AlienSeam
 SM_SB_Kit_AlienVaultPlate: 48 tris, X -200.0..200.0 Y 0.0..179.8 Z -46.0..500.0, slots M_AlienHull, M_AlienDark
 SM_SB_Kit_AlienCoffer: 76 tris, X -250.0..250.0 Y -190.0..190.0 Z -16.0..0.0, slots M_AlienHull, M_AlienDark
+SM_SB_Kit_AlienStep: 60 tris, X -50.0..50.0 Y -50.0..52.0 Z 0.0..102.0, slots M_AlienHull, M_AlienDark
 SM_SB_Kit_AlienRampEdge: 32 tris, X -50.0..50.0 Y -6.0..21.5 Z -62.0..9.0, slots M_AlienHull, M_AlienDark
 SM_SB_Kit_AlienPlinth_200x150x110: 144 tris, X -112.0..112.0 Y -87.0..87.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull
 SM_SB_Kit_AlienPlinth_200x300x110: 144 tris, X -112.0..112.0 Y -162.0..162.0 Z 0.0..110.6, slots M_AlienDark, M_AlienHull

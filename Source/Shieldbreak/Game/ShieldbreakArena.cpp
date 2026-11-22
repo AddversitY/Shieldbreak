@@ -1766,8 +1766,23 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		UE_LOG(LogShieldbreak, Log, TEXT("Keel pack grid: %d corner posts."), CornerCount);
 	}
 	UStaticMesh* StairMesh = FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelStairs")) ? nullptr : Load(TEXT("PROP/STAIRS/SM_STAIRS_01"));
+	// Option B: the alien ship's flights use a hand-modelled chamfered tread instead of the pack's step piece
+	// (-SBKeelPackStairs keeps the pack's).
+	bool bAlienSteps = false;
+	if (StairMesh && bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelPackStairs")))
+	{
+		if (UStaticMesh* StepMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienStep.SM_SB_Kit_AlienStep")))
+		{
+			StairMesh = StepMesh;
+			bAlienSteps = true;
+		}
+	}
 	UInstancedStaticMeshComponent* Stairs = StairMesh ? MakeSet(StairMesh) : nullptr;
-	if (Stairs && bAlienSlice)
+	if (Stairs && bAlienSteps)
+	{
+		ApplyKitSurfaces(Stairs, ShieldbreakMapArt::GetLook(MapId), 0.f);
+	}
+	else if (Stairs && bAlienSlice)
 	{
 		// The step treads in the alien hull's dark mauve.
 		if (UMaterialInterface* Dark = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark")))
