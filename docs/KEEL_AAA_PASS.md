@@ -191,6 +191,9 @@ shapes; professional free source material only, restyled; no paid tools; perform
 - Calmer walls: six cells in ten take the large faceted hull plate `SM_SB_Kit_AlienPanelD` (corners cut at 45 degrees,
   a recessed trim band, a short seam) and the rounded tiles A, B, C become accents (`-SBKeelBusyPanels` for the old
   mix). Fixed-view 169 FPS after.
+- Coffered ceiling: every open 6 x 4 m bay between ceiling ribs gets a dark recessed panel in a faceted hull frame
+  (`SM_SB_Kit_AlienCoffer`; `-SBNoKeelCoffers`). Fixed-view 170 FPS after. Keel CTF with four bots (before the
+  coffers): 59/60 (known hands check only), no stuck bots, 171.6 FPS.
 - FPS, every option B module on vs all off (`-SBNoKeelColumns -SBNoKeelPortals -SBNoKeelWindowFrames -SBNoKeelPlinths
   -SBNoKeelAlienPod -SBNoKeelRampEdges -SBNoKeelLedges`): first 168 vs 176 (two pairs); bisected to the portals and
   window frames, which were feeding Lumen's distance fields. With `bAffectDistanceFieldLighting` off on them: on

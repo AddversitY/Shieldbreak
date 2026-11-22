@@ -1921,6 +1921,15 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		{
 			CeilingRibs = MakeSet(RibMesh);
 			ApplyKitSurfaces(CeilingRibs, ShieldbreakMapArt::GetLook(MapId), 0.f);
+			UInstancedStaticMeshComponent* Coffers = nullptr;
+			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCoffers")))
+			{
+				if (UStaticMesh* CofferMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienCoffer.SM_SB_Kit_AlienCoffer")))
+				{
+					Coffers = MakeSet(CofferMesh);
+					ApplyKitSurfaces(Coffers, ShieldbreakMapArt::GetLook(MapId), 0.f);
+				}
+			}
 			for (double X = -Half.X + 300.0; X < Half.X - 100.0; X += 600.0)
 			{
 				for (double Y = -Half.Y + 200.0; Y < Half.Y - 100.0; Y += 400.0)
@@ -1938,7 +1947,27 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					{
 						CeilingRibs->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X, Y, CeilingZ - 1.0), FVector(1.0)));
 					}
+					// Option B: a dark coffer in the bay between this rib and the next, where the whole bay is open
+					// ceiling (SM_SB_Kit_AlienCoffer). -SBNoKeelCoffers turns them off.
+					bool bBay = bClear && Coffers != nullptr;
+					for (const double Dx : { 60.0, 300.0, 540.0 })
+					{
+						for (const double Dy : { -170.0, 170.0 })
+						{
+							const FVector Probe(X + Dx, Y + Dy, CeilingZ - 40.0);
+							bBay = bBay && !Inside(Probe) && InSlice(Probe) && FMath::Abs(Probe.X) < Half.X - 20.0;
+						}
+					}
+					if (bBay)
+					{
+						Coffers->AddInstance(FTransform(FRotator::ZeroRotator, FVector(X + 300.0, Y, CeilingZ - 1.0), FVector(1.0)));
+					}
 				}
+			}
+			if (Coffers)
+			{
+				Coffers->RegisterComponent();
+				AddInstanceComponent(Coffers);
 			}
 		}
 	}

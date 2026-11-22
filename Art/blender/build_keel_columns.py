@@ -328,6 +328,29 @@ def vault_plate():
     return parts
 
 
+def ceiling_coffer():
+    """A ceiling coffer (option B): the 6 x 4 m bay between two ceiling ribs as a dark recessed panel inside a heavy
+    faceted hull frame hanging 16 cm, so the ceiling reads as deep structure, not a flat skin. Pivot: the ceiling (top
+    centre, z 0); the bay runs along X between ribs, Y along the rib."""
+    sb_kit.reset_scene()
+    outer, inner = ring(250, 190, 44), ring(218, 158, 32)
+    bm = bmesh.new()
+    def layer(loop, z):
+        return [bm.verts.new((x, y, z)) for x, y in loop]
+    ot, it, ob, ib = layer(outer, 0.0), layer(inner, 0.0), layer(outer, -12.0), layer(inner, -16.0)
+    n = len(outer)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((ob[i], ob[j], ib[j], ib[i]))      # sloped underside of the frame
+        bm.faces.new((ot[i], ot[j], ob[j], ob[i]))      # outer face
+        bm.faces.new((ib[i], ib[j], it[j], it[i]))      # inner face
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new('frame'); bm.to_mesh(me); bm.free()
+    parts = [sb_kit._finish(sb_kit._link('frame', me), 'AlienHull', 0.0)]
+    parts.append(loft('panel', [(-3.0, ring(220, 160, 33)), (-1.0, ring(220, 160, 33))], 'AlienDark'))
+    return parts
+
+
 def build_one(name, parts, lines):
     obj = sb_kit.join(name, parts)
     line = f'{name}: {sb_kit.triangle_count(obj)} tris, {sb_kit.bounds(obj)}, slots ' + ', '.join(m.name for m in obj.data.materials)
@@ -341,6 +364,7 @@ def main():
     build_one('SM_SB_Kit_AlienPod', alien_pod(), lines)
     build_one('SM_SB_Kit_AlienPylon', alien_pylon(), lines)
     build_one('SM_SB_Kit_AlienVaultPlate', vault_plate(), lines)
+    build_one('SM_SB_Kit_AlienCoffer', ceiling_coffer(), lines)
     build_one('SM_SB_Kit_AlienRampEdge', ramp_edge(), lines)
     for W, D, H in PLINTHS:
         build_one('SM_SB_Kit_AlienPlinth_%dx%dx%d' % (W, D, H), plinth(W, D, H), lines)
