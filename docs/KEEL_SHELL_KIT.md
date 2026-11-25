@@ -65,28 +65,51 @@ Nanite, which the 2080 Ti runs. `Tools/ImportKeelShell.bat` imports them and tur
 - Import: `Tools\ImportKeelShell.bat` (narrow import `SM_SB_Kit_KeelShell_*`, then `Tools/enable_keel_shell_nanite.py`).
 - In the cloud the same script runs under the `bpy` 4.5 module: `python Art/blender/build_keel_shell_kit.py --render`.
 
-Not tested in Unreal yet: the import, the Nanite step and any in-game look. Nothing in the game uses these meshes yet.
+Not tested in Unreal yet: the import, the Nanite step, the placement code below and any in-game look.
 
-## Putting it in Keel (next pass, on the desktop)
+## In Keel (code written 2026-11-25, not yet built or run)
 
-Code in `AShieldbreakArena`, Keel only, behind a flag like the earlier passes (`-SBNoKeelShell` for the old look):
+`AShieldbreakArena`, Keel's alien look only, visual only (no collision). It switches on by itself once
+`Tools\ImportKeelShell.bat` has imported the meshes; until then Keel looks exactly as before. **`-SBNoKeelShell`**
+gives the previous look, geometry and lighting both, for side-by-side comparisons; `Tools\KeelShellShots.bat` takes
+matched shots of both (`Keel_shell_*` and `Keel_old_*`, HUD off, hero cameras included).
 
-1. Along each long wall run, place `WallBay` every 400 cm on the block face, a `Rib` on every joint, and mix in
-   `WallBayVent` about one bay in five and `WallBayWindow` where Keel already has windows.
-2. Over each corridor, a `CeilingSpine` and `RibBeam` per bay, scaled in X to fill the width between the two haunches
-   (width - 724 cm). Rooms of another height get a re-run of the script with that height, not a Z scale.
-3. **Collision rule:** the skirt reaches 55 cm into the room at the floor. Set the shell's wall line 55 cm behind the
-   block face, so a player's body never sinks into the skirt. The lean then only crosses the collision face above
-   about 3 m, over head height.
-4. Floors: `FloorPlate` on walkable tops, `FloorGrate` down main walkways, `EdgeStrip` on every drop and ramp side.
-5. Set pieces: `Pylon` rings in the Galleries in place of the obelisks, `Pillar` shrouds on the ten columns,
-   `Portal` round the twelve deck doors.
-6. Retire what fights the new look: glyph plaques, circuit-glass panels, the mauve panel mix and the coffered ceiling
-   where the shell covers them.
+1. **Wall bays** (`BuildKeelPackKit`). A face column (about 400 cm) takes a `WallBay` when the wall is solid from the
+   floor in front up to the ceiling across the bay and 90 cm past both ends (so door surrounds never meet a bay), the
+   floor in front is one level, the space the skirt, wall and 3.6 m haunch fill is open, and it is not one of the
+   window walls. About one bay in five is a `WallBayVent`. Bays stretch up to the room's height (Keel's rooms are
+   8 to 15 m, the kit is authored at 7.6 m), so the haunch still meets the ceiling. A `Rib` stands on every joint and
+   closes both ends of each run. Columns that don't qualify keep the earlier panel dressing.
+2. **Collision rule, changed:** the bays' wall line is the block face (`-SBKeelShellSetback=<cm>` moves it back).
+   Setting it 55 cm back, as planned, would have hidden the crease light and the lower wall inside the block for the
+   first 2 to 3 m, so the block face would show there. At 0 the skirt reaches 55 cm into the room at the floor only,
+   where a player's feet can overlap it; nothing a player can see at eye height is affected.
+3. **Decks and edges:** `FloorPlate` on every walkable top (instead of the alien deck tiles), `EdgeStrip` on every
+   drop of a metre or more (instead of the ramp-edge fascia).
+4. **Doors** (`BuildMapArt`): the round-arched `Portal` on both faces of the twelve deck doors. Its arch covers the
+   door's top corners, which stay open for shots and movement. The two 20 m trench mouths keep their old portals.
+5. **Retired where the shell is:** the panel mix, glyph plaques, circuit glass, light seams, skirting slabs, vault
+   plates and coves on bay columns; ceiling ribs and coffers where a haunch curves into the ceiling; the Fab pack's
+   wall props on the band walls (trays, lamp strips, cables, boxes, panels), which would sit buried inside the bays.
+6. **Lighting** (`SpawnLighting`): sky light 1.5 to 0.5, and exposure locked (min = max = EV100 1.5, bias 0) instead
+   of auto exposure with a -1.1 bias, so a dark room is no longer lifted back to mid grey. **1.5 is a first guess**:
+   tune it with `-SBKeelShellEV=<EV100>` (higher is darker), `-SBSky=<x>`, or `-SBKeelShellAutoExposure` to keep auto
+   exposure with the shell. `-SBExposure=` still adds a bias.
+7. The kit's meshes keep their own palette instances (`MI_SB_Shell*`, no `ApplyKitSurfaces`) and take part in Lumen's
+   distance-field scene so the curves show in reflections; `-SBKeelShellNoDF` leaves them out to measure the cost.
+
+Not used yet: `WallBayWindow` (Keel's window walls keep their views), `CeilingSpine` and `RibBeam` (Keel's rooms are
+halls, not 11 m corridors), `FloorGrate`. `Pillar` and `Pylon` turned out not to fit Keel's columns and reactor
+pylons: they are rectangular blocks, and a round piece big enough to hide one at its waist would be about 6 m wide
+at the foot. Those keep their own sculpted pieces; new versions authored at each block's size would be the fix.
+
+To check first on the desktop: corners where two bays meet at right angles (their haunches cross), the bays next
+to the doors, whether vents read, and the exposure value.
 
 ## In-engine lighting, material and post changes
 
-None of these are made on this branch; all need the desktop to tune and measure.
+Exposure and sky light are in the code above (first guesses); the rest are not made yet and need the desktop to
+tune and measure.
 
 - **Lock exposure on Keel.** Set min and max auto-exposure brightness equal (manual exposure), tuned so a room with no
   lamp in it reads near black. This one change is most of the difference between "dark and moody" and "flat".
