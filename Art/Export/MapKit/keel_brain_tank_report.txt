@@ -1,0 +1,2 @@
+SM_SB_Kit_KeelBrainTank: 196914 tris, X 0.0..82.0 Y -135.0..135.0 Z -105.0..105.0, slots M_ShellSteel, M_ShellGrate, M_TankGlow, M_TankBrain, M_TankChrome, M_TankCable, M_TankCableRed, M_ShellGlowCyan
+SM_SB_Kit_KeelBrainTankGlass: 1238 tris, X 14.0..73.0 Y -117.0..117.0 Z -87.0..87.0, slots M_TankGlass, M_TankFluid

@@ -89,6 +89,22 @@ namespace ShieldbreakArenaPrivate
 		return !FParse::Param(FCommandLine::Get(), TEXT("SBNoLumen"));
 	}
 
+	/** One piece of Keel's shell kit (Art/blender/build_keel_shell_kit.py), or null until Tools/ImportKeelShell.bat ran. */
+	UStaticMesh* LoadKeelShell(const TCHAR* Piece)
+	{
+		return ShieldbreakArt::Load<UStaticMesh>(*FString::Printf(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_KeelShell_%s.SM_SB_Kit_KeelShell_%s"), Piece, Piece));
+	}
+
+	/** Keel's shell look (2026-11-25, docs/KEEL_SHELL_KIT.md): the curved glossy hull bays, deck plates, edge strips and
+	 *  arched doors, plus the darker lighting that goes with them (locked exposure, low sky light). On by default in the
+	 *  alien look once the kit is imported; without the meshes Keel keeps its previous look. -SBNoKeelShell keeps the
+	 *  previous look (geometry and lighting both) for side-by-side comparisons. */
+	bool KeelShellOn(FName MapId)
+	{
+		return MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelShell"))
+			&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && LoadKeelShell(TEXT("WallBay")) != nullptr;
+	}
+
 	/** Emissive share of the mountain ring's colour; -SBMountainLight=<x> overrides it for comparisons. */
 	float MountainSelfLight()
 	{
@@ -1154,7 +1170,31 @@ void AShieldbreakArena::BuildMapArt()
 			bool bPortals = false;
 			if (!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelPortals")))
 			{
-				UStaticMesh* DeckPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_500x350.SM_SB_Kit_AlienPortal_500x350"));
+				// Keel shell (docs/KEEL_SHELL_KIT.md): the kit's round-arched cowl on both faces of each deck door instead
+				// (its pivot is the opening's bottom centre on the wall face, room side +Y; the walls are 60 cm thick).
+				UStaticMesh* ShellPortal = ShieldbreakArenaPrivate::KeelShellOn(MapId) ? ShieldbreakArenaPrivate::LoadKeelShell(TEXT("Portal")) : nullptr;
+				if (ShellPortal)
+				{
+					auto* Arches = AddDecoration<UInstancedStaticMeshComponent>(TEXT("KeelShellPortal"), ShellPortal);
+					Arches->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					Arches->SetCastShadow(false);
+					Arches->bAffectDistanceFieldLighting = FParse::Param(FCommandLine::Get(), TEXT("SBKeelShellDF"));
+					for (const FTransform& At : DoorFrames)
+					{
+						const FVector Across = At.GetRotation().RotateVector(FVector(0.0, 1.0, 0.0));
+						for (const double Side : { -1.0, 1.0 })
+						{
+							const FVector Out = Across * Side;
+							const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Out.Y, Out.X)) - 90.f;
+							Arches->AddInstance(FTransform(FRotator(0.f, Yaw, 0.f), At.GetLocation() + Out * 30.0 + FVector(0.0, 0.0, Layout.FloorZ)));
+						}
+					}
+					Arches->RegisterComponent();
+					AddInstanceComponent(Arches);
+					bPortals = true;
+				}
+				UStaticMesh* DeckPortal = ShellPortal ? nullptr
+					: ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_500x350.SM_SB_Kit_AlienPortal_500x350"));
 				UStaticMesh* TrenchPortal = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienPortal_2000x450.SM_SB_Kit_AlienPortal_2000x450"));
 				for (UStaticMesh* PortalMesh : { DeckPortal, TrenchPortal })
 				{
@@ -1190,17 +1230,27 @@ void AShieldbreakArena::BuildMapArt()
 			{
 				Pack(TEXT("SRTUCTURE/DOOR_FRAME/SM_DOOR_FRAME_01_OUTSIDE"), DoorFrames, 0.f);
 			}
-			Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
-			Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
-			Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
-			Pack(TEXT("PROP/MACHINE/SM_ELECTRIC_BOX_01_CLOSE"), Boxes, 4000.f);
-			Pack(TEXT("PROP/OTHERS/SM_PANEL_01"), Panels, 4000.f);
+			// The shell's bays lean over the band walls, so the pack's wall props there would sit buried inside them.
+			if (!ShieldbreakArenaPrivate::KeelShellOn(MapId))
+			{
+				Pack(TEXT("PROP/BRACKET/SM_WALL_INSTALLATION_02"), Trays, 9000.f);
+				Pack(TEXT("PROP/LAMP/SM_LAMP_04"), Strips, 9000.f);
+				Pack(TEXT("CABLE_PIPE/SM_CABLE_MASS_01"), Cables, 7000.f);
+				Pack(TEXT("PROP/MACHINE/SM_ELECTRIC_BOX_01_CLOSE"), Boxes, 4000.f);
+				Pack(TEXT("PROP/OTHERS/SM_PANEL_01"), Panels, 4000.f);
+			}
 			UE_LOG(LogShieldbreak, Log, TEXT("Keel Fab pack dressing: %d pieces."), PackPieces);
 		}
 		// Views out (Tools/create_keel_space.py: the space panorama, unlit, parallax), 30 cm proud of the hull in front
 		// of its cladding and split by heavy frame mullions; visual only. The Breach's long window over its catwalk (north
 		// hull, x +-3200, z 760..1380) and one over each bridge's overwatch (end walls, y +-1600, z 760..1340).
-		UMaterialInterface* Space = ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
+		// Deep space (2026-11-26, Tools/create_keel_deep_space.py): the panel ray-casts a real 3D scene behind the glass
+		// (lit gas giant with atmosphere, moon, layered nebula and stars, drifting debris and ships), so the view has depth
+		// and parallax, and a glass pane in front reflects the room. -SBKeelFlatSpace keeps the flat panorama.
+		UMaterialInterface* DeepSpace = FParse::Param(FCommandLine::Get(), TEXT("SBKeelFlatSpace")) ? nullptr
+			: ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelDeepSpace.M_SB_KeelDeepSpace"));
+		UMaterialInterface* WindowGlass = DeepSpace ? ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelWindowGlass.MI_SB_KeelWindowGlass")) : nullptr;
+		UMaterialInterface* Space = DeepSpace ? DeepSpace : ShieldbreakArt::Load<UMaterialInterface>(TEXT("/Game/Shieldbreak/Art/Keel/M_SB_KeelSpace.M_SB_KeelSpace"));
 		UMaterialInterface* Frame = ShieldbreakArt::Load<UMaterialInterface>(!FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice"))
 			? TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelMauveDark.MI_SB_KeelMauveDark") : TEXT("/Game/Shieldbreak/Art/Keel/MI_SB_KeelFrame.MI_SB_KeelFrame"));
 		if (Space && CubeMesh && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelWindow")))
@@ -1249,6 +1299,19 @@ void AShieldbreakArena::BuildMapArt()
 				Window->SetMaterial(0, Space);
 				Window->RegisterComponent();
 				AddInstanceComponent(Window);
+				if (WindowGlass)
+				{
+					// The pane, 3 cm in front of the view: faint room reflections and a teal tint toward its edges.
+					UStaticMeshComponent* Pane = AddDecoration<UStaticMeshComponent>(TEXT("KeelWindowGlass"), CubeMesh);
+					Pane->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					Pane->SetCastShadow(false);
+					Pane->bAffectDistanceFieldLighting = false;
+					Pane->SetRelativeLocationAndRotation(Middle + Inward * 3.0, Turn);
+					Pane->SetRelativeScale3D(FVector(HalfLength / 50.0, 0.004, (Top - Bottom) / 100.0));
+					Pane->SetMaterial(0, WindowGlass);
+					Pane->RegisterComponent();
+					AddInstanceComponent(Pane);
+				}
 				if (AlienMullions && AlienSills)
 				{
 					const FQuat Flip = Turn.Quaternion() * FQuat(FVector::YAxisVector, PI);   // the head: the sill turned over
@@ -1364,6 +1427,9 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	UInstancedStaticMeshComponent* Glyphs = nullptr;
 	UInstancedStaticMeshComponent* Circuits = nullptr;
 	UInstancedStaticMeshComponent* CircuitsWarm = nullptr;
+	UInstancedStaticMeshComponent* BrainTanks = nullptr;
+	UInstancedStaticMeshComponent* BrainTankGlass = nullptr;
+	TArray<FVector> BrainTankLights;
 	if (bAlienSlice)
 	{
 		// The sculpted alien wall panel (Art/blender/build_keel_alien.py) on every wall cell, glowing glyph plaques
@@ -1451,6 +1517,19 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				MID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor(1.0f, 0.42f, 0.08f));
 			}
 		}
+		// Brain tanks (2026-11-26, Art/blender/build_keel_brain_tank.py, docs/KEEL_SHELL_KIT.md): an alien brain behind
+		// glass, mid-surgery, in place of each teal circuit panel (the amber ones stay). The opaque tank is a Nanite mesh;
+		// glass and fluid haze are a separate translucent mesh. -SBNoKeelBrainTank keeps the teal panels.
+		if (Circuits && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelBrainTank")))
+		{
+			UStaticMesh* TankMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_KeelBrainTank.SM_SB_Kit_KeelBrainTank"));
+			UStaticMesh* TankGlassMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_KeelBrainTankGlass.SM_SB_Kit_KeelBrainTankGlass"));
+			if (TankMesh && TankGlassMesh)
+			{
+				BrainTanks = MakeSet(TankMesh);
+				BrainTankGlass = MakeSet(TankGlassMesh);
+			}
+		}
 		SkinWalls = MakeSet(CubeMesh);
 		SkinDecks = MakeSet(CubeMesh);
 		Underglow = MakeSet(CubeMesh);
@@ -1476,8 +1555,46 @@ bool AShieldbreakArena::BuildKeelPackKit()
 		}
 	}
 
+	// Keel shell kit (2026-11-25, docs/KEEL_SHELL_KIT.md): on long, solid, full-height walls one curved hull bay per
+	// 400 cm column replaces the panel dressing from the floor in front up into the ceiling (skirt, leaning wall, ribbed
+	// haunch), with a structural rib on every joint and at both ends of each run. Deck plates, edge strips on the drops
+	// and arched doors (BuildMapArt) come with it. Visual only, like the rest: collision stays the blocks.
+	// -SBNoKeelShell keeps the previous look. -SBKeelShellSetback=<cm> sets the bays' wall line that far behind the block
+	// face (0 by default: the kick skirt then reaches 55 cm into the room at the floor, under a player's feet only).
+	const bool bShell = bAlienSlice && ShieldbreakArenaPrivate::KeelShellOn(MapId);
+	double ShellSetback = 0.0;
+	FParse::Value(FCommandLine::Get(), TEXT("SBKeelShellSetback="), ShellSetback);
+	UInstancedStaticMeshComponent* ShellBays = nullptr;
+	UInstancedStaticMeshComponent* ShellVents = nullptr;
+	UInstancedStaticMeshComponent* ShellRibs = nullptr;
+	UInstancedStaticMeshComponent* ShellFloors = nullptr;
+	UInstancedStaticMeshComponent* ShellEdges = nullptr;
+	TArray<FBox> ShellReach;   // the room-side space each bay fills under the ceiling (keeps ceiling ribs out of it)
+	if (bShell)
+	{
+		auto MakeShellSet = [&MakeSet](const TCHAR* Piece) -> UInstancedStaticMeshComponent*
+		{
+			UStaticMesh* Mesh = ShieldbreakArenaPrivate::LoadKeelShell(Piece);
+			if (!Mesh)
+			{
+				return nullptr;
+			}
+			// The kit keeps its own glossy palette instances (no ApplyKitSurfaces). It stays out of Lumen's distance-field
+			// scene by default: on the desktop (2026-11-25) it cost 105.6 -> 136.5 fixed-view FPS for no visible change in the shots.
+			// -SBKeelShellDF puts it back in.
+			UInstancedStaticMeshComponent* Set = MakeSet(Mesh);
+			Set->bAffectDistanceFieldLighting = FParse::Param(FCommandLine::Get(), TEXT("SBKeelShellDF"));
+			return Set;
+		};
+		ShellBays = MakeShellSet(TEXT("WallBay"));
+		ShellVents = MakeShellSet(TEXT("WallBayVent"));
+		ShellRibs = MakeShellSet(TEXT("Rib"));
+		ShellFloors = MakeShellSet(TEXT("FloorPlate"));
+		ShellEdges = MakeShellSet(TEXT("EdgeStrip"));
+	}
+
 	// Blocks the hero set pieces already dress (the Cradle pod, the six reactor pylons) stay as they are.
-	auto Dressed = [](const FShieldbreakMapBlock& Block)
+	auto Dressed =[](const FShieldbreakMapBlock& Block)
 	{
 		const FVector Size = Block.Max - Block.Min, Center = (Block.Min + Block.Max) * 0.5f;
 		const bool bPod = FMath::IsNearlyEqual(Size.X, 1400.f, 5.f) && FMath::IsNearlyEqual(Size.Y, 800.f, 5.f) && FMath::Abs(Center.X) < 5.f;
@@ -1555,8 +1672,107 @@ bool AShieldbreakArena::BuildKeelPackKit()
 				// The yaw that turns the module's +Y (detailed) face to the face normal.
 				const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X)) - 90.f;
 				const FRotator Turn(0.f, Yaw, 0.f);
+				// Keel shell: which columns of this face take a whole-height hull bay (their cells then skip the panel
+				// dressing below). A column qualifies when the wall stands solid from the floor in front up to the
+				// ceiling across the whole bay and a metre past both ends (so a door's surround never meets a bay), the
+				// floor in front is one level, the space the skirt, wall and 3.6 m haunch fill is open, and the face is
+				// not one of the window walls (their views out stay as they are).
+				TArray<bool, TInlineAllocator<32>> ShellColumn;
+				ShellColumn.Init(false, Columns);
+				if (ShellBays && Block.Max.Z >= CeilingZ - 5.0 && Span >= 800.0)
+				{
+					const FVector N = Face.Normal;
+					const FRotator ShellTurn(0.f, FMath::RadiansToDegrees(FMath::Atan2(N.Y, N.X)), 0.f);   // local +X into the room
+					auto FacePoint = [&Face](double Along, double Z)
+					{
+						return Face.bAlongX ? FVector(Along, Face.Plane, Z) : FVector(Face.Plane, Along, Z);
+					};
+					// The floor in front at an along-wall position: the highest top under the ceiling 30 cm out.
+					auto FloorAt = [this, &FacePoint, &N, CeilingZ](double Along)
+					{
+						const FVector P = FacePoint(Along, 0.0) + N * 30.0;
+						double Top = -1.0e9;
+						for (const FShieldbreakMapBlock& Other : Layout.Blocks)
+						{
+							if (P.X > Other.Min.X && P.X < Other.Max.X && P.Y > Other.Min.Y && P.Y < Other.Max.Y && Other.Max.Z <= CeilingZ - 300.0)
+							{
+								Top = FMath::Max<double>(Top, Other.Max.Z);
+							}
+						}
+						return Top;
+					};
+					TArray<double, TInlineAllocator<32>> Bases;
+					Bases.Init(0.0, Columns);
+					for (int32 Column = 0; Column < Columns; ++Column)
+					{
+						const double L = Face.A0 + Column * Width, R = L + Width, C = (L + R) * 0.5;
+						const double Base = FloorAt(C);
+						const FVector Mid = FacePoint(C, Base);
+						const bool bWindowWall = (FMath::Abs(Mid.Y) > Half.Y - 200.0 && FMath::Abs(Mid.X) < 3400.0)
+							|| (FMath::Abs(Mid.X) > Half.X - 200.0 && FMath::Abs(Mid.Y) < 1800.0)
+							|| (FMath::Abs(FMath::Abs(Mid.X) - 3900.0) < 100.0 && FMath::Abs(Mid.Y) < 1100.0);
+						bool bOk = Base > -1.0e8 && CeilingZ - Base >= 500.0 && !bWindowWall && InSlice(Mid)
+							&& FMath::IsNearlyEqual(FloorAt(L + 25.0), Base, 1.0) && FMath::IsNearlyEqual(FloorAt(R - 25.0), Base, 1.0);
+						for (double Z = Base + 40.0; bOk && Z < CeilingZ - 20.0; Z += 90.0)
+						{
+							for (const double A : { L + 25.0, C, R - 25.0 })
+							{
+								bOk = bOk && Inside(FacePoint(A, Z) - N * 5.0) && !Inside(FacePoint(A, Z) + N * 15.0)
+									&& !Inside(FacePoint(A, Z) + N * 60.0);
+							}
+							for (const double A : { L - 90.0, R + 90.0 })
+							{
+								bOk = bOk && Inside(FacePoint(A, Z) - N * 5.0);
+							}
+						}
+						for (const double D : { 120.0, 240.0, 360.0 })
+						{
+							for (const double Dz : { 60.0, 200.0 })
+							{
+								for (const double A : { L + 25.0, C, R - 25.0 })
+								{
+									bOk = bOk && !Inside(FacePoint(A, CeilingZ - Dz) + N * D);
+								}
+							}
+						}
+						ShellColumn[Column] = bOk;
+						Bases[Column] = Base;
+					}
+					for (int32 Column = 0; Column < Columns; ++Column)
+					{
+						if (!ShellColumn[Column])
+						{
+							continue;
+						}
+						const double L = Face.A0 + Column * Width, R = L + Width, C = (L + R) * 0.5, Base = Bases[Column];
+						// The kit is authored for a 760 cm room; Keel's are 800 to 1500, so the bay stretches up (the haunch
+						// still meets the ceiling). Along the wall it fills the column exactly.
+						const double ZScale = FMath::Clamp((CeilingZ - Base) / 760.0, 0.6, 2.4);
+						const FVector Back = -N * ShellSetback;
+						const int32 Pick = (Column * 7 + FMath::Abs(FMath::FloorToInt32(Face.Plane / 100.0)) * 3) % 5;
+						UInstancedStaticMeshComponent* BaySet = Pick == 2 && ShellVents ? ShellVents : ShellBays;
+						BaySet->AddInstance(FTransform(ShellTurn, FacePoint(C, Base) + Back, FVector(1.0, Width / 400.0, ZScale)));
+						if (ShellRibs)
+						{
+							// A rib on every joint (the left one of each bay), and one closing the end of each run.
+							ShellRibs->AddInstance(FTransform(ShellTurn, FacePoint(L, Base) + Back, FVector(1.0, 1.0, ZScale)));
+							if (Column + 1 >= Columns || !ShellColumn[Column + 1] || !FMath::IsNearlyEqual(Bases[Column + 1], Base, 1.0))
+							{
+								ShellRibs->AddInstance(FTransform(ShellTurn, FacePoint(R, Base) + Back, FVector(1.0, 1.0, ZScale)));
+							}
+						}
+						FBox Reach(ForceInit);
+						Reach += FacePoint(L, CeilingZ - 450.0);
+						Reach += FacePoint(R, CeilingZ + 10.0) + N * 380.0;
+						ShellReach.Add(Reach);
+					}
+				}
 				for (int32 Column = 0; Column < Columns; ++Column)
 				{
+					if (ShellColumn[Column])
+					{
+						continue;   // the shell bay covers this column
+					}
 					const double Along = Face.A0 + (Column + 0.5) * Width;
 					for (int32 Row = 0; Row < Rows; ++Row)
 					{
@@ -1585,15 +1801,42 @@ bool AShieldbreakArena::BuildKeelPackKit()
 							if (Circuits && Row == 1 && Rows >= 2 && RowHeight > 250.0 && (Column % 5) == 2
 								&& !(FMath::Abs(FMath::Abs(OnFace.X) - 3870.0) < 150.0 && FMath::Abs(OnFace.Y) < 600.0))
 							{
-								((Column / 5 + Row + Rows) % 3 == 0 && CircuitsWarm ? CircuitsWarm : Circuits)->AddInstance(FTransform(Skin, FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight) + Face.Normal * 28.0,
-									FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
+								const FVector PanelCenter = FVector(OnFace.X, OnFace.Y, Z0 + (Row + 0.5) * RowHeight);
+								const bool bWarm = (Column / 5 + Row + Rows) % 3 == 0 && CircuitsWarm;
+								if (!bWarm && BrainTanks)
+								{
+									// The tank (270 x 210 cm, its pivot the centre of its back, local +X out of the wall) sits on the
+									// panel's face, scaled uniformly to the teal panel's footprint.
+									const double TankScale = FMath::Clamp(FMath::Min(Width * 0.78 / 270.0, RowHeight * 0.7 / 210.0), 0.5, 1.3);
+									const FRotator Out(0.f, FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X)), 0.f);
+									const FTransform Tank(Out, PanelCenter + Face.Normal * 27.0, FVector(TankScale));
+									BrainTanks->AddInstance(Tank);
+									BrainTankGlass->AddInstance(Tank);
+									BrainTankLights.Add(Tank.TransformPosition(FVector(52.0, 0.0, 55.0)));
+								}
+								else
+								{
+									(bWarm ? CircuitsWarm : Circuits)->AddInstance(FTransform(Skin, PanelCenter + Face.Normal * 28.0,
+										FVector(Width * 0.78 / 100.0, 0.02, RowHeight * 0.7 / 100.0)));
+								}
 							}
 							// Ledges (option B): the ramps' faceted fascia and curb along every walkable top edge that drops a
 							// metre or more (decks, overwatches, the catwalk). -SBNoKeelLedges turns it off.
 							if (Row == Rows - 1 && Block.Max.Z < CeilingZ - 100.0 && Block.Max.Z - Block.Min.Z >= 100.0
 								&& !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelLedges")))
 							{
-								if (!LedgeEdges)
+								// Keel shell: its edge strip (steel lip, hull fascia, cyan guide line) instead. The strip's
+								// outer face is its local -X, so it turns to face out of the block.
+								if (ShellEdges)
+								{
+									if (!Inside(FVector(OnFace.X, OnFace.Y, Block.Max.Z + 20.0) + Face.Normal * 40.0))
+									{
+										const float Out = FMath::RadiansToDegrees(FMath::Atan2(Face.Normal.Y, Face.Normal.X)) + 180.f;
+										ShellEdges->AddInstance(FTransform(FRotator(0.f, Out, 0.f), FVector(OnFace.X, OnFace.Y, Block.Max.Z),
+											FVector(1.0, Width / 400.0, 1.0)));
+									}
+								}
+								else if (!LedgeEdges)
 								{
 									if (UStaticMesh* EdgeMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienRampEdge.SM_SB_Kit_AlienRampEdge")))
 									{
@@ -1710,7 +1953,12 @@ bool AShieldbreakArena::BuildKeelPackKit()
 					}
 					if (InSlice(Top))
 					{
-						if (Decks)
+						if (ShellFloors)
+						{
+							// Keel shell deck: four rounded plates with tread strips per tile, top 1.4 cm over the collision.
+							ShellFloors->AddInstance(FTransform(FRotator::ZeroRotator, Top + FVector(0.0, 0.0, 0.6), FVector(StepX / 400.0, StepY / 400.0, 1.0)));
+						}
+						else if (Decks)
 						{
 							// The tile's base sits 2 cm under its pivot: lift it clear of the block top (plates end 3.6 cm up).
 							UInstancedStaticMeshComponent* Tiles = DecksPlain && (IX * 7 + IY * 3) % 3 != 0 ? DecksPlain : Decks;
@@ -1939,6 +2187,11 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	// Thick hull ribs across the ceiling every 6 m (Midship's heavy curved structure), 4 m segments wherever the ceiling
 	// is open above a room. -SBNoKeelCeilingRibs turns them off.
 	UInstancedStaticMeshComponent* CeilingRibs = nullptr;
+	// Not where a shell bay's haunch curves into the ceiling (80 cm margin for the rib's own width).
+	auto InShellReach = [&ShellReach](const FVector& Point)
+	{
+		return ShellReach.ContainsByPredicate([&Point](const FBox& Reach) { return Reach.ExpandBy(80.0).IsInside(Point); });
+	};
 	if (bAlienSlice && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelCeilingRibs")))
 	{
 		if (UStaticMesh* RibMesh = ShieldbreakArt::Load<UStaticMesh>(TEXT("/Game/Shieldbreak/Art/MapKit/SM_SB_Kit_AlienCeilingRib.SM_SB_Kit_AlienCeilingRib")))
@@ -1964,7 +2217,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 						for (const double Dz : { -20.0, -60.0 })
 						{
 							const FVector Probe(X, Y + Dy, CeilingZ + Dz);
-							bClear = bClear && !Inside(Probe) && InSlice(Probe);
+							bClear = bClear && !Inside(Probe) && InSlice(Probe) && !InShellReach(Probe);
 						}
 					}
 					if (bClear)
@@ -1979,7 +2232,7 @@ bool AShieldbreakArena::BuildKeelPackKit()
 						for (const double Dy : { -170.0, 170.0 })
 						{
 							const FVector Probe(X + Dx, Y + Dy, CeilingZ - 40.0);
-							bBay = bBay && !Inside(Probe) && InSlice(Probe) && FMath::Abs(Probe.X) < Half.X - 20.0;
+							bBay = bBay && !Inside(Probe) && InSlice(Probe) && FMath::Abs(Probe.X) < Half.X - 20.0 && !InShellReach(Probe);
 						}
 					}
 					if (bBay)
@@ -2006,9 +2259,42 @@ bool AShieldbreakArena::BuildKeelPackKit()
 	}
 	UE_LOG(LogShieldbreak, Log, TEXT("Keel alien kit: ceiling %.0f, %d coves, %d ceiling ribs, %d deck tiles."), CeilingZ,
 		Coves ? Coves->GetInstanceCount() : 0, CeilingRibs ? CeilingRibs->GetInstanceCount() : 0, Decks ? Decks->GetInstanceCount() : 0);
-	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, PanelsD, Glyphs, Circuits, CircuitsWarm, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
+	for (UInstancedStaticMeshComponent* Set : { Panels, PanelsB, PanelsC, PanelsD, Glyphs, Circuits, CircuitsWarm, BrainTanks, BrainTankGlass, Decks, DecksPlain, CeilingRibs, Coves, LedgeEdges, VaultPlates })
 	{
 		if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+	}
+	// Each brain tank is lit softly from inside: one small unshadowed light under its top light bar, whose glow on the wet
+	// tissue gives the highlights (the emissive strips alone left it flat). Capped, so a layout change can't flood Keel.
+	for (int32 Index = 0; Index < FMath::Min(BrainTankLights.Num(), 24); ++Index)
+	{
+		UPointLightComponent* Light = NewObject<UPointLightComponent>(this);
+		Light->SetupAttachment(Root);
+		Light->SetMobility(EComponentMobility::Movable);
+		Light->SetRelativeLocation(BrainTankLights[Index]);
+		Light->SetIntensityUnits(ELightUnits::Candelas);
+		float TankCandelas = 0.5f;
+		FParse::Value(FCommandLine::Get(), TEXT("SBBrainTankLight="), TankCandelas);
+		Light->SetIntensity(TankCandelas);
+		Light->SetAttenuationRadius(260.f);
+		Light->SetSourceRadius(40.f);
+		Light->SetLightColor(FLinearColor(0.78f, 1.f, 0.95f));
+		Light->SetCastShadows(false);
+		Light->RegisterComponent();
+	}
+	if (BrainTanks)
+	{
+		UE_LOG(LogShieldbreak, Log, TEXT("Keel brain tanks: %d (in place of the teal circuit panels), %d lights."),
+			BrainTanks->GetInstanceCount(), FMath::Min(BrainTankLights.Num(), 24));
+	}
+	if (bShell)
+	{
+		UE_LOG(LogShieldbreak, Log, TEXT("Keel shell kit: %d wall bays, %d vent bays, %d ribs, %d deck plates, %d edge strips (visual only)."),
+			ShellBays ? ShellBays->GetInstanceCount() : 0, ShellVents ? ShellVents->GetInstanceCount() : 0, ShellRibs ? ShellRibs->GetInstanceCount() : 0,
+			ShellFloors ? ShellFloors->GetInstanceCount() : 0, ShellEdges ? ShellEdges->GetInstanceCount() : 0);
+		for (UInstancedStaticMeshComponent* Set : { ShellBays, ShellVents, ShellRibs, ShellFloors, ShellEdges })
+		{
+			if (Set) { Set->RegisterComponent(); AddInstanceComponent(Set); }
+		}
 	}
 	for (UInstancedStaticMeshComponent* Set : { SkinWalls, SkinDecks, Underglow })
 	{
@@ -2552,9 +2838,12 @@ void AShieldbreakArena::SpawnLighting()
 	const bool bLumen = ShieldbreakArenaPrivate::UsesLumen();
 	float SunIntensity = 8.f, FillIntensity = bLumen ? 0.f : 1.5f, SkyIntensity = bLumen ? 3.f : 6.f;
 	// Keel's alien look: a dimmer sky light, so the rooms get depth from their own lamps and glows (lx1 comparison).
+	// Keel shell look (2026-11-25): lower still, so a room with no lamp in it stays dark and the glows, lamps and glossy
+	// highlights carry it (docs/KEEL_SHELL_KIT.md). -SBSky= still overrides; -SBNoKeelShell keeps 1.5.
+	const bool bKeelShell = ShieldbreakArenaPrivate::KeelShellOn(MapId);
 	if (MapId == FName(TEXT("Keel")) && bLumen && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")))
 	{
-		SkyIntensity = 1.5f;
+		SkyIntensity = bKeelShell ? 0.5f : 1.5f;
 	}
 	FParse::Value(FCommandLine::Get(), TEXT("SBSun="), SunIntensity);
 	FParse::Value(FCommandLine::Get(), TEXT("SBFill="), FillIntensity);
@@ -2794,6 +3083,21 @@ void AShieldbreakArena::SpawnLighting()
 			// The first shots read washed out (pale walls and floors in full sun): pull exposure down a little.
 			// -SBExposure=<stops> overrides it for comparisons.
 			float ExposureBias = MapId == FName(TEXT("Keel")) && !FParse::Param(FCommandLine::Get(), TEXT("SBNoKeelAlienSlice")) ? -1.1f : -0.4f;
+			// Keel shell look: exposure locked (min = max), so the eye no longer lifts a dark room back to mid grey; dark
+			// rooms stay dark and lit ones read brighter. -SBKeelShellEV=<EV100> sets the lock (-3 chosen on the desktop
+			// 2026-11-25: 1.5 and -1 read near black), -SBKeelShellAutoExposure keeps
+			// auto exposure with the shell. The lock replaces the -1.1 bias; -SBExposure= still adds one.
+			const bool bLockExposure = bKeelShell && !FParse::Param(FCommandLine::Get(), TEXT("SBKeelShellAutoExposure"));
+			if (bLockExposure)
+			{
+				float LockEV = -3.f;
+				FParse::Value(FCommandLine::Get(), TEXT("SBKeelShellEV="), LockEV);
+				ExposureBias = 0.f;
+				Settings.bOverride_AutoExposureMinBrightness = true;
+				Settings.AutoExposureMinBrightness = LockEV;
+				Settings.bOverride_AutoExposureMaxBrightness = true;
+				Settings.AutoExposureMaxBrightness = LockEV;
+			}
 			FParse::Value(FCommandLine::Get(), TEXT("SBExposure="), ExposureBias);
 			Settings.bOverride_AutoExposureBias = true;
 			Settings.AutoExposureBias = ExposureBias;

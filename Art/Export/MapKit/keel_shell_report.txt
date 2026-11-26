@@ -1,0 +1,12 @@
+SM_SB_Kit_KeelShell_WallBay: 41652 tris, X -11.3..362.2 Y -200.0..200.0 Z -9.0..782.0, slots M_ShellSteel, M_ShellHull, M_ShellGlowCyan, M_ShellGlowBlue, M_ShellPlate
+SM_SB_Kit_KeelShell_WallBayVent: 43696 tris, X -11.3..362.2 Y -200.0..200.0 Z -9.0..782.0, slots M_ShellSteel, M_ShellHull, M_ShellGlowCyan, M_ShellGlowBlue, M_ShellPlate, M_ShellGlowAmber
+SM_SB_Kit_KeelShell_WallBayWindow: 35768 tris, X -11.3..362.2 Y -200.0..200.0 Z -9.0..782.0, slots M_ShellSteel, M_ShellHull, M_ShellGlowCyan, M_ShellGlowBlue, M_ShellPlate
+SM_SB_Kit_KeelShell_Rib: 26416 tris, X 5.0..363.1 Y -39.2..39.2 Z -0.6..765.5, slots M_ShellHull, M_ShellSteel, M_ShellGrate, M_ShellGlowBlue, M_ShellPlate
+SM_SB_Kit_KeelShell_RibBeam: 6924 tris, X -209.9..209.9 Y -31.0..31.0 Z -46.2..2.0, slots M_ShellHull, M_ShellPlate, M_ShellGlowBlue, M_ShellSteel
+SM_SB_Kit_KeelShell_CeilingSpine: 5024 tris, X -200.0..200.0 Y -200.0..200.0 Z -7.6..44.0, slots M_ShellHull, M_ShellPlate, M_ShellSteel, M_ShellGrate, M_ShellGlowCyan
+SM_SB_Kit_KeelShell_FloorPlate: 4172 tris, X -200.0..200.0 Y -200.0..200.0 Z -16.0..0.8, slots M_ShellGrate, M_ShellHull, M_ShellSteel
+SM_SB_Kit_KeelShell_FloorGrate: 716 tris, X -200.0..200.0 Y -200.0..200.0 Z -24.0..0.0, slots M_ShellGrate, M_ShellHull, M_ShellGlowBlue
+SM_SB_Kit_KeelShell_EdgeStrip: 3688 tris, X -18.0..4.0 Y -200.0..200.0 Z -37.0..4.5, slots M_ShellHull, M_ShellSteel, M_ShellGlowCyan
+SM_SB_Kit_KeelShell_Pillar: 3600 tris, X -109.1..109.1 Y -94.9..94.9 Z 0.3..599.8, slots M_ShellHull, M_ShellSteel, M_ShellPlate, M_ShellGlowBlue
+SM_SB_Kit_KeelShell_Pylon: 8696 tris, X -98.7..98.7 Y -98.7..98.7 Z 0.1..300.0, slots M_ShellHull, M_ShellPlate, M_ShellSteel, M_ShellGlowBlue
+SM_SB_Kit_KeelShell_Portal: 22460 tris, X -339.8..339.8 Y -40.0..75.5 Z 0.0..469.9, slots M_ShellHull, M_ShellPlate, M_ShellSteel, M_ShellGlowCyan, M_ShellGlowAmber

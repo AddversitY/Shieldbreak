@@ -1,3 +1,19 @@
+**Keel shell desktop test done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-25 23:05 to 2026-11-26 local, worktree on branch `claude/keel-shell-kit`, draft PR #20).**
+- **Build and import:** the shell code compiled first time. All 12 shell meshes imported with Nanite (0 errors).
+- **Self-test:** 177/178 (known hands check). An earlier first run in the fresh worktree was 172/176, with reload "not sampled" misses during shader compiles.
+- **Exposure:** EV 1.5 was near black, so the default lock is now EV -3.
+- **Distance fields:** the shell's Lumen distance fields are now opt-in (`-SBKeelShellDF`); they cost about 30 FPS for no visible change.
+- **Brain tanks (new):** the 22 teal circuit panels became alien-brain specimen tanks, mid-surgery (Nanite tank, glass + haze mesh, wet brain material; `-SBNoKeelBrainTank`).
+- **Deep-space windows (new):** the windows ray-cast a 3D scene with parallax (lit gas giant with atmosphere, moon, layered nebula and stars, debris and ships) behind a reflective glass pane (`-SBKeelFlatSpace`).
+- **FPS, fixed view:** new 113.0, old look 129.1, without tanks/deep space 113.1 (±10% run-to-run noise today).
+- **Not checked:** bay corners and feet against the skirt need a free-roam look.
+- **Where:** details in `docs/KEEL_SHELL_KIT.md`, shots in `docs/playtests/2026-11-25_keel_shell/ingame/`.
+- **Local only:** the Fab packs (Mechanic Base, StarterBundle) were copied into this worktree's git-ignored Content; the main checkout and its uncommitted changes were not touched.
+
+**Keel shell kit fitted in code, cloud only, not built (Claude, 2026-11-25, branch `claude/keel-shell-kit`, draft PR #20).** `AShieldbreakArena` places the shell kit on Keel once `Tools\ImportKeelShell.bat` has imported it (nothing changes before that): curved wall bays and ribs on solid full-height walls, deck plates, edge strips, arched door cowls, and darker lighting (sky light 0.5, exposure locked at EV100 1.5 as a first guess, `-SBKeelShellEV=` to tune). `-SBNoKeelShell` gives the previous look; `Tools\KeelShellShots.bat` takes matched shots of both. Details and what to check first in docs/KEEL_SHELL_KIT.md. **Not compiled or run** (no desktop from the cloud): next desktop session runs `Tools\BuildEditor.bat`, `Tools\ImportKeelShell.bat`, the self-test and `Tools\KeelShellShots.bat`. Desktop not used; no jobs reserved; main untouched.
+
+**Keel shell kit, cloud only, desktop not used (Claude, 2026-11-25, branch `claude/keel-shell-kit`).** Vincent's quality target is a glossy, curved Covenant-style interior. New Blender kit `Art/blender/build_keel_shell_kit.py` (`SM_SB_Kit_KeelShell_*`: leaning wall bays with a ribbed haunch, ribs, ceiling spine, floors, pillar, crystal pylon, arched portal), exported to `Art/Export/MapKit`, previews rendered with Cycles in the cloud (`docs/playtests/2026-11-25_keel_shell/`). `Tools/BuildKeelShell.ps1`, `Tools/ImportKeelShell.bat` (import + Nanite on). Not imported or tested in Unreal; nothing in the game uses it yet. Why Keel looks flat, the placement plan and the lighting changes: `docs/KEEL_SHELL_KIT.md`.
+
 **Hands prototype done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:30-22:00 local, branch `claude/project-thread-kwjmqj`).** `sb.GripFitWide 1` (off by default): sidearm no longer clips; third-person rifle thumb and the intermittent sniper left index remain. Default framing unchanged; self-test 177/178 either way.
 
 **Keel sculpt pass done, desktop released (Claude, DESKTOP-888HMR5, 2026-11-21 21:15-22:10 local, branch `claude/project-thread-kwjmqj`).** Hand-modelled stair treads on Keel; hands-through-guns prototype behind `sb.GripFitWide` (off by default, findings in docs/KEEL_AAA_PASS.md). Self-test 177/178 (known hands check), default framing unchanged.
