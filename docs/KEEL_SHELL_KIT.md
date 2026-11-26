@@ -65,9 +65,98 @@ Nanite, which the 2080 Ti runs. `Tools/ImportKeelShell.bat` imports them and tur
 - Import: `Tools\ImportKeelShell.bat` (narrow import `SM_SB_Kit_KeelShell_*`, then `Tools/enable_keel_shell_nanite.py`).
 - In the cloud the same script runs under the `bpy` 4.5 module: `python Art/blender/build_keel_shell_kit.py --render`.
 
-Not tested in Unreal yet: the import, the Nanite step, the placement code below and any in-game look.
+Tested in Unreal on the desktop 2026-11-25/26: see "Desktop results" below.
 
-## In Keel (code written 2026-11-25, not yet built or run)
+## Desktop results (2026-11-25/26, DESKTOP-888HMR5, worktree on `claude/keel-shell-kit`)
+
+- **Build:** `Tools\BuildEditor.bat` passed first time; the shell code in `ShieldbreakArena.cpp` needed no fixes.
+- **Import:** `Tools\ImportKeelShell.bat` imported all 12 `SM_SB_Kit_KeelShell_*` meshes with Nanite on
+  (`Saved\Logs\KeelShellNanite.txt`: `RESULT 12 meshes`) and created the 7 `MI_SB_Shell*` instances. The log ends
+  "0 error(s), 4 warning(s)"; the warnings are "nearly zero tangents/binormals" on WallBayVent and WallBayWindow.
+- **Self-test:** run 1 was 172/176. The three first-person reload checks failed with "pose not sampled" at 99.5 FPS,
+  on the first run in a fresh worktree (shader compiles). Run 2 was **177/178**, 168.4 FPS with 4 bots; the only
+  failure is the known `Hands never pass through guns`. Keel's shell doesn't touch those Crucible checks.
+- **In Keel:** 36 wall bays, 12 vent bays, 72 ribs, 913 deck plates, 82 edge strips, 22 arched door cowls.
+- **Exposure:** EV100 1.5 (the first guess) and -1 both read near black, with only the emissives showing. **-3 is now
+  the default**: dark and moody, but the room's structure reads (`ingame/Keel_exposure_*`).
+- **Distance fields:** keeping the shell in Lumen's distance-field scene cost 105.6 vs 136.5 fixed-view FPS with no
+  visible change in any shot, so it is **off by default** now; `-SBKeelShellDF` puts it back.
+- **FPS (fixed view, 1280x720):**
+
+  | Run | FPS |
+  | --- | --- |
+  | Shell, everything new (brain tanks, deep-space windows) | 113.0 |
+  | Old look (`-SBNoKeelShell`) | 129.1 |
+  | Shell without tanks and with the flat panorama | 113.1 |
+  | Flat panorama only | 96.0 |
+  | No tanks only | 109.7 |
+
+  Same-build runs moved by about ±10% through the session (the old look measured 176.2 earlier the same evening), so
+  the shell costs roughly 10-15% against the old look, and the tanks and deep-space windows cost nothing measurable.
+- **What the fixed cameras show:**
+  - The arched door cowls read well.
+  - Ribs stand either side of the doors; columns next to doors keep the old panels, as designed (90 cm rule).
+  - The bays are visible at grazing angles in Spawn, Door and Galleries.
+- **Not covered by the fixed cameras:**
+  - No shot frames a corner where two curved bays meet.
+  - The clean shots have no players, so whether feet sink into the 55 cm kick skirt is unchecked.
+  - Both need a free-roam look.
+- Shots: `docs/playtests/2026-11-25_keel_shell/ingame/` (`Keel_shell_*` vs `Keel_old_*`).
+
+## Brain tanks (2026-11-26)
+
+Vincent asked for the teal circuit-glass panel (white-green branching lines in a rounded frame next to a maroon panel)
+to become an alien brain behind glass, mid-surgery. That panel is `M_SB_KeelCircuit` (teal), not the small purple
+`M_SB_KeelGlyph` plaques. It still appeared with the shell (on columns that don't take a bay). Every teal one is now a
+tank (22 in Keel); the amber circuit panels and everything else on the wall are unchanged.
+
+- `Art/blender/build_keel_brain_tank.py` builds the tank: rounded housing with a glass seat, ribbed back plate with a
+  soft light ring, top light bar, retractor clamps, five probes with glowing collars, cables and feed tubes.
+- The brain is sculpted procedurally:
+  - two hemispheres, cerebellum and brain stem;
+  - gyri and sulci from the zero crossings of a domain-warped noise field, a lateral fissure, cerebellar folia;
+  - tissue colour (pale gyri, dark wet sulci, veins) baked into vertex colours.
+- `SM_SB_Kit_KeelBrainTank` (197k tris, Nanite) holds the opaque parts. `SM_SB_Kit_KeelBrainTankGlass` (1.2k tris)
+  holds the bulged front glass and three fluid-haze cards, since Nanite doesn't draw translucency.
+- Preview: `docs/playtests/2026-11-25_keel_shell/keel_brain_tank_preview.jpg` (Cycles, glass hidden).
+- `Tools\ImportKeelBrainTank.bat` imports both meshes, then `Tools/create_keel_brain_tank.py` makes the materials:
+  - `M_SB_KeelBrain`: clear coat for wet tissue, vertex colour base, wetter sulci.
+  - `M_SB_TankGlass`: translucent, per-pixel lit, refraction by IOR, Fresnel opacity, teal edge tint.
+  - `M_SB_TankFluid`: unlit haze panning upward, depth-faded where it cuts the brain.
+- Each tank has a 0.5 cd unshadowed light under its top bar (`-SBBrainTankLight=<cd>`); `-SBNoKeelBrainTank` keeps
+  the teal panels.
+- **Tuned at EV -3:**
+  - The first pass (6 cd light, glow 5, haze 0.16) blew the brain out to white.
+  - Now: light 0.5 cd, glow 1.5, haze density 0.07, darker tint, glass roughness 0.1.
+- **Still to look at in play:**
+  - Up close the brain is still on the bright side.
+  - Tanks on small panels (scale 0.5) read as small boxes from across a room.
+- Shots: `ingame/Keel_tank_console_before/after.jpg`, `ingame/Keel_tank_galleries_before/after.jpg`.
+
+## Deep-space windows (2026-11-26)
+
+The windows were a flat emissive panorama on solid hull blocks, so real geometry behind them would be hidden by the
+wall. `M_SB_KeelDeepSpace` (`Tools/create_keel_deep_space.py`) ray-casts a small 3D scene per pixel instead, in each
+window's own frame. It therefore has true perspective and parallax as the player moves:
+- stars at infinity in two densities, plus glints 120 m out;
+- nebula 3 km out, and wisps 600 m out;
+- the gas giant: a real sphere 4 km out, lit from the left with a soft terminator and limb darkening, slowly turning
+  cloud bands, an atmosphere rim on the lit limb and a halo outside it;
+- a cratered moon;
+- drifting hull debris and two ship silhouettes 90 m and 250 m out.
+
+Textures come from `Art/textures/make_keel_deep_space.py` (original, procedural). A glass pane 3 cm in front
+(`MI_SB_KeelWindowGlass`) adds soft reflections and a teal edge tint. Tools: `Tools\MakeKeelDeepSpace.bat`;
+`-SBKeelFlatSpace` keeps the old panorama.
+
+- **Two fixes on the way:**
+  - The first in-game pass drew a flat oversized disc: the panel's face normal points out of the room, which flipped
+    the frame. The frame is now oriented from the camera side and the ray re-normalised after clamping.
+  - Lamps reflected as large pale discs in the mirror-smooth glass. The glass is now roughness 0.16, specular 0.35.
+- The scene sits in each window's frame, so some windows show the moon and nebula but not the planet.
+- Shots: `ingame/Keel_window_bridge_before/after.jpg`, `ingame/Keel_window_overwatch_before/after.jpg`.
+
+## In Keel (code written 2026-11-25, built and run on the desktop 2026-11-25)
 
 `AShieldbreakArena`, Keel's alien look only, visual only (no collision). It switches on by itself once
 `Tools\ImportKeelShell.bat` has imported the meshes; until then Keel looks exactly as before. **`-SBNoKeelShell`**
@@ -91,12 +180,13 @@ matched shots of both (`Keel_shell_*` and `Keel_old_*`, HUD off, hero cameras in
 5. **Retired where the shell is:** the panel mix, glyph plaques, circuit glass, light seams, skirting slabs, vault
    plates and coves on bay columns; ceiling ribs and coffers where a haunch curves into the ceiling; the Fab pack's
    wall props on the band walls (trays, lamp strips, cables, boxes, panels), which would sit buried inside the bays.
-6. **Lighting** (`SpawnLighting`): sky light 1.5 to 0.5, and exposure locked (min = max = EV100 1.5, bias 0) instead
-   of auto exposure with a -1.1 bias, so a dark room is no longer lifted back to mid grey. **1.5 is a first guess**:
-   tune it with `-SBKeelShellEV=<EV100>` (higher is darker), `-SBSky=<x>`, or `-SBKeelShellAutoExposure` to keep auto
+6. **Lighting** (`SpawnLighting`): sky light 1.5 to 0.5, and exposure locked (min = max = EV100 -3, bias 0) instead
+   of auto exposure with a -1.1 bias, so a dark room is no longer lifted back to mid grey. **-3 was tuned on the
+   desktop** (the first guess, 1.5, was near black). Tune it with `-SBKeelShellEV=<EV100>` (higher is darker), `-SBSky=<x>`, or `-SBKeelShellAutoExposure` to keep auto
    exposure with the shell. `-SBExposure=` still adds a bias.
 7. The kit's meshes keep their own palette instances (`MI_SB_Shell*`, no `ApplyKitSurfaces`) and take part in Lumen's
-   distance-field scene so the curves show in reflections; `-SBKeelShellNoDF` leaves them out to measure the cost.
+   distance-field scene only with `-SBKeelShellDF` (off by default since the desktop test: about 30 FPS for no
+   visible change).
 
 Not used yet: `WallBayWindow` (Keel's window walls keep their views), `CeilingSpine` and `RibBeam` (Keel's rooms are
 halls, not 11 m corridors), `FloorGrate`. `Pillar` and `Pylon` turned out not to fit Keel's columns and reactor
