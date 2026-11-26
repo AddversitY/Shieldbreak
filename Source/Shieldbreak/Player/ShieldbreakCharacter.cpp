@@ -1,5 +1,6 @@
 #include "Player/ShieldbreakCharacter.h"
 #include "Player/ShieldbreakSettings.h"
+#include "Player/ShieldbreakAimAssistSettings.h"
 
 #include "Audio/ShieldbreakCharacterAudio.h"
 #include "Audio/ShieldbreakSFX.h"
@@ -56,19 +57,11 @@ namespace ShieldbreakCharacterPrivate
 	constexpr float DeathCameraBack = 280.f;
 	constexpr float DeathCameraUp = 140.f;
 
-	// Aim assist, Halo-style: friction slows the aim near an enemy, the stick view eases along with them, and the
-	// weapons bend near misses onto the body (bullet magnetism, AShieldbreakWeapon::ApplyMagnetism).
-	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: players get aim assist (slowdown, controller tracking, bullet magnetism). 0: none."));
-	/** Assist cone half-width at the target (cm): about a body's width either side of the chest. */
-	constexpr float AimAssistRadius = 90.f;
-	constexpr float AimAssistMaxRange = 6000.f;
-	/** Stick speed multiplier with the crosshair dead on an enemy. */
-	constexpr float AimAssistFriction = 0.45f;
-	/** Mouse speed multiplier dead on an enemy: a gentle drag, so flicks still feel 1:1. */
-	constexpr float AimAssistMouseFriction = 0.75f;
-	constexpr float AimAssistPullDegreesPerSecond = 9.f;
-	/** Seconds after the last stick input that a player still counts as on a controller. */
-	constexpr float AimAssistMemory = 2.f;
+	// Aim assist, classic console style (docs/AIM_ASSIST.md): friction slows the aim near an enemy, magnetism eases the
+	// view along with them while the player aims or moves, and the weapons bend near misses onto the body (bullet
+	// magnetism, AShieldbreakWeapon::ApplyMagnetism). Controller and mouse have separate profiles and the tuning lives
+	// in UShieldbreakAimAssistSettings (DefaultGame.ini) with sb.AimAssist.* console overrides.
+	TAutoConsoleVariable<int32> CVarAimAssist(TEXT("sb.AimAssist"), 1, TEXT("1: players get aim assist (friction, magnetism, bullet magnetism). 0: none."));
 
 	// Movement feel: forgiving jump timing and a camera that rides over steps instead of snapping.
 	/** A jump pressed this long before landing still goes off on touchdown. */
@@ -805,8 +798,13 @@ void AShieldbreakCharacter::Input_Move(const FInputActionValue& Value)
 
 void AShieldbreakCharacter::Input_Look(const FInputActionValue& Value)
 {
-	// Aim assist slowdown, lighter than on a controller: the mouse drags a little while the crosshair is on an enemy.
-	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, ShieldbreakCharacterPrivate::AimAssistMouseFriction, AimAssistStrength);
+	const FVector2D Raw = Value.Get<FVector2D>();
+	if (!Raw.IsNearlyZero())
+	{
+		NotifyMouseLook();
+	}
+	// Aim assist friction, lighter than on a controller: the mouse drags a little while the crosshair is on an enemy.
+	const FVector2D Axis = Raw * FMath::Lerp(1.f, UShieldbreakAimAssistSettings::GetProfile(false).Friction, AimAssistStrength);
 	// Zoomed aim is slower so the scope stays usable.
 	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
@@ -817,7 +815,7 @@ void AShieldbreakCharacter::Input_LookGamepad(const FInputActionValue& Value)
 {
 	NotifyGamepadLook();
 	// Aim assist friction: the stick turns slower while the crosshair is on or near an enemy.
-	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, ShieldbreakCharacterPrivate::AimAssistFriction, AimAssistStrength);
+	const FVector2D Axis = Value.Get<FVector2D>() * FMath::Lerp(1.f, UShieldbreakAimAssistSettings::GetProfile(true).Friction, AimAssistStrength);
 	const float Scale = (bZoomed ? 0.55f : 1.f) * ShieldbreakSettings::GetSensitivity();
 	AddControllerYawInput(Axis.X * Scale);
 	AddControllerPitchInput((ShieldbreakSettings::GetInvertLook() ? Axis.Y : -Axis.Y) * Scale);
@@ -831,6 +829,14 @@ void AShieldbreakCharacter::NotifyGamepadLook()
 	}
 }
 
+void AShieldbreakCharacter::NotifyMouseLook()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastMouseLookTime = World->GetTimeSeconds();
+	}
+}
+
 bool AShieldbreakCharacter::IsAimAssistEnabled() const
 {
 	return IsPlayerControlled() && ShieldbreakCharacterPrivate::CVarAimAssist.GetValueOnGameThread() != 0 && ShieldbreakSettings::GetAimAssist();
@@ -839,24 +845,34 @@ bool AShieldbreakCharacter::IsAimAssistEnabled() const
 bool AShieldbreakCharacter::IsUsingGamepadLook() const
 {
 	const UWorld* World = GetWorld();
-	return World && World->GetTimeSeconds() - LastGamepadLookTime <= ShieldbreakCharacterPrivate::AimAssistMemory;
+	return World && World->GetTimeSeconds() - LastGamepadLookTime <= UShieldbreakAimAssistSettings::Get().GamepadMemorySeconds;
 }
 
 void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 {
-	using namespace ShieldbreakCharacterPrivate;
 	AimAssistStrength = 0.f;
 	UWorld* World = GetWorld();
 	if (!World || !Controller || !IsAlive() || !IsAimAssistEnabled())
 	{
 		return;
 	}
+	// This input's profile (controller or mouse) and the weapon's own scale (none for explosives, little for an
+	// unscoped sniper).
+	const UShieldbreakAimAssistSettings& Settings = UShieldbreakAimAssistSettings::Get();
+	const bool bController = IsUsingGamepadLook();
+	const FShieldbreakAimAssistProfile Profile = UShieldbreakAimAssistSettings::GetProfile(bController);
+	const float Scale = Profile.Strength * (CurrentWeapon ? CurrentWeapon->GetAimAssistScale(bZoomed) : 1.f);
+	if (Scale <= 0.f)
+	{
+		return;
+	}
 
 	// The enemy closest to the crosshair, measured as an angle against a cone about a body's width wide at their range.
+	// Only enemies in plain sight: the line from the eye to their chest must be clear.
 	const FVector Eye = GetAimOrigin();
 	const FRotator View = Controller->GetControlRotation();
 	const FVector Forward = View.Vector();
-	const float MaxRange = CurrentWeapon ? FMath::Min(CurrentWeapon->GetStats().Range, AimAssistMaxRange) : AimAssistMaxRange;
+	const float MaxRange = CurrentWeapon ? FMath::Min(CurrentWeapon->GetStats().Range, Settings.MaxRange) : Settings.MaxRange;
 	const AShieldbreakCharacter* Best = nullptr;
 	FVector BestPoint = FVector::ZeroVector;
 	float BestScore = 1.f;
@@ -875,7 +891,7 @@ void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 			continue;
 		}
 		const float Angle = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(FVector::DotProduct(ToTarget / Distance, Forward)), -1.f, 1.f)));
-		const float Cone = FMath::RadiansToDegrees(FMath::Atan2(AimAssistRadius, Distance));
+		const float Cone = FMath::RadiansToDegrees(FMath::Atan2(Settings.ConeRadius, Distance));
 		const float Score = Angle / Cone; // < 1 inside the cone
 		if (Score >= BestScore)
 		{
@@ -896,18 +912,20 @@ void AShieldbreakCharacter::UpdateAimAssist(float DeltaSeconds)
 	{
 		return;
 	}
-	AimAssistStrength = 1.f - BestScore;
+	// Closer to the crosshair is stronger, and it fades with range.
+	AimAssistStrength = FMath::Clamp((1.f - BestScore) * Settings.RangeFactor(static_cast<float>(FVector::Dist(Eye, BestPoint))) * Scale, 0.f, 1.f);
 
 	// Magnetism: ease the view toward the target, gently, and only while the player is aiming or moving (it helps
-	// track a strafing enemy; it never snaps or aims for a player who isn't touching the controls).
-	// Mouse players only get the slowdown: a mouse aims precisely and the pull would feel like the view drifting.
-	const bool bActive = IsUsingGamepadLook()
-		&& (GetLastMovementInputVector().SizeSquared() > 0.01f || World->GetTimeSeconds() - LastGamepadLookTime < 0.1f);
-	if (bActive)
+	// track a strafing enemy; it never snaps, and never aims for a player who isn't touching the controls). Both inputs
+	// get it; the mouse profile's pull is slower.
+	const float Now = World->GetTimeSeconds();
+	const float LastLook = FMath::Max(LastGamepadLookTime, LastMouseLookTime);
+	const bool bActive = GetLastMovementInputVector().SizeSquared() > 0.01f || Now - LastLook < Settings.ActiveInputSeconds;
+	if (bActive && Profile.PullDegreesPerSecond > 0.f)
 	{
 		const FRotator ToTarget = (BestPoint - Eye).Rotation();
 		const FRotator Delta = (ToTarget - View).GetNormalized();
-		const float Step = AimAssistPullDegreesPerSecond * AimAssistStrength * DeltaSeconds;
+		const float Step = Profile.PullDegreesPerSecond * AimAssistStrength * DeltaSeconds;
 		FRotator NewView = View;
 		NewView.Yaw += FMath::Clamp(Delta.Yaw, -Step, Step);
 		NewView.Pitch += FMath::Clamp(Delta.Pitch, -Step, Step);

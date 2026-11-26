@@ -3215,6 +3215,12 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			const FVector NearMiss = (Chest + FVector(0.f, 50.f, 0.f) - Origin).GetSafeNormal();  // 12 cm past the edge at 10 m
 			const FVector WideMiss = (Chest + FVector(0.f, 150.f, 0.f) - Origin).GetSafeNormal(); // over a metre wide
 			const FVector OnTarget = (Chest + FVector(0.f, 15.f, 0.f) - Origin).GetSafeNormal();
+			// With the mouse (A has never touched a controller): a lighter cone, about 11 cm of reach at 10 m.
+			const FVector SmallMiss = (Chest + FVector(0.f, 44.f, 0.f) - Origin).GetSafeNormal(); // 6 cm past the edge
+			Check(TEXT("Mouse bullet magnetism bends a small miss, not a wider one"), !A->IsUsingGamepadLook() && !HitsB(SmallMiss)
+				&& HitsB(Weapon->ApplyMagnetism(Origin, SmallMiss)) && Weapon->ApplyMagnetism(Origin, NearMiss).Equals(NearMiss, 1e-4f));
+			// The rest with the controller profile (the full cone).
+			A->NotifyGamepadLook();
 			const FVector Bent = Weapon->ApplyMagnetism(Origin, NearMiss);
 			Check(TEXT("Bullet magnetism bends a near miss onto the enemy"), !HitsB(NearMiss) && HitsB(Bent),
 				FString::Printf(TEXT("bent %s deg"), *Num(FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(static_cast<float>(Bent | NearMiss), -1.f, 1.f))))));
@@ -3262,10 +3268,163 @@ void AShieldbreakSelfTest::BuildPresentationSteps()
 			const float Yaw = static_cast<float>(FRotator::NormalizeAxis(Controller->GetControlRotation().Yaw));
 			Check(TEXT("Aim slowdown works with a mouse"), A->GetAimAssistStrength() > 0.5f && !A->IsUsingGamepadLook(),
 				FString::Printf(TEXT("strength %s"), *ShieldbreakSelfTestPrivate::Num(A->GetAimAssistStrength())));
-			Check(TEXT("...without pulling a mouse player's view"), FMath::Abs(Yaw) < 0.01f, FString::Printf(TEXT("yaw %s"), *ShieldbreakSelfTestPrivate::Num(Yaw)));
+			Check(TEXT("...and never moves an idle mouse player's view"), FMath::Abs(Yaw) < 0.01f, FString::Printf(TEXT("yaw %s"), *ShieldbreakSelfTestPrivate::Num(Yaw)));
 			ClearDummies();
 			return true;
 		}, 3.f });
+
+	// ---- Aim assist (docs/AIM_ASSIST.md): an enemy 10 m ahead, 40 cm off the crosshair, with the stick or the mouse in
+	// use for a second. Mouse magnetism, line of sight, the off switch and the separate mouse / controller strengths. ----
+	{
+		auto AddAssistStep = [this](const TCHAR* Name, bool bWall, bool bController, const TCHAR* CVarName, float CVarValue,
+			TFunction<void(float, float, float)> Evaluate)
+		{
+			TSharedRef<float> StartError = MakeShared<float>(0.f);
+			TSharedRef<TWeakObjectPtr<AActor>> Wall = MakeShared<TWeakObjectPtr<AActor>>();
+			TSharedRef<FString> CVarWas = MakeShared<FString>();
+			const FString StepName(Name);
+			const FString CVar(CVarName ? CVarName : TEXT(""));
+			Steps.Add({ Name,
+				[this, bWall, Wall, CVar, CVarValue, CVarWas]()
+				{
+					using namespace ShieldbreakSelfTestPrivate;
+					ClearDummies();
+					A = PossessLocalDummy(FTransform(RangeA + FVector(0.f, 0.f, 1500.f)));
+					B = SpawnDummy(RangeA + FVector(1000.f, 40.f, 1500.f), 180.f, false);
+					for (AShieldbreakCharacter* Dummy : { A.Get(), B.Get() })
+					{
+						if (Dummy && Dummy->GetCharacterMovement())
+						{
+							Dummy->GetCharacterMovement()->StopMovementImmediately();
+							Dummy->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+						}
+					}
+					if (bWall)
+					{
+						// A 4 x 4 m slab halfway between them: the enemy is in the cone but not in sight.
+						FActorSpawnParameters Params;
+						Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						AStaticMeshActor* Slab = GetWorld()->SpawnActor<AStaticMeshActor>(RangeA + FVector(500.f, 20.f, 1530.f), FRotator::ZeroRotator, Params);
+						if (Slab)
+						{
+							Slab->SetMobility(EComponentMobility::Movable);
+							Slab->GetStaticMeshComponent()->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
+							Slab->GetStaticMeshComponent()->SetCollisionProfileName(TEXT("BlockAll"));
+							Slab->SetActorScale3D(FVector(0.2f, 4.f, 4.f));
+						}
+						*Wall = Slab;
+					}
+					if (IConsoleVariable* Var = CVar.IsEmpty() ? nullptr : IConsoleManager::Get().FindConsoleVariable(*CVar))
+					{
+						*CVarWas = Var->GetString();
+						Var->Set(CVarValue, ECVF_SetByCode);
+					}
+				},
+				[this, StepName, bController, StartError, Wall, CVar, CVarWas, Evaluate](float Elapsed)
+				{
+					AShieldbreakCharacter* Player = A.Get();
+					AController* PlayerController = Player ? Player->GetController() : nullptr;
+					auto Finish = [this, Wall, CVar, CVarWas]()
+					{
+						if (IConsoleVariable* Var = CVar.IsEmpty() ? nullptr : IConsoleManager::Get().FindConsoleVariable(*CVar))
+						{
+							Var->Set(**CVarWas, ECVF_SetByCode);
+						}
+						if (AActor* Slab = Wall->Get())
+						{
+							Slab->Destroy();
+						}
+						ClearDummies();
+					};
+					if (!PlayerController || !B)
+					{
+						Check(*StepName, false, TEXT("no local pawn or target"));
+						Finish();
+						return true;
+					}
+					auto YawError = [Player, this]()
+					{
+						const FVector To = B->GetActorLocation() + FVector(0.f, 0.f, 30.f) - Player->GetAimOrigin();
+						return static_cast<float>(FMath::Abs(FRotator::NormalizeAxis(To.Rotation().Yaw - Player->GetControlRotation().Yaw)));
+					};
+					if (Elapsed < 0.5f)
+					{
+						PlayerController->SetControlRotation(FRotator::ZeroRotator);
+						*StartError = YawError();
+						return false;
+					}
+					// As if the stick or the mouse were being used (without actually turning).
+					if (bController)
+					{
+						Player->NotifyGamepadLook();
+					}
+					else
+					{
+						Player->NotifyMouseLook();
+					}
+					if (Elapsed < 1.5f)
+					{
+						return false;
+					}
+					Evaluate(*StartError, YawError(), Player->GetAimAssistStrength());
+					Finish();
+					return true;
+				}, 5.f });
+		};
+		auto Detail = [](float Start, float Error, float Strength)
+		{
+			return FString::Printf(TEXT("yaw error %.2f -> %.2f deg, strength %.2f"), Start, Error, Strength);
+		};
+		AddAssistStep(TEXT("Mouse aim assist follows a nearby enemy"), false, false, nullptr, 0.f,
+			[this, Detail](float Start, float Error, float Strength)
+			{
+				Check(TEXT("Mouse aim assist follows a nearby enemy"), Error < Start * 0.5f && Strength > 0.4f, Detail(Start, Error, Strength));
+			});
+		AddAssistStep(TEXT("Aim assist ignores an enemy behind a wall"), true, true, nullptr, 0.f,
+			[this, Detail](float Start, float Error, float Strength)
+			{
+				Check(TEXT("Aim assist ignores an enemy behind a wall"), Strength == 0.f && FMath::Abs(Error - Start) < 0.01f, Detail(Start, Error, Strength));
+			});
+		AddAssistStep(TEXT("sb.AimAssist 0 turns aim assist off"), false, true, TEXT("sb.AimAssist"), 0.f,
+			[this, Detail](float Start, float Error, float Strength)
+			{
+				Check(TEXT("sb.AimAssist 0 turns aim assist off"), Strength == 0.f && FMath::Abs(Error - Start) < 0.01f, Detail(Start, Error, Strength));
+			});
+		AddAssistStep(TEXT("Mouse strength 0 turns off mouse aim assist"), false, false, TEXT("sb.AimAssist.MouseStrength"), 0.f,
+			[this, Detail](float Start, float Error, float Strength)
+			{
+				Check(TEXT("Mouse strength 0 turns off mouse aim assist"), Strength == 0.f && FMath::Abs(Error - Start) < 0.01f, Detail(Start, Error, Strength));
+			});
+		AddAssistStep(TEXT("...while the controller keeps its own"), false, true, TEXT("sb.AimAssist.MouseStrength"), 0.f,
+			[this, Detail](float Start, float Error, float Strength)
+			{
+				Check(TEXT("...while the controller keeps its own"), Error < Start * 0.5f && Strength > 0.4f, Detail(Start, Error, Strength));
+			});
+		Steps.Add({ TEXT("Bots and explosives get no aim assist"),
+			[this]()
+			{
+				ClearDummies();
+				B = SpawnDummy(ShieldbreakSelfTestPrivate::RangeA + FVector(0.f, 300.f, 1500.f), 0.f, true);
+			},
+			[this](float Elapsed)
+			{
+				if (Elapsed < 0.3f)
+				{
+					return false;
+				}
+				Check(TEXT("Bots and explosives get no aim assist"), B && !B->IsPlayerControlled() && !B->IsAimAssistEnabled(),
+					FString::Printf(TEXT("bot %s"), B ? *GetNameSafe(B->GetController()) : TEXT("missing")));
+				const AShieldbreakWeapon* Rocket = GetDefault<AWeapon_RocketLauncher>();
+				const AShieldbreakWeapon* Sniper = GetDefault<AWeapon_SniperRifle>();
+				const AShieldbreakWeapon* Rifle = GetDefault<AWeapon_BattleRifle>();
+				Check(TEXT("...the rocket launcher has none, the sniper helps less unscoped"),
+					Rocket->GetAimAssistScale(false) == 0.f && Rocket->GetAimAssistScale(true) == 0.f
+						&& Sniper->GetAimAssistScale(false) < Sniper->GetAimAssistScale(true) && Rifle->GetAimAssistScale(false) == 1.f,
+					FString::Printf(TEXT("rocket %.2f, sniper %.2f / %.2f scoped"), Rocket->GetAimAssistScale(false), Sniper->GetAimAssistScale(false), Sniper->GetAimAssistScale(true)));
+				ClearDummies();
+				return true;
+			}, 3.f });
+	}
 
 	// ---- Hit markers: every damage source tells the shooter whether it hit shield, popped it, or killed. ----
 	Steps.Add({ TEXT("Hit markers report shield hits, shield pops and kills"),

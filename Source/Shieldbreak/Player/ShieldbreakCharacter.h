@@ -122,11 +122,14 @@ public:
 
 	/** Treats this player as using a controller for aim assist (input calls it; the self-test too). */
 	void NotifyGamepadLook();
-	/** 0..1: how close the crosshair is to an enemy (drives the slowdown). */
+	/** Records mouse look input (it switches magnetism on for a moment; input calls it, the self-test too). */
+	void NotifyMouseLook();
+	/** 0..1: how close the crosshair is to an enemy, after range falloff and the input and weapon scales (drives the
+	 *  slowdown and the pull). */
 	float GetAimAssistStrength() const { return AimAssistStrength; }
 	/** A human player with aim assist on (the Aim assist setting and sb.AimAssist). Bots never get it. */
 	bool IsAimAssistEnabled() const;
-	/** True while the right stick was used recently: full slowdown and tracking. Mouse players get a lighter slowdown. */
+	/** True while the right stick was used recently: the controller profile applies; otherwise the (lighter) mouse one. */
 	bool IsUsingGamepadLook() const;
 
 	// ---- Action animations (cosmetic) ----
@@ -246,7 +249,7 @@ private:
 	void Input_Move(const FInputActionValue& Value);
 	void Input_Look(const FInputActionValue& Value);
 	void Input_LookGamepad(const FInputActionValue& Value);
-	/** Aim assist (local player only): slows the aim over an enemy and, on a controller, gently tracks them. */
+	/** Aim assist (local player only): slows the aim over an enemy and gently follows them while the player aims. */
 	void UpdateAimAssist(float DeltaSeconds);
 	void Input_JumpStarted();
 	void Input_JumpCompleted();
@@ -359,8 +362,10 @@ private:
 	/** The armor can attach after the first tint; the suit material is swapped in when it does. */
 	bool bAppliedArmored = false;
 	float LastLocalMeleeTime = -100.f;
-	/** Last time the right stick moved the view; aim assist only helps controller players. */
+	/** Last time the right stick moved the view (picks the controller aim assist profile). */
 	float LastGamepadLookTime = -100.f;
+	/** Last time the mouse moved the view (magnetism follows only while the player is aiming or moving). */
+	float LastMouseLookTime = -100.f;
 	/** 0..1: how close the crosshair is to an enemy (aim assist friction). */
 	float AimAssistStrength = 0.f;
 	float LastServerMeleeTime = -100.f;

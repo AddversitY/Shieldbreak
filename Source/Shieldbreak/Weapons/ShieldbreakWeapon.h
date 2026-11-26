@@ -85,6 +85,10 @@ struct SHIELDBREAK_API FShieldbreakWeaponStats
 	 *  of an enemy's body bends onto it. 0 = none. Full strength out to half of MagnetismRange, fading to 0 at it. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float MagnetismDegrees = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float MagnetismRange = 0.f;
+	/** Scale on all aim assist with this weapon (friction, magnetism and bullet magnetism; docs/AIM_ASSIST.md). 0 = none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float AimAssistScale = 1.f;
+	/** The same scale while not zoomed, for weapons that should only help through the scope. -1 = AimAssistScale. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Aim Assist") float AimAssistUnzoomedScale = -1.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FLinearColor Color = FLinearColor(0.2f, 0.2f, 0.2f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") FLinearColor TracerColor = FLinearColor(1.f, 0.85f, 0.4f);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon") TSubclassOf<UDamageType> DamageType;
@@ -117,6 +121,11 @@ public:
 	virtual void OnRep_AttachmentReplication() override {}
 
 	const FShieldbreakWeaponStats& GetStats() const { return Stats; }
+	/** This weapon's aim assist scale (0..1), zoomed or not. */
+	float GetAimAssistScale(bool bZoomed) const
+	{
+		return FMath::Clamp(!bZoomed && Stats.AimAssistUnzoomedScale >= 0.f ? Stats.AimAssistUnzoomedScale : Stats.AimAssistScale, 0.f, 1.f);
+	}
 	/** The weapon's art mesh (ArtMesh, else ArtMeshFallback), or null for the greybox. */
 	static UStaticMesh* LoadArtMesh(const FShieldbreakWeaponStats& WeaponStats);
 

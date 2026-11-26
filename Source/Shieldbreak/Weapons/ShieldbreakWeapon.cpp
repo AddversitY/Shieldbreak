@@ -1,4 +1,5 @@
 #include "Weapons/ShieldbreakWeapon.h"
+#include "Player/ShieldbreakAimAssistSettings.h"
 
 #include "Components/AudioComponent.h"
 
@@ -648,6 +649,15 @@ FVector AShieldbreakWeapon::ApplyMagnetism(const FVector& Origin, const FVector&
 	{
 		return Direction;
 	}
+	// The shooter's input (controller or mouse profile, docs/AIM_ASSIST.md) and this weapon's scale. Capped at the
+	// weapon's own cone, which is what the server's shot check allows.
+	const FShieldbreakAimAssistProfile Profile = UShieldbreakAimAssistSettings::GetProfile(OwnerCharacter->IsUsingGamepadLook());
+	const float MagnetismDegrees = Stats.MagnetismDegrees
+		* FMath::Clamp(Profile.Strength * Profile.BulletMagnetism * GetAimAssistScale(OwnerCharacter->IsZoomed()), 0.f, 1.f);
+	if (MagnetismDegrees <= 0.f)
+	{
+		return Direction;
+	}
 	const FVector Dir = Direction.GetSafeNormal();
 
 	// A shot that already hits someone (or something closer) is left exactly as aimed: magnetism never pulls a
@@ -689,7 +699,7 @@ FVector AShieldbreakWeapon::ApplyMagnetism(const FVector& Origin, const FVector&
 		// Extra reach past the body's edge: MagnetismDegrees wide, never more than MagnetismMaxMiss, at full strength
 		// to half range and then fading out, so long shots still need a steady hand.
 		const float Falloff = FMath::Clamp(2.f * (1.f - Distance / Range), 0.f, 1.f);
-		const float Reach = FMath::Min(Distance * FMath::Tan(FMath::DegreesToRadians(Stats.MagnetismDegrees)), MagnetismMaxMiss) * Falloff;
+		const float Reach = FMath::Min(Distance * FMath::Tan(FMath::DegreesToRadians(MagnetismDegrees)), MagnetismMaxMiss) * Falloff;
 		const float Miss = static_cast<float>(FVector::Dist(OnRay, OnBody)) - MagnetismBodyRadius;
 		if (Reach <= 1.f || Miss >= Reach)
 		{

@@ -67,6 +67,8 @@ AWeapon_SniperRifle::AWeapon_SniperRifle()
 	// Sniper: a small cone, so the shot still has to be lined up.
 	Stats.MagnetismDegrees = 0.5f;
 	Stats.MagnetismRange = 12000.f;
+	// Aim assist only through the scope: hip-fired sniper shots get a quarter.
+	Stats.AimAssistUnzoomedScale = 0.25f;
 	Stats.Color = FLinearColor(0.12f, 0.12f, 0.14f);
 	Stats.TracerColor = FLinearColor(1.f, 1.f, 0.9f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
@@ -95,6 +97,8 @@ AWeapon_RocketLauncher::AWeapon_RocketLauncher()
 	Stats.ReloadTime = 3.f;
 	Stats.ZoomFOV = 50.f;
 	Stats.RecoilPitch = 2.5f;
+	// Explosives get no aim assist at all.
+	Stats.AimAssistScale = 0.f;
 	Stats.Color = FLinearColor(0.25f, 0.3f, 0.2f);
 	Stats.TracerColor = FLinearColor(1.f, 0.6f, 0.2f);
 	Stats.DamageType = UDamageType_Explosive::StaticClass();
@@ -162,9 +166,10 @@ AWeapon_RailLance::AWeapon_RailLance()
 	Stats.ReloadTime = 0.f;
 	Stats.ZoomFOV = 45.f;
 	Stats.RecoilPitch = 1.5f;
-	// Rail Lance.
+	// Rail Lance: a one-shot charge weapon, so somewhat less help than the rifles.
 	Stats.MagnetismDegrees = 0.7f;
 	Stats.MagnetismRange = 9000.f;
+	Stats.AimAssistScale = 0.7f;
 	Stats.Color = FLinearColor(0.85f, 0.88f, 0.92f);
 	Stats.TracerColor = FLinearColor(0.2f, 0.95f, 1.f);
 	Stats.DamageType = UDamageType_Ballistic::StaticClass();
